@@ -34,6 +34,8 @@ function SoftSpot({ top, left, color, baseSize }) {
     </View>
   );
 }
+
+export default function AppBackground({ children }) {
   const breathe = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
