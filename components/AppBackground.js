@@ -4,7 +4,36 @@ import { colors } from '../constants/theme';
 
 const { width, height } = Dimensions.get('window');
 
-export default function AppBackground({ children }) {
+function SoftSpot({ top, left, color, baseSize }) {
+  const layers = [
+    { scale: 1.6, opacity: 0.05 },
+    { scale: 1.2, opacity: 0.08 },
+    { scale: 0.85, opacity: 0.12 },
+    { scale: 0.5, opacity: 0.16 },
+  ];
+  return (
+    <View style={{ position: 'absolute', top, left }} pointerEvents="none">
+      {layers.map((layer, idx) => {
+        const size = baseSize * layer.scale;
+        return (
+          <View
+            key={idx}
+            style={{
+              position: 'absolute',
+              width: size,
+              height: size,
+              borderRadius: size / 2,
+              backgroundColor: color,
+              opacity: layer.opacity,
+              top: -size / 2 + (baseSize / 2) * 0,
+              left: -size / 2 + (baseSize / 2) * 0,
+            }}
+          />
+        );
+      })}
+    </View>
+  );
+}
   const breathe = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -18,18 +47,18 @@ export default function AppBackground({ children }) {
     return () => loop.stop();
   }, []);
 
-  const spotOpacity = breathe.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] });
+  const spotOpacity = breathe.interpolate({ inputRange: [0, 1], outputRange: [0.55, 0.9] });
 
   return (
     <View style={styles.container}>
       {/* Базовый цвет фона */}
       <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg }]} />
 
-      {/* Дышащие цветные пятна (лёгкие полупрозрачные круги) */}
+      {/* Дышащие цветные пятна (мягкое многослойное свечение) */}
       <Animated.View style={[StyleSheet.absoluteFill, { opacity: spotOpacity }]} pointerEvents="none">
-        <View style={[styles.spot, { top: -height * 0.15, left: -width * 0.25, backgroundColor: colors.olive }]} />
-        <View style={[styles.spot, { top: -height * 0.2, left: width * 0.4, backgroundColor: colors.blue }]} />
-        <View style={[styles.spot, { top: height * 0.5, left: width * 0.05, backgroundColor: colors.green }]} />
+        <SoftSpot top={-height * 0.05} left={-width * 0.1} color={colors.olive} baseSize={width * 0.7} />
+        <SoftSpot top={-height * 0.08} left={width * 0.55} color={colors.blue} baseSize={width * 0.7} />
+        <SoftSpot top={height * 0.55} left={width * 0.15} color={colors.green} baseSize={width * 0.7} />
       </Animated.View>
 
       {/* Контент экрана */}
@@ -41,12 +70,4 @@ export default function AppBackground({ children }) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { flex: 1, zIndex: 1 },
-  spot: {
-    position: 'absolute',
-    width: width * 0.9,
-    height: width * 0.9,
-    borderRadius: width * 0.45,
-    opacity: 0.45,
-    transform: [{ scaleY: 0.6 }],
-  },
 });
