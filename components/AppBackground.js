@@ -18,7 +18,7 @@ export default function AppBackground({ children }) {
     return () => loop.stop();
   }, []);
 
-  const spotOpacity = breathe.interpolate({ inputRange: [0, 1], outputRange: [0.55, 0.9] });
+  const spotOpacity = breathe.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] });
 
   return (
     <View style={styles.container}>
@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
     width: width * 0.9,
     height: width * 0.9,
     borderRadius: width * 0.45,
-    opacity: 0.18,
+    opacity: 0.45,
     transform: [{ scaleY: 0.6 }],
   },
 });
