@@ -20,12 +20,12 @@ export default function LoyaltyScreen({ navigation }) {
         <MetalButton
           title="👤 Регистрация клиента"
           variant="default"
-          onPress={() => {/* navigation.navigate('Reg') */}}
+          onPress={() => navigation.navigate('Login')}
         />
         <MetalButton
           title="🔍 Поиск клиента"
           variant="default"
-          onPress={() => {/* navigation.navigate('Search') */}}
+          onPress={() => navigation.navigate('Login')}
         />
       </MetalCard>
     </ScrollView>
