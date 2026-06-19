@@ -1,30 +1,33 @@
 import React from 'react';
 import { View, Text, Image, StyleSheet, ScrollView } from 'react-native';
 import MetalButton from '../components/MetalButton';
+import BottomBar from '../components/BottomBar';
 import { colors, fonts, spacing } from '../constants/theme';
 
 export default function DashboardScreen({ navigation }) {
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
-      <View style={styles.brandHeader}>
-        <Image
-          source={{ uri: 'https://i.ibb.co/hRZxPz8b/19-20260514150523.png' }}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-        <Text style={styles.roleText}>☕ Бариста · Смена не открыта</Text>
-      </View>
+    <View style={{ flex: 1 }}>
+      <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
+        <View style={styles.brandHeader}>
+          <Image
+            source={{ uri: 'https://i.ibb.co/hRZxPz8b/19-20260514150523.png' }}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <Text style={styles.roleText}>☕ Бариста · Смена не открыта</Text>
+        </View>
 
-      <View style={styles.grid}>
-        <MetalButton title="☕ Новый заказ" variant="action" style={styles.gridBtn} onPress={() => {}} />
-        <MetalButton title="👥 Лояльность" variant="pay" style={styles.gridBtn} onPress={() => navigation.navigate('ClientsList')} />
-        <MetalButton title="📊 Продажи" variant="success" style={styles.gridBtn} onPress={() => {}} />
-      </View>
+        <View style={styles.grid}>
+          <MetalButton title="☕ Новый заказ" variant="action" style={styles.gridBtn} onPress={() => {}} />
+          <MetalButton title="👥 Лояльность" variant="pay" style={styles.gridBtn} onPress={() => navigation.navigate('ClientsList')} />
+          <MetalButton title="📊 Продажи" variant="success" style={styles.gridBtn} onPress={() => {}} />
+        </View>
 
-      <MetalButton title="🔄 Сменить аккаунт" variant="back" onPress={() => {}} />
-      <MetalButton title="🚪 Закрыть смену" variant="danger" onPress={() => {}} />
-      <MetalButton title="← Назад" variant="back" onPress={() => navigation.navigate('Login')} />
-    </ScrollView>
+        <MetalButton title="🔄 Сменить аккаунт" variant="back" onPress={() => {}} />
+        <MetalButton title="🚪 Закрыть смену" variant="danger" onPress={() => {}} />
+      </ScrollView>
+      <BottomBar navigation={navigation} activeTab="Login" />
+    </View>
   );
 }
 
