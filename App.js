@@ -15,6 +15,7 @@ import AppBackground from './components/AppBackground';
 import LoyaltyScreen from './screens/LoyaltyScreen';
 import LoginScreen from './screens/LoginScreen';
 import DashboardScreen from './screens/DashboardScreen';
+import KassaScreen from './screens/KassaScreen';
 import RegScreen from './screens/RegScreen';
 import RegResultScreen from './screens/RegResultScreen';
 import SearchScreen from './screens/SearchScreen';
@@ -74,6 +75,7 @@ export default function App() {
             <Stack.Screen name="Loyalty" component={LoyaltyScreen} />
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Dashboard" component={DashboardScreen} />
+            <Stack.Screen name="Kassa" component={KassaScreen} />
             <Stack.Screen name="Reg" component={RegScreen} />
             <Stack.Screen name="RegResult" component={RegResultScreen} />
             <Stack.Screen name="Search" component={SearchScreen} />

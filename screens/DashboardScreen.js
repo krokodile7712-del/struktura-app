@@ -18,7 +18,7 @@ export default function DashboardScreen({ navigation }) {
         </View>
 
         <View style={styles.grid}>
-          <MetalButton title="☕ Новый заказ" variant="action" style={styles.gridBtn} onPress={() => {}} />
+          <MetalButton title="☕ Новый заказ" variant="action" style={styles.gridBtn} onPress={() => navigation.navigate('Kassa')} />
           <MetalButton title="👥 Лояльность" variant="pay" style={styles.gridBtn} onPress={() => navigation.navigate('ClientsList')} />
           <MetalButton title="📊 Продажи" variant="success" style={styles.gridBtn} onPress={() => {}} />
         </View>
