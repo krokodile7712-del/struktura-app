@@ -15,11 +15,15 @@ import AppBackground from './components/AppBackground';
 import LoyaltyScreen from './screens/LoyaltyScreen';
 import LoginScreen from './screens/LoginScreen';
 import DashboardScreen from './screens/DashboardScreen';
+import RegScreen from './screens/RegScreen';
+import RegResultScreen from './screens/RegResultScreen';
+import SearchScreen from './screens/SearchScreen';
+import ClientCardScreen from './screens/ClientCardScreen';
+import ClientsListScreen from './screens/ClientsListScreen';
 import { colors } from './constants/theme';
 
 const Stack = createNativeStackNavigator();
 
-// Тема навигации — фон навигатора тоже тёмный, чтобы не было белых вспышек при переходах
 const navTheme = {
   dark: true,
   colors: {
@@ -70,6 +74,11 @@ export default function App() {
             <Stack.Screen name="Loyalty" component={LoyaltyScreen} />
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Dashboard" component={DashboardScreen} />
+            <Stack.Screen name="Reg" component={RegScreen} />
+            <Stack.Screen name="RegResult" component={RegResultScreen} />
+            <Stack.Screen name="Search" component={SearchScreen} />
+            <Stack.Screen name="ClientCard" component={ClientCardScreen} />
+            <Stack.Screen name="ClientsList" component={ClientsListScreen} />
           </Stack.Navigator>
         </AppBackground>
       </NavigationContainer>
