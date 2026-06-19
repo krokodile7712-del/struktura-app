@@ -16,6 +16,10 @@ import LoyaltyScreen from './screens/LoyaltyScreen';
 import LoginScreen from './screens/LoginScreen';
 import DashboardScreen from './screens/DashboardScreen';
 import KassaScreen from './screens/KassaScreen';
+import ShiftScreen from './screens/ShiftScreen';
+import ShiftCloseScreen from './screens/ShiftCloseScreen';
+import SalesScreen from './screens/SalesScreen';
+import StockScreen from './screens/StockScreen';
 import RegScreen from './screens/RegScreen';
 import RegResultScreen from './screens/RegResultScreen';
 import SearchScreen from './screens/SearchScreen';
@@ -76,6 +80,10 @@ export default function App() {
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Dashboard" component={DashboardScreen} />
             <Stack.Screen name="Kassa" component={KassaScreen} />
+            <Stack.Screen name="Shift" component={ShiftScreen} />
+            <Stack.Screen name="ShiftClose" component={ShiftCloseScreen} />
+            <Stack.Screen name="Sales" component={SalesScreen} />
+            <Stack.Screen name="Stock" component={StockScreen} />
             <Stack.Screen name="Reg" component={RegScreen} />
             <Stack.Screen name="RegResult" component={RegResultScreen} />
             <Stack.Screen name="Search" component={SearchScreen} />
