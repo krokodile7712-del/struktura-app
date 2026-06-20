@@ -25,6 +25,8 @@ import RegResultScreen from './screens/RegResultScreen';
 import SearchScreen from './screens/SearchScreen';
 import ClientCardScreen from './screens/ClientCardScreen';
 import ClientsListScreen from './screens/ClientsListScreen';
+import CostCardsScreen from './screens/CostCardsScreen';
+import ExpensesScreen from './screens/ExpensesScreen';
 import { colors } from './constants/theme';
 
 const Stack = createNativeStackNavigator();
@@ -89,6 +91,8 @@ export default function App() {
             <Stack.Screen name="Search" component={SearchScreen} />
             <Stack.Screen name="ClientCard" component={ClientCardScreen} />
             <Stack.Screen name="ClientsList" component={ClientsListScreen} />
+            <Stack.Screen name="CostCards" component={CostCardsScreen} />
+            <Stack.Screen name="Expenses" component={ExpensesScreen} />
           </Stack.Navigator>
         </AppBackground>
       </NavigationContainer>
