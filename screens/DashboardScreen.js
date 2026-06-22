@@ -22,6 +22,8 @@ export default function DashboardScreen({ navigation }) {
           <MetalButton title="👥 Лояльность" variant="pay" style={styles.gridBtn} onPress={() => navigation.navigate('ClientsList')} />
           <MetalButton title="📊 Продажи" variant="success" style={styles.gridBtn} onPress={() => navigation.navigate('Sales')} />
           <MetalButton title="📦 Склад" variant="default" style={styles.gridBtn} onPress={() => navigation.navigate('Stock')} />
+          <MetalButton title="🧾 Себестоимость" variant="default" style={styles.gridBtn} onPress={() => navigation.navigate('CostCards')} />
+          <MetalButton title="💸 Расходы" variant="danger" style={styles.gridBtn} onPress={() => navigation.navigate('Expenses')} />
         </View>
 
         <MetalButton title="🔄 Сменить аккаунт" variant="back" onPress={() => {}} />
