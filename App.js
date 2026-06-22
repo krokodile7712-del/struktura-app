@@ -27,6 +27,7 @@ import ClientCardScreen from './screens/ClientCardScreen';
 import ClientsListScreen from './screens/ClientsListScreen';
 import CostCardsScreen from './screens/CostCardsScreen';
 import ExpensesScreen from './screens/ExpensesScreen';
+import AdminScreen from './screens/AdminScreen';
 import { colors } from './constants/theme';
 
 const Stack = createNativeStackNavigator();
@@ -93,6 +94,7 @@ export default function App() {
             <Stack.Screen name="ClientsList" component={ClientsListScreen} />
             <Stack.Screen name="CostCards" component={CostCardsScreen} />
             <Stack.Screen name="Expenses" component={ExpensesScreen} />
+            <Stack.Screen name="Admin" component={AdminScreen} />
           </Stack.Navigator>
         </AppBackground>
       </NavigationContainer>

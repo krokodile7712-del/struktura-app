@@ -19,6 +19,7 @@ export default function StockScreen({ navigation }) {
       <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
         <MetalCard>
           <Text style={styles.cardTitle}>📦 Склад</Text>
+          <MetalButton title="← Назад" variant="back" onPress={() => navigation.navigate('Dashboard')} />
           {categories.map((cat) => {
             const items = MOCK_STOCK.filter(i => i.category === cat);
             const hasLow = items.some(i => i.остаток <= i.порог);

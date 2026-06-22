@@ -27,6 +27,7 @@ export default function SalesScreen({ navigation }) {
       <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
         <MetalCard>
           <Text style={styles.cardTitle}>📊 Продажи</Text>
+          <MetalButton title="← Назад" variant="back" onPress={() => navigation.navigate('Dashboard')} />
 
           <View style={styles.periodRow}>
             {PERIODS.map((p) => (

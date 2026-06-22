@@ -90,6 +90,8 @@ export default function CostCardsScreen({ navigation }) {
         <MetalCard>
           <Text style={styles.cardTitle}>🧾 Себестоимость</Text>
 
+          <MetalButton title="← Назад" variant="back" onPress={() => navigation.navigate('Dashboard')} />
+
           {!adding && (
             <MetalButton title="+ Новая техкарта" variant="action" onPress={() => setAdding(true)} />
           )}

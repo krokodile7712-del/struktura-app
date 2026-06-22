@@ -26,7 +26,7 @@ export default function DashboardScreen({ navigation }) {
           <MetalButton title="💸 Расходы" variant="danger" style={styles.gridBtn} onPress={() => navigation.navigate('Expenses')} />
         </View>
 
-        <MetalButton title="🔄 Сменить аккаунт" variant="back" onPress={() => {}} />
+        <MetalButton title="🔄 Сменить аккаунт" variant="back" onPress={() => navigation.navigate('Login')} />
         <MetalButton title="🚪 Закрыть смену" variant="danger" onPress={() => navigation.navigate('ShiftClose')} />
         <MetalButton title="📅 Открыть смену" variant="success" onPress={() => navigation.navigate('Shift')} />
       </ScrollView>

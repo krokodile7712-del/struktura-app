@@ -54,6 +54,8 @@ export default function ExpensesScreen({ navigation }) {
         <MetalCard>
           <Text style={styles.cardTitle}>💸 Расходы</Text>
 
+          <MetalButton title="← Назад" variant="back" onPress={() => navigation.navigate('Dashboard')} />
+
           {!adding && (
             <MetalButton title="+ Новый расход" variant="action" onPress={() => setAdding(true)} />
           )}

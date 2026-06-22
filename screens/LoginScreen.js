@@ -4,12 +4,28 @@ import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import { colors, fonts, spacing } from '../constants/theme';
 
+// Моковые PIN-коды — позже заменим на SQLite
+const PINS = {
+  '1234': 'barista',
+  '0000': 'admin',
+};
+
 export default function LoginScreen({ navigation }) {
   const [pin, setPin] = useState('');
+  const [error, setError] = useState('');
 
   const handleLogin = () => {
-    // Заглушка — позже подключим реальную проверку ПИН-кода
-    navigation.navigate('Dashboard');
+    const role = PINS[pin];
+    if (role === 'barista') {
+      setError('');
+      navigation.navigate('Dashboard');
+    } else if (role === 'admin') {
+      setError('');
+      navigation.navigate('Admin');
+    } else {
+      setError('Неверный PIN-код');
+      setPin('');
+    }
   };
 
   return (
@@ -33,8 +49,9 @@ export default function LoginScreen({ navigation }) {
           placeholder="• • • •"
           placeholderTextColor={colors.muted}
           value={pin}
-          onChangeText={setPin}
+          onChangeText={(v) => { setPin(v); setError(''); }}
         />
+        {error !== '' && <Text style={styles.error}>{error}</Text>}
         <MetalButton title="Войти" variant="action" onPress={handleLogin} />
         <MetalButton title="← Назад" variant="back" onPress={() => navigation.navigate('Loyalty')} />
       </MetalCard>
@@ -81,5 +98,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     textAlign: 'center',
     fontFamily: fonts.family,
+  },
+  error: {
+    fontFamily: fonts.familyRegular,
+    fontSize: 13,
+    color: colors.red,
+    textAlign: 'center',
+    marginBottom: 10,
   },
 });

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
-  FlatList, Modal, TouchableOpacity,
+  FlatList, Modal, StyleSheet as RN,
 } from 'react-native';
 import MetalButton from '../components/MetalButton';
 import BottomBar from '../components/BottomBar';
@@ -40,7 +40,6 @@ const MOCK_MENU = [
 ];
 
 const CAT_ICONS = { 'Кофе': '☕', 'Лимонады': '🍹', 'Допы': '🍬' };
-
 const EXTRA_PRICE = { milk: 30, syrup: 30 };
 
 export default function KassaScreen({ navigation }) {
@@ -48,18 +47,17 @@ export default function KassaScreen({ navigation }) {
   const [activeCat, setActiveCat] = useState(groups[0]);
   const [order, setOrder] = useState([]);
 
-  // модалка
   const [modalItem, setModalItem] = useState(null);
   const [selSize, setSelSize] = useState(null);
   const [selMilk, setSelMilk] = useState(null);
   const [selSyrup, setSelSyrup] = useState(null);
 
   const openModal = (item) => {
-    setModalItem(item);
-    const firstVariant = item.variants && item.variants.length > 0 ? item.variants[0] : null;
+    const firstVariant = item.variants?.length > 0 ? item.variants[0] : null;
     setSelSize(firstVariant ? firstVariant.size : null);
     setSelMilk(null);
     setSelSyrup(null);
+    setModalItem(item);
   };
 
   const closeModal = () => setModalItem(null);
@@ -85,18 +83,21 @@ export default function KassaScreen({ navigation }) {
   };
 
   const removeFromOrder = (id) => setOrder(prev => prev.filter(i => i.id !== id));
-
   const total = order.reduce((sum, i) => sum + i.price, 0);
   const itemsInCategory = MOCK_MENU.filter(i => i.group === activeCat);
 
   return (
     <View style={{ flex: 1 }}>
+      {/* Верхняя строка с кнопкой назад */}
       <View style={styles.shiftInfo}>
-        <Text style={styles.shiftInfoText}>Смена: не открыта · меню: {MOCK_MENU.length} позиций</Text>
+        <Pressable onPress={() => navigation.navigate('Dashboard')} style={styles.backBtn}>
+          <Text style={styles.backBtnText}>← Назад</Text>
+        </Pressable>
+        <Text style={styles.shiftInfoText}>Смена: не открыта · {MOCK_MENU.length} позиций</Text>
+        <View style={{ width: 80 }} />
       </View>
 
       <View style={styles.layout}>
-        {/* Левая часть: категории + меню */}
         <View style={styles.left}>
           <FlatList
             horizontal
@@ -114,10 +115,9 @@ export default function KassaScreen({ navigation }) {
               </Pressable>
             )}
           />
-
           <ScrollView contentContainerStyle={styles.menuGrid}>
             {itemsInCategory.map((item) => {
-              const firstVariant = item.variants && item.variants.length > 0 ? item.variants[0] : null;
+              const firstVariant = item.variants?.length > 0 ? item.variants[0] : null;
               const price = firstVariant ? firstVariant.price : item.price || 0;
               return (
                 <Pressable key={item.name} style={styles.menuItem} onPress={() => openModal(item)}>
@@ -129,7 +129,6 @@ export default function KassaScreen({ navigation }) {
           </ScrollView>
         </View>
 
-        {/* Правая часть: заказ */}
         <View style={styles.orderPanel}>
           <View style={styles.orderHeader}>
             <Text style={styles.orderHeaderText}>🛒 Заказ ({order.length})</Text>
@@ -145,9 +144,7 @@ export default function KassaScreen({ navigation }) {
                 <Text style={styles.orderItemPrice}>{item.price} ₽</Text>
               </Pressable>
             ))}
-            {order.length === 0 && (
-              <Text style={styles.emptyOrder}>Корзина пуста</Text>
-            )}
+            {order.length === 0 && <Text style={styles.emptyOrder}>Корзина пуста</Text>}
           </ScrollView>
           <View style={styles.orderFooter}>
             <Text style={styles.orderTotal}>{total} ₽</Text>
@@ -159,19 +156,20 @@ export default function KassaScreen({ navigation }) {
 
       <BottomBar navigation={navigation} activeTab="Login" />
 
-      {/* Модалка выбора размера/молока/сиропа */}
+      {/* Модалка — надёжный паттерн без перехвата тачей */}
       <Modal visible={!!modalItem} transparent animationType="fade" onRequestClose={closeModal}>
-        <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={closeModal} />
-        <View style={styles.modalBox} pointerEvents="box-none">
+        <View style={styles.modalRoot}>
+          {/* Фон — закрывает модалку при тапе снаружи */}
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={closeModal} />
+          {/* Контент модалки — рендерится ПОВЕРХ Pressable-фона */}
           {modalItem && (
             <View style={styles.modalInner}>
               <Text style={styles.modalTitle}>{modalItem.name}</Text>
 
-              {/* Размер */}
-              {modalItem.variants && modalItem.variants.length > 0 && (
+              {modalItem.variants?.length > 0 && (
                 <>
                   <Text style={styles.modalSection}>Размер</Text>
-                  <View style={styles.modalRow}>
+                  <View style={styles.chipsRow}>
                     {modalItem.variants.map(v => (
                       <Pressable
                         key={v.size}
@@ -187,11 +185,12 @@ export default function KassaScreen({ navigation }) {
                 </>
               )}
 
-              {/* Молоко */}
-              {modalItem.milks && modalItem.milks.length > 0 && (
+              {modalItem.milks?.length > 0 && (
                 <>
-                  <Text style={styles.modalSection}>Молоко {selMilk ? `(+${EXTRA_PRICE.milk} ₽)` : ''}</Text>
-                  <View style={styles.modalRow}>
+                  <Text style={styles.modalSection}>
+                    Молоко {selMilk ? `(+${EXTRA_PRICE.milk} ₽)` : ''}
+                  </Text>
+                  <View style={styles.chipsRow}>
                     {modalItem.milks.map(m => (
                       <Pressable
                         key={m}
@@ -205,11 +204,12 @@ export default function KassaScreen({ navigation }) {
                 </>
               )}
 
-              {/* Сироп */}
-              {modalItem.syrups && modalItem.syrups.length > 0 && (
+              {modalItem.syrups?.length > 0 && (
                 <>
-                  <Text style={styles.modalSection}>Сироп {selSyrup ? `(+${EXTRA_PRICE.syrup} ₽)` : ''}</Text>
-                  <View style={styles.modalRow}>
+                  <Text style={styles.modalSection}>
+                    Сироп {selSyrup ? `(+${EXTRA_PRICE.syrup} ₽)` : ''}
+                  </Text>
+                  <View style={styles.chipsRow}>
                     {modalItem.syrups.map(s => (
                       <Pressable
                         key={s}
@@ -225,7 +225,12 @@ export default function KassaScreen({ navigation }) {
 
               <View style={styles.modalFooter}>
                 <Text style={styles.modalPrice}>{modalPrice()} ₽</Text>
-                <MetalButton title="Добавить в заказ" variant="action" onPress={confirmAdd} style={{ flex: 1 }} />
+                <MetalButton
+                  title="Добавить в заказ"
+                  variant="action"
+                  onPress={confirmAdd}
+                  style={{ flex: 1 }}
+                />
               </View>
             </View>
           )}
@@ -237,12 +242,20 @@ export default function KassaScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   shiftInfo: {
-    height: 44,
-    justifyContent: 'center',
+    height: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 14,
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+  },
+  backBtn: { paddingVertical: 6, paddingHorizontal: 10 },
+  backBtnText: {
+    fontFamily: fonts.familySemibold,
+    fontSize: 13,
+    color: colors.muted,
   },
   shiftInfoText: {
     fontFamily: fonts.familySemibold,
@@ -265,8 +278,8 @@ const styles = StyleSheet.create({
   catLabelActive: { color: colors.greenLight },
   menuGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, padding: 10 },
   menuItem: {
-    width: '30%', minWidth: 110, padding: 14,
-    borderRadius: 14, borderWidth: 1, borderColor: colors.borderHi,
+    width: '30%', minWidth: 110, padding: 14, borderRadius: 14,
+    borderWidth: 1, borderColor: colors.borderHi,
     backgroundColor: colors.surface2, alignItems: 'center',
   },
   menuItemName: { fontFamily: fonts.family, fontSize: 13, fontWeight: '600', color: colors.text, textAlign: 'center', textTransform: 'uppercase' },
@@ -291,15 +304,12 @@ const styles = StyleSheet.create({
     fontFamily: fonts.family, fontSize: 28, fontWeight: '800',
     color: colors.greenLight, textAlign: 'center', marginBottom: 10,
   },
-
-  // Модалка
-  overlay: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-  },
-  modalBox: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    justifyContent: 'center', alignItems: 'center',
+  // Модалка — правильный паттерн
+  modalRoot: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalInner: {
     width: '55%', maxWidth: 540,
@@ -310,13 +320,13 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontFamily: fonts.family, fontSize: 20, fontWeight: '800',
     color: colors.text, textTransform: 'uppercase', letterSpacing: 2,
-    marginBottom: 16, textAlign: 'center',
+    marginBottom: 12, textAlign: 'center',
   },
   modalSection: {
     fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted,
-    textTransform: 'uppercase', letterSpacing: 2, marginTop: 12, marginBottom: 8,
+    textTransform: 'uppercase', letterSpacing: 2, marginTop: 14, marginBottom: 8,
   },
-  modalRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
     paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20,
     borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e',
