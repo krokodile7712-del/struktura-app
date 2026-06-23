@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import {
@@ -12,6 +12,8 @@ import {
 } from '@expo-google-fonts/anek-devanagari';
 
 import AppBackground from './components/AppBackground';
+import { initDatabase } from './db/database';
+
 import LoyaltyScreen from './screens/LoyaltyScreen';
 import LoginScreen from './screens/LoginScreen';
 import DashboardScreen from './screens/DashboardScreen';
@@ -28,7 +30,7 @@ import ClientsListScreen from './screens/ClientsListScreen';
 import CostCardsScreen from './screens/CostCardsScreen';
 import ExpensesScreen from './screens/ExpensesScreen';
 import AdminScreen from './screens/AdminScreen';
-import { colors } from './constants/theme';
+import { colors, fonts } from './constants/theme';
 
 const Stack = createNativeStackNavigator();
 
@@ -44,9 +46,9 @@ const navTheme = {
   },
   fonts: {
     regular: { fontFamily: 'System', fontWeight: '400' },
-    medium: { fontFamily: 'System', fontWeight: '500' },
-    bold: { fontFamily: 'System', fontWeight: '700' },
-    heavy: { fontFamily: 'System', fontWeight: '800' },
+    medium:  { fontFamily: 'System', fontWeight: '500' },
+    bold:    { fontFamily: 'System', fontWeight: '700' },
+    heavy:   { fontFamily: 'System', fontWeight: '800' },
   },
 };
 
@@ -58,10 +60,23 @@ export default function App() {
     AnekDevanagari_800ExtraBold,
   });
 
-  if (!fontsLoaded) {
+  const [dbReady, setDbReady] = useState(false);
+  const [dbError, setDbError] = useState(null);
+
+  useEffect(() => {
+    try {
+      initDatabase();
+      setDbReady(true);
+    } catch (e) {
+      setDbError(e.message);
+    }
+  }, []);
+
+  if (!fontsLoaded || !dbReady) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', gap: 12 }}>
         <ActivityIndicator size="large" color={colors.olive} />
+        {dbError && <Text style={{ color: colors.redLight, fontSize: 12 }}>{dbError}</Text>}
       </View>
     );
   }
@@ -79,22 +94,22 @@ export default function App() {
               contentStyle: { backgroundColor: 'transparent' },
             }}
           >
-            <Stack.Screen name="Loyalty" component={LoyaltyScreen} />
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Dashboard" component={DashboardScreen} />
-            <Stack.Screen name="Kassa" component={KassaScreen} />
-            <Stack.Screen name="Shift" component={ShiftScreen} />
-            <Stack.Screen name="ShiftClose" component={ShiftCloseScreen} />
-            <Stack.Screen name="Sales" component={SalesScreen} />
-            <Stack.Screen name="Stock" component={StockScreen} />
-            <Stack.Screen name="Reg" component={RegScreen} />
-            <Stack.Screen name="RegResult" component={RegResultScreen} />
-            <Stack.Screen name="Search" component={SearchScreen} />
-            <Stack.Screen name="ClientCard" component={ClientCardScreen} />
+            <Stack.Screen name="Loyalty"     component={LoyaltyScreen} />
+            <Stack.Screen name="Login"       component={LoginScreen} />
+            <Stack.Screen name="Dashboard"   component={DashboardScreen} />
+            <Stack.Screen name="Admin"       component={AdminScreen} />
+            <Stack.Screen name="Kassa"       component={KassaScreen} />
+            <Stack.Screen name="Shift"       component={ShiftScreen} />
+            <Stack.Screen name="ShiftClose"  component={ShiftCloseScreen} />
+            <Stack.Screen name="Sales"       component={SalesScreen} />
+            <Stack.Screen name="Stock"       component={StockScreen} />
+            <Stack.Screen name="Reg"         component={RegScreen} />
+            <Stack.Screen name="RegResult"   component={RegResultScreen} />
+            <Stack.Screen name="Search"      component={SearchScreen} />
+            <Stack.Screen name="ClientCard"  component={ClientCardScreen} />
             <Stack.Screen name="ClientsList" component={ClientsListScreen} />
-            <Stack.Screen name="CostCards" component={CostCardsScreen} />
-            <Stack.Screen name="Expenses" component={ExpensesScreen} />
-            <Stack.Screen name="Admin" component={AdminScreen} />
+            <Stack.Screen name="CostCards"   component={CostCardsScreen} />
+            <Stack.Screen name="Expenses"    component={ExpensesScreen} />
           </Stack.Navigator>
         </AppBackground>
       </NavigationContainer>
