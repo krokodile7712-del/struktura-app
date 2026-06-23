@@ -1,15 +1,33 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, ScrollView } from 'react-native';
-import MetalButton from '../components/MetalButton';
+import { View, Text, Image, StyleSheet, ScrollView, Pressable } from 'react-native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import { colors, fonts, spacing } from '../constants/theme';
+
+const MENU_ITEMS = [
+  { icon: '☕', label: 'Новый заказ',    screen: 'Kassa',       variant: 'action'  },
+  { icon: '👥', label: 'Лояльность',     screen: 'ClientsList', variant: 'pay'     },
+  { icon: '📊', label: 'Продажи',        screen: 'Sales',       variant: 'success' },
+  { icon: '📦', label: 'Склад',          screen: 'Stock',       variant: 'default' },
+  { icon: '🧾', label: 'Себестоимость',  screen: 'CostCards',   variant: 'default' },
+  { icon: '💸', label: 'Расходы',        screen: 'Expenses',    variant: 'danger'  },
+];
+
+const ACCENT = {
+  action:  { border: 'rgba(122,158,82,0.45)',  bg: 'rgba(122,158,82,0.10)'  },
+  pay:     { border: 'rgba(61,95,168,0.45)',   bg: 'rgba(61,95,168,0.10)'   },
+  success: { border: 'rgba(61,158,146,0.45)',  bg: 'rgba(61,158,146,0.10)'  },
+  default: { border: 'rgba(74,77,84,0.6)',     bg: 'rgba(14,15,17,0.8)'     },
+  danger:  { border: 'rgba(160,16,32,0.45)',   bg: 'rgba(160,16,32,0.10)'   },
+};
 
 export default function DashboardScreen({ navigation }) {
   return (
     <View style={{ flex: 1 }}>
       <TopBar title="Бариста" onBack={() => navigation.navigate('Login')} />
-      <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
+
+      <ScrollView contentContainerStyle={styles.inner}>
+        {/* Логотип */}
         <View style={styles.brandHeader}>
           <Image
             source={{ uri: 'https://i.ibb.co/hRZxPz8b/19-20260514150523.png' }}
@@ -19,29 +37,122 @@ export default function DashboardScreen({ navigation }) {
           <Text style={styles.roleText}>☕ Смена не открыта</Text>
         </View>
 
+        {/* Сетка карточек */}
         <View style={styles.grid}>
-          <MetalButton title="☕ Новый заказ" variant="action" style={styles.gridBtn} onPress={() => navigation.navigate('Kassa')} />
-          <MetalButton title="👥 Лояльность" variant="pay" style={styles.gridBtn} onPress={() => navigation.navigate('ClientsList')} />
-          <MetalButton title="📊 Продажи" variant="success" style={styles.gridBtn} onPress={() => navigation.navigate('Sales')} />
-          <MetalButton title="📦 Склад" variant="default" style={styles.gridBtn} onPress={() => navigation.navigate('Stock')} />
-          <MetalButton title="🧾 Себестоимость" variant="default" style={styles.gridBtn} onPress={() => navigation.navigate('CostCards')} />
-          <MetalButton title="💸 Расходы" variant="danger" style={styles.gridBtn} onPress={() => navigation.navigate('Expenses')} />
+          {MENU_ITEMS.map((item) => {
+            const ac = ACCENT[item.variant] || ACCENT.default;
+            return (
+              <Pressable
+                key={item.screen}
+                style={({ pressed }) => [
+                  styles.card,
+                  { borderColor: ac.border, backgroundColor: pressed ? ac.border : ac.bg },
+                ]}
+                onPress={() => navigation.navigate(item.screen)}
+              >
+                <Text style={styles.cardIcon}>{item.icon}</Text>
+                <Text style={styles.cardLabel}>{item.label}</Text>
+              </Pressable>
+            );
+          })}
         </View>
 
-        <MetalButton title="🚪 Закрыть смену" variant="danger" onPress={() => navigation.navigate('ShiftClose')} />
-        <MetalButton title="📅 Открыть смену" variant="success" onPress={() => navigation.navigate('Shift')} />
+        {/* Управление сменой */}
+        <View style={styles.shiftRow}>
+          <Pressable
+            style={[styles.shiftBtn, { borderColor: 'rgba(74,77,84,0.5)' }]}
+            onPress={() => navigation.navigate('Login')}
+          >
+            <Text style={styles.shiftBtnText}>🔄 Сменить аккаунт</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.shiftBtn, { borderColor: 'rgba(160,16,32,0.5)', backgroundColor: 'rgba(160,16,32,0.10)' }]}
+            onPress={() => navigation.navigate('ShiftClose')}
+          >
+            <Text style={[styles.shiftBtnText, { color: colors.redLight }]}>🚪 Закрыть смену</Text>
+          </Pressable>
+        </View>
       </ScrollView>
+
       <BottomBar navigation={navigation} activeTab="Login" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  inner: { padding: spacing.lg, paddingBottom: 20, maxWidth: 1100, width: '100%', alignSelf: 'center' },
-  brandHeader: { alignItems: 'center', paddingVertical: 24 },
-  logo: { width: 240, height: 130, borderRadius: 14, marginBottom: 10 },
-  roleText: { fontFamily: fonts.familySemibold, fontSize: 13, letterSpacing: 2, color: colors.muted },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginVertical: 16 },
-  gridBtn: { width: '30%', minWidth: 140, aspectRatio: 1 },
+  inner: {
+    padding: spacing.lg,
+    paddingBottom: 20,
+    maxWidth: 1100,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  brandHeader: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  logo: {
+    width: 260,
+    height: 140,
+    borderRadius: 14,
+    marginBottom: 10,
+  },
+  roleText: {
+    fontFamily: fonts.familySemibold,
+    fontSize: 13,
+    letterSpacing: 2,
+    color: colors.muted,
+    textTransform: 'uppercase',
+  },
+
+  // Сетка
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 14,
+    marginBottom: 16,
+  },
+  card: {
+    // На планшете в горизонтали ~4 карточки в ряд
+    width: '23%',
+    minWidth: 130,
+    aspectRatio: 1,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    padding: 10,
+  },
+  cardIcon: {
+    fontSize: 36,
+  },
+  cardLabel: {
+    fontFamily: fonts.familySemibold,
+    fontSize: 11,
+    color: colors.text,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+    textAlign: 'center',
+  },
+
+  // Смена
+  shiftRow: {
+    gap: 10,
+  },
+  shiftBtn: {
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(74,77,84,0.4)',
+    backgroundColor: 'rgba(14,15,17,0.6)',
+    alignItems: 'center',
+  },
+  shiftBtnText: {
+    fontFamily: fonts.familySemibold,
+    fontSize: 13,
+    color: colors.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+  },
 });
