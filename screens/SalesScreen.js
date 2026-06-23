@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import MetalCard from '../components/MetalCard';
-import MetalButton from '../components/MetalButton';
+import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import { colors, fonts, spacing } from '../constants/theme';
 
@@ -24,11 +24,9 @@ export default function SalesScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1 }}>
+      <TopBar title="Продажи" onBack={() => navigation.navigate('Dashboard')} />
       <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
         <MetalCard>
-          <Text style={styles.cardTitle}>📊 Продажи</Text>
-          <MetalButton title="← Назад" variant="back" onPress={() => navigation.navigate('Dashboard')} />
-
           <View style={styles.periodRow}>
             {PERIODS.map((p) => (
               <Pressable
@@ -70,25 +68,11 @@ export default function SalesScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  inner: { padding: spacing.lg, paddingTop: 40, paddingBottom: 100, maxWidth: 1100, width: '100%', alignSelf: 'center' },
-  cardTitle: {
-    fontFamily: fonts.family,
-    fontSize: 11,
-    letterSpacing: 3,
-    color: colors.textDim,
-    textAlign: 'center',
-    textTransform: 'uppercase',
-    marginBottom: 18,
-  },
+  inner: { padding: spacing.lg, paddingBottom: 20, maxWidth: 1100, width: '100%', alignSelf: 'center' },
   periodRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
   periodBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: '#0b0c0e',
-    alignItems: 'center',
+    flex: 1, paddingVertical: 10, borderRadius: 10,
+    borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e', alignItems: 'center',
   },
   periodBtnActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.18)' },
   periodLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },

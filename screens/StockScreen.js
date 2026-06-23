@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import MetalCard from '../components/MetalCard';
+import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import { colors, fonts, spacing } from '../constants/theme';
 
@@ -16,10 +17,9 @@ export default function StockScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1 }}>
+      <TopBar title="Склад" onBack={() => navigation.navigate('Dashboard')} />
       <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
         <MetalCard>
-          <Text style={styles.cardTitle}>📦 Склад</Text>
-          <MetalButton title="← Назад" variant="back" onPress={() => navigation.navigate('Dashboard')} />
           {categories.map((cat) => {
             const items = MOCK_STOCK.filter(i => i.category === cat);
             const hasLow = items.some(i => i.остаток <= i.порог);
@@ -53,23 +53,8 @@ export default function StockScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  inner: { padding: spacing.lg, paddingTop: 40, paddingBottom: 100, maxWidth: 1100, width: '100%', alignSelf: 'center' },
-  cardTitle: {
-    fontFamily: fonts.family,
-    fontSize: 11,
-    letterSpacing: 3,
-    color: colors.textDim,
-    textAlign: 'center',
-    textTransform: 'uppercase',
-    marginBottom: 18,
-  },
-  catHeader: {
-    fontFamily: fonts.familySemibold,
-    fontSize: 13,
-    color: colors.textDim,
-    textTransform: 'uppercase',
-    marginBottom: 6,
-  },
+  inner: { padding: spacing.lg, paddingBottom: 20, maxWidth: 1100, width: '100%', alignSelf: 'center' },
+  catHeader: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.textDim, textTransform: 'uppercase', marginBottom: 6 },
   catHeaderLow: { color: '#c47a5a' },
   row: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
   itemName: { fontFamily: fonts.family, fontSize: 15, color: colors.text },

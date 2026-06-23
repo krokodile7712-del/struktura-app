@@ -2,49 +2,58 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
+import TopBar from '../components/TopBar';
+import BottomBar from '../components/BottomBar';
 import { colors, fonts, spacing } from '../constants/theme';
 
 export default function ClientCardScreen({ route, navigation }) {
   const { client } = route.params || {};
+
   if (!client) {
     return (
-      <View style={styles.screen}>
-        <Text style={{ color: colors.text, textAlign: 'center', marginTop: 40 }}>Клиент не найден</Text>
+      <View style={{ flex: 1 }}>
+        <TopBar title="Клиент" onBack={() => navigation.goBack()} />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ color: colors.text }}>Клиент не найден</Text>
+        </View>
+        <BottomBar navigation={navigation} activeTab="Loyalty" />
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
-      <MetalCard>
-        <Text style={styles.fio}>{client.fio}</Text>
-        <Text style={styles.code}>{client.code}</Text>
-        <Text style={styles.balance}>{client.balance}</Text>
-        <Text style={styles.balanceLabel}>баллов</Text>
+    <View style={{ flex: 1 }}>
+      <TopBar title="Карта клиента" onBack={() => navigation.goBack()} />
+      <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
+        <MetalCard>
+          <Text style={styles.fio}>{client.fio}</Text>
+          <Text style={styles.code}>{client.code}</Text>
+          <Text style={styles.balance}>{client.balance}</Text>
+          <Text style={styles.balanceLabel}>баллов</Text>
 
-        <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>{client.visits || 0}</Text>
-            <Text style={styles.statLabel}>визитов</Text>
+          <View style={styles.statsRow}>
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>{client.visits || 0}</Text>
+              <Text style={styles.statLabel}>визитов</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>{client.totalSum || 0}</Text>
+              <Text style={styles.statLabel}>сумма ₽</Text>
+            </View>
           </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>{client.totalSum || 0}</Text>
-            <Text style={styles.statLabel}>сумма ₽</Text>
-          </View>
-        </View>
 
-        <Text style={styles.phone}>📞 {client.phone || '—'}</Text>
-
-        <MetalButton title="☕ Новый заказ" variant="success" onPress={() => navigation.navigate('Login')} />
-        <MetalButton title="✕ Закрыть" variant="back" onPress={() => navigation.navigate('Loyalty')} />
-      </MetalCard>
-    </ScrollView>
+          <Text style={styles.phone}>📞 {client.phone || '—'}</Text>
+          <MetalButton title="☕ Новый заказ" variant="success" onPress={() => navigation.navigate('Kassa')} />
+        </MetalCard>
+      </ScrollView>
+      <BottomBar navigation={navigation} activeTab="Loyalty" />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  inner: { padding: spacing.lg, paddingTop: 40, paddingBottom: 80, maxWidth: 1100, width: '100%', alignSelf: 'center' },
+  inner: { padding: spacing.lg, paddingBottom: 20, maxWidth: 1100, width: '100%', alignSelf: 'center' },
   fio: { fontFamily: fonts.family, fontSize: 24, fontWeight: '800', color: colors.text, textAlign: 'center', marginBottom: 4 },
   code: { fontFamily: 'monospace', fontSize: 12, color: colors.muted, textAlign: 'center', marginBottom: 14 },
   balance: { fontFamily: fonts.family, fontSize: 56, fontWeight: '800', color: colors.greenLight, textAlign: 'center' },

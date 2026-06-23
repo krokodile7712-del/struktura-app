@@ -4,6 +4,7 @@ import {
   FlatList, Modal, StyleSheet as RN,
 } from 'react-native';
 import MetalButton from '../components/MetalButton';
+import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import { colors, fonts, spacing } from '../constants/theme';
 
@@ -88,14 +89,7 @@ export default function KassaScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1 }}>
-      {/* Верхняя строка с кнопкой назад */}
-      <View style={styles.shiftInfo}>
-        <Pressable onPress={() => navigation.navigate('Dashboard')} style={styles.backBtn}>
-          <Text style={styles.backBtnText}>← Назад</Text>
-        </Pressable>
-        <Text style={styles.shiftInfoText}>Смена: не открыта · {MOCK_MENU.length} позиций</Text>
-        <View style={{ width: 80 }} />
-      </View>
+      <TopBar title="Касса" onBack={() => navigation.navigate('Dashboard')} />
 
       <View style={styles.layout}>
         <View style={styles.left}>
@@ -241,29 +235,6 @@ export default function KassaScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  shiftInfo: {
-    height: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  backBtn: { paddingVertical: 6, paddingHorizontal: 10 },
-  backBtnText: {
-    fontFamily: fonts.familySemibold,
-    fontSize: 13,
-    color: colors.muted,
-  },
-  shiftInfoText: {
-    fontFamily: fonts.familySemibold,
-    fontSize: 11,
-    color: colors.muted,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
   layout: { flex: 1, flexDirection: 'row' },
   left: { flex: 1, flexDirection: 'column' },
   catList: { paddingHorizontal: 10, paddingVertical: 6, gap: 8 },

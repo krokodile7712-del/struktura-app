@@ -2,67 +2,62 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
+import TopBar from '../components/TopBar';
+import BottomBar from '../components/BottomBar';
 import { colors, fonts, spacing } from '../constants/theme';
 
 export default function RegScreen({ navigation }) {
   const [fio, setFio] = useState('');
   const [phone, setPhone] = useState('');
 
-  const handleSubmit = () => {
+  const handleReg = () => {
     if (!fio.trim()) return;
-    // Заглушка — позже подключим google.script.run эквивалент (Apps Script Web API)
-    navigation.navigate('RegResult', { fio, phone, code: 'TEMP1234AB' });
+    const code = 'CLI-' + String(Math.floor(Math.random() * 900) + 100);
+    navigation.navigate('RegResult', { fio, code });
   };
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
-      <MetalCard>
-        <Text style={styles.cardTitle}>Новый клиент</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Фамилия Имя"
-          placeholderTextColor={colors.muted}
-          value={fio}
-          onChangeText={setFio}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Номер телефона"
-          placeholderTextColor={colors.muted}
-          keyboardType="phone-pad"
-          value={phone}
-          onChangeText={setPhone}
-        />
-        <MetalButton title="Создать карту" variant="action" onPress={handleSubmit} />
-        <MetalButton title="← Назад" variant="back" onPress={() => navigation.navigate('Loyalty')} />
-      </MetalCard>
-    </ScrollView>
+    <View style={{ flex: 1 }}>
+      <TopBar title="Регистрация" onBack={() => navigation.navigate('Loyalty')} />
+      <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
+        <MetalCard>
+          <Text style={styles.label}>Имя и фамилия</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Анна Смирнова"
+            placeholderTextColor={colors.muted}
+            value={fio}
+            onChangeText={setFio}
+          />
+          <Text style={styles.label}>Телефон</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="+7 900 000-00-00"
+            placeholderTextColor={colors.muted}
+            keyboardType="phone-pad"
+            value={phone}
+            onChangeText={setPhone}
+          />
+          <MetalButton title="Создать карту" variant="action" onPress={handleReg} />
+        </MetalCard>
+      </ScrollView>
+      <BottomBar navigation={navigation} activeTab="Loyalty" />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  inner: { padding: spacing.lg, paddingTop: 40, paddingBottom: 80, maxWidth: 1100, width: '100%', alignSelf: 'center' },
-  cardTitle: {
-    fontFamily: fonts.family,
-    fontSize: 11,
-    letterSpacing: 3,
-    color: colors.textDim,
-    textAlign: 'center',
-    textTransform: 'uppercase',
-    marginBottom: 18,
+  inner: { padding: spacing.lg, paddingBottom: 20, maxWidth: 1100, width: '100%', alignSelf: 'center' },
+  label: {
+    fontFamily: fonts.familySemibold, fontSize: 11,
+    color: colors.muted, textTransform: 'uppercase',
+    letterSpacing: 2, marginBottom: 8, marginTop: 8,
   },
   input: {
-    width: '100%',
-    padding: 15,
-    backgroundColor: '#07080a',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    color: colors.text,
-    fontSize: 16,
-    marginBottom: 12,
-    textAlign: 'center',
-    fontFamily: fonts.family,
+    padding: 13, backgroundColor: '#07080a',
+    borderWidth: 1, borderColor: colors.border, borderRadius: 12,
+    color: colors.text, fontSize: 14, marginBottom: 14,
+    fontFamily: fonts.familyRegular,
   },
 });

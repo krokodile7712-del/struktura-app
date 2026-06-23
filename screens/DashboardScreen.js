@@ -1,12 +1,14 @@
 import React from 'react';
 import { View, Text, Image, StyleSheet, ScrollView } from 'react-native';
 import MetalButton from '../components/MetalButton';
+import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import { colors, fonts, spacing } from '../constants/theme';
 
 export default function DashboardScreen({ navigation }) {
   return (
     <View style={{ flex: 1 }}>
+      <TopBar title="Бариста" onBack={() => navigation.navigate('Login')} />
       <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
         <View style={styles.brandHeader}>
           <Image
@@ -14,7 +16,7 @@ export default function DashboardScreen({ navigation }) {
             style={styles.logo}
             resizeMode="contain"
           />
-          <Text style={styles.roleText}>☕ Бариста · Смена не открыта</Text>
+          <Text style={styles.roleText}>☕ Смена не открыта</Text>
         </View>
 
         <View style={styles.grid}>
@@ -26,7 +28,6 @@ export default function DashboardScreen({ navigation }) {
           <MetalButton title="💸 Расходы" variant="danger" style={styles.gridBtn} onPress={() => navigation.navigate('Expenses')} />
         </View>
 
-        <MetalButton title="🔄 Сменить аккаунт" variant="back" onPress={() => navigation.navigate('Login')} />
         <MetalButton title="🚪 Закрыть смену" variant="danger" onPress={() => navigation.navigate('ShiftClose')} />
         <MetalButton title="📅 Открыть смену" variant="success" onPress={() => navigation.navigate('Shift')} />
       </ScrollView>
@@ -37,30 +38,10 @@ export default function DashboardScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  inner: {
-    padding: spacing.lg,
-    paddingBottom: 80,
-    maxWidth: 1100,
-    width: '100%',
-    alignSelf: 'center',
-  },
+  inner: { padding: spacing.lg, paddingBottom: 20, maxWidth: 1100, width: '100%', alignSelf: 'center' },
   brandHeader: { alignItems: 'center', paddingVertical: 24 },
   logo: { width: 240, height: 130, borderRadius: 14, marginBottom: 10 },
-  roleText: {
-    fontFamily: fonts.familySemibold,
-    fontSize: 13,
-    letterSpacing: 2,
-    color: colors.muted,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
-    marginVertical: 16,
-  },
-  gridBtn: {
-    width: '30%',
-    minWidth: 140,
-    aspectRatio: 1,
-  },
+  roleText: { fontFamily: fonts.familySemibold, fontSize: 13, letterSpacing: 2, color: colors.muted },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginVertical: 16 },
+  gridBtn: { width: '30%', minWidth: 140, aspectRatio: 1 },
 });
