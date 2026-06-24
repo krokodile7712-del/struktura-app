@@ -60,14 +60,22 @@ export default function KassaScreen({ navigation }) {
 
   const itemsInCategory = allProducts.filter(p => p.category === activeCat);
 
-  // Строим варианты размеров из price_s/price_m/price_l
+  // Читаем варианты из JSON-колонки (реальные названия размеров из GAS)
   const getVariants = (product) => {
+    try {
+      if (product.variants) {
+        const parsed = typeof product.variants === 'string'
+          ? JSON.parse(product.variants)
+          : product.variants;
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (_) {}
+    // Fallback на price_s/m/l
     const variants = [];
     if (product.price_s > 0) variants.push({ size: 'S', price: product.price_s });
     if (product.price_m > 0) variants.push({ size: 'M', price: product.price_m });
     if (product.price_l > 0) variants.push({ size: 'L', price: product.price_l });
-    if (variants.length === 0 && product.price_s === 0 && product.price_m === 0)
-      variants.push({ size: '', price: 0 });
+    if (variants.length === 0) variants.push({ size: '', price: 0 });
     return variants;
   };
 

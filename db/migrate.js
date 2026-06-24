@@ -57,24 +57,23 @@ export async function migrateFromSheets(onProgress) {
 
     db.execSync(`DELETE FROM products`);
     const stmt = db.prepareSync(`
-      INSERT INTO products (name, category, price_s, price_m, price_l, has_milk, has_syrup, active)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+      INSERT INTO products (name, category, price_s, price_m, price_l, has_milk, has_syrup, variants, active)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
     `);
 
     for (const item of menu) {
       const name     = item.name || '';
       const category = item.group || 'Прочее';
-      const variants = item.variants || [];
+      // Варианты как есть из GAS — сохраняем JSON с реальными названиями размеров
+      const variants = item.variants && item.variants.length > 0
+        ? item.variants
+        : [{ size: '', price: item.price || 0 }];
 
-      const getVariantPrice = (size) =>
-        (variants.find(v => v.size === size)?.price) ?? 0;
+      // Для обратной совместимости берём первые три варианта как price_s/m/l
+      const priceS = variants[0]?.price || 0;
+      const priceM = variants[1]?.price || 0;
+      const priceL = variants[2]?.price || 0;
 
-      // Если вариантов нет — используем item.price
-      const priceS = variants.length ? getVariantPrice('S') : (item.price || 0);
-      const priceM = variants.length ? getVariantPrice('M') : (item.price || 0);
-      const priceL = variants.length ? getVariantPrice('L') : 0;
-
-      // has_milk/has_syrup — определяем по категории (кофе = молоко+сироп)
       const isCoffee = category.toLowerCase().includes('кофе') ||
                        name.toLowerCase().includes('капучино') ||
                        name.toLowerCase().includes('латте') ||
@@ -83,7 +82,7 @@ export async function migrateFromSheets(onProgress) {
       const hasMilk  = isCoffee ? 1 : 0;
       const hasSyrup = isCoffee ? 1 : 0;
 
-      stmt.executeSync([name, category, priceS, priceM, priceL, hasMilk, hasSyrup]);
+      stmt.executeSync([name, category, priceS, priceM, priceL, hasMilk, hasSyrup, JSON.stringify(variants)]);
     }
     stmt.finalizeSync();
 
