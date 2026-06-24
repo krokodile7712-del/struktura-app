@@ -161,5 +161,10 @@ export function initDatabase() {
     db.execSync(`INSERT INTO app_settings (key, value) VALUES ('payMethods', '["Наличные","Карта","QR"]')`);
   }
 
+  // Добавляем колонку variants если её нет (миграция схемы)
+  try {
+    db.execSync(`ALTER TABLE products ADD COLUMN variants TEXT DEFAULT '[]'`);
+  } catch (_) {}
+
   console.log('[DB] Инициализация завершена');
 }
