@@ -1,27 +1,41 @@
 import { getDb } from './database';
 
-// ─── Пользователи / авторизация ────────────────────────────────────────────
+// ─── Настройки ────────────────────────────────────────────────────────────
+
+export function getSetting(key) {
+  const db = getDb();
+  const row = db.getFirstSync(`SELECT value FROM app_settings WHERE key = ?`, [key]);
+  return row ? row.value : null;
+}
+
+export function getPayMethods() {
+  const raw = getSetting('payMethods');
+  try { return JSON.parse(raw) || ['Наличные', 'Карта']; }
+  catch { return ['Наличные', 'Карта']; }
+}
+
+export function getBonusPct() {
+  return parseFloat(getSetting('bonusPct') || '10');
+}
+
+// ─── Пользователи ─────────────────────────────────────────────────────────
 
 export function getUserByPin(pin) {
   const db = getDb();
   return db.getFirstSync(`SELECT * FROM users WHERE pin = ?`, [pin]) || null;
 }
 
-// ─── Товары ────────────────────────────────────────────────────────────────
+// ─── Товары ───────────────────────────────────────────────────────────────
 
 export function getAllProducts() {
   const db = getDb();
   return db.getAllSync(`SELECT * FROM products WHERE active = 1 ORDER BY category, name`);
 }
 
-export function getProductsByCategory(category) {
-  const db = getDb();
-  return db.getAllSync(`SELECT * FROM products WHERE active = 1 AND category = ? ORDER BY name`, [category]);
-}
-
 export function getCategories() {
   const db = getDb();
-  return db.getAllSync(`SELECT DISTINCT category FROM products WHERE active = 1 ORDER BY category`).map(r => r.category);
+  return db.getAllSync(`SELECT DISTINCT category FROM products WHERE active = 1 ORDER BY category`)
+           .map(r => r.category);
 }
 
 export function insertProduct({ name, category, price_s, price_m, price_l, has_milk, has_syrup }) {
@@ -33,19 +47,37 @@ export function insertProduct({ name, category, price_s, price_m, price_l, has_m
   );
 }
 
-// ─── Заказы ────────────────────────────────────────────────────────────────
+// ─── Модификаторы ─────────────────────────────────────────────────────────
+
+export function getModifiers() {
+  const db = getDb();
+  return db.getAllSync(`SELECT * FROM modifiers ORDER BY type, name`);
+}
+
+export function getMilkModifiers() {
+  const db = getDb();
+  return db.getAllSync(
+    `SELECT * FROM modifiers WHERE type = 'Замена' OR ingr_to_replace != '' ORDER BY name`
+  );
+}
+
+export function getSyrupModifiers() {
+  const db = getDb();
+  return db.getAllSync(
+    `SELECT * FROM modifiers WHERE type = 'Добавление' AND (ingr_to_replace = '' OR ingr_to_replace IS NULL) ORDER BY name`
+  );
+}
+
+// ─── Заказы ───────────────────────────────────────────────────────────────
 
 export function createOrder({ total, method, shift_id, client_id, items }) {
   const db = getDb();
   const now = new Date().toISOString();
-
   const result = db.runSync(
-    `INSERT INTO orders (created_at, total, method, shift_id, client_id)
-     VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO orders (created_at, total, method, shift_id, client_id) VALUES (?, ?, ?, ?, ?)`,
     [now, total, method, shift_id || null, client_id || null]
   );
   const orderId = result.lastInsertRowId;
-
   const stmt = db.prepareSync(
     `INSERT INTO order_items (order_id, product_id, name, size, milk, syrup, price)
      VALUES (?, ?, ?, ?, ?, ?, ?)`
@@ -54,13 +86,7 @@ export function createOrder({ total, method, shift_id, client_id, items }) {
     stmt.executeSync([orderId, item.product_id || null, item.name, item.size || '', item.milk || '', item.syrup || '', item.price]);
   }
   stmt.finalizeSync();
-
   return orderId;
-}
-
-export function getOrdersByShift(shift_id) {
-  const db = getDb();
-  return db.getAllSync(`SELECT * FROM orders WHERE shift_id = ? ORDER BY created_at DESC`, [shift_id]);
 }
 
 export function getRecentOrders(limit = 50) {
@@ -68,7 +94,12 @@ export function getRecentOrders(limit = 50) {
   return db.getAllSync(`SELECT * FROM orders ORDER BY created_at DESC LIMIT ?`, [limit]);
 }
 
-// ─── Клиенты ───────────────────────────────────────────────────────────────
+export function getOrderItems(order_id) {
+  const db = getDb();
+  return db.getAllSync(`SELECT * FROM order_items WHERE order_id = ?`, [order_id]);
+}
+
+// ─── Клиенты ──────────────────────────────────────────────────────────────
 
 export function getAllClients() {
   const db = getDb();
@@ -83,34 +114,36 @@ export function searchClients(query) {
   );
 }
 
+export function getClientByCode(code) {
+  const db = getDb();
+  return db.getFirstSync(`SELECT * FROM clients WHERE code = ?`, [code]) || null;
+}
+
 export function insertClient({ fio, phone, code }) {
   const db = getDb();
   const now = new Date().toISOString();
   db.runSync(
-    `INSERT INTO clients (fio, phone, code, balance, visits, total_sum, created_at)
-     VALUES (?, ?, ?, 0, 0, 0, ?)`,
+    `INSERT INTO clients (fio, phone, code, balance, visits, total_sum, created_at) VALUES (?, ?, ?, 0, 0, 0, ?)`,
     [fio, phone || '', code, now]
   );
 }
 
 export function addClientVisit(client_id, amount) {
   const db = getDb();
-  const points = Math.floor(amount * 0.05); // 5% кэшбэк
+  const bonusPct = getBonusPct();
+  const points = Math.round(amount * bonusPct / 100);
   db.runSync(
     `UPDATE clients SET visits = visits + 1, total_sum = total_sum + ?, balance = balance + ? WHERE id = ?`,
     [amount, points, client_id]
   );
 }
 
-// ─── Смены ─────────────────────────────────────────────────────────────────
+// ─── Смены ────────────────────────────────────────────────────────────────
 
 export function openShift() {
   const db = getDb();
   const now = new Date().toISOString();
-  const result = db.runSync(
-    `INSERT INTO shifts (opened_at, status) VALUES (?, 'open')`, [now]
-  );
-  return result.lastInsertRowId;
+  return db.runSync(`INSERT INTO shifts (opened_at, status) VALUES (?, 'open')`, [now]).lastInsertRowId;
 }
 
 export function closeShift(shift_id) {
@@ -118,23 +151,23 @@ export function closeShift(shift_id) {
   const now = new Date().toISOString();
   const totals = db.getFirstSync(
     `SELECT
-       SUM(CASE WHEN method = 'cash' THEN total ELSE 0 END) as cash_total,
-       SUM(CASE WHEN method = 'card' THEN total ELSE 0 END) as card_total
+       SUM(CASE WHEN method='Наличные' THEN total ELSE 0 END) as cash_total,
+       SUM(CASE WHEN method='Карта' OR method='QR' THEN total ELSE 0 END) as card_total
      FROM orders WHERE shift_id = ?`,
     [shift_id]
   );
   db.runSync(
-    `UPDATE shifts SET closed_at = ?, cash_total = ?, card_total = ?, status = 'closed' WHERE id = ?`,
+    `UPDATE shifts SET closed_at=?, cash_total=?, card_total=?, status='closed' WHERE id=?`,
     [now, totals?.cash_total || 0, totals?.card_total || 0, shift_id]
   );
 }
 
 export function getOpenShift() {
   const db = getDb();
-  return db.getFirstSync(`SELECT * FROM shifts WHERE status = 'open' ORDER BY opened_at DESC LIMIT 1`) || null;
+  return db.getFirstSync(`SELECT * FROM shifts WHERE status='open' ORDER BY opened_at DESC LIMIT 1`) || null;
 }
 
-// ─── Расходы ───────────────────────────────────────────────────────────────
+// ─── Расходы ──────────────────────────────────────────────────────────────
 
 export function getAllExpenses() {
   const db = getDb();
@@ -149,7 +182,14 @@ export function insertExpense({ date, category, amount, comment, shift_id }) {
   );
 }
 
-// ─── Техкарты ──────────────────────────────────────────────────────────────
+// ─── Склад ────────────────────────────────────────────────────────────────
+
+export function getAllStock() {
+  const db = getDb();
+  return db.getAllSync(`SELECT * FROM stock ORDER BY category, name`);
+}
+
+// ─── Себестоимость ────────────────────────────────────────────────────────
 
 export function getAllCostCards() {
   const db = getDb();
@@ -162,17 +202,13 @@ export function getAllCostCards() {
 
 export function insertCostCard(name, ingredients) {
   const db = getDb();
-  const result = db.runSync(`INSERT INTO cost_cards (name) VALUES (?)`, [name]);
-  const cardId = result.lastInsertRowId;
-
+  const { lastInsertRowId: cardId } = db.runSync(`INSERT INTO cost_cards (name) VALUES (?)`, [name]);
   const stmt = db.prepareSync(
-    `INSERT INTO cost_ingredients (cost_card_id, name, amount, unit, price_per_unit)
-     VALUES (?, ?, ?, ?, ?)`
+    `INSERT INTO cost_ingredients (cost_card_id, name, amount, unit, price_per_unit) VALUES (?, ?, ?, ?, ?)`
   );
   for (const ing of ingredients) {
     stmt.executeSync([cardId, ing.name, ing.amount, ing.unit, ing.pricePerUnit]);
   }
   stmt.finalizeSync();
-
   return cardId;
 }

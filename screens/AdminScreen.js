@@ -13,6 +13,7 @@ const MENU_ITEMS = [
   { icon: '💸', label: 'Расходы',        screen: 'Expenses',    variant: 'danger'  },
   { icon: '📅', label: 'Открыть смену',  screen: 'Shift',       variant: 'success' },
   { icon: '👤', label: 'Регистрация',    screen: 'Reg',         variant: 'pay'     },
+  { icon: '📥', label: 'Импорт Sheets',  screen: 'Migrate',     variant: 'success' },
 ];
 
 const ACCENT = {
