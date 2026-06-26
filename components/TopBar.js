@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { colors, fonts } from '../constants/theme';
 
-export default function TopBar({ title, onBack, rightElement }) {
+export default function TopBar({ title, onBack, rightElement, syncPending }) {
   return (
     <View style={styles.bar}>
       <View style={styles.side}>
@@ -16,7 +16,10 @@ export default function TopBar({ title, onBack, rightElement }) {
 
       <Text style={styles.title} numberOfLines={1}>{title || ''}</Text>
 
-      <View style={styles.side}>
+      <View style={[styles.side, { alignItems: 'flex-end' }]}>
+        {syncPending > 0
+          ? <Text style={styles.syncBadge}>↑{syncPending}</Text>
+          : null}
         {rightElement || null}
       </View>
     </View>
@@ -66,5 +69,16 @@ const styles = StyleSheet.create({
     color: colors.textDim,
     textTransform: 'uppercase',
     letterSpacing: 3,
+  },
+  syncBadge: {
+    fontFamily: fonts.familySemibold,
+    fontSize: 11,
+    color: 'rgba(122,158,82,0.9)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(122,158,82,0.3)',
+    backgroundColor: 'rgba(122,158,82,0.08)',
   },
 });

@@ -13,6 +13,7 @@ import {
 
 import AppBackground from './components/AppBackground';
 import { initDatabase } from './db/database';
+import { startAutoSync } from './db/sync';
 
 import LoyaltyScreen from './screens/LoyaltyScreen';
 import LoginScreen from './screens/LoginScreen';
@@ -67,6 +68,7 @@ export default function App() {
   useEffect(() => {
     try {
       initDatabase();
+      startAutoSync(2 * 60 * 1000); // каждые 2 минуты
       setDbReady(true);
     } catch (e) {
       setDbError(e.message);

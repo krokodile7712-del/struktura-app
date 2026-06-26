@@ -161,6 +161,18 @@ export function initDatabase() {
     db.execSync(`INSERT INTO app_settings (key, value) VALUES ('payMethods', '["Наличные","Карта","QR"]')`);
   }
 
+  // Добавляем новые колонки если их нет (миграция схемы)
+  const migrations = [
+    `ALTER TABLE products  ADD COLUMN variants  TEXT    DEFAULT '[]'`,
+    `ALTER TABLE orders    ADD COLUMN synced    INTEGER DEFAULT 0`,
+    `ALTER TABLE expenses  ADD COLUMN synced    INTEGER DEFAULT 0`,
+    `ALTER TABLE clients   ADD COLUMN synced    INTEGER DEFAULT 0`,
+    `ALTER TABLE shifts    ADD COLUMN synced    INTEGER DEFAULT 0`,
+  ];
+  for (const sql of migrations) {
+    try { db.execSync(sql); } catch (_) {}
+  }
+
   // Добавляем колонку variants если её нет (миграция схемы)
   try {
     db.execSync(`ALTER TABLE products ADD COLUMN variants TEXT DEFAULT '[]'`);
