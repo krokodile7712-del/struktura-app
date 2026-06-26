@@ -55,7 +55,22 @@ export async function migrateFromSheets(onProgress) {
     const milkMods  = Object.entries(modifiers).filter(([,m]) => m.type === 'Замена' || m.ingrToReplace?.toLowerCase().includes('молок')).map(([k]) => k);
     const syrupMods = Object.entries(modifiers).filter(([,m]) => !m.ingrToReplace || m.ingrToReplace === '').map(([k]) => k);
 
-    db.execSync(`DELETE FROM products`);
+    // Пересоздаём таблицу полностью чтобы гарантировать актуальную схему
+    db.execSync(`DROP TABLE IF EXISTS products`);
+    db.execSync(`
+      CREATE TABLE products (
+        id        INTEGER PRIMARY KEY AUTOINCREMENT,
+        name      TEXT NOT NULL,
+        category  TEXT NOT NULL,
+        price_s   REAL DEFAULT 0,
+        price_m   REAL DEFAULT 0,
+        price_l   REAL DEFAULT 0,
+        has_milk  INTEGER DEFAULT 0,
+        has_syrup INTEGER DEFAULT 0,
+        variants  TEXT DEFAULT '[]',
+        active    INTEGER DEFAULT 1
+      )
+    `);
     const stmt = db.prepareSync(`
       INSERT INTO products (name, category, price_s, price_m, price_l, has_milk, has_syrup, variants, active)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
