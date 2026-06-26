@@ -1,35 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, Pressable } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
+import { getAllExpenses, insertExpense } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
 const CATEGORIES = ['Аренда', 'Зарплата', 'Закупка', 'Коммуналка', 'Прочее'];
 
-const MOCK_EXPENSES = [
-  { id: '1', date: '01.06.2026', category: 'Аренда', amount: 45000, comment: 'Июнь' },
-  { id: '2', date: '03.06.2026', category: 'Закупка', amount: 12300, comment: 'Зерно, молоко, сиропы' },
-  { id: '3', date: '05.06.2026', category: 'Зарплата', amount: 28000, comment: 'Аванс бариста' },
-  { id: '4', date: '10.06.2026', category: 'Коммуналка', amount: 6200, comment: '' },
-];
-
 export default function ExpensesScreen({ navigation }) {
-  const [expenses, setExpenses] = useState(MOCK_EXPENSES);
+  const [expenses, setExpenses] = useState([]);
   const [adding, setAdding] = useState(false);
   const [filterCategory, setFilterCategory] = useState(null);
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [comment, setComment] = useState('');
 
-  const resetForm = () => { setAmount(''); setCategory(CATEGORIES[0]); setComment(''); setAdding(false); };
+  useEffect(() => { loadExpenses(); }, []);
+
+  const loadExpenses = () => {
+    try { setExpenses(getAllExpenses()); } catch (e) { console.error(e); }
+  };
+
+  const resetForm = () => {
+    setAmount(''); setCategory(CATEGORIES[0]); setComment(''); setAdding(false);
+  };
 
   const saveExpense = () => {
     if (!amount || isNaN(parseFloat(amount))) return;
     const today = new Date();
-    const d = `${String(today.getDate()).padStart(2,'0')}.${String(today.getMonth()+1).padStart(2,'0')}.${today.getFullYear()}`;
-    setExpenses(prev => [{ id: String(Date.now()), date: d, category, amount: parseFloat(amount), comment: comment.trim() }, ...prev]);
+    const date = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+    try {
+      insertExpense({ date, category, amount: parseFloat(amount), comment: comment.trim() });
+      loadExpenses();
+    } catch (e) { console.error(e); }
     resetForm();
   };
 
@@ -38,6 +43,15 @@ export default function ExpensesScreen({ navigation }) {
   const byCategory = CATEGORIES.map(cat => ({
     cat, sum: expenses.filter(e => e.category === cat).reduce((s, e) => s + e.amount, 0),
   })).filter(c => c.sum > 0);
+
+  const fmtDate = (d) => {
+    if (!d) return '';
+    if (d.includes('-')) {
+      const [y, m, day] = d.split('-');
+      return `${day}.${m}.${y}`;
+    }
+    return d;
+  };
 
   return (
     <View style={{ flex: 1 }}>
@@ -80,16 +94,20 @@ export default function ExpensesScreen({ navigation }) {
             ))}
           </View>
 
-          <Text style={styles.sectionTitle}>Записи</Text>
-          {filtered.map((e) => (
+          <Text style={styles.sectionTitle}>Записи ({filtered.length})</Text>
+          {filtered.length === 0 && (
+            <Text style={styles.empty}>Нет расходов. Добавьте или выполните импорт из Sheets.</Text>
+          )}
+          {filtered.map(e => (
             <View key={e.id} style={styles.row}>
               <View>
                 <Text style={styles.rowName}>{e.category}{e.comment ? ` — ${e.comment}` : ''}</Text>
-                <Text style={styles.rowSub}>{e.date}</Text>
+                <Text style={styles.rowSub}>{fmtDate(e.date)}</Text>
               </View>
               <Text style={styles.rowPrice}>{e.amount.toLocaleString('ru-RU')} ₽</Text>
             </View>
           ))}
+
           <View style={[styles.row, styles.grandTotalRow]}>
             <Text style={styles.grandTotalLabel}>ИТОГО</Text>
             <Text style={styles.grandTotalValue}>{total.toLocaleString('ru-RU')} ₽</Text>
@@ -124,6 +142,7 @@ const styles = StyleSheet.create({
   chipActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.18)' },
   chipLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
   chipLabelActive: { color: colors.greenLight },
+  empty: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', paddingVertical: 20 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
   rowName: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.text },
   rowSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
