@@ -4,6 +4,7 @@ import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import { getUserByPin } from '../db/queries';
+import { setSession } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
 
 export default function LoginScreen({ navigation }) {
@@ -18,6 +19,7 @@ export default function LoginScreen({ navigation }) {
       return;
     }
     setError('');
+    setSession(user);
     if (user.role === 'admin') {
       navigation.navigate('Admin');
     } else {
@@ -58,49 +60,11 @@ export default function LoginScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  inner: {
-    padding: spacing.lg,
-    paddingBottom: 80,
-    maxWidth: 1100,
-    width: '100%',
-    alignSelf: 'center',
-  },
+  inner: { padding: spacing.lg, paddingBottom: 80, maxWidth: 1100, width: '100%', alignSelf: 'center' },
   brandHeader: { alignItems: 'center', paddingVertical: 24 },
   logo: { width: 280, height: 160, borderRadius: 14, marginBottom: 10 },
-  subLogo: {
-    fontFamily: fonts.familySemibold,
-    fontSize: 11,
-    letterSpacing: 5,
-    color: colors.muted,
-    textTransform: 'uppercase',
-  },
-  cardTitle: {
-    fontFamily: fonts.family,
-    fontSize: 11,
-    letterSpacing: 3,
-    color: colors.textDim,
-    textAlign: 'center',
-    textTransform: 'uppercase',
-    marginBottom: 18,
-  },
-  input: {
-    width: '100%',
-    padding: 15,
-    backgroundColor: '#07080a',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    color: colors.text,
-    fontSize: 18,
-    marginBottom: 12,
-    textAlign: 'center',
-    fontFamily: fonts.family,
-  },
-  error: {
-    fontFamily: fonts.familyRegular,
-    fontSize: 13,
-    color: colors.red,
-    textAlign: 'center',
-    marginBottom: 10,
-  },
+  subLogo: { fontFamily: fonts.familySemibold, fontSize: 11, letterSpacing: 5, color: colors.muted, textTransform: 'uppercase' },
+  cardTitle: { fontFamily: fonts.family, fontSize: 11, letterSpacing: 3, color: colors.textDim, textAlign: 'center', textTransform: 'uppercase', marginBottom: 18 },
+  input: { width: '100%', padding: 15, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 18, marginBottom: 12, textAlign: 'center', fontFamily: fonts.family },
+  error: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.red, textAlign: 'center', marginBottom: 10 },
 });

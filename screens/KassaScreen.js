@@ -222,7 +222,12 @@ export default function KassaScreen({ navigation }) {
           <Pressable style={StyleSheet.absoluteFillObject} onPress={closeModal} />
           {modalItem && (
             <View style={styles.modalInner}>
-              <Text style={styles.modalTitle}>{modalItem.name}</Text>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{modalItem.name}</Text>
+                <Pressable onPress={closeModal} style={styles.modalCloseBtn} hitSlop={12}>
+                  <Text style={styles.modalCloseText}>✕</Text>
+                </Pressable>
+              </View>
 
               {/* Размер */}
               {(() => {
@@ -333,7 +338,10 @@ const styles = StyleSheet.create({
   orderTotal: { fontFamily: fonts.family, fontSize: 28, fontWeight: '800', color: colors.greenLight, textAlign: 'center', marginBottom: 10 },
   modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center' },
   modalInner: { width: '55%', maxWidth: 540, backgroundColor: '#0e0f11', borderRadius: 20, padding: 24, borderWidth: 1, borderColor: colors.borderHi },
-  modalTitle: { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.text, textTransform: 'uppercase', letterSpacing: 2, marginBottom: 12, textAlign: 'center' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  modalTitle: { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.text, textTransform: 'uppercase', letterSpacing: 2, flex: 1 },
+  modalCloseBtn: { padding: 6 },
+  modalCloseText: { fontSize: 18, color: colors.muted },
   modalSection: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 2, marginTop: 14, marginBottom: 8 },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e' },
