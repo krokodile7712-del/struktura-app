@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet, ScrollView, Pressable } from 'react-native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
+import { getOpenShift } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
 const MENU_ITEMS = [
@@ -22,6 +23,12 @@ const ACCENT = {
 };
 
 export default function DashboardScreen({ navigation }) {
+  const [shift, setShift] = useState(null);
+
+  useEffect(() => {
+    try { setShift(getOpenShift()); } catch (e) { console.error(e); }
+  }, []);
+
   return (
     <View style={{ flex: 1 }}>
       <TopBar title="Бариста" onBack={() => navigation.navigate('Login')} />
@@ -34,7 +41,9 @@ export default function DashboardScreen({ navigation }) {
             style={styles.logo}
             resizeMode="contain"
           />
-          <Text style={styles.roleText}>☕ Смена не открыта</Text>
+          <Text style={styles.roleText}>
+            {shift ? `☕ Смена открыта · ${new Date(shift.opened_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}` : '⚠️ Смена не открыта'}
+          </Text>
         </View>
 
         {/* Сетка карточек */}
@@ -59,18 +68,28 @@ export default function DashboardScreen({ navigation }) {
 
         {/* Управление сменой */}
         <View style={styles.shiftRow}>
+          {!shift && (
+            <Pressable
+              style={[styles.shiftBtn, { borderColor: 'rgba(122,158,82,0.5)', backgroundColor: 'rgba(122,158,82,0.10)' }]}
+              onPress={() => navigation.navigate('Shift')}
+            >
+              <Text style={[styles.shiftBtnText, { color: colors.greenLight }]}>📅 Открыть смену</Text>
+            </Pressable>
+          )}
           <Pressable
             style={[styles.shiftBtn, { borderColor: 'rgba(74,77,84,0.5)' }]}
             onPress={() => navigation.navigate('Login')}
           >
             <Text style={styles.shiftBtnText}>🔄 Сменить аккаунт</Text>
           </Pressable>
-          <Pressable
-            style={[styles.shiftBtn, { borderColor: 'rgba(160,16,32,0.5)', backgroundColor: 'rgba(160,16,32,0.10)' }]}
-            onPress={() => navigation.navigate('ShiftClose')}
-          >
-            <Text style={[styles.shiftBtnText, { color: colors.redLight }]}>🚪 Закрыть смену</Text>
-          </Pressable>
+          {shift && (
+            <Pressable
+              style={[styles.shiftBtn, { borderColor: 'rgba(160,16,32,0.5)', backgroundColor: 'rgba(160,16,32,0.10)' }]}
+              onPress={() => navigation.navigate('ShiftClose')}
+            >
+              <Text style={[styles.shiftBtnText, { color: colors.redLight }]}>🚪 Закрыть смену</Text>
+            </Pressable>
+          )}
         </View>
       </ScrollView>
 
