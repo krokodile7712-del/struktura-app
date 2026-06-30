@@ -18,6 +18,14 @@ export function getBonusPct() {
   return parseFloat(getSetting('bonusPct') || '10');
 }
 
+export function getDiscounts() {
+  const raw = getSetting('discounts');
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : [];
+  } catch { return []; }
+}
+
 // ─── Пользователи ─────────────────────────────────────────────────────────
 
 export function getUserByPin(pin) {
@@ -70,12 +78,19 @@ export function getSyrupModifiers() {
 
 // ─── Заказы ───────────────────────────────────────────────────────────────
 
-export function createOrder({ total, method, shift_id, client_id, items }) {
+export function createOrder({ total, method, shift_id, client_id, items, cashAmount, cardAmount, discountPct }) {
   const db = getDb();
   const now = new Date().toISOString();
+
+  // Добавляем колонки для смешанной оплаты и скидки если их нет
+  try { db.execSync(`ALTER TABLE orders ADD COLUMN cash_amount REAL DEFAULT 0`); } catch (_) {}
+  try { db.execSync(`ALTER TABLE orders ADD COLUMN card_amount REAL DEFAULT 0`); } catch (_) {}
+  try { db.execSync(`ALTER TABLE orders ADD COLUMN discount_pct REAL DEFAULT 0`); } catch (_) {}
+
   const result = db.runSync(
-    `INSERT INTO orders (created_at, total, method, shift_id, client_id) VALUES (?, ?, ?, ?, ?)`,
-    [now, total, method, shift_id || null, client_id || null]
+    `INSERT INTO orders (created_at, total, method, shift_id, client_id, cash_amount, card_amount, discount_pct)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [now, total, method, shift_id || null, client_id || null, cashAmount || 0, cardAmount || 0, discountPct || 0]
   );
   const orderId = result.lastInsertRowId;
   const stmt = db.prepareSync(
@@ -140,10 +155,12 @@ export function addClientVisit(client_id, amount) {
 
 // ─── Смены ────────────────────────────────────────────────────────────────
 
-export function openShift() {
+export function openShift(cashOpen = 0) {
   const db = getDb();
   const now = new Date().toISOString();
-  return db.runSync(`INSERT INTO shifts (opened_at, status) VALUES (?, 'open')`, [now]).lastInsertRowId;
+  // Добавляем колонку cash_open если нет
+  try { db.execSync(`ALTER TABLE shifts ADD COLUMN cash_open REAL DEFAULT 0`); } catch (_) {}
+  return db.runSync(`INSERT INTO shifts (opened_at, status, cash_open) VALUES (?, 'open', ?)`, [now, cashOpen]).lastInsertRowId;
 }
 
 export function closeShift(shift_id) {
@@ -211,4 +228,43 @@ export function insertCostCard(name, ingredients) {
   }
   stmt.finalizeSync();
   return cardId;
+}
+
+// ─── Итоги смены ───────────────────────────────────────────────────────────
+
+export function getShiftSummary(shift_id) {
+  const db = getDb();
+  const shift = db.getFirstSync(`SELECT * FROM shifts WHERE id = ?`, [shift_id]);
+  if (!shift) return null;
+
+  const orders = db.getAllSync(`SELECT * FROM orders WHERE shift_id = ?`, [shift_id]);
+  const cash = orders.filter(o => o.method === 'Наличные').reduce((s, o) => s + o.total, 0);
+  const card = orders.filter(o => o.method === 'Карта').reduce((s, o) => s + o.total, 0);
+  const qr   = orders.filter(o => o.method === 'QR').reduce((s, o) => s + o.total, 0);
+  const total = cash + card + qr;
+
+  // Расходы за дату смены
+  const shiftDate = shift.opened_at.slice(0, 10);
+  const expenses = db.getAllSync(
+    `SELECT * FROM expenses WHERE date LIKE ? ORDER BY date DESC`,
+    [`${shiftDate}%`]
+  );
+  const expTotal = expenses.reduce((s, e) => s + e.amount, 0);
+
+  // Расходы по категориям
+  const expByCategory = {};
+  for (const e of expenses) {
+    expByCategory[e.category] = (expByCategory[e.category] || 0) + e.amount;
+  }
+
+  const openingCash = shift.cash_open || 0;
+  const cashRemaining = openingCash + cash - 0; // инкассация пока 0
+
+  return {
+    shift,
+    orders: orders.length,
+    cash, card, qr, total,
+    expenses, expTotal, expByCategory,
+    openingCash, cashRemaining,
+  };
 }

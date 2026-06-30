@@ -5,6 +5,7 @@ import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import { getUserByPin } from '../db/queries';
 import { setSession } from '../db/session';
+import { getOpenShift } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
 export default function LoginScreen({ navigation }) {
@@ -20,7 +21,10 @@ export default function LoginScreen({ navigation }) {
     }
     setError('');
     setSession(user);
-    if (user.role === 'admin') {
+    const openShift = getOpenShift();
+    if (!openShift) {
+      navigation.navigate('Shift');
+    } else if (user.role === 'admin') {
       navigation.navigate('Admin');
     } else {
       navigation.navigate('Dashboard');

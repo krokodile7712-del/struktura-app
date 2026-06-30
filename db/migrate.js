@@ -36,6 +36,11 @@ export async function migrateFromSheets(onProgress) {
       db.runSync(`INSERT OR REPLACE INTO app_settings (key, value) VALUES ('payMethods', ?)`,
         [JSON.stringify(settings.payMethods)]);
     }
+    // Скидки
+    if (Array.isArray(settings.discounts)) {
+      db.runSync(`INSERT OR REPLACE INTO app_settings (key, value) VALUES ('discounts', ?)`,
+        [JSON.stringify(settings.discounts)]);
+    }
     result.imported.settings = true;
   } catch (e) {
     result.errors.push(`Настройки: ${e.message}`);

@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
-  FlatList, Modal, ActivityIndicator,
+  FlatList, Modal, ActivityIndicator, TextInput,
 } from 'react-native';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import { getAllProducts, getCategories, getMilkModifiers, getSyrupModifiers, createOrder, getOpenShift } from '../db/queries';
+import { getAllProducts, getCategories, getMilkModifiers, getSyrupModifiers, getDiscounts, createOrder, getOpenShift } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
 const CAT_ICONS = { 'Кофе': '☕', 'Лимонады': '🍹', 'Допы': '🍬', 'Прочее': '🫙' };
@@ -17,17 +17,26 @@ export default function KassaScreen({ navigation }) {
   const [allProducts, setAllProducts] = useState([]);
   const [milkMods, setMilkMods] = useState([]);
   const [syrupMods, setSyrupMods] = useState([]);
+  const [discounts, setDiscounts] = useState([]);
   const [activeCat, setActiveCat] = useState(null);
   const [order, setOrder] = useState([]);
+  const [appliedDiscount, setAppliedDiscount] = useState(null); // { name, pct }
   const [modalItem, setModalItem] = useState(null);
   const [selSize, setSelSize] = useState(null);
   const [selMilk, setSelMilk] = useState(null);
   const [selSyrup, setSelSyrup] = useState(null);
   const [currentShift, setCurrentShift] = useState(null);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  // Модалка оплаты
+  const [payModalOpen, setPayModalOpen] = useState(false);
+  const [payMethod, setPayMethod] = useState('Наличные'); // Наличные | Карта | QR | Смешанная
+  const [mixedCash, setMixedCash] = useState('');
+  const [mixedCard, setMixedCard] = useState('');
+
+  // Модалка скидки
+  const [discountModalOpen, setDiscountModalOpen] = useState(false);
+
+  useEffect(() => { loadData(); }, []);
 
   const loadData = () => {
     try {
@@ -36,41 +45,32 @@ export default function KassaScreen({ navigation }) {
       const milks = getMilkModifiers();
       const syrups = getSyrupModifiers();
       const shift = getOpenShift();
+      const disc = getDiscounts();
 
       setAllProducts(products);
       setGroups(cats);
       setActiveCat(cats[0] || null);
-      // Если модификаторов нет — дефолтные моки
       setMilkMods(milks.length > 0 ? milks : [
-        { name: 'Цельное', price: 0 },
-        { name: 'Овсяное', price: 30 },
-        { name: 'Миндальное', price: 50 },
+        { name: 'Цельное', price: 0 }, { name: 'Овсяное', price: 30 }, { name: 'Миндальное', price: 50 },
       ]);
       setSyrupMods(syrups.length > 0 ? syrups : [
-        { name: 'Ваниль', price: 30 },
-        { name: 'Карамель', price: 30 },
-        { name: 'Лесной орех', price: 30 },
+        { name: 'Ваниль', price: 30 }, { name: 'Карамель', price: 30 }, { name: 'Лесной орех', price: 30 },
       ]);
+      setDiscounts(disc);
       setCurrentShift(shift);
-    } catch (e) {
-      console.error('[KassaScreen] loadData error:', e);
-    }
+    } catch (e) { console.error('[KassaScreen] loadData error:', e); }
     setLoading(false);
   };
 
   const itemsInCategory = allProducts.filter(p => p.category === activeCat);
 
-  // Читаем варианты из JSON-колонки (реальные названия размеров из GAS)
   const getVariants = (product) => {
     try {
       if (product.variants) {
-        const parsed = typeof product.variants === 'string'
-          ? JSON.parse(product.variants)
-          : product.variants;
+        const parsed = typeof product.variants === 'string' ? JSON.parse(product.variants) : product.variants;
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
     } catch (_) {}
-    // Fallback на price_s/m/l
     const variants = [];
     if (product.price_s > 0) variants.push({ size: 'S', price: product.price_s });
     if (product.price_m > 0) variants.push({ size: 'M', price: product.price_m });
@@ -86,7 +86,6 @@ export default function KassaScreen({ navigation }) {
     setSelMilk(null);
     setSelSyrup(null);
   };
-
   const closeModal = () => setModalItem(null);
 
   const modalPrice = () => {
@@ -102,39 +101,71 @@ export default function KassaScreen({ navigation }) {
   const confirmAdd = () => {
     if (!modalItem) return;
     setOrder(prev => [...prev, {
-      id: Date.now() + Math.random(),
-      product_id: modalItem.id,
-      name: modalItem.name,
-      size: selSize || '',
-      milk: selMilk,
-      syrup: selSyrup,
-      price: modalPrice(),
+      id: Date.now() + Math.random(), product_id: modalItem.id, name: modalItem.name,
+      size: selSize || '', milk: selMilk, syrup: selSyrup, price: modalPrice(),
     }]);
     closeModal();
   };
 
   const removeFromOrder = (id) => setOrder(prev => prev.filter(i => i.id !== id));
-  const total = order.reduce((s, i) => s + i.price, 0);
 
-  const handlePay = (method) => {
+  const rawTotal = order.reduce((s, i) => s + i.price, 0);
+  const discountAmount = appliedDiscount ? Math.round(rawTotal * appliedDiscount.pct / 100) : 0;
+  const total = rawTotal - discountAmount;
+
+  // ─── Оплата ──────────────────────────────────────────────────────────────
+
+  const openPayModal = () => {
     if (order.length === 0) return;
-    try {
-      createOrder({ total, method, shift_id: currentShift?.id || null, items: order });
-      setOrder([]);
-    } catch (e) {
-      console.error('[KassaScreen] createOrder error:', e);
+    setPayMethod('Наличные');
+    setMixedCash('');
+    setMixedCard('');
+    setPayModalOpen(true);
+  };
+  const closePayModal = () => setPayModalOpen(false);
+
+  const handleMixedCashChange = (v) => {
+    setMixedCash(v);
+    const cashNum = parseFloat(v) || 0;
+    const rest = Math.max(0, total - cashNum);
+    setMixedCard(rest > 0 ? String(rest) : '');
+  };
+  const handleMixedCardChange = (v) => {
+    setMixedCard(v);
+    const cardNum = parseFloat(v) || 0;
+    const rest = Math.max(0, total - cardNum);
+    setMixedCash(rest > 0 ? String(rest) : '');
+  };
+
+  const confirmPay = () => {
+    if (order.length === 0) return;
+    let cashAmount = 0, cardAmount = 0;
+    if (payMethod === 'Смешанная') {
+      cashAmount = parseFloat(mixedCash) || 0;
+      cardAmount = parseFloat(mixedCard) || 0;
+    } else if (payMethod === 'Наличные') {
+      cashAmount = total;
+    } else {
+      cardAmount = total;
     }
+    try {
+      createOrder({
+        total, method: payMethod,
+        shift_id: currentShift?.id || null,
+        items: order,
+        cashAmount, cardAmount,
+        discountPct: appliedDiscount?.pct || 0,
+      });
+      setOrder([]);
+      setAppliedDiscount(null);
+      setPayModalOpen(false);
+    } catch (e) { console.error('[KassaScreen] createOrder error:', e); }
   };
 
   if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color={colors.greenLight} />
-      </View>
-    );
+    return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color={colors.greenLight} /></View>;
   }
 
-  // Если меню пустое — показываем подсказку
   if (allProducts.length === 0) {
     return (
       <View style={{ flex: 1 }}>
@@ -154,19 +185,12 @@ export default function KassaScreen({ navigation }) {
       <TopBar title="Касса" onBack={() => navigation.navigate('Dashboard')} />
 
       <View style={styles.layout}>
-        {/* Левая часть: категории + меню */}
         <View style={styles.left}>
           <FlatList
-            horizontal
-            data={groups}
-            keyExtractor={(g) => g}
-            showsHorizontalScrollIndicator={false}
+            horizontal data={groups} keyExtractor={(g) => g} showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.catList}
             renderItem={({ item: group }) => (
-              <Pressable
-                style={[styles.catBtn, activeCat === group && styles.catBtnActive]}
-                onPress={() => setActiveCat(group)}
-              >
+              <Pressable style={[styles.catBtn, activeCat === group && styles.catBtnActive]} onPress={() => setActiveCat(group)}>
                 <Text style={styles.catIcon}>{CAT_ICONS[group] || '🫙'}</Text>
                 <Text style={[styles.catLabel, activeCat === group && styles.catLabelActive]}>{group}</Text>
               </Pressable>
@@ -179,16 +203,13 @@ export default function KassaScreen({ navigation }) {
               return (
                 <Pressable key={item.id} style={styles.menuItem} onPress={() => openModal(item)}>
                   <Text style={styles.menuItemName}>{item.name}</Text>
-                  <Text style={styles.menuItemPrice}>
-                    {variants.length > 1 ? `от ${basePrice}` : basePrice} ₽
-                  </Text>
+                  <Text style={styles.menuItemPrice}>{variants.length > 1 ? `от ${basePrice}` : basePrice} ₽</Text>
                 </Pressable>
               );
             })}
           </ScrollView>
         </View>
 
-        {/* Правая часть: заказ */}
         <View style={styles.orderPanel}>
           <View style={styles.orderHeader}>
             <Text style={styles.orderHeaderText}>🛒 Заказ ({order.length})</Text>
@@ -206,17 +227,30 @@ export default function KassaScreen({ navigation }) {
             ))}
             {order.length === 0 && <Text style={styles.emptyOrder}>Корзина пуста</Text>}
           </ScrollView>
+
           <View style={styles.orderFooter}>
+            {appliedDiscount && (
+              <View style={styles.discountRow}>
+                <Text style={styles.discountText}>🏷 {appliedDiscount.name} −{appliedDiscount.pct}%</Text>
+                <Pressable onPress={() => setAppliedDiscount(null)}><Text style={styles.discountRemove}>✕</Text></Pressable>
+              </View>
+            )}
+            {discountAmount > 0 && (
+              <Text style={styles.rawTotal}>{rawTotal} ₽ → −{discountAmount} ₽</Text>
+            )}
             <Text style={styles.orderTotal}>{total} ₽</Text>
-            <MetalButton title="💵 Наличные" variant="pay" onPress={() => handlePay('Наличные')} />
-            <MetalButton title="💳 Карта" variant="pay" onPress={() => handlePay('Карта')} />
+
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
+              <MetalButton title="🏷 Скидка" variant="default" onPress={() => setDiscountModalOpen(true)} style={{ flex: 1 }} />
+            </View>
+            <MetalButton title="💰 Оплатить" variant="action" onPress={openPayModal} />
           </View>
         </View>
       </View>
 
       <BottomBar navigation={navigation} activeTab="Login" />
 
-      {/* Модалка */}
+      {/* Модалка товара */}
       <Modal visible={!!modalItem} transparent animationType="fade" onRequestClose={closeModal}>
         <View style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={closeModal} />
@@ -224,12 +258,9 @@ export default function KassaScreen({ navigation }) {
             <View style={styles.modalInner}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>{modalItem.name}</Text>
-                <Pressable onPress={closeModal} style={styles.modalCloseBtn} hitSlop={12}>
-                  <Text style={styles.modalCloseText}>✕</Text>
-                </Pressable>
+                <Pressable onPress={closeModal} style={styles.modalCloseBtn} hitSlop={12}><Text style={styles.modalCloseText}>✕</Text></Pressable>
               </View>
 
-              {/* Размер */}
               {(() => {
                 const variants = getVariants(modalItem);
                 return variants.length > 1 ? (
@@ -237,14 +268,8 @@ export default function KassaScreen({ navigation }) {
                     <Text style={styles.modalSection}>Размер</Text>
                     <View style={styles.chipsRow}>
                       {variants.map(v => (
-                        <Pressable
-                          key={v.size}
-                          style={[styles.chip, selSize === v.size && styles.chipActive]}
-                          onPress={() => setSelSize(v.size)}
-                        >
-                          <Text style={[styles.chipLabel, selSize === v.size && styles.chipLabelActive]}>
-                            {v.size} · {v.price} ₽
-                          </Text>
+                        <Pressable key={v.size} style={[styles.chip, selSize === v.size && styles.chipActive]} onPress={() => setSelSize(v.size)}>
+                          <Text style={[styles.chipLabel, selSize === v.size && styles.chipLabelActive]}>{v.size} · {v.price} ₽</Text>
                         </Pressable>
                       ))}
                     </View>
@@ -252,40 +277,26 @@ export default function KassaScreen({ navigation }) {
                 ) : null;
               })()}
 
-              {/* Молоко */}
               {modalItem.has_milk ? (
                 <>
                   <Text style={styles.modalSection}>Молоко</Text>
                   <View style={styles.chipsRow}>
                     {milkMods.map(m => (
-                      <Pressable
-                        key={m.name}
-                        style={[styles.chip, selMilk === m.name && styles.chipActive]}
-                        onPress={() => setSelMilk(selMilk === m.name ? null : m.name)}
-                      >
-                        <Text style={[styles.chipLabel, selMilk === m.name && styles.chipLabelActive]}>
-                          {m.name}{m.price > 0 ? ` +${m.price}₽` : ''}
-                        </Text>
+                      <Pressable key={m.name} style={[styles.chip, selMilk === m.name && styles.chipActive]} onPress={() => setSelMilk(selMilk === m.name ? null : m.name)}>
+                        <Text style={[styles.chipLabel, selMilk === m.name && styles.chipLabelActive]}>{m.name}{m.price > 0 ? ` +${m.price}₽` : ''}</Text>
                       </Pressable>
                     ))}
                   </View>
                 </>
               ) : null}
 
-              {/* Сироп */}
               {modalItem.has_syrup ? (
                 <>
                   <Text style={styles.modalSection}>Сироп</Text>
                   <View style={styles.chipsRow}>
                     {syrupMods.map(s => (
-                      <Pressable
-                        key={s.name}
-                        style={[styles.chip, selSyrup === s.name && styles.chipActive]}
-                        onPress={() => setSelSyrup(selSyrup === s.name ? null : s.name)}
-                      >
-                        <Text style={[styles.chipLabel, selSyrup === s.name && styles.chipLabelActive]}>
-                          {s.name}{s.price > 0 ? ` +${s.price}₽` : ''}
-                        </Text>
+                      <Pressable key={s.name} style={[styles.chip, selSyrup === s.name && styles.chipActive]} onPress={() => setSelSyrup(selSyrup === s.name ? null : s.name)}>
+                        <Text style={[styles.chipLabel, selSyrup === s.name && styles.chipLabelActive]}>{s.name}{s.price > 0 ? ` +${s.price}₽` : ''}</Text>
                       </Pressable>
                     ))}
                   </View>
@@ -300,6 +311,61 @@ export default function KassaScreen({ navigation }) {
           )}
         </View>
       </Modal>
+
+      {/* Модалка скидки */}
+      <Modal visible={discountModalOpen} transparent animationType="fade" onRequestClose={() => setDiscountModalOpen(false)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setDiscountModalOpen(false)} />
+          <View style={styles.modalInner}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Скидка на заказ</Text>
+              <Pressable onPress={() => setDiscountModalOpen(false)} hitSlop={12}><Text style={styles.modalCloseText}>✕</Text></Pressable>
+            </View>
+            {discounts.length === 0 && <Text style={styles.emptyOrder}>Скидки не настроены</Text>}
+            {discounts.map((d, i) => (
+              <Pressable key={i} style={styles.discountOption} onPress={() => { setAppliedDiscount(d); setDiscountModalOpen(false); }}>
+                <Text style={styles.discountOptionText}>{d.name}</Text>
+                <Text style={styles.discountOptionPct}>−{d.pct}%</Text>
+              </Pressable>
+            ))}
+            {appliedDiscount && (
+              <MetalButton title="Убрать скидку" variant="back" onPress={() => { setAppliedDiscount(null); setDiscountModalOpen(false); }} style={{ marginTop: 10 }} />
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Модалка оплаты */}
+      <Modal visible={payModalOpen} transparent animationType="fade" onRequestClose={closePayModal}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={closePayModal} />
+          <View style={styles.modalInner}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Оплата {total} ₽</Text>
+              <Pressable onPress={closePayModal} hitSlop={12}><Text style={styles.modalCloseText}>✕</Text></Pressable>
+            </View>
+
+            <View style={styles.chipsRow}>
+              {['Наличные', 'Карта', 'QR', 'Смешанная'].map(m => (
+                <Pressable key={m} style={[styles.chip, payMethod === m && styles.chipActive]} onPress={() => setPayMethod(m)}>
+                  <Text style={[styles.chipLabel, payMethod === m && styles.chipLabelActive]}>{m}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {payMethod === 'Смешанная' && (
+              <View style={{ marginTop: 14 }}>
+                <Text style={styles.modalSection}>Наличными</Text>
+                <TextInput style={styles.mixedInput} placeholder="0" placeholderTextColor={colors.muted} keyboardType="numeric" value={mixedCash} onChangeText={handleMixedCashChange} />
+                <Text style={styles.modalSection}>Картой</Text>
+                <TextInput style={styles.mixedInput} placeholder="0" placeholderTextColor={colors.muted} keyboardType="numeric" value={mixedCard} onChangeText={handleMixedCardChange} />
+              </View>
+            )}
+
+            <MetalButton title="✅ Подтвердить оплату" variant="success" onPress={confirmPay} style={{ marginTop: 16 }} />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -308,20 +374,13 @@ const styles = StyleSheet.create({
   layout: { flex: 1, flexDirection: 'row' },
   left: { flex: 1 },
   catList: { paddingHorizontal: 10, paddingVertical: 6 },
-  catBtn: {
-    minWidth: 90, height: 40, paddingHorizontal: 14, borderRadius: 10,
-    borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e',
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginRight: 8,
-  },
+  catBtn: { minWidth: 90, height: 40, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginRight: 8 },
   catBtnActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.18)' },
   catIcon: { fontSize: 16 },
   catLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase' },
   catLabelActive: { color: colors.greenLight },
   menuGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, padding: 10 },
-  menuItem: {
-    width: '30%', minWidth: 110, padding: 14, borderRadius: 14,
-    borderWidth: 1, borderColor: colors.borderHi, backgroundColor: colors.surface2, alignItems: 'center',
-  },
+  menuItem: { width: '30%', minWidth: 110, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: colors.borderHi, backgroundColor: colors.surface2, alignItems: 'center' },
   menuItemName: { fontFamily: fonts.family, fontSize: 13, fontWeight: '600', color: colors.text, textAlign: 'center', textTransform: 'uppercase' },
   menuItemPrice: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 6 },
   orderPanel: { width: '33%', minWidth: 240, borderLeftWidth: 1, borderLeftColor: colors.border, backgroundColor: colors.surface },
@@ -335,6 +394,10 @@ const styles = StyleSheet.create({
   emptyTitle: { fontFamily: fonts.family, fontSize: 18, color: colors.text, marginBottom: 8 },
   emptyHint: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center', marginBottom: 24, lineHeight: 20 },
   orderFooter: { padding: 14 },
+  discountRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  discountText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.greenLight },
+  discountRemove: { fontSize: 14, color: colors.muted, paddingHorizontal: 6 },
+  rawTotal: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'center', marginBottom: 2 },
   orderTotal: { fontFamily: fonts.family, fontSize: 28, fontWeight: '800', color: colors.greenLight, textAlign: 'center', marginBottom: 10 },
   modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center' },
   modalInner: { width: '55%', maxWidth: 540, backgroundColor: '#0e0f11', borderRadius: 20, padding: 24, borderWidth: 1, borderColor: colors.borderHi },
@@ -350,4 +413,8 @@ const styles = StyleSheet.create({
   chipLabelActive: { color: colors.greenLight },
   modalFooter: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 20 },
   modalPrice: { fontFamily: fonts.family, fontSize: 26, fontWeight: '800', color: colors.text, minWidth: 80, textAlign: 'right' },
+  discountOption: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+  discountOptionText: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.text },
+  discountOptionPct: { fontFamily: fonts.family, fontSize: 14, fontWeight: '700', color: colors.greenLight },
+  mixedInput: { padding: 13, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 16, marginBottom: 10, textAlign: 'center', fontFamily: fonts.family },
 });

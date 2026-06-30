@@ -13,8 +13,7 @@ export default function BottomBar({ navigation, activeTab }) {
   const handlePress = (tab) => {
     if (tab.key === 'Cart') return;
     if (tab.key === 'Kassa') {
-      // Касса доступна напрямую — пароль не нужен повторно
-      navigation.navigate('Kassa');
+      navigation.navigate('Dashboard');
       return;
     }
     navigation.navigate(tab.key);
