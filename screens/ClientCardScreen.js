@@ -70,11 +70,6 @@ export default function ClientCardScreen({ route, navigation }) {
       <TopBar
         title="Карта клиента"
         onBack={() => navigation.goBack()}
-        rightElement={
-          isAdmin && !editing
-            ? <Text style={styles.editLink} onPress={() => setEditing(true)}>✎ Изменить</Text>
-            : null
-        }
       />
       <ScrollView contentContainerStyle={styles.inner}>
 
@@ -104,6 +99,9 @@ export default function ClientCardScreen({ route, navigation }) {
 
               <Text style={styles.phone}>📞 {client.phone || '—'}</Text>
               <MetalButton title="☕ Новый заказ" variant="success" onPress={handleNewOrder} />
+              {isAdmin && (
+                <MetalButton title="✎ Изменить данные" variant="default" onPress={() => setEditing(true)} />
+              )}
             </>
           ) : (
             <>
@@ -161,7 +159,6 @@ export default function ClientCardScreen({ route, navigation }) {
 
 const styles = StyleSheet.create({
   inner: { padding: spacing.lg, paddingBottom: 20, maxWidth: 1100, width: '100%', alignSelf: 'center' },
-  editLink: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.greenLight, paddingRight: 4 },
   fio: { fontFamily: fonts.family, fontSize: 24, fontWeight: '800', color: colors.text, textAlign: 'center', marginBottom: 4 },
   code: { fontFamily: 'monospace', fontSize: 12, color: colors.muted, textAlign: 'center', marginBottom: 14 },
   balance: { fontFamily: fonts.family, fontSize: 56, fontWeight: '800', color: colors.greenLight, textAlign: 'center' },

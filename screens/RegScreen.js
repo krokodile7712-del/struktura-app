@@ -4,16 +4,31 @@ import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
+import { insertClient, getClientByCode } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
 export default function RegScreen({ navigation }) {
   const [fio, setFio] = useState('');
   const [phone, setPhone] = useState('');
 
+  const generateUniqueCode = () => {
+    let code;
+    do {
+      code = 'CLI-' + String(Math.floor(Math.random() * 900) + 100);
+    } while (getClientByCode(code));
+    return code;
+  };
+
   const handleReg = () => {
     if (!fio.trim()) return;
-    const code = 'CLI-' + String(Math.floor(Math.random() * 900) + 100);
-    navigation.navigate('RegResult', { fio, code });
+    const code = generateUniqueCode();
+    try {
+      insertClient({ fio: fio.trim(), phone: phone.trim(), code });
+    } catch (e) {
+      console.error(e);
+      return;
+    }
+    navigation.navigate('RegResult', { fio: fio.trim(), code });
   };
 
   return (
