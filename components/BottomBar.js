@@ -6,7 +6,6 @@ import { isLoggedIn } from '../db/session';
 const TABS = [
   { key: 'Loyalty', icon: '🏠', label: 'Лояльность' },
   { key: 'Kassa',   icon: '☕', label: 'Касса' },
-  { key: 'Cart',    icon: '🛒', label: 'Корзина' },
 ];
 
 export default function BottomBar({ navigation, activeTab }) {

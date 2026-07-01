@@ -290,3 +290,81 @@ export function updateOrder(order_id, { total, method }) {
   try { db.execSync(`ALTER TABLE orders ADD COLUMN discount_pct REAL DEFAULT 0`); } catch (_) {}
   db.runSync(`UPDATE orders SET total = ?, method = ? WHERE id = ?`, [total, method, order_id]);
 }
+
+// ─── История заказов клиента ──────────────────────────────────────────────
+
+export function getClientOrders(client_id) {
+  const db = getDb();
+  const orders = db.getAllSync(
+    `SELECT * FROM orders WHERE client_id = ? ORDER BY created_at DESC LIMIT 50`,
+    [client_id]
+  );
+  return orders.map(o => ({
+    ...o,
+    items: db.getAllSync(`SELECT * FROM order_items WHERE order_id = ?`, [o.id]),
+  }));
+}
+
+// ─── Закупки (для расчёта средней цены) ──────────────────────────────────
+
+export function initPurchasesTable() {
+  const db = getDb();
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS purchases (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      stock_name     TEXT NOT NULL,
+      qty            REAL NOT NULL,
+      price_per_unit REAL NOT NULL,
+      total          REAL NOT NULL,
+      created_at     TEXT NOT NULL
+    )
+  `);
+  try { db.execSync(`ALTER TABLE stock ADD COLUMN avg_price REAL DEFAULT 0`); } catch (_) {}
+  try { db.execSync(`ALTER TABLE stock ADD COLUMN last_price REAL DEFAULT 0`); } catch (_) {}
+}
+
+export function addPurchase(stockName, qty, pricePerUnit) {
+  initPurchasesTable();
+  const db = getDb();
+  const now = new Date().toISOString();
+  const total = qty * pricePerUnit;
+
+  // Записываем закупку
+  db.runSync(
+    `INSERT INTO purchases (stock_name, qty, price_per_unit, total, created_at) VALUES (?, ?, ?, ?, ?)`,
+    [stockName, qty, pricePerUnit, total, now]
+  );
+
+  // Пересчитываем среднюю цену по всем закупкам этого товара
+  const rows = db.getAllSync(
+    `SELECT qty, price_per_unit FROM purchases WHERE LOWER(stock_name) = LOWER(?)`,
+    [stockName]
+  );
+  const totalQty = rows.reduce((s, r) => s + r.qty, 0);
+  const totalSum = rows.reduce((s, r) => s + r.qty * r.price_per_unit, 0);
+  const avgPrice = totalQty > 0 ? Math.round((totalSum / totalQty) * 100) / 100 : pricePerUnit;
+
+  // Обновляем склад
+  db.runSync(
+    `UPDATE stock SET остаток = остаток + ?, avg_price = ?, last_price = ? WHERE LOWER(name) = LOWER(?)`,
+    [qty, avgPrice, pricePerUnit, stockName]
+  );
+
+  // Обновляем price_per_unit во всех техкартах где используется этот ингредиент
+  db.runSync(
+    `UPDATE cost_ingredients SET price_per_unit = ?
+     WHERE LOWER(name) = LOWER(?)`,
+    [avgPrice, stockName]
+  );
+
+  return { avgPrice, totalQty };
+}
+
+export function getPurchaseHistory(stockName) {
+  initPurchasesTable();
+  const db = getDb();
+  return db.getAllSync(
+    `SELECT * FROM purchases WHERE LOWER(stock_name) = LOWER(?) ORDER BY created_at DESC LIMIT 20`,
+    [stockName]
+  );
+}

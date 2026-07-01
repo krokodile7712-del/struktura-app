@@ -1,7 +1,8 @@
-// Простое хранилище сессии — живёт пока приложение открыто
-let currentUser = null;
+// Глобальная переменная — переживает HMR перезагрузку в Expo Go
+// (module-level переменные сбрасываются при hot reload, global — нет)
+if (!global.__session) global.__session = null;
 
-export const getSession = () => currentUser;
-export const setSession = (user) => { currentUser = user; };
-export const clearSession = () => { currentUser = null; };
-export const isLoggedIn = () => currentUser !== null;
+export const getSession   = () => global.__session;
+export const setSession   = (user) => { global.__session = user; };
+export const clearSession = () => { global.__session = null; };
+export const isLoggedIn   = () => global.__session !== null;
