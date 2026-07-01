@@ -38,7 +38,14 @@ export default function ExpensesScreen({ navigation }) {
   const [amount, setAmount]       = useState('');
   const [comment, setComment]     = useState('');
   const [newDate, setNewDate]     = useState(todayStr());
+  const [dateMode, setDateMode]   = useState('today'); // today | yesterday | custom
   const [saving, setSaving]       = useState(false);
+
+  const handleDateMode = (mode) => {
+    setDateMode(mode);
+    if (mode === 'today') setNewDate(todayStr());
+    if (mode === 'yesterday') { const d = new Date(); d.setDate(d.getDate()-1); setNewDate(d.toISOString().slice(0,10)); }
+  };
 
   const handlePeriodChange = (key) => {
     setPeriod(key); setShown(false);
@@ -65,6 +72,7 @@ export default function ExpensesScreen({ navigation }) {
     try {
       insertExpense({ date: newDate, category, amount: parseFloat(amount), comment: comment.trim() });
       setAmount(''); setComment('');
+      setDateMode('today'); setNewDate(todayStr());
       if (shown) handleShow(); // обновляем список если уже показан
     } catch (e) { console.error(e); }
     setSaving(false);
@@ -163,7 +171,23 @@ export default function ExpensesScreen({ navigation }) {
           <TextInput style={styles.input} placeholder="Необязательно" placeholderTextColor={colors.muted} value={comment} onChangeText={setComment} />
 
           <Text style={styles.fieldLabel}>Дата</Text>
-          <TextInput style={styles.input} placeholder="ГГГГ-ММ-ДД" placeholderTextColor={colors.muted} value={newDate} onChangeText={setNewDate} />
+          <View style={styles.dateChipsRow}>
+            <Pressable style={[styles.dateChip, dateMode === 'today' && styles.dateChipActive]} onPress={() => handleDateMode('today')}>
+              <Text style={[styles.dateChipLabel, dateMode === 'today' && styles.dateChipLabelActive]}>Сегодня</Text>
+            </Pressable>
+            <Pressable style={[styles.dateChip, dateMode === 'yesterday' && styles.dateChipActive]} onPress={() => handleDateMode('yesterday')}>
+              <Text style={[styles.dateChipLabel, dateMode === 'yesterday' && styles.dateChipLabelActive]}>Вчера</Text>
+            </Pressable>
+            <Pressable style={[styles.dateChip, dateMode === 'custom' && styles.dateChipActive]} onPress={() => setDateMode('custom')}>
+              <Text style={[styles.dateChipLabel, dateMode === 'custom' && styles.dateChipLabelActive]}>Другая дата</Text>
+            </Pressable>
+          </View>
+          {dateMode === 'custom' && (
+            <TextInput style={styles.input} placeholder="ГГГГ-ММ-ДД" placeholderTextColor={colors.muted} value={newDate} onChangeText={setNewDate} />
+          )}
+          {dateMode !== 'custom' && (
+            <Text style={styles.dateRange}>{fmtDate(newDate)}</Text>
+          )}
 
           <MetalButton title="💾 Добавить расход" variant="success" onPress={handleAdd} />
         </MetalCard>
@@ -202,5 +226,10 @@ const styles = StyleSheet.create({
   chipActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.18)' },
   chipLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
   chipLabelActive: { color: colors.greenLight },
+  dateChipsRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  dateChip: { flex: 1, paddingVertical: 9, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e', alignItems: 'center' },
+  dateChipActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.18)' },
+  dateChipLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
+  dateChipLabelActive: { color: colors.greenLight },
   input: { padding: 13, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 14, marginBottom: 4, fontFamily: fonts.familyRegular },
 });

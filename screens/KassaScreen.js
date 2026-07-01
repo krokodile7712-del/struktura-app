@@ -196,8 +196,16 @@ export default function KassaScreen({ navigation, route }) {
       <TopBar title="Касса" onBack={() => navigation.navigate('Dashboard')} />
 
       {forClient && (
-        <View style={styles.clientBanner}>
-          <Text style={styles.clientBannerText}>👤 Заказ для: {forClient.fio} · баллы начислятся автоматически</Text>
+        <View style={styles.clientBadgeWrap}>
+          <View style={styles.clientBadge}>
+            <View style={styles.clientAvatar}>
+              <Text style={styles.clientAvatarText}>{(forClient.fio || '?').charAt(0).toUpperCase()}</Text>
+            </View>
+            <View>
+              <Text style={styles.clientBadgeName}>{forClient.fio}</Text>
+              <Text style={styles.clientBadgeSub}>★ баллы начислятся автоматически</Text>
+            </View>
+          </View>
         </View>
       )}
 
@@ -339,15 +347,29 @@ export default function KassaScreen({ navigation, route }) {
               <Pressable onPress={() => setDiscountModalOpen(false)} hitSlop={12}><Text style={styles.modalCloseText}>✕</Text></Pressable>
             </View>
             {discounts.length === 0 && <Text style={styles.emptyOrder}>Скидки не настроены</Text>}
-            {discounts.map((d, i) => (
-              <Pressable key={i} style={styles.discountOption} onPress={() => { setAppliedDiscount(d); setDiscountModalOpen(false); }}>
-                <Text style={styles.discountOptionText}>{d.name}</Text>
-                <Text style={styles.discountOptionPct}>−{d.pct}%</Text>
+            <View style={styles.discountGrid}>
+              <Pressable
+                style={[styles.discountCard, !appliedDiscount && styles.discountCardActive]}
+                onPress={() => { setAppliedDiscount(null); setDiscountModalOpen(false); }}
+              >
+                <Text style={styles.discountCardPct}>0%</Text>
+                <Text style={styles.discountCardName}>Без скидки</Text>
               </Pressable>
-            ))}
-            {appliedDiscount && (
-              <MetalButton title="Убрать скидку" variant="back" onPress={() => { setAppliedDiscount(null); setDiscountModalOpen(false); }} style={{ marginTop: 10 }} />
-            )}
+              {discounts.map((d, i) => {
+                const isActive = appliedDiscount?.name === d.name && appliedDiscount?.pct === d.pct;
+                return (
+                  <Pressable
+                    key={i}
+                    style={[styles.discountCard, isActive && styles.discountCardActive]}
+                    onPress={() => { setAppliedDiscount(d); setDiscountModalOpen(false); }}
+                  >
+                    <Text style={[styles.discountCardPct, isActive && styles.discountCardPctActive]}>−{d.pct}%</Text>
+                    <Text style={styles.discountCardName}>{d.name}</Text>
+                    {isActive && <Text style={styles.discountCardCheck}>✓</Text>}
+                  </Pressable>
+                );
+              })}
+            </View>
           </View>
         </View>
       </Modal>
@@ -446,12 +468,31 @@ const styles = StyleSheet.create({
   chipLabelActive: { color: colors.greenLight },
   modalFooter: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 20 },
   modalPrice: { fontFamily: fonts.family, fontSize: 26, fontWeight: '800', color: colors.text, minWidth: 80, textAlign: 'right' },
-  discountOption: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
-  discountOptionText: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.text },
-  discountOptionPct: { fontFamily: fonts.family, fontSize: 14, fontWeight: '700', color: colors.greenLight },
+  discountGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
+  discountCard: {
+    width: '47%', backgroundColor: '#0b0c0e', borderWidth: 1, borderColor: colors.border,
+    borderRadius: 14, paddingVertical: 14, paddingHorizontal: 12, alignItems: 'center', position: 'relative',
+  },
+  discountCardActive: { borderColor: 'rgba(61,158,146,0.75)', backgroundColor: 'rgba(61,158,146,0.14)' },
+  discountCardPct: { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.text },
+  discountCardPctActive: { color: colors.greenLight },
+  discountCardName: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 4, textAlign: 'center' },
+  discountCardCheck: { position: 'absolute', top: 8, right: 10, fontSize: 13, color: colors.greenLight, fontWeight: '800' },
   mixedInput: { padding: 13, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 16, marginBottom: 10, textAlign: 'center', fontFamily: fonts.family },
-  clientBanner: { backgroundColor: 'rgba(122,158,82,0.12)', borderBottomWidth: 1, borderBottomColor: 'rgba(122,158,82,0.3)', paddingVertical: 8, paddingHorizontal: 14 },
-  clientBannerText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.greenLight, textAlign: 'center' },
+  clientBadgeWrap: { paddingHorizontal: 14, paddingTop: 10, paddingBottom: 2 },
+  clientBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, alignSelf: 'flex-start',
+    backgroundColor: '#0e0f11', borderWidth: 1, borderColor: 'rgba(122,158,82,0.45)',
+    borderRadius: 18, paddingVertical: 7, paddingHorizontal: 12, paddingRight: 16,
+    shadowColor: '#7a9e52', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 0 }, elevation: 3,
+  },
+  clientAvatar: {
+    width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(122,158,82,0.18)', borderWidth: 1, borderColor: 'rgba(122,158,82,0.55)',
+  },
+  clientAvatarText: { fontFamily: fonts.family, fontWeight: '800', fontSize: 13, color: colors.greenLight },
+  clientBadgeName: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
+  clientBadgeSub: { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.greenLight, marginTop: 1 },
   warnIcon: { fontSize: 40, textAlign: 'center', marginBottom: 8 },
   warnTitle: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, textAlign: 'center', marginBottom: 8 },
   warnText: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center' },
