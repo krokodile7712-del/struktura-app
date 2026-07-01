@@ -14,6 +14,7 @@ const MENU_ITEMS = [
   { icon: '📅', label: 'Открыть смену',  screen: 'Shift',       variant: 'success' },
   { icon: '👤', label: 'Регистрация',    screen: 'Reg',         variant: 'pay'     },
   { icon: '📥', label: 'Импорт Sheets',  screen: 'Migrate',     variant: 'success' },
+  { icon: '⚙️', label: 'Настройки',      screen: 'Settings',    variant: 'pay'     },
 ];
 
 const ACCENT = {

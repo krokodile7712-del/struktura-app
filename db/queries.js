@@ -8,6 +8,15 @@ export function getSetting(key) {
   return row ? row.value : null;
 }
 
+export function setSetting(key, value) {
+  const db = getDb();
+  db.runSync(
+    `INSERT INTO app_settings (key, value) VALUES (?, ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    [key, value]
+  );
+}
+
 export function getPayMethods() {
   const raw = getSetting('payMethods');
   try { return JSON.parse(raw) || ['Наличные', 'Карта']; }
@@ -33,6 +42,16 @@ export function getUserByPin(pin) {
   return db.getFirstSync(`SELECT * FROM users WHERE pin = ?`, [pin]) || null;
 }
 
+export function getUsers() {
+  const db = getDb();
+  return db.getAllSync(`SELECT * FROM users`);
+}
+
+export function updateUserPin(role, pin) {
+  const db = getDb();
+  db.runSync(`UPDATE users SET pin = ? WHERE role = ?`, [pin, role]);
+}
+
 // ─── Товары ───────────────────────────────────────────────────────────────
 
 export function getAllProducts() {
@@ -55,6 +74,11 @@ export function insertProduct({ name, category, price_s, price_m, price_l, has_m
   );
 }
 
+export function updateProductVariants(id, variants) {
+  const db = getDb();
+  db.runSync(`UPDATE products SET variants = ? WHERE id = ?`, [JSON.stringify(variants), id]);
+}
+
 // ─── Модификаторы ─────────────────────────────────────────────────────────
 
 export function getModifiers() {
@@ -74,6 +98,24 @@ export function getSyrupModifiers() {
   return db.getAllSync(
     `SELECT * FROM modifiers WHERE type = 'Добавление' AND (ingr_to_replace = '' OR ingr_to_replace IS NULL) ORDER BY name`
   );
+}
+
+export function updateModifierPrice(id, price) {
+  const db = getDb();
+  db.runSync(`UPDATE modifiers SET price = ? WHERE id = ?`, [price, id]);
+}
+
+export function insertModifier({ name, price, type }) {
+  const db = getDb();
+  db.runSync(
+    `INSERT INTO modifiers (name, price, type, ingr_to_deduct, ingr_to_replace) VALUES (?, ?, ?, '', '')`,
+    [name, price || 0, type || 'Добавление']
+  );
+}
+
+export function deleteModifier(id) {
+  const db = getDb();
+  db.runSync(`DELETE FROM modifiers WHERE id = ?`, [id]);
 }
 
 // ─── Заказы ───────────────────────────────────────────────────────────────

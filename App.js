@@ -31,6 +31,7 @@ import ClientsListScreen from './screens/ClientsListScreen';
 import CostCardsScreen from './screens/CostCardsScreen';
 import ExpensesScreen from './screens/ExpensesScreen';
 import AdminScreen from './screens/AdminScreen';
+import SettingsScreen from './screens/SettingsScreen';
 import MigrateScreen from './screens/MigrateScreen';
 import { colors, fonts } from './constants/theme';
 
@@ -101,6 +102,7 @@ export default function App() {
             <Stack.Screen name="Login"       component={LoginScreen} />
             <Stack.Screen name="Dashboard"   component={DashboardScreen} />
             <Stack.Screen name="Admin"       component={AdminScreen} />
+            <Stack.Screen name="Settings"    component={SettingsScreen} />
             <Stack.Screen name="Kassa"       component={KassaScreen} />
             <Stack.Screen name="Shift"       component={ShiftScreen} />
             <Stack.Screen name="ShiftClose"  component={ShiftCloseScreen} />
