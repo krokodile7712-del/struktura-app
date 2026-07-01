@@ -143,6 +143,14 @@ export function insertClient({ fio, phone, code }) {
   );
 }
 
+export function updateClient(id, { fio, phone, balance }) {
+  const db = getDb();
+  db.runSync(
+    `UPDATE clients SET fio = ?, phone = ?, balance = ? WHERE id = ?`,
+    [fio, phone, balance, id]
+  );
+}
+
 export function addClientVisit(client_id, amount) {
   const db = getDb();
   const bonusPct = getBonusPct();
@@ -267,4 +275,18 @@ export function getShiftSummary(shift_id) {
     expenses, expTotal, expByCategory,
     openingCash, cashRemaining,
   };
+}
+
+// ─── Редактирование/удаление заказов (только админ) ─────────────────────
+
+export function deleteOrder(order_id) {
+  const db = getDb();
+  db.runSync(`DELETE FROM order_items WHERE order_id = ?`, [order_id]);
+  db.runSync(`DELETE FROM orders WHERE id = ?`, [order_id]);
+}
+
+export function updateOrder(order_id, { total, method }) {
+  const db = getDb();
+  try { db.execSync(`ALTER TABLE orders ADD COLUMN discount_pct REAL DEFAULT 0`); } catch (_) {}
+  db.runSync(`UPDATE orders SET total = ?, method = ? WHERE id = ?`, [total, method, order_id]);
 }

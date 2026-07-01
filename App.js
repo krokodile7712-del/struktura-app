@@ -90,7 +90,7 @@ export default function App() {
       <NavigationContainer theme={navTheme}>
         <AppBackground>
           <Stack.Navigator
-            initialRouteName="Loyalty"
+            initialRouteName="Login"
             screenOptions={{
               headerShown: false,
               animation: 'fade',

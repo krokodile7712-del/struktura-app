@@ -6,12 +6,13 @@ import {
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import { getAllProducts, getCategories, getMilkModifiers, getSyrupModifiers, getDiscounts, createOrder, getOpenShift } from '../db/queries';
+import { getAllProducts, getCategories, getMilkModifiers, getSyrupModifiers, getDiscounts, createOrder, getOpenShift, addClientVisit } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
 const CAT_ICONS = { 'Кофе': '☕', 'Лимонады': '🍹', 'Допы': '🍬', 'Прочее': '🫙' };
 
-export default function KassaScreen({ navigation }) {
+export default function KassaScreen({ navigation, route }) {
+  const forClient = route?.params?.forClient || null;
   const [loading, setLoading] = useState(true);
   const [groups, setGroups] = useState([]);
   const [allProducts, setAllProducts] = useState([]);
@@ -115,8 +116,14 @@ export default function KassaScreen({ navigation }) {
 
   // ─── Оплата ──────────────────────────────────────────────────────────────
 
+  const [noShiftWarning, setNoShiftWarning] = useState(false);
+
   const openPayModal = () => {
     if (order.length === 0) return;
+    if (!currentShift) {
+      setNoShiftWarning(true);
+      return;
+    }
     setPayMethod('Наличные');
     setMixedCash('');
     setMixedCard('');
@@ -152,10 +159,14 @@ export default function KassaScreen({ navigation }) {
       createOrder({
         total, method: payMethod,
         shift_id: currentShift?.id || null,
+        client_id: forClient?.id || null,
         items: order,
         cashAmount, cardAmount,
         discountPct: appliedDiscount?.pct || 0,
       });
+      if (forClient?.id) {
+        addClientVisit(forClient.id, total);
+      }
       setOrder([]);
       setAppliedDiscount(null);
       setPayModalOpen(false);
@@ -183,6 +194,12 @@ export default function KassaScreen({ navigation }) {
   return (
     <View style={{ flex: 1 }}>
       <TopBar title="Касса" onBack={() => navigation.navigate('Dashboard')} />
+
+      {forClient && (
+        <View style={styles.clientBanner}>
+          <Text style={styles.clientBannerText}>👤 Заказ для: {forClient.fio} · баллы начислятся автоматически</Text>
+        </View>
+      )}
 
       <View style={styles.layout}>
         <View style={styles.left}>
@@ -366,6 +383,22 @@ export default function KassaScreen({ navigation }) {
           </View>
         </View>
       </Modal>
+
+      {/* Модалка: смена не открыта */}
+      <Modal visible={noShiftWarning} transparent animationType="fade" onRequestClose={() => setNoShiftWarning(false)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setNoShiftWarning(false)} />
+          <View style={styles.modalInner}>
+            <Text style={styles.warnIcon}>⚠️</Text>
+            <Text style={styles.warnTitle}>Смена не открыта</Text>
+            <Text style={styles.warnText}>Чтобы принять оплату, сначала откройте смену.</Text>
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+              <MetalButton title="Отмена" variant="back" onPress={() => setNoShiftWarning(false)} style={{ flex: 1 }} />
+              <MetalButton title="📅 Открыть смену" variant="action" onPress={() => { setNoShiftWarning(false); navigation.navigate('Shift'); }} style={{ flex: 1 }} />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -417,4 +450,9 @@ const styles = StyleSheet.create({
   discountOptionText: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.text },
   discountOptionPct: { fontFamily: fonts.family, fontSize: 14, fontWeight: '700', color: colors.greenLight },
   mixedInput: { padding: 13, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 16, marginBottom: 10, textAlign: 'center', fontFamily: fonts.family },
+  clientBanner: { backgroundColor: 'rgba(122,158,82,0.12)', borderBottomWidth: 1, borderBottomColor: 'rgba(122,158,82,0.3)', paddingVertical: 8, paddingHorizontal: 14 },
+  clientBannerText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.greenLight, textAlign: 'center' },
+  warnIcon: { fontSize: 40, textAlign: 'center', marginBottom: 8 },
+  warnTitle: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, textAlign: 'center', marginBottom: 8 },
+  warnText: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center' },
 });

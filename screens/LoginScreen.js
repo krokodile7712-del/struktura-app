@@ -33,7 +33,7 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title="Вход" onBack={() => navigation.navigate('Loyalty')} />
+      <TopBar title="Вход" />
       <ScrollView contentContainerStyle={styles.inner}>
         <View style={styles.brandHeader}>
           <Image
