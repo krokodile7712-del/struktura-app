@@ -227,7 +227,7 @@ export default function SalesScreen({ navigation }) {
           )}
         </MetalCard>
       </ScrollView>
-      <BottomBar navigation={navigation} activeTab="Login" />
+      <BottomBar navigation={navigation} activeTab="Kassa" />
 
       {/* Модалка редактирования заказа */}
       <Modal visible={!!editOrder} transparent animationType="fade" onRequestClose={() => setEditOrder(null)}>

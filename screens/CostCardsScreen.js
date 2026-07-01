@@ -113,7 +113,7 @@ export default function CostCardsScreen({ navigation }) {
           })}
         </MetalCard>
       </ScrollView>
-      <BottomBar navigation={navigation} activeTab="Login" />
+      <BottomBar navigation={navigation} activeTab="Kassa" />
     </View>
   );
 }

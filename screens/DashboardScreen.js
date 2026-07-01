@@ -93,7 +93,7 @@ export default function DashboardScreen({ navigation }) {
         </View>
       </ScrollView>
 
-      <BottomBar navigation={navigation} activeTab="Login" />
+      <BottomBar navigation={navigation} activeTab="Kassa" />
     </View>
   );
 }

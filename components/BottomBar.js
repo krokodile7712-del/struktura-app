@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { colors, fonts } from '../constants/theme';
-import { isLoggedIn } from '../db/session';
+import { isLoggedIn, getSession } from '../db/session';
 
 const TABS = [
   { key: 'Loyalty', icon: '🏠', label: 'Лояльность' },
@@ -12,7 +12,8 @@ export default function BottomBar({ navigation, activeTab }) {
   const handlePress = (tab) => {
     if (tab.key === 'Cart') return;
     if (tab.key === 'Kassa') {
-      navigation.navigate('Dashboard');
+      const isAdmin = getSession()?.role === 'admin';
+      navigation.navigate(isAdmin ? 'Admin' : 'Dashboard');
       return;
     }
     navigation.navigate(tab.key);

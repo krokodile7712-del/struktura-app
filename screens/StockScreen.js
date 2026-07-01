@@ -132,7 +132,7 @@ export default function StockScreen({ navigation }) {
           })}
         </MetalCard>
       </ScrollView>
-      <BottomBar navigation={navigation} activeTab="Login" />
+      <BottomBar navigation={navigation} activeTab="Kassa" />
 
       <Modal visible={!!modalItem} transparent animationType="fade" onRequestClose={closeModal}>
         <View style={styles.modalRoot}>

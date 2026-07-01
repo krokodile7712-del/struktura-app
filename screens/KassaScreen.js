@@ -186,7 +186,7 @@ export default function KassaScreen({ navigation, route }) {
           <Text style={styles.emptyHint}>Импортируйте данные из Google Sheets через Admin → Импорт</Text>
           <MetalButton title="← Назад" variant="back" onPress={() => navigation.navigate('Dashboard')} />
         </View>
-        <BottomBar navigation={navigation} activeTab="Login" />
+        <BottomBar navigation={navigation} activeTab="Kassa" />
       </View>
     );
   }
@@ -273,7 +273,7 @@ export default function KassaScreen({ navigation, route }) {
         </View>
       </View>
 
-      <BottomBar navigation={navigation} activeTab="Login" />
+      <BottomBar navigation={navigation} activeTab="Kassa" />
 
       {/* Модалка товара */}
       <Modal visible={!!modalItem} transparent animationType="fade" onRequestClose={closeModal}>

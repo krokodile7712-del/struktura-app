@@ -193,7 +193,7 @@ export default function ExpensesScreen({ navigation }) {
         </MetalCard>
 
       </ScrollView>
-      <BottomBar navigation={navigation} activeTab="Login" />
+      <BottomBar navigation={navigation} activeTab="Kassa" />
     </View>
   );
 }

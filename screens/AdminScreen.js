@@ -74,7 +74,7 @@ export default function AdminScreen({ navigation }) {
         </View>
       </ScrollView>
 
-      <BottomBar navigation={navigation} activeTab="Login" />
+      <BottomBar navigation={navigation} activeTab="Kassa" />
     </View>
   );
 }
