@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput } from 'react-native';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
@@ -138,6 +136,8 @@ export default function SettingsScreen({ navigation }) {
   const handleExport = async () => {
     setExporting(true);
     try {
+      const FileSystem = await import('expo-file-system/legacy');
+      const Sharing = await import('expo-sharing');
       const data = exportAllData();
       const json = JSON.stringify(data, null, 2);
       const filename = `struktura-backup-${new Date().toISOString().slice(0, 10)}.json`;
