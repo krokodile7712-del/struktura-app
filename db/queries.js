@@ -59,6 +59,16 @@ export function getAllProducts() {
   return db.getAllSync(`SELECT * FROM products WHERE active = 1 ORDER BY category, name`);
 }
 
+export function getAllProductsAdmin() {
+  const db = getDb();
+  return db.getAllSync(`SELECT * FROM products ORDER BY category, name`);
+}
+
+export function setProductActive(id, active) {
+  const db = getDb();
+  db.runSync(`UPDATE products SET active = ? WHERE id = ?`, [active ? 1 : 0, id]);
+}
+
 export function getCategories() {
   const db = getDb();
   return db.getAllSync(`SELECT DISTINCT category FROM products WHERE active = 1 ORDER BY category`)
@@ -256,6 +266,11 @@ export function getAllStock() {
   return db.getAllSync(`SELECT * FROM stock ORDER BY category, name`);
 }
 
+export function updateStockThreshold(id, threshold) {
+  const db = getDb();
+  db.runSync(`UPDATE stock SET порог = ? WHERE id = ?`, [threshold, id]);
+}
+
 // ─── Себестоимость ────────────────────────────────────────────────────────
 
 export function getAllCostCards() {
@@ -409,4 +424,33 @@ export function getPurchaseHistory(stockName) {
     `SELECT * FROM purchases WHERE LOWER(stock_name) = LOWER(?) ORDER BY created_at DESC LIMIT 20`,
     [stockName]
   );
+}
+
+// ─── Резервное копирование ─────────────────────────────────────────────────
+
+const BACKUP_TABLES = [
+  'products', 'modifiers', 'orders', 'order_items', 'clients', 'shifts',
+  'expenses', 'cost_cards', 'cost_ingredients', 'stock', 'purchases',
+  'app_settings', 'users',
+];
+
+export function exportAllData() {
+  const db = getDb();
+  const data = { exported_at: new Date().toISOString() };
+  for (const table of BACKUP_TABLES) {
+    try { data[table] = db.getAllSync(`SELECT * FROM ${table}`); }
+    catch (_) { data[table] = []; }
+  }
+  return data;
+}
+
+// Полный сброс локальной базы. НЕ вызывается из UI, пока кнопка неактивна —
+// используется только когда явно потребуется очистить приложение перед стартом.
+// Таблица users не трогается, чтобы не потерять доступ по PIN.
+export function resetDatabase() {
+  const db = getDb();
+  for (const table of BACKUP_TABLES) {
+    if (table === 'users') continue;
+    try { db.execSync(`DELETE FROM ${table}`); } catch (_) {}
+  }
 }

@@ -69,7 +69,7 @@ export default function App() {
   useEffect(() => {
     try {
       initDatabase();
-      startAutoSync(2 * 60 * 1000); // каждые 2 минуты
+      startAutoSync(30 * 1000); // каждые 30 секунд
       setDbReady(true);
     } catch (e) {
       setDbError(e.message);
