@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Share } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
@@ -136,15 +136,12 @@ export default function SettingsScreen({ navigation }) {
   const handleExport = async () => {
     setExporting(true);
     try {
-      const FileSystem = await import('expo-file-system/legacy');
-      const Sharing = await import('expo-sharing');
       const data = exportAllData();
       const json = JSON.stringify(data, null, 2);
-      const filename = `struktura-backup-${new Date().toISOString().slice(0, 10)}.json`;
-      const path = FileSystem.documentDirectory + filename;
-      await FileSystem.writeAsStringAsync(path, json);
-      const available = await Sharing.isAvailableAsync();
-      if (available) await Sharing.shareAsync(path);
+      await Share.share({
+        title: `Бэкап СТРУКТУРА ${new Date().toISOString().slice(0, 10)}`,
+        message: json,
+      });
     } catch (e) { console.error(e); }
     setExporting(false);
   };
@@ -298,7 +295,7 @@ export default function SettingsScreen({ navigation }) {
         {/* Резервное копирование */}
         <MetalCard style={{ marginTop: 12, marginBottom: 20 }}>
           <Text style={styles.blockTitle}>💾 Резервное копирование</Text>
-          <Text style={styles.hintText}>Выгружает все данные приложения в файл, чтобы сохранить или переслать себе.</Text>
+          <Text style={styles.hintText}>Открывает системное меню «Поделиться» с данными в виде текста — можно переслать себе в Telegram, сохранить в заметки или облако.</Text>
           <MetalButton title={exporting ? 'Экспорт...' : '📤 Экспорт и поделиться'} variant="pay" onPress={handleExport} disabled={exporting} />
           <View style={{ marginTop: 14 }}>
             <Text style={styles.hintText}>Полностью очищает все данные приложения (заказы, клиенты, склад и т.д.). PIN-коды не затрагиваются. Пока недоступно — включим, когда всё будет настроено.</Text>
