@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Share } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import {
-  getAllProducts, updateProductVariants,
+  getAllProductsAdmin, updateProductVariants, insertProduct, setProductActive,
   getUsers, updateUserPin,
-  getDiscounts, setSetting,
+  getDiscounts, setSetting, getBonusPct,
   getModifiers, updateModifierPrice, insertModifier, deleteModifier,
+  getAllStock, updateStockThreshold,
+  exportAllData,
 } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
@@ -33,27 +35,36 @@ export default function SettingsScreen({ navigation }) {
   const [users, setUsers]         = useState([]);
   const [discounts, setDiscounts] = useState([]);
   const [modifiers, setModifiers] = useState([]);
+  const [stock, setStock]         = useState([]);
 
   // ── Модалки ──
   const [productModal, setProductModal]   = useState(null); // { product, variants: [{size, price}] }
+  const [newProductModal, setNewProductModal] = useState(null); // { name, category, price_s, price_m, price_l }
   const [discountModal, setDiscountModal] = useState(null); // { index, name, pct } | 'new'
   const [modifierModal, setModifierModal] = useState(null); // { id, name, price, type } | 'new'
+  const [stockModal, setStockModal]       = useState(null); // { id, name, unit, порог }
 
   // ── PIN поля ──
   const [pinBarista, setPinBarista] = useState('');
   const [pinAdmin, setPinAdmin]     = useState('');
 
+  // ── Общие настройки ──
+  const [bonusPct, setBonusPct] = useState('10');
+  const [exporting, setExporting] = useState(false);
+
   useEffect(() => { loadAll(); }, []);
 
   const loadAll = () => {
     try {
-      setProducts(getAllProducts());
+      setProducts(getAllProductsAdmin());
       const u = getUsers();
       setUsers(u);
       setPinBarista(u.find(x => x.role === 'barista')?.pin || '');
       setPinAdmin(u.find(x => x.role === 'admin')?.pin || '');
       setDiscounts(getDiscounts());
       setModifiers(getModifiers());
+      setStock(getAllStock());
+      setBonusPct(String(getBonusPct()));
     } catch (e) { console.error(e); }
   };
 
@@ -76,6 +87,63 @@ export default function SettingsScreen({ navigation }) {
       loadAll();
     } catch (e) { console.error(e); }
     setProductModal(null);
+  };
+  const toggleProductActive = () => {
+    if (!productModal) return;
+    try {
+      setProductActive(productModal.product.id, !productModal.product.active);
+      loadAll();
+    } catch (e) { console.error(e); }
+    setProductModal(null);
+  };
+
+  // ── Новый товар ──
+  const openNewProduct = () => setNewProductModal({ name: '', category: products[0]?.category || '', price_s: '', price_m: '', price_l: '' });
+  const saveNewProduct = () => {
+    if (!newProductModal || !newProductModal.name.trim() || !newProductModal.category.trim()) return;
+    try {
+      insertProduct({
+        name: newProductModal.name.trim(),
+        category: newProductModal.category.trim(),
+        price_s: parseFloat(newProductModal.price_s) || 0,
+        price_m: parseFloat(newProductModal.price_m) || 0,
+        price_l: parseFloat(newProductModal.price_l) || 0,
+        has_milk: false,
+        has_syrup: false,
+      });
+      loadAll();
+    } catch (e) { console.error(e); }
+    setNewProductModal(null);
+  };
+
+  // ── Пороги склада ──
+  const openStockModal = (item) => setStockModal({ id: item.id, name: item.name, unit: item.unit, порог: String(item['порог'] ?? 0) });
+  const saveStockModal = () => {
+    if (!stockModal) return;
+    try {
+      updateStockThreshold(stockModal.id, parseFloat(stockModal['порог']) || 0);
+      loadAll();
+    } catch (e) { console.error(e); }
+    setStockModal(null);
+  };
+
+  // ── Бонусный процент ──
+  const saveBonusPct = () => {
+    try { setSetting('bonusPct', String(parseFloat(bonusPct) || 0)); } catch (e) { console.error(e); }
+  };
+
+  // ── Экспорт / бэкап ──
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const data = exportAllData();
+      const json = JSON.stringify(data, null, 2);
+      await Share.share({
+        title: `Бэкап СТРУКТУРА ${new Date().toISOString().slice(0, 10)}`,
+        message: json,
+      });
+    } catch (e) { console.error(e); }
+    setExporting(false);
   };
 
   // ── PIN ──
@@ -149,9 +217,12 @@ export default function SettingsScreen({ navigation }) {
               {products.filter(p => p.category === cat).map(p => {
                 const variants = getVariants(p);
                 const priceLabel = variants.map(v => `${v.size ? v.size + ' ' : ''}${v.price}₽`).join(' · ');
+                const inactive = !p.active;
                 return (
                   <Pressable key={p.id} style={styles.row} onPress={() => openProduct(p)}>
-                    <Text style={styles.rowName}>{p.name}</Text>
+                    <Text style={[styles.rowName, inactive && styles.rowNameInactive]}>
+                      {inactive ? '🚫 ' : ''}{p.name}
+                    </Text>
                     <Text style={styles.rowPrice}>{priceLabel} ›</Text>
                   </Pressable>
                 );
@@ -159,6 +230,7 @@ export default function SettingsScreen({ navigation }) {
             </View>
           ))}
           {products.length === 0 && <Text style={styles.empty}>Нет товаров. Выполните импорт из Sheets.</Text>}
+          <MetalButton title="+ Добавить товар" variant="default" onPress={openNewProduct} />
         </MetalCard>
 
         {/* PIN-коды */}
@@ -169,6 +241,14 @@ export default function SettingsScreen({ navigation }) {
           <Text style={styles.fieldLabel}>Администратор</Text>
           <TextInput style={styles.input} keyboardType="number-pad" maxLength={6} value={pinAdmin} onChangeText={setPinAdmin} placeholderTextColor={colors.muted} />
           <MetalButton title="Сохранить PIN-коды" variant="success" onPress={savePins} />
+        </MetalCard>
+
+        {/* Общие настройки */}
+        <MetalCard style={{ marginTop: 12 }}>
+          <Text style={styles.blockTitle}>⭐ Бонусная программа</Text>
+          <Text style={styles.fieldLabel}>Процент начисления баллов</Text>
+          <TextInput style={styles.input} keyboardType="numeric" value={bonusPct} onChangeText={setBonusPct} placeholderTextColor={colors.muted} />
+          <MetalButton title="Сохранить" variant="success" onPress={saveBonusPct} />
         </MetalCard>
 
         {/* Скидки */}
@@ -185,7 +265,7 @@ export default function SettingsScreen({ navigation }) {
         </MetalCard>
 
         {/* Модификаторы */}
-        <MetalCard style={{ marginTop: 12, marginBottom: 20 }}>
+        <MetalCard style={{ marginTop: 12 }}>
           <Text style={styles.blockTitle}>🥛 Модификаторы</Text>
           {modifiers.length === 0 && <Text style={styles.empty}>Модификаторы не настроены</Text>}
           {modifiers.map(m => (
@@ -197,6 +277,29 @@ export default function SettingsScreen({ navigation }) {
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
             <MetalButton title="+ Замена (молоко)" variant="default" onPress={() => openNewModifier('Замена')} style={{ flex: 1 }} />
             <MetalButton title="+ Добавка (сироп)" variant="default" onPress={() => openNewModifier('Добавление')} style={{ flex: 1 }} />
+          </View>
+        </MetalCard>
+
+        {/* Пороги остатка склада */}
+        <MetalCard style={{ marginTop: 12 }}>
+          <Text style={styles.blockTitle}>📦 Пороги остатка склада</Text>
+          {stock.length === 0 && <Text style={styles.empty}>Нет данных. Выполните импорт из Sheets.</Text>}
+          {stock.map(s => (
+            <Pressable key={s.id} style={styles.row} onPress={() => openStockModal(s)}>
+              <Text style={styles.rowName}>{s.name}</Text>
+              <Text style={styles.rowPrice}>порог: {s['порог']} {s.unit} ›</Text>
+            </Pressable>
+          ))}
+        </MetalCard>
+
+        {/* Резервное копирование */}
+        <MetalCard style={{ marginTop: 12, marginBottom: 20 }}>
+          <Text style={styles.blockTitle}>💾 Резервное копирование</Text>
+          <Text style={styles.hintText}>Открывает системное меню «Поделиться» с данными в виде текста — можно переслать себе в Telegram, сохранить в заметки или облако.</Text>
+          <MetalButton title={exporting ? 'Экспорт...' : '📤 Экспорт и поделиться'} variant="pay" onPress={handleExport} disabled={exporting} />
+          <View style={{ marginTop: 14 }}>
+            <Text style={styles.hintText}>Полностью очищает все данные приложения (заказы, клиенты, склад и т.д.). PIN-коды не затрагиваются. Пока недоступно — включим, когда всё будет настроено.</Text>
+            <MetalButton title="🗑 Сбросить приложение" variant="danger" onPress={() => {}} disabled />
           </View>
         </MetalCard>
 
@@ -226,6 +329,74 @@ export default function SettingsScreen({ navigation }) {
                 </View>
               ))}
               <MetalButton title="Сохранить" variant="success" onPress={saveProduct} style={{ marginTop: 10 }} />
+              <MetalButton
+                title={productModal.product.active ? '🚫 Деактивировать' : '✓ Активировать'}
+                variant={productModal.product.active ? 'danger' : 'success'}
+                onPress={toggleProductActive}
+              />
+            </View>
+          )}
+        </View>
+      </Modal>
+
+      {/* Модалка нового товара */}
+      <Modal visible={!!newProductModal} transparent animationType="fade" onRequestClose={() => setNewProductModal(null)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setNewProductModal(null)} />
+          {newProductModal && (
+            <View style={styles.modalInner}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Новый товар</Text>
+                <Pressable onPress={() => setNewProductModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
+              </View>
+              <Text style={styles.fieldLabel}>Название</Text>
+              <TextInput style={styles.input} value={newProductModal.name} onChangeText={(v) => setNewProductModal(m => ({ ...m, name: v }))} placeholderTextColor={colors.muted} />
+              <Text style={styles.fieldLabel}>Категория</Text>
+              <TextInput style={styles.input} value={newProductModal.category} onChangeText={(v) => setNewProductModal(m => ({ ...m, category: v }))} placeholder="Название категории" placeholderTextColor={colors.muted} />
+              {categories.length > 0 && (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                  {categories.map(c => (
+                    <Pressable key={c} style={styles.catChip} onPress={() => setNewProductModal(m => ({ ...m, category: c }))}>
+                      <Text style={styles.catChipLabel}>{c}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+              <Text style={[styles.fieldLabel, { marginTop: 14 }]}>Цены по размерам (пусто — если размер не нужен)</Text>
+              <View style={styles.variantRow}>
+                <Text style={styles.variantLabel}>S</Text>
+                <TextInput style={styles.variantInput} keyboardType="numeric" value={newProductModal.price_s} onChangeText={(v) => setNewProductModal(m => ({ ...m, price_s: v }))} />
+                <Text style={styles.variantUnit}>₽</Text>
+              </View>
+              <View style={styles.variantRow}>
+                <Text style={styles.variantLabel}>M</Text>
+                <TextInput style={styles.variantInput} keyboardType="numeric" value={newProductModal.price_m} onChangeText={(v) => setNewProductModal(m => ({ ...m, price_m: v }))} />
+                <Text style={styles.variantUnit}>₽</Text>
+              </View>
+              <View style={styles.variantRow}>
+                <Text style={styles.variantLabel}>L</Text>
+                <TextInput style={styles.variantInput} keyboardType="numeric" value={newProductModal.price_l} onChangeText={(v) => setNewProductModal(m => ({ ...m, price_l: v }))} />
+                <Text style={styles.variantUnit}>₽</Text>
+              </View>
+              <MetalButton title="Добавить товар" variant="success" onPress={saveNewProduct} style={{ marginTop: 10 }} />
+            </View>
+          )}
+        </View>
+      </Modal>
+
+      {/* Модалка порога склада */}
+      <Modal visible={!!stockModal} transparent animationType="fade" onRequestClose={() => setStockModal(null)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setStockModal(null)} />
+          {stockModal && (
+            <View style={styles.modalInner}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{stockModal.name}</Text>
+                <Pressable onPress={() => setStockModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
+              </View>
+              <Text style={styles.fieldLabel}>Порог нехватки ({stockModal.unit})</Text>
+              <TextInput style={styles.input} keyboardType="numeric" value={stockModal['порог']} onChangeText={(v) => setStockModal(m => ({ ...m, порог: v }))} placeholderTextColor={colors.muted} />
+              <MetalButton title="Сохранить" variant="success" onPress={saveStockModal} style={{ marginTop: 10 }} />
             </View>
           )}
         </View>
@@ -291,8 +462,12 @@ const styles = StyleSheet.create({
   catHeader: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
   rowName: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.text, flex: 1 },
+  rowNameInactive: { color: colors.muted },
   rowPrice: { fontFamily: fonts.family, fontSize: 13, fontWeight: '700', color: colors.greenLight },
   empty: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center', paddingVertical: 12 },
+  hintText: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginBottom: 10, lineHeight: 17 },
+  catChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e' },
+  catChipLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
   fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, marginTop: 10 },
   input: { padding: 13, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 14, fontFamily: fonts.familyRegular },
   modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center' },
