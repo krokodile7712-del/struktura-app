@@ -12,6 +12,7 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.struktura.app",
       "adaptiveIcon": {
         "backgroundColor": "#060608",
         "foregroundImage": "./assets/android-icon-foreground.png",
