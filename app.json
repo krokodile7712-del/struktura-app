@@ -20,6 +20,16 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       }
     },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraProguardRules": "-keep class expo.modules.** { *; }\n-keepclassmembers class expo.modules.** { *; }\n-keep class com.facebook.react.** { *; }\n-dontwarn expo.modules.**"
+          }
+        }
+      ]
+    ],
     "web": {
       "favicon": "./assets/favicon.png"
     }
