@@ -25,6 +25,7 @@
         "expo-build-properties",
         {
           "android": {
+            "enableProguardInReleaseBuilds": false,
             "extraProguardRules": "-keep class expo.modules.** { *; }\n-keepclassmembers class expo.modules.** { *; }\n-keep class com.facebook.react.** { *; }\n-dontwarn expo.modules.**"
           }
         }
