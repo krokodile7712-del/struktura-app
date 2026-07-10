@@ -77,10 +77,14 @@ export function getCategories() {
 
 export function insertProduct({ name, category, price_s, price_m, price_l, has_milk, has_syrup }) {
   const db = getDb();
+  const variants = [];
+  if (price_s > 0) variants.push({ size: 'Маленький', price: price_s });
+  if (price_m > 0) variants.push({ size: 'Средний', price: price_m });
+  if (price_l > 0) variants.push({ size: 'Большой', price: price_l });
   db.runSync(
-    `INSERT INTO products (name, category, price_s, price_m, price_l, has_milk, has_syrup)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [name, category, price_s || 0, price_m || 0, price_l || 0, has_milk ? 1 : 0, has_syrup ? 1 : 0]
+    `INSERT INTO products (name, category, price_s, price_m, price_l, has_milk, has_syrup, variants)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [name, category, price_s || 0, price_m || 0, price_l || 0, has_milk ? 1 : 0, has_syrup ? 1 : 0, JSON.stringify(variants)]
   );
 }
 
