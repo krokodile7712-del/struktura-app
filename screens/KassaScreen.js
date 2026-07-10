@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
-  FlatList, Modal, ActivityIndicator, TextInput,
+  FlatList, Modal, ActivityIndicator, TextInput, Alert,
 } from 'react-native';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
@@ -156,7 +156,7 @@ export default function KassaScreen({ navigation, route }) {
       cardAmount = total;
     }
     try {
-      createOrder({
+      const { stockWarnings } = createOrder({
         total, method: payMethod,
         shift_id: currentShift?.id || null,
         client_id: forClient?.id || null,
@@ -170,6 +170,10 @@ export default function KassaScreen({ navigation, route }) {
       setOrder([]);
       setAppliedDiscount(null);
       setPayModalOpen(false);
+      if (stockWarnings && stockWarnings.length > 0) {
+        const lines = stockWarnings.map(w => `${w.name}: ${w.amount.toFixed(1)} ${w.unit || ''}`).join('\n');
+        Alert.alert('⚠️ Склад ушёл в минус', lines);
+      }
     } catch (e) { console.error('[KassaScreen] createOrder error:', e); }
   };
 

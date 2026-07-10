@@ -63,7 +63,8 @@ export default function CostCardsScreen({ navigation }) {
           {adding && (
             <View style={styles.form}>
               <Text style={styles.sectionTitle}>Название</Text>
-              <TextInput style={styles.input} placeholder="Напр. Капучино S" placeholderTextColor={colors.muted} value={newName} onChangeText={setNewName} />
+              <Text style={styles.hint}>Важно: название должно точно совпадать с «Товар + Размер» (напр. «Капучино Маленький»), как задано в Настройках → Меню и цены. Если у товара нет размеров — просто название товара.</Text>
+              <TextInput style={styles.input} placeholder="Напр. Капучино Маленький" placeholderTextColor={colors.muted} value={newName} onChangeText={setNewName} />
               <Text style={styles.sectionTitle}>Ингредиенты</Text>
               {draftIngredients.map((ing, idx) => (
                 <View key={idx} style={styles.row}>
@@ -122,6 +123,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   inner: { padding: spacing.lg, paddingBottom: 20, maxWidth: 1100, width: '100%', alignSelf: 'center' },
   sectionTitle: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 2, marginBottom: 8, marginTop: 12 },
+  hint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginBottom: 8, lineHeight: 17 },
   form: { padding: 12, backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 14, borderWidth: 1, borderColor: colors.border, marginBottom: 8 },
   input: { padding: 13, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 14, marginBottom: 10, fontFamily: fonts.familyRegular },
   empty: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', paddingVertical: 20 },

@@ -110,16 +110,21 @@ export function getSyrupModifiers() {
   );
 }
 
-export function updateModifierPrice(id, price) {
-  const db = getDb();
-  db.runSync(`UPDATE modifiers SET price = ? WHERE id = ?`, [price, id]);
-}
-
-export function insertModifier({ name, price, type }) {
+export function updateModifier(id, { price, ingrToReplace, ingrToDeduct, deductAmount, deductUnit }) {
+  initStockDeductionSchema();
   const db = getDb();
   db.runSync(
-    `INSERT INTO modifiers (name, price, type, ingr_to_deduct, ingr_to_replace) VALUES (?, ?, ?, '', '')`,
-    [name, price || 0, type || 'Добавление']
+    `UPDATE modifiers SET price = ?, ingr_to_replace = ?, ingr_to_deduct = ?, deduct_amount = ?, deduct_unit = ? WHERE id = ?`,
+    [price || 0, ingrToReplace || '', ingrToDeduct || '', deductAmount || 0, deductUnit || '', id]
+  );
+}
+
+export function insertModifier({ name, price, type, ingrToReplace, ingrToDeduct, deductAmount, deductUnit }) {
+  initStockDeductionSchema();
+  const db = getDb();
+  db.runSync(
+    `INSERT INTO modifiers (name, price, type, ingr_to_deduct, ingr_to_replace, deduct_amount, deduct_unit) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [name, price || 0, type || 'Добавление', ingrToDeduct || '', ingrToReplace || '', deductAmount || 0, deductUnit || '']
   );
 }
 
@@ -145,15 +150,19 @@ export function createOrder({ total, method, shift_id, client_id, items, cashAmo
     [now, total, method, shift_id || null, client_id || null, cashAmount || 0, cardAmount || 0, discountPct || 0]
   );
   const orderId = result.lastInsertRowId;
-  const stmt = db.prepareSync(
-    `INSERT INTO order_items (order_id, product_id, name, size, milk, syrup, price)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
-  );
+
+  const stockWarnings = [];
   for (const item of items) {
-    stmt.executeSync([orderId, item.product_id || null, item.name, item.size || '', item.milk || '', item.syrup || '', item.price]);
+    const itemResult = db.runSync(
+      `INSERT INTO order_items (order_id, product_id, name, size, milk, syrup, price) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [orderId, item.product_id || null, item.name, item.size || '', item.milk || '', item.syrup || '', item.price]
+    );
+    try {
+      const warnings = deductStockForOrderItem(itemResult.lastInsertRowId, item);
+      stockWarnings.push(...warnings);
+    } catch (e) { console.error('[createOrder] Ошибка списания склада:', e); }
   }
-  stmt.finalizeSync();
-  return orderId;
+  return { orderId, stockWarnings };
 }
 
 export function getRecentOrders(limit = 50) {
@@ -338,6 +347,7 @@ export function getShiftSummary(shift_id) {
 
 export function deleteOrder(order_id) {
   const db = getDb();
+  try { reverseStockForOrder(order_id); } catch (e) { console.error('[deleteOrder] Ошибка возврата на склад:', e); }
   db.runSync(`DELETE FROM order_items WHERE order_id = ?`, [order_id]);
   db.runSync(`DELETE FROM orders WHERE id = ?`, [order_id]);
 }
@@ -379,6 +389,120 @@ export function initPurchasesTable() {
   try { db.execSync(`ALTER TABLE stock ADD COLUMN avg_price REAL DEFAULT 0`); } catch (_) {}
   try { db.execSync(`ALTER TABLE stock ADD COLUMN last_price REAL DEFAULT 0`); } catch (_) {}
 }
+
+// ─── Списание склада по техкартам ─────────────────────────────────────────
+
+export function initStockDeductionSchema() {
+  const db = getDb();
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS stock_deductions (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_item_id INTEGER NOT NULL,
+      stock_name    TEXT NOT NULL,
+      amount        REAL NOT NULL
+    )
+  `);
+  try { db.execSync(`ALTER TABLE modifiers ADD COLUMN deduct_amount REAL DEFAULT 0`); } catch (_) {}
+  try { db.execSync(`ALTER TABLE modifiers ADD COLUMN deduct_unit TEXT DEFAULT ''`); } catch (_) {}
+}
+
+function normName(s) {
+  return (s || '').trim().toLowerCase();
+}
+
+// Находит техкарту по названию товара + размеру ("Капучино" + "Маленький" → "Капучино Маленький"),
+// либо просто по названию товара, если у него нет размера.
+export function findCostCardForItem(name, size) {
+  const db = getDb();
+  const candidates = [normName(`${name} ${size || ''}`), normName(name)];
+  const cards = db.getAllSync(`SELECT * FROM cost_cards`);
+  const match = cards.find(c => candidates.includes(normName(c.name)));
+  if (!match) return null;
+  const ingredients = db.getAllSync(`SELECT * FROM cost_ingredients WHERE cost_card_id = ?`, [match.id]);
+  return { ...match, ingredients };
+}
+
+function findStockByName(name) {
+  const db = getDb();
+  const target = normName(name);
+  if (!target) return null;
+  const all = db.getAllSync(`SELECT * FROM stock`);
+  return all.find(s => normName(s.name) === target) || null;
+}
+
+function findModifierByName(name) {
+  const db = getDb();
+  const target = normName(name);
+  if (!target) return null;
+  const all = db.getAllSync(`SELECT * FROM modifiers`);
+  return all.find(m => normName(m.name) === target) || null;
+}
+
+// Списывает ингредиенты со склада для одной позиции чека. Возвращает список
+// предупреждений { name, amount, unit } для ингредиентов, ушедших в минус.
+export function deductStockForOrderItem(orderItemId, item) {
+  initStockDeductionSchema();
+  const db = getDb();
+  const warnings = [];
+  const deductions = [];
+
+  const card = findCostCardForItem(item.name, item.size);
+  const milkModifier = item.milk ? findModifierByName(item.milk) : null;
+
+  if (card) {
+    for (const ing of card.ingredients) {
+      const isMilkIngredient = normName(ing.name) === 'молоко';
+      let targetName = ing.name;
+      if (isMilkIngredient && milkModifier?.ingr_to_replace) {
+        targetName = milkModifier.ingr_to_replace;
+      }
+      deductions.push({ stockName: targetName, amount: ing.amount });
+    }
+  }
+
+  if (item.syrup) {
+    const syrupModifier = findModifierByName(item.syrup);
+    if (syrupModifier?.ingr_to_deduct && syrupModifier.deduct_amount > 0) {
+      deductions.push({ stockName: syrupModifier.ingr_to_deduct, amount: syrupModifier.deduct_amount });
+    }
+  }
+
+  for (const d of deductions) {
+    const stockRow = findStockByName(d.stockName);
+    if (!stockRow) continue; // ингредиент не отслеживается на складе — пропускаем молча
+    const newAmount = (stockRow['остаток'] || 0) - d.amount;
+    db.runSync(`UPDATE stock SET остаток = ? WHERE id = ?`, [newAmount, stockRow.id]);
+    db.runSync(
+      `INSERT INTO stock_deductions (order_item_id, stock_name, amount) VALUES (?, ?, ?)`,
+      [orderItemId, stockRow.name, d.amount]
+    );
+    if (newAmount < 0) {
+      warnings.push({ name: stockRow.name, amount: newAmount, unit: stockRow.unit });
+    }
+  }
+  return warnings;
+}
+
+// Возвращает списанное со склада обратно — используется при удалении заказа админом.
+export function reverseStockForOrder(orderId) {
+  initStockDeductionSchema();
+  const db = getDb();
+  const itemIds = db.getAllSync(`SELECT id FROM order_items WHERE order_id = ?`, [orderId]).map(r => r.id);
+  if (itemIds.length === 0) return;
+  const placeholders = itemIds.map(() => '?').join(',');
+  const deductions = db.getAllSync(
+    `SELECT * FROM stock_deductions WHERE order_item_id IN (${placeholders})`,
+    itemIds
+  );
+  for (const d of deductions) {
+    const stockRow = findStockByName(d.stock_name);
+    if (!stockRow) continue;
+    db.runSync(`UPDATE stock SET остаток = остаток + ? WHERE id = ?`, [d.amount, stockRow.id]);
+  }
+  db.runSync(`DELETE FROM stock_deductions WHERE order_item_id IN (${placeholders})`, itemIds);
+}
+
+// ─── Закупки (для расчёта средней цены) ──────────────────────────────────
 
 export function addPurchase(stockName, qty, pricePerUnit) {
   initPurchasesTable();

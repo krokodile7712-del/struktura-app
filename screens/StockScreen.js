@@ -109,20 +109,21 @@ export default function StockScreen({ navigation }) {
                   {hasLow ? '⚠️ ' : ''}{cat}
                 </Text>
                 {items.map(item => {
+                  const isNegative = item['остаток'] < 0;
                   const isLow = item['остаток'] <= item['порог'];
                   return (
                     <Pressable key={item.id} style={styles.row} onPress={() => openModal(item)}>
                       <View style={{ flex: 1 }}>
-                        <Text style={[styles.itemName, isLow && styles.itemNameLow]}>
-                          {isLow ? '⚠️ ' : ''}{item.name}
+                        <Text style={[styles.itemName, isLow && styles.itemNameLow, isNegative && styles.itemNameNegative]}>
+                          {isNegative ? '🔴 ' : isLow ? '⚠️ ' : ''}{item.name}
                         </Text>
                         <Text style={styles.itemSub}>
                           {item['остаток']} {item.unit} · порог: {item['порог']}
                           {item.avg_price > 0 ? ` · ср. цена: ${item.avg_price} ₽` : ''}
                         </Text>
                       </View>
-                      <Text style={[styles.itemStatus, isLow && styles.itemStatusLow]}>
-                        {isLow ? 'Мало' : 'ОК'} ›
+                      <Text style={[styles.itemStatus, isLow && styles.itemStatusLow, isNegative && styles.itemStatusNegative]}>
+                        {isNegative ? 'Минус' : isLow ? 'Мало' : 'ОК'} ›
                       </Text>
                     </Pressable>
                   );
@@ -236,9 +237,11 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
   itemName: { fontFamily: fonts.family, fontSize: 14, color: colors.text },
   itemNameLow: { color: colors.redLight },
+  itemNameNegative: { color: '#ff3b30', fontFamily: fonts.familySemibold },
   itemSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
   itemStatus: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.greenLight },
   itemStatusLow: { color: colors.redLight },
+  itemStatusNegative: { color: '#ff3b30', fontFamily: fonts.familySemibold },
   modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center' },
   modalInner: { width: '60%', maxWidth: 560, backgroundColor: '#0e0f11', borderRadius: 20, padding: 24, borderWidth: 1, borderColor: colors.borderHi },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },

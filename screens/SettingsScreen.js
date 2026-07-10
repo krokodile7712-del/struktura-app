@@ -8,7 +8,7 @@ import {
   getAllProductsAdmin, updateProductVariants, insertProduct, setProductActive,
   getUsers, updateUserPin,
   getDiscounts, setSetting, getBonusPct,
-  getModifiers, updateModifierPrice, insertModifier, deleteModifier,
+  getModifiers, updateModifier, insertModifier, deleteModifier,
   getAllStock, updateStockThreshold,
   exportAllData,
 } from '../db/queries';
@@ -181,15 +181,29 @@ export default function SettingsScreen({ navigation }) {
   };
 
   // ── Модификаторы ──
-  const openNewModifier = (type) => setModifierModal({ id: null, name: '', price: '', type });
-  const openEditModifier = (m) => setModifierModal({ id: m.id, name: m.name, price: String(m.price), type: m.type });
+  const openNewModifier = (type) => setModifierModal({
+    id: null, name: '', price: '', type,
+    ingrToReplace: '', ingrToDeduct: '', deductAmount: '', deductUnit: 'мл',
+  });
+  const openEditModifier = (m) => setModifierModal({
+    id: m.id, name: m.name, price: String(m.price), type: m.type,
+    ingrToReplace: m.ingr_to_replace || '', ingrToDeduct: m.ingr_to_deduct || '',
+    deductAmount: m.deduct_amount ? String(m.deduct_amount) : '', deductUnit: m.deduct_unit || 'мл',
+  });
   const saveModifierModal = () => {
     if (!modifierModal || !modifierModal.name.trim()) return;
+    const payload = {
+      price: parseFloat(modifierModal.price) || 0,
+      ingrToReplace: modifierModal.ingrToReplace.trim(),
+      ingrToDeduct: modifierModal.ingrToDeduct.trim(),
+      deductAmount: parseFloat(modifierModal.deductAmount) || 0,
+      deductUnit: modifierModal.deductUnit.trim(),
+    };
     try {
       if (modifierModal.id) {
-        updateModifierPrice(modifierModal.id, parseFloat(modifierModal.price) || 0);
+        updateModifier(modifierModal.id, payload);
       } else {
-        insertModifier({ name: modifierModal.name.trim(), price: parseFloat(modifierModal.price) || 0, type: modifierModal.type });
+        insertModifier({ name: modifierModal.name.trim(), type: modifierModal.type, ...payload });
       }
       loadAll();
     } catch (e) { console.error(e); }
@@ -441,6 +455,30 @@ export default function SettingsScreen({ navigation }) {
               <TextInput style={styles.input} value={modifierModal.name} onChangeText={(v) => setModifierModal(m => ({ ...m, name: v }))} placeholderTextColor={colors.muted} />
               <Text style={styles.fieldLabel}>Доплата, ₽</Text>
               <TextInput style={styles.input} keyboardType="numeric" value={modifierModal.price} onChangeText={(v) => setModifierModal(m => ({ ...m, price: v }))} placeholderTextColor={colors.muted} />
+
+              {modifierModal.type === 'Замена' ? (
+                <>
+                  <Text style={styles.fieldLabel}>Ингредиент склада вместо «Молоко»</Text>
+                  <TextInput style={styles.input} value={modifierModal.ingrToReplace} onChangeText={(v) => setModifierModal(m => ({ ...m, ingrToReplace: v }))} placeholder="напр. Овсяное молоко" placeholderTextColor={colors.muted} />
+                  <Text style={styles.hintText}>Количество спишется такое же, как «Молоко» указано в техкарте товара.</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.fieldLabel}>Ингредиент склада для списания</Text>
+                  <TextInput style={styles.input} value={modifierModal.ingrToDeduct} onChangeText={(v) => setModifierModal(m => ({ ...m, ingrToDeduct: v }))} placeholder="напр. Сироп ваниль" placeholderTextColor={colors.muted} />
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <View style={{ flex: 2 }}>
+                      <Text style={styles.fieldLabel}>Расход за 1 добавку</Text>
+                      <TextInput style={styles.input} keyboardType="numeric" value={modifierModal.deductAmount} onChangeText={(v) => setModifierModal(m => ({ ...m, deductAmount: v }))} placeholderTextColor={colors.muted} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.fieldLabel}>Ед.</Text>
+                      <TextInput style={styles.input} value={modifierModal.deductUnit} onChangeText={(v) => setModifierModal(m => ({ ...m, deductUnit: v }))} placeholderTextColor={colors.muted} />
+                    </View>
+                  </View>
+                  <Text style={styles.hintText}>Оставь поле «Ингредиент» пустым, если этот модификатор не нужно списывать со склада.</Text>
+                </>
+              )}
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
                 <MetalButton title="Сохранить" variant="success" onPress={saveModifierModal} style={{ flex: 1 }} />
                 {modifierModal.id && (
