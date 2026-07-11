@@ -4,7 +4,7 @@ import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import { getOpenShift, getShiftSummary, closeShift } from '../db/queries';
-import { clearSession } from '../db/session';
+import { clearSession, getHomeRoute } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
 
 export default function ShiftCloseScreen({ navigation }) {
@@ -35,10 +35,10 @@ export default function ShiftCloseScreen({ navigation }) {
   if (!summary) {
     return (
       <View style={{ flex: 1 }}>
-        <TopBar title="Закрытие смены" onBack={() => navigation.navigate('Dashboard')} />
+        <TopBar title="Закрытие смены" onBack={() => navigation.navigate(getHomeRoute())} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
           <Text style={styles.emptyText}>Нет открытой смены</Text>
-          <MetalButton title="← Назад" variant="back" onPress={() => navigation.navigate('Dashboard')} />
+          <MetalButton title="← Назад" variant="back" onPress={() => navigation.navigate(getHomeRoute())} />
         </View>
       </View>
     );
@@ -49,7 +49,7 @@ export default function ShiftCloseScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title="Закрытие смены" onBack={() => navigation.navigate('Dashboard')} />
+      <TopBar title="Закрытие смены" onBack={() => navigation.navigate(getHomeRoute())} />
       <ScrollView contentContainerStyle={styles.inner}>
         <MetalCard>
           <Text style={styles.cardTitle}>📋 Итоги смены</Text>

@@ -5,7 +5,7 @@ import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import { getRecentOrders, getOrderItems, deleteOrder, updateOrder } from '../db/queries';
-import { getSession } from '../db/session';
+import { getSession, getHomeRoute } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
 
 const PERIODS = [
@@ -124,7 +124,7 @@ export default function SalesScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title="Продажи" onBack={() => navigation.navigate('Dashboard')} />
+      <TopBar title="Продажи" onBack={() => navigation.navigate(getHomeRoute())} />
       <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
         <MetalCard>
           {/* Выбор периода */}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getHomeRoute } from '../db/session';
 import { View, Text, StyleSheet, ScrollView, TextInput, Pressable } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import TopBar from '../components/TopBar';
@@ -20,7 +21,7 @@ export default function ClientsListScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title="Клиенты" onBack={() => navigation.navigate('Dashboard')} />
+      <TopBar title="Клиенты" onBack={() => navigation.navigate(getHomeRoute())} />
       <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
         <MetalCard>
           <TextInput

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getHomeRoute } from '../db/session';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
   FlatList, Modal, ActivityIndicator, TextInput, Alert,
@@ -184,11 +185,11 @@ export default function KassaScreen({ navigation, route }) {
   if (allProducts.length === 0) {
     return (
       <View style={{ flex: 1 }}>
-        <TopBar title="Касса" onBack={() => navigation.navigate('Dashboard')} />
+        <TopBar title="Касса" onBack={() => navigation.navigate(getHomeRoute())} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
           <Text style={styles.emptyTitle}>Меню пустое</Text>
           <Text style={styles.emptyHint}>Импортируйте данные из Google Sheets через Admin → Импорт</Text>
-          <MetalButton title="← Назад" variant="back" onPress={() => navigation.navigate('Dashboard')} />
+          <MetalButton title="← Назад" variant="back" onPress={() => navigation.navigate(getHomeRoute())} />
         </View>
         <BottomBar navigation={navigation} activeTab="Kassa" />
       </View>
@@ -197,7 +198,7 @@ export default function KassaScreen({ navigation, route }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title="Касса" onBack={() => navigation.navigate('Dashboard')} />
+      <TopBar title="Касса" onBack={() => navigation.navigate(getHomeRoute())} />
 
       {forClient && (
         <View style={styles.clientBadgeWrap}>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getHomeRoute } from '../db/session';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
@@ -28,7 +29,7 @@ export default function CostCardsScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title="Себестоимость" onBack={() => navigation.navigate('Dashboard')} />
+      <TopBar title="Себестоимость" onBack={() => navigation.navigate(getHomeRoute())} />
       <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
         <MetalCard>
           <Text style={styles.hint}>
