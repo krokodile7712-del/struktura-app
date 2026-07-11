@@ -10,6 +10,7 @@ import {
   getDiscounts, setSetting, getBonusPct,
   getModifiers, updateModifier, insertModifier, deleteModifier,
   getAllStock, updateStockThreshold,
+  getCostCardsForProduct, saveCostCardForProductSize, migrateCostCardsToProductId, getUnlinkedCostCards,
   exportAllData,
 } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
@@ -38,7 +39,9 @@ export default function SettingsScreen({ navigation }) {
   const [stock, setStock]         = useState([]);
 
   // ── Модалки ──
-  const [productModal, setProductModal]   = useState(null); // { product, variants: [{size, price}] }
+  const [productModal, setProductModal]   = useState(null); // { product, variants, techCards: { [size]: [{name, amount, unit}] } }
+  const [ingredientPicker, setIngredientPicker] = useState(null); // { sizeKey, search } | null
+  const [unlinkedCards, setUnlinkedCards] = useState([]);
   const [newProductModal, setNewProductModal] = useState(null); // { name, category, price_s, price_m, price_l }
   const [discountModal, setDiscountModal] = useState(null); // { index, name, pct } | 'new'
   const [modifierModal, setModifierModal] = useState(null); // { id, name, price, type } | 'new'
@@ -56,6 +59,7 @@ export default function SettingsScreen({ navigation }) {
 
   const loadAll = () => {
     try {
+      migrateCostCardsToProductId();
       setProducts(getAllProductsAdmin());
       const u = getUsers();
       setUsers(u);
@@ -65,12 +69,23 @@ export default function SettingsScreen({ navigation }) {
       setModifiers(getModifiers());
       setStock(getAllStock());
       setBonusPct(String(getBonusPct()));
+      setUnlinkedCards(getUnlinkedCostCards());
     } catch (e) { console.error(e); }
   };
 
-  // ── Товары ──
+  // ── Товары + техкарты ──
   const openProduct = (product) => {
-    setProductModal({ product, variants: getVariants(product).map(v => ({ ...v, price: String(v.price) })) });
+    const variants = getVariants(product).map(v => ({ ...v, price: String(v.price) }));
+    const sizeKeys = variants.length > 0 ? variants.map(v => v.size) : [''];
+    const existingCards = getCostCardsForProduct(product.id);
+    const techCards = {};
+    for (const key of sizeKeys) {
+      const card = existingCards.find(c => (c.size || '') === key);
+      techCards[key] = card
+        ? card.ingredients.map(ing => ({ name: ing.name, amount: String(ing.amount), unit: ing.unit }))
+        : [];
+    }
+    setProductModal({ product, variants, techCards });
   };
   const setVariantPrice = (i, value) => {
     setProductModal(m => {
@@ -79,11 +94,36 @@ export default function SettingsScreen({ navigation }) {
       return { ...m, variants };
     });
   };
+  const addIngredientRow = (sizeKey, stockItem) => {
+    setProductModal(m => ({
+      ...m,
+      techCards: { ...m.techCards, [sizeKey]: [...(m.techCards[sizeKey] || []), { name: stockItem.name, amount: '', unit: stockItem.unit }] },
+    }));
+  };
+  const removeIngredientRow = (sizeKey, index) => {
+    setProductModal(m => ({
+      ...m,
+      techCards: { ...m.techCards, [sizeKey]: m.techCards[sizeKey].filter((_, i) => i !== index) },
+    }));
+  };
+  const setIngredientAmount = (sizeKey, index, value) => {
+    setProductModal(m => {
+      const rows = [...m.techCards[sizeKey]];
+      rows[index] = { ...rows[index], amount: value };
+      return { ...m, techCards: { ...m.techCards, [sizeKey]: rows } };
+    });
+  };
   const saveProduct = () => {
     if (!productModal) return;
     const variants = productModal.variants.map(v => ({ size: v.size, price: parseFloat(v.price) || 0 }));
     try {
       updateProductVariants(productModal.product.id, variants);
+      for (const sizeKey of Object.keys(productModal.techCards)) {
+        const ingredients = productModal.techCards[sizeKey]
+          .filter(r => r.name && parseFloat(r.amount) > 0)
+          .map(r => ({ name: r.name, amount: parseFloat(r.amount) || 0, unit: r.unit, pricePerUnit: 0 }));
+        saveCostCardForProductSize(productModal.product.id, sizeKey, ingredients);
+      }
       loadAll();
     } catch (e) { console.error(e); }
     setProductModal(null);
@@ -306,6 +346,18 @@ export default function SettingsScreen({ navigation }) {
           ))}
         </MetalCard>
 
+        {unlinkedCards.length > 0 && (
+          <MetalCard style={{ marginTop: 12 }}>
+            <Text style={styles.blockTitle}>⚠️ Несвязанные техкарты</Text>
+            <Text style={styles.hintText}>Эти техкарты не удалось автоматически привязать к товару — название не совпадает с «Товар + Размер». Проверьте название товара/размера и пересоздайте техкарту через карточку товара выше, старую можно удалить в разделе «Себестоимость».</Text>
+            {unlinkedCards.map(c => (
+              <View key={c.id} style={styles.row}>
+                <Text style={styles.rowName}>{c.name}</Text>
+              </View>
+            ))}
+          </MetalCard>
+        )}
+
         {/* Резервное копирование */}
         <MetalCard style={{ marginTop: 12, marginBottom: 20 }}>
           <Text style={styles.blockTitle}>💾 Резервное копирование</Text>
@@ -325,23 +377,56 @@ export default function SettingsScreen({ navigation }) {
         <View style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setProductModal(null)} />
           {productModal && (
-            <View style={styles.modalInner}>
+            <View style={[styles.modalInner, { maxHeight: '85%' }]}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>{productModal.product.name}</Text>
                 <Pressable onPress={() => setProductModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
               </View>
-              {productModal.variants.map((v, i) => (
-                <View key={i} style={styles.variantRow}>
-                  <Text style={styles.variantLabel}>{v.size || 'Цена'}</Text>
-                  <TextInput
-                    style={styles.variantInput}
-                    keyboardType="numeric"
-                    value={v.price}
-                    onChangeText={(val) => setVariantPrice(i, val)}
-                  />
-                  <Text style={styles.variantUnit}>₽</Text>
-                </View>
-              ))}
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {productModal.variants.map((v, i) => (
+                  <View key={i} style={styles.variantRow}>
+                    <Text style={styles.variantLabel}>{v.size || 'Цена'}</Text>
+                    <TextInput
+                      style={styles.variantInput}
+                      keyboardType="numeric"
+                      value={v.price}
+                      onChangeText={(val) => setVariantPrice(i, val)}
+                    />
+                    <Text style={styles.variantUnit}>₽</Text>
+                  </View>
+                ))}
+
+                {Object.keys(productModal.techCards).map(sizeKey => (
+                  <View key={sizeKey || 'default'} style={styles.techCardBlock}>
+                    <Text style={styles.techCardTitle}>
+                      🧾 Техкарта{sizeKey ? ` · ${sizeKey}` : ''}
+                    </Text>
+                    {productModal.techCards[sizeKey].length === 0 && (
+                      <Text style={styles.hintText}>Ингредиенты не заданы — списание со склада для этого варианта работать не будет.</Text>
+                    )}
+                    {productModal.techCards[sizeKey].map((row, idx) => (
+                      <View key={idx} style={styles.ingredientRow}>
+                        <Text style={styles.ingredientName} numberOfLines={1}>{row.name}</Text>
+                        <TextInput
+                          style={styles.ingredientAmount}
+                          keyboardType="numeric"
+                          value={row.amount}
+                          onChangeText={(val) => setIngredientAmount(sizeKey, idx, val)}
+                          placeholder="0"
+                          placeholderTextColor={colors.muted}
+                        />
+                        <Text style={styles.ingredientUnit}>{row.unit}</Text>
+                        <Pressable onPress={() => removeIngredientRow(sizeKey, idx)} hitSlop={8}>
+                          <Text style={styles.ingredientRemove}>✕</Text>
+                        </Pressable>
+                      </View>
+                    ))}
+                    <Pressable style={styles.addIngredientBtn} onPress={() => setIngredientPicker({ sizeKey, search: '' })}>
+                      <Text style={styles.addIngredientBtnLabel}>+ добавить ингредиент со склада</Text>
+                    </Pressable>
+                  </View>
+                ))}
+              </ScrollView>
               <MetalButton title="Сохранить" variant="success" onPress={saveProduct} style={{ marginTop: 10 }} />
               <MetalButton
                 title={productModal.product.active ? '🚫 Деактивировать' : '✓ Активировать'}
@@ -393,6 +478,48 @@ export default function SettingsScreen({ navigation }) {
                 <Text style={styles.variantUnit}>₽</Text>
               </View>
               <MetalButton title="Добавить товар" variant="success" onPress={saveNewProduct} style={{ marginTop: 10 }} />
+            </View>
+          )}
+        </View>
+      </Modal>
+
+      {/* Модалка выбора ингредиента со склада (для техкарты) */}
+      <Modal visible={!!ingredientPicker} transparent animationType="fade" onRequestClose={() => setIngredientPicker(null)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setIngredientPicker(null)} />
+          {ingredientPicker && (
+            <View style={[styles.modalInner, { maxHeight: '75%' }]}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Ингредиент со склада</Text>
+                <Pressable onPress={() => setIngredientPicker(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
+              </View>
+              <TextInput
+                style={styles.input}
+                placeholder="Поиск..."
+                placeholderTextColor={colors.muted}
+                value={ingredientPicker.search}
+                onChangeText={(v) => setIngredientPicker(p => ({ ...p, search: v }))}
+              />
+              <ScrollView style={{ marginTop: 8 }} showsVerticalScrollIndicator={false}>
+                {stock.length === 0 && (
+                  <Text style={styles.hintText}>На складе пока нет позиций — сначала добавь их через раздел «Склад».</Text>
+                )}
+                {stock
+                  .filter(s => s.name.toLowerCase().includes(ingredientPicker.search.trim().toLowerCase()))
+                  .map(s => (
+                    <Pressable
+                      key={s.id}
+                      style={styles.row}
+                      onPress={() => {
+                        addIngredientRow(ingredientPicker.sizeKey, s);
+                        setIngredientPicker(null);
+                      }}
+                    >
+                      <Text style={styles.rowName}>{s.name}</Text>
+                      <Text style={styles.rowPrice}>{s.unit}</Text>
+                    </Pressable>
+                  ))}
+              </ScrollView>
             </View>
           )}
         </View>
@@ -517,4 +644,13 @@ const styles = StyleSheet.create({
   variantLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, width: 90 },
   variantInput: { flex: 1, padding: 12, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 15, fontFamily: fonts.family, textAlign: 'center' },
   variantUnit: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
+  techCardBlock: { marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: colors.border },
+  techCardTitle: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, marginBottom: 8 },
+  ingredientRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  ingredientName: { flex: 1, fontFamily: fonts.familyRegular, fontSize: 13, color: colors.text },
+  ingredientAmount: { width: 64, padding: 8, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 10, color: colors.text, fontSize: 13, fontFamily: fonts.family, textAlign: 'center' },
+  ingredientUnit: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, width: 30 },
+  ingredientRemove: { fontSize: 15, color: colors.redLight, paddingHorizontal: 4 },
+  addIngredientBtn: { paddingVertical: 8, alignItems: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: 12, borderStyle: 'dashed', marginTop: 2 },
+  addIngredientBtnLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.greenLight },
 });

@@ -288,11 +288,109 @@ export function updateStockThreshold(id, threshold) {
 
 export function getAllCostCards() {
   const db = getDb();
+  try { db.execSync(`ALTER TABLE cost_cards ADD COLUMN size TEXT DEFAULT ''`); } catch (_) {}
   const cards = db.getAllSync(`SELECT * FROM cost_cards ORDER BY name`);
   return cards.map(card => ({
     ...card,
     ingredients: db.getAllSync(`SELECT * FROM cost_ingredients WHERE cost_card_id = ?`, [card.id]),
   }));
+}
+
+// Одноразовая (идемпотентная) миграция: у старых техкарт product_id всегда NULL,
+// связь была только по тексту "Товар Размер". Пытаемся связать по product_id+size.
+export function migrateCostCardsToProductId() {
+  const db = getDb();
+  try { db.execSync(`ALTER TABLE cost_cards ADD COLUMN size TEXT DEFAULT ''`); } catch (_) {}
+  const unlinked = db.getAllSync(`SELECT * FROM cost_cards WHERE product_id IS NULL`);
+  if (unlinked.length === 0) return;
+  const products = db.getAllSync(`SELECT * FROM products`);
+  for (const card of unlinked) {
+    const cardName = normName(card.name);
+    let matched = null;
+    for (const p of products) {
+      const variants = parseVariantsForProduct(p);
+      if (variants.length === 0) {
+        if (normName(p.name) === cardName) { matched = { productId: p.id, size: '' }; break; }
+      } else {
+        for (const v of variants) {
+          if (normName(`${p.name} ${v.size}`) === cardName) { matched = { productId: p.id, size: v.size }; break; }
+        }
+      }
+      if (matched) break;
+    }
+    if (matched) {
+      db.runSync(`UPDATE cost_cards SET product_id = ?, size = ? WHERE id = ?`, [matched.productId, matched.size, card.id]);
+    }
+  }
+}
+
+function parseVariantsForProduct(product) {
+  try {
+    if (product.variants) {
+      const parsed = typeof product.variants === 'string' ? JSON.parse(product.variants) : product.variants;
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (_) {}
+  const variants = [];
+  if (product.price_s > 0) variants.push({ size: 'S', price: product.price_s });
+  if (product.price_m > 0) variants.push({ size: 'M', price: product.price_m });
+  if (product.price_l > 0) variants.push({ size: 'L', price: product.price_l });
+  return variants;
+}
+
+// Техкарты, привязка которых по имени не нашлась — для ручного разбора админом
+export function getUnlinkedCostCards() {
+  const db = getDb();
+  return db.getAllSync(`SELECT * FROM cost_cards WHERE product_id IS NULL ORDER BY name`);
+}
+
+// Все техкарты конкретного товара, сгруппированные по размеру ('' — без размера)
+export function getCostCardsForProduct(productId) {
+  const db = getDb();
+  const cards = db.getAllSync(`SELECT * FROM cost_cards WHERE product_id = ?`, [productId]);
+  return cards.map(card => ({
+    ...card,
+    ingredients: db.getAllSync(`SELECT * FROM cost_ingredients WHERE cost_card_id = ?`, [card.id]),
+  }));
+}
+
+// Сохраняет техкарту для товара+размера: если карта уже есть — заменяет состав,
+// если ингредиентов 0 — удаляет карту целиком, иначе создаёт новую.
+export function saveCostCardForProductSize(productId, size, ingredients) {
+  const db = getDb();
+  try { db.execSync(`ALTER TABLE cost_cards ADD COLUMN size TEXT DEFAULT ''`); } catch (_) {}
+  const existing = db.getFirstSync(
+    `SELECT * FROM cost_cards WHERE product_id = ? AND size = ?`,
+    [productId, size || '']
+  );
+
+  if (ingredients.length === 0) {
+    if (existing) {
+      db.runSync(`DELETE FROM cost_ingredients WHERE cost_card_id = ?`, [existing.id]);
+      db.runSync(`DELETE FROM cost_cards WHERE id = ?`, [existing.id]);
+    }
+    return;
+  }
+
+  let cardId;
+  if (existing) {
+    cardId = existing.id;
+    db.runSync(`DELETE FROM cost_ingredients WHERE cost_card_id = ?`, [cardId]);
+  } else {
+    const product = db.getFirstSync(`SELECT * FROM products WHERE id = ?`, [productId]);
+    const name = size ? `${product?.name || ''} ${size}` : (product?.name || '');
+    const result = db.runSync(
+      `INSERT INTO cost_cards (name, product_id, size) VALUES (?, ?, ?)`,
+      [name, productId, size || '']
+    );
+    cardId = result.lastInsertRowId;
+  }
+  for (const ing of ingredients) {
+    db.runSync(
+      `INSERT INTO cost_ingredients (cost_card_id, name, amount, unit, price_per_unit) VALUES (?, ?, ?, ?, ?)`,
+      [cardId, ing.name, ing.amount, ing.unit, ing.pricePerUnit || 0]
+    );
+  }
 }
 
 export function insertCostCard(name, ingredients) {
@@ -306,6 +404,12 @@ export function insertCostCard(name, ingredients) {
   }
   stmt.finalizeSync();
   return cardId;
+}
+
+export function deleteCostCard(cardId) {
+  const db = getDb();
+  db.runSync(`DELETE FROM cost_ingredients WHERE cost_card_id = ?`, [cardId]);
+  db.runSync(`DELETE FROM cost_cards WHERE id = ?`, [cardId]);
 }
 
 // ─── Итоги смены ───────────────────────────────────────────────────────────
@@ -416,10 +520,23 @@ function normName(s) {
 
 // Находит техкарту по названию товара + размеру ("Капучино" + "Маленький" → "Капучино Маленький"),
 // либо просто по названию товара, если у него нет размера.
-export function findCostCardForItem(name, size) {
+export function findCostCardForItem(productId, name, size) {
   const db = getDb();
+
+  if (productId) {
+    const bySize = db.getFirstSync(
+      `SELECT * FROM cost_cards WHERE product_id = ? AND size = ?`,
+      [productId, size || '']
+    );
+    if (bySize) {
+      const ingredients = db.getAllSync(`SELECT * FROM cost_ingredients WHERE cost_card_id = ?`, [bySize.id]);
+      return { ...bySize, ingredients };
+    }
+  }
+
+  // Резерв: старые техкарты без product_id, сопоставленные только по тексту
   const candidates = [normName(`${name} ${size || ''}`), normName(name)];
-  const cards = db.getAllSync(`SELECT * FROM cost_cards`);
+  const cards = db.getAllSync(`SELECT * FROM cost_cards WHERE product_id IS NULL`);
   const match = cards.find(c => candidates.includes(normName(c.name)));
   if (!match) return null;
   const ingredients = db.getAllSync(`SELECT * FROM cost_ingredients WHERE cost_card_id = ?`, [match.id]);
@@ -450,7 +567,7 @@ export function deductStockForOrderItem(orderItemId, item) {
   const warnings = [];
   const deductions = [];
 
-  const card = findCostCardForItem(item.name, item.size);
+  const card = findCostCardForItem(item.product_id, item.name, item.size);
   const milkModifier = item.milk ? findModifierByName(item.milk) : null;
 
   if (card) {
