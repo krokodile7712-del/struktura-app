@@ -29,7 +29,7 @@ export default function ShiftCloseScreen({ navigation }) {
 
   const handleFinish = () => {
     clearSession();
-    navigation.navigate('Loyalty');
+    navigation.navigate('Login');
   };
 
   if (!summary) {
