@@ -1,5 +1,214 @@
 import { getDb } from './database';
 
+// ─── Профиль бизнеса ────────────────────────────────────────────────────────
+
+export const BUSINESS_PRESETS = {
+  coffee: {
+    label: 'Кофейня',
+    modules: { stock: true, shifts: true, clients: true, loyalty: true, modifiers: true, inventory: true },
+    terms: { item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' },
+    units: ['мл', 'л', 'г', 'кг', 'шт', 'уп', 'пара'],
+  },
+  retail: {
+    label: 'Розница',
+    modules: { stock: true, shifts: false, clients: true, loyalty: true, modifiers: false, inventory: true },
+    terms: { item: 'Товар', client: 'Покупатель', order: 'Продажа', category: 'Категория' },
+    units: ['шт', 'пара', 'уп', 'м', 'кг'],
+  },
+  services: {
+    label: 'Услуги',
+    modules: { stock: false, shifts: true, clients: true, loyalty: true, modifiers: false, inventory: false },
+    terms: { item: 'Услуга', client: 'Клиент', order: 'Заказ', category: 'Категория' },
+    units: ['шт', 'ч', 'сеанс'],
+  },
+};
+
+function safeParse(json, fallback) {
+  try {
+    const parsed = JSON.parse(json);
+    return parsed ?? fallback;
+  } catch (_) { return fallback; }
+}
+
+export function getBusinessProfile() {
+  const db = getDb();
+  const row = db.getFirstSync(`SELECT * FROM business_profile ORDER BY id LIMIT 1`);
+  if (!row) return null;
+  return {
+    ...row,
+    modules: safeParse(row.modules, {}),
+    terms: safeParse(row.terms, {}),
+    units: safeParse(row.units, []),
+  };
+}
+
+export function updateBusinessProfile({ businessName, modules, terms, units, accessKey }) {
+  const db = getDb();
+  const existing = db.getFirstSync(`SELECT id FROM business_profile ORDER BY id LIMIT 1`);
+  const payload = [
+    businessName ?? '',
+    JSON.stringify(modules || {}),
+    JSON.stringify(terms || {}),
+    JSON.stringify(units || []),
+    accessKey ?? '',
+  ];
+  if (existing) {
+    db.runSync(
+      `UPDATE business_profile SET business_name = ?, modules = ?, terms = ?, units = ?, access_key = ? WHERE id = ?`,
+      [...payload, existing.id]
+    );
+  } else {
+    db.runSync(
+      `INSERT INTO business_profile (business_name, modules, terms, units, access_key) VALUES (?, ?, ?, ?, ?)`,
+      payload
+    );
+  }
+}
+
+// Применяет стартовый пресет (перезаписывает модули/термины/единицы, имя бизнеса не трогает)
+export function applyBusinessPreset(presetKey) {
+  const preset = BUSINESS_PRESETS[presetKey];
+  if (!preset) return;
+  const db = getDb();
+  const existing = db.getFirstSync(`SELECT id FROM business_profile ORDER BY id LIMIT 1`);
+  const payload = [presetKey, JSON.stringify(preset.modules), JSON.stringify(preset.terms), JSON.stringify(preset.units)];
+  if (existing) {
+    db.runSync(`UPDATE business_profile SET preset = ?, modules = ?, terms = ?, units = ? WHERE id = ?`, [...payload, existing.id]);
+  } else {
+    db.runSync(`INSERT INTO business_profile (preset, modules, terms, units) VALUES (?, ?, ?, ?)`, payload);
+  }
+}
+
+// ─── Товары: произвольные оси вариативности ───────────────────────────────
+
+export function getProductAxes(productId) {
+  const db = getDb();
+  return db.getAllSync(`SELECT * FROM product_axes WHERE product_id = ? ORDER BY position`, [productId]);
+}
+
+export function getProductVariants(productId) {
+  const db = getDb();
+  const rows = db.getAllSync(`SELECT * FROM product_variants WHERE product_id = ? ORDER BY id`, [productId]);
+  return rows.map(r => ({ ...r, axisValues: safeParse(r.axis_values, {}) }));
+}
+
+export function getProductVariantById(id) {
+  const db = getDb();
+  const row = db.getFirstSync(`SELECT * FROM product_variants WHERE id = ?`, [id]);
+  if (!row) return null;
+  return { ...row, axisValues: safeParse(row.axis_values, {}) };
+}
+
+// Полностью заменяет оси и варианты товара (проще и надёжнее, чем точечный diff в UI-редакторе)
+export function saveProductAxesAndVariants(productId, axisNames, variants) {
+  const db = getDb();
+  db.runSync(`DELETE FROM product_axes WHERE product_id = ?`, [productId]);
+  axisNames.forEach((name, i) => {
+    db.runSync(`INSERT INTO product_axes (product_id, name, position) VALUES (?, ?, ?)`, [productId, name, i]);
+  });
+
+  const existingIds = db.getAllSync(`SELECT id FROM product_variants WHERE product_id = ?`, [productId]).map(r => r.id);
+  const keepIds = variants.filter(v => v.id).map(v => v.id);
+  const toDelete = existingIds.filter(id => !keepIds.includes(id));
+  for (const id of toDelete) {
+    db.runSync(`DELETE FROM product_variants WHERE id = ?`, [id]);
+  }
+  const saved = [];
+  for (const v of variants) {
+    if (v.id) {
+      db.runSync(
+        `UPDATE product_variants SET axis_values = ?, label = ?, price = ?, sku = ?, active = ? WHERE id = ?`,
+        [JSON.stringify(v.axisValues || {}), v.label || '', v.price || 0, v.sku || '', v.active === false ? 0 : 1, v.id]
+      );
+      saved.push({ ...v, id: v.id });
+    } else {
+      const result = db.runSync(
+        `INSERT INTO product_variants (product_id, axis_values, label, price, sku, active) VALUES (?, ?, ?, ?, ?, ?)`,
+        [productId, JSON.stringify(v.axisValues || {}), v.label || '', v.price || 0, v.sku || '', v.active === false ? 0 : 1]
+      );
+      saved.push({ ...v, id: result.lastInsertRowId });
+    }
+  }
+  return saved;
+}
+
+export function deleteProductVariants(productId) {
+  const db = getDb();
+  db.runSync(`DELETE FROM product_variants WHERE product_id = ?`, [productId]);
+  db.runSync(`DELETE FROM product_axes WHERE product_id = ?`, [productId]);
+}
+
+// ─── Группы модификаторов (замена/добавка любого типа, не только молоко/сироп) ──
+
+export function getAllModifierGroups() {
+  const db = getDb();
+  const groups = db.getAllSync(`SELECT * FROM modifier_groups ORDER BY name`);
+  return groups.map(g => ({
+    ...g,
+    options: db.getAllSync(`SELECT * FROM modifier_options WHERE group_id = ?`, [g.id]),
+  }));
+}
+
+export function insertModifierGroup({ name, selectionType }) {
+  const db = getDb();
+  const { lastInsertRowId } = db.runSync(
+    `INSERT INTO modifier_groups (name, selection_type) VALUES (?, ?)`,
+    [name, selectionType || 'single']
+  );
+  return lastInsertRowId;
+}
+
+export function updateModifierGroup(id, { name, selectionType }) {
+  const db = getDb();
+  db.runSync(`UPDATE modifier_groups SET name = ?, selection_type = ? WHERE id = ?`, [name, selectionType || 'single', id]);
+}
+
+export function deleteModifierGroup(id) {
+  const db = getDb();
+  db.runSync(`DELETE FROM modifier_options WHERE group_id = ?`, [id]);
+  db.runSync(`DELETE FROM product_modifier_groups WHERE group_id = ?`, [id]);
+  db.runSync(`DELETE FROM modifier_groups WHERE id = ?`, [id]);
+}
+
+export function insertModifierOption({ groupId, name, priceDelta, ingrToReplace, ingrToDeduct, deductAmount, deductUnit }) {
+  const db = getDb();
+  db.runSync(
+    `INSERT INTO modifier_options (group_id, name, price_delta, ingr_to_replace, ingr_to_deduct, deduct_amount, deduct_unit)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [groupId, name, priceDelta || 0, ingrToReplace || '', ingrToDeduct || '', deductAmount || 0, deductUnit || '']
+  );
+}
+
+export function updateModifierOption(id, { name, priceDelta, ingrToReplace, ingrToDeduct, deductAmount, deductUnit }) {
+  const db = getDb();
+  db.runSync(
+    `UPDATE modifier_options SET name = ?, price_delta = ?, ingr_to_replace = ?, ingr_to_deduct = ?, deduct_amount = ?, deduct_unit = ? WHERE id = ?`,
+    [name, priceDelta || 0, ingrToReplace || '', ingrToDeduct || '', deductAmount || 0, deductUnit || '', id]
+  );
+}
+
+export function deleteModifierOption(id) {
+  const db = getDb();
+  db.runSync(`DELETE FROM modifier_options WHERE id = ?`, [id]);
+}
+
+export function getProductModifierGroups(productId) {
+  const db = getDb();
+  const links = db.getAllSync(`SELECT group_id FROM product_modifier_groups WHERE product_id = ?`, [productId]);
+  const groupIds = links.map(l => l.group_id);
+  if (groupIds.length === 0) return [];
+  const all = getAllModifierGroups();
+  return all.filter(g => groupIds.includes(g.id));
+}
+
+export function setProductModifierGroups(productId, groupIds) {
+  const db = getDb();
+  db.runSync(`DELETE FROM product_modifier_groups WHERE product_id = ?`, [productId]);
+  for (const groupId of groupIds) {
+    db.runSync(`INSERT INTO product_modifier_groups (product_id, group_id) VALUES (?, ?)`, [productId, groupId]);
+  }
+}
+
 // ─── Настройки ────────────────────────────────────────────────────────────
 
 export function getSetting(key) {
@@ -157,9 +366,16 @@ export function createOrder({ total, method, shift_id, client_id, items, cashAmo
 
   const stockWarnings = [];
   for (const item of items) {
+    // size/milk/syrup оставлены для обратной совместимости отображения в Продажах;
+    // размер варианта дублируется в size как читаемая метка, модификаторы — в JSON
     const itemResult = db.runSync(
-      `INSERT INTO order_items (order_id, product_id, name, size, milk, syrup, price) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [orderId, item.product_id || null, item.name, item.size || '', item.milk || '', item.syrup || '', item.price]
+      `INSERT INTO order_items (order_id, product_id, variant_id, name, size, milk, syrup, price, modifiers)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        orderId, item.product_id || null, item.variant_id || null, item.name,
+        item.size || '', item.milk || '', item.syrup || '', item.price,
+        JSON.stringify(item.modifiers || []),
+      ]
     );
     try {
       const warnings = deductStockForOrderItem(itemResult.lastInsertRowId, item);
@@ -520,8 +736,16 @@ function normName(s) {
 
 // Находит техкарту по названию товара + размеру ("Капучино" + "Маленький" → "Капучино Маленький"),
 // либо просто по названию товара, если у него нет размера.
-export function findCostCardForItem(productId, name, size) {
+export function findCostCardForItem(productId, name, size, variantId) {
   const db = getDb();
+
+  if (variantId) {
+    const byVariant = db.getFirstSync(`SELECT * FROM cost_cards WHERE variant_id = ?`, [variantId]);
+    if (byVariant) {
+      const ingredients = db.getAllSync(`SELECT * FROM cost_ingredients WHERE cost_card_id = ?`, [byVariant.id]);
+      return { ...byVariant, ingredients };
+    }
+  }
 
   if (productId) {
     const bySize = db.getFirstSync(
@@ -536,11 +760,54 @@ export function findCostCardForItem(productId, name, size) {
 
   // Резерв: старые техкарты без product_id, сопоставленные только по тексту
   const candidates = [normName(`${name} ${size || ''}`), normName(name)];
-  const cards = db.getAllSync(`SELECT * FROM cost_cards WHERE product_id IS NULL`);
+  const cards = db.getAllSync(`SELECT * FROM cost_cards WHERE product_id IS NULL AND variant_id IS NULL`);
   const match = cards.find(c => candidates.includes(normName(c.name)));
   if (!match) return null;
   const ingredients = db.getAllSync(`SELECT * FROM cost_ingredients WHERE cost_card_id = ?`, [match.id]);
   return { ...match, ingredients };
+}
+
+// Сохраняет техкарту для конкретного варианта товара (универсальная модель, variant_id)
+export function saveCostCardForVariant(variantId, ingredients) {
+  const db = getDb();
+  const existing = db.getFirstSync(`SELECT * FROM cost_cards WHERE variant_id = ?`, [variantId]);
+
+  if (ingredients.length === 0) {
+    if (existing) {
+      db.runSync(`DELETE FROM cost_ingredients WHERE cost_card_id = ?`, [existing.id]);
+      db.runSync(`DELETE FROM cost_cards WHERE id = ?`, [existing.id]);
+    }
+    return;
+  }
+
+  let cardId;
+  if (existing) {
+    cardId = existing.id;
+    db.runSync(`DELETE FROM cost_ingredients WHERE cost_card_id = ?`, [cardId]);
+  } else {
+    const variant = db.getFirstSync(`SELECT * FROM product_variants WHERE id = ?`, [variantId]);
+    const product = variant ? db.getFirstSync(`SELECT * FROM products WHERE id = ?`, [variant.product_id]) : null;
+    const name = variant?.label ? `${product?.name || ''} ${variant.label}`.trim() : (product?.name || '');
+    const result = db.runSync(
+      `INSERT INTO cost_cards (name, variant_id) VALUES (?, ?)`,
+      [name, variantId]
+    );
+    cardId = result.lastInsertRowId;
+  }
+  for (const ing of ingredients) {
+    db.runSync(
+      `INSERT INTO cost_ingredients (cost_card_id, name, amount, unit, price_per_unit) VALUES (?, ?, ?, ?, ?)`,
+      [cardId, ing.name, ing.amount, ing.unit, ing.pricePerUnit || 0]
+    );
+  }
+}
+
+export function getCostCardForVariant(variantId) {
+  const db = getDb();
+  const card = db.getFirstSync(`SELECT * FROM cost_cards WHERE variant_id = ?`, [variantId]);
+  if (!card) return null;
+  const ingredients = db.getAllSync(`SELECT * FROM cost_ingredients WHERE cost_card_id = ?`, [card.id]);
+  return { ...card, ingredients };
 }
 
 function findStockByName(name) {
@@ -567,24 +834,23 @@ export function deductStockForOrderItem(orderItemId, item) {
   const warnings = [];
   const deductions = [];
 
-  const card = findCostCardForItem(item.product_id, item.name, item.size);
-  const milkModifier = item.milk ? findModifierByName(item.milk) : null;
+  const card = findCostCardForItem(item.product_id, item.name, item.size, item.variant_id);
+  const modifiers = item.modifiers || [];
 
   if (card) {
     for (const ing of card.ingredients) {
-      const isMilkIngredient = normName(ing.name) === 'молоко';
       let targetName = ing.name;
-      if (isMilkIngredient && milkModifier?.ingr_to_replace) {
-        targetName = milkModifier.ingr_to_replace;
-      }
+      // Модификатор-замена подменяет ингредиент техкарты, если название группы модификатора
+      // совпадает с названием ингредиента (напр. группа "Молоко" → ингредиент техкарты "Молоко")
+      const replaceMod = modifiers.find(m => m.ingrToReplace && normName(m.groupName) === normName(ing.name));
+      if (replaceMod) targetName = replaceMod.ingrToReplace;
       deductions.push({ stockName: targetName, amount: ing.amount });
     }
   }
 
-  if (item.syrup) {
-    const syrupModifier = findModifierByName(item.syrup);
-    if (syrupModifier?.ingr_to_deduct && syrupModifier.deduct_amount > 0) {
-      deductions.push({ stockName: syrupModifier.ingr_to_deduct, amount: syrupModifier.deduct_amount });
+  for (const mod of modifiers) {
+    if (mod.ingrToDeduct && mod.deductAmount > 0) {
+      deductions.push({ stockName: mod.ingrToDeduct, amount: mod.deductAmount });
     }
   }
 

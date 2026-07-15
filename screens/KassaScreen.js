@@ -7,7 +7,7 @@ import {
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import { getAllProducts, getCategories, getMilkModifiers, getSyrupModifiers, getDiscounts, createOrder, getOpenShift, addClientVisit } from '../db/queries';
+import { getAllProducts, getCategories, getProductVariants, getProductModifierGroups, getDiscounts, createOrder, getOpenShift, addClientVisit } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
 const CAT_ICONS = { 'Кофе': '☕', 'Лимонады': '🍹', 'Допы': '🍬', 'Прочее': '🫙' };
@@ -17,16 +17,15 @@ export default function KassaScreen({ navigation, route }) {
   const [loading, setLoading] = useState(true);
   const [groups, setGroups] = useState([]);
   const [allProducts, setAllProducts] = useState([]);
-  const [milkMods, setMilkMods] = useState([]);
-  const [syrupMods, setSyrupMods] = useState([]);
   const [discounts, setDiscounts] = useState([]);
   const [activeCat, setActiveCat] = useState(null);
   const [order, setOrder] = useState([]);
   const [appliedDiscount, setAppliedDiscount] = useState(null); // { name, pct }
   const [modalItem, setModalItem] = useState(null);
-  const [selSize, setSelSize] = useState(null);
-  const [selMilk, setSelMilk] = useState(null);
-  const [selSyrup, setSelSyrup] = useState(null);
+  const [modalVariants, setModalVariants] = useState([]);
+  const [modalGroups, setModalGroups] = useState([]);
+  const [selVariantId, setSelVariantId] = useState(null);
+  const [selModifiers, setSelModifiers] = useState({}); // { [groupId]: optionId | optionId[] }
   const [currentShift, setCurrentShift] = useState(null);
 
   // Модалка оплаты
@@ -44,20 +43,12 @@ export default function KassaScreen({ navigation, route }) {
     try {
       const products = getAllProducts();
       const cats = getCategories();
-      const milks = getMilkModifiers();
-      const syrups = getSyrupModifiers();
       const shift = getOpenShift();
       const disc = getDiscounts();
 
       setAllProducts(products);
       setGroups(cats);
       setActiveCat(cats[0] || null);
-      setMilkMods(milks.length > 0 ? milks : [
-        { name: 'Цельное', price: 0 }, { name: 'Овсяное', price: 30 }, { name: 'Миндальное', price: 50 },
-      ]);
-      setSyrupMods(syrups.length > 0 ? syrups : [
-        { name: 'Ваниль', price: 30 }, { name: 'Карамель', price: 30 }, { name: 'Лесной орех', price: 30 },
-      ]);
       setDiscounts(disc);
       setCurrentShift(shift);
     } catch (e) { console.error('[KassaScreen] loadData error:', e); }
@@ -66,45 +57,95 @@ export default function KassaScreen({ navigation, route }) {
 
   const itemsInCategory = allProducts.filter(p => p.category === activeCat);
 
-  const getVariants = (product) => {
-    try {
-      if (product.variants) {
-        const parsed = typeof product.variants === 'string' ? JSON.parse(product.variants) : product.variants;
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (_) {}
-    const variants = [];
-    if (product.price_s > 0) variants.push({ size: 'S', price: product.price_s });
-    if (product.price_m > 0) variants.push({ size: 'M', price: product.price_m });
-    if (product.price_l > 0) variants.push({ size: 'L', price: product.price_l });
-    if (variants.length === 0) variants.push({ size: '', price: 0 });
-    return variants;
+  // Показывает цену "от", учитывая либо варианты, либо простую цену без вариантов
+  const displayPrice = (product) => {
+    const variants = getProductVariants(product.id);
+    if (variants.length > 0) {
+      const min = Math.min(...variants.map(v => v.price));
+      return { price: min, hasRange: variants.length > 1 };
+    }
+    return { price: product.price || 0, hasRange: false };
   };
 
-  const openModal = (item) => {
-    const variants = getVariants(item);
-    setModalItem(item);
-    setSelSize(variants[0]?.size || null);
-    setSelMilk(null);
-    setSelSyrup(null);
+  const openModal = (product) => {
+    const variants = getProductVariants(product.id).filter(v => v.active);
+    const groups = getProductModifierGroups(product.id);
+    // Нет вариантов и нет модификаторов — сразу в чек, без модалки
+    if (variants.length <= 1 && groups.length === 0) {
+      addDirectToOrder(product, variants[0] || null);
+      return;
+    }
+    setModalItem(product);
+    setModalVariants(variants);
+    setModalGroups(groups);
+    setSelVariantId(variants[0]?.id || null);
+    const initialMods = {};
+    groups.forEach(g => { initialMods[g.id] = g.selection_type === 'multiple' ? [] : null; });
+    setSelModifiers(initialMods);
   };
   const closeModal = () => setModalItem(null);
 
+  const buildSelectedModifiers = (groups, selMods) => {
+    const result = [];
+    for (const g of groups) {
+      const sel = selMods[g.id];
+      const selectedIds = g.selection_type === 'multiple' ? (sel || []) : (sel ? [sel] : []);
+      for (const optId of selectedIds) {
+        const opt = g.options.find(o => o.id === optId);
+        if (!opt) continue;
+        result.push({
+          groupName: g.name, optionName: opt.name, priceDelta: opt.price_delta || 0,
+          ingrToReplace: opt.ingr_to_replace || '', ingrToDeduct: opt.ingr_to_deduct || '',
+          deductAmount: opt.deduct_amount || 0, deductUnit: opt.deduct_unit || '',
+        });
+      }
+    }
+    return result;
+  };
+
   const modalPrice = () => {
     if (!modalItem) return 0;
-    const variants = getVariants(modalItem);
-    const variant = variants.find(v => v.size === selSize) || variants[0];
-    const base = variant?.price || 0;
-    const milkPrice = selMilk ? (milkMods.find(m => m.name === selMilk)?.price || 0) : 0;
-    const syrupPrice = selSyrup ? (syrupMods.find(s => s.name === selSyrup)?.price || 0) : 0;
-    return base + milkPrice + syrupPrice;
+    const variant = modalVariants.find(v => v.id === selVariantId);
+    const base = variant ? variant.price : (modalItem.price || 0);
+    const mods = buildSelectedModifiers(modalGroups, selModifiers);
+    return base + mods.reduce((s, m) => s + m.priceDelta, 0);
+  };
+
+  const toggleModifierOption = (group, optionId) => {
+    setSelModifiers(prev => {
+      if (group.selection_type === 'multiple') {
+        const current = prev[group.id] || [];
+        const next = current.includes(optionId) ? current.filter(id => id !== optionId) : [...current, optionId];
+        return { ...prev, [group.id]: next };
+      }
+      return { ...prev, [group.id]: prev[group.id] === optionId ? null : optionId };
+    });
+  };
+
+  const addDirectToOrder = (product, variant) => {
+    setOrder(prev => [...prev, {
+      id: Date.now() + Math.random(),
+      product_id: product.id,
+      variant_id: variant?.id || null,
+      name: product.name,
+      size: variant?.label || '',
+      price: variant ? variant.price : (product.price || 0),
+      modifiers: [],
+    }]);
   };
 
   const confirmAdd = () => {
     if (!modalItem) return;
+    const variant = modalVariants.find(v => v.id === selVariantId);
+    const mods = buildSelectedModifiers(modalGroups, selModifiers);
     setOrder(prev => [...prev, {
-      id: Date.now() + Math.random(), product_id: modalItem.id, name: modalItem.name,
-      size: selSize || '', milk: selMilk, syrup: selSyrup, price: modalPrice(),
+      id: Date.now() + Math.random(),
+      product_id: modalItem.id,
+      variant_id: variant?.id || null,
+      name: modalItem.name,
+      size: variant?.label || '',
+      price: modalPrice(),
+      modifiers: mods,
     }]);
     closeModal();
   };
@@ -228,12 +269,11 @@ export default function KassaScreen({ navigation, route }) {
           />
           <ScrollView contentContainerStyle={styles.menuGrid}>
             {itemsInCategory.map((item) => {
-              const variants = getVariants(item);
-              const basePrice = variants[0]?.price || 0;
+              const { price, hasRange } = displayPrice(item);
               return (
                 <Pressable key={item.id} style={styles.menuItem} onPress={() => openModal(item)}>
                   <Text style={styles.menuItemName}>{item.name}</Text>
-                  <Text style={styles.menuItemPrice}>{variants.length > 1 ? `от ${basePrice}` : basePrice} ₽</Text>
+                  <Text style={styles.menuItemPrice}>{hasRange ? `от ${price}` : price} ₽</Text>
                 </Pressable>
               );
             })}
@@ -249,8 +289,9 @@ export default function KassaScreen({ navigation, route }) {
               <Pressable key={item.id} style={styles.orderItem} onPress={() => removeFromOrder(item.id)}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.orderItemName}>{item.name}{item.size ? ` ${item.size}` : ''}</Text>
-                  {item.milk && <Text style={styles.orderItemMod}>🥛 {item.milk}</Text>}
-                  {item.syrup && <Text style={styles.orderItemMod}>🍬 {item.syrup}</Text>}
+                  {(item.modifiers || []).map((m, mi) => (
+                    <Text key={mi} style={styles.orderItemMod}>· {m.optionName}{m.priceDelta > 0 ? ` +${m.priceDelta}₽` : ''}</Text>
+                  ))}
                 </View>
                 <Text style={styles.orderItemPrice}>{item.price} ₽</Text>
               </Pressable>
@@ -291,47 +332,35 @@ export default function KassaScreen({ navigation, route }) {
                 <Pressable onPress={closeModal} style={styles.modalCloseBtn} hitSlop={12}><Text style={styles.modalCloseText}>✕</Text></Pressable>
               </View>
 
-              {(() => {
-                const variants = getVariants(modalItem);
-                return variants.length > 1 ? (
-                  <>
-                    <Text style={styles.modalSection}>Размер</Text>
+              {modalVariants.length > 1 && (
+                <>
+                  <Text style={styles.modalSection}>Вариант</Text>
+                  <View style={styles.chipsRow}>
+                    {modalVariants.map(v => (
+                      <Pressable key={v.id} style={[styles.chip, selVariantId === v.id && styles.chipActive]} onPress={() => setSelVariantId(v.id)}>
+                        <Text style={[styles.chipLabel, selVariantId === v.id && styles.chipLabelActive]}>{v.label || '—'} · {v.price} ₽</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </>
+              )}
+
+              {modalGroups.map(group => {
+                const sel = selModifiers[group.id];
+                const isSelected = (optId) => group.selection_type === 'multiple' ? (sel || []).includes(optId) : sel === optId;
+                return (
+                  <View key={group.id}>
+                    <Text style={styles.modalSection}>{group.name}</Text>
                     <View style={styles.chipsRow}>
-                      {variants.map(v => (
-                        <Pressable key={v.size} style={[styles.chip, selSize === v.size && styles.chipActive]} onPress={() => setSelSize(v.size)}>
-                          <Text style={[styles.chipLabel, selSize === v.size && styles.chipLabelActive]}>{v.size} · {v.price} ₽</Text>
+                      {group.options.map(opt => (
+                        <Pressable key={opt.id} style={[styles.chip, isSelected(opt.id) && styles.chipActive]} onPress={() => toggleModifierOption(group, opt.id)}>
+                          <Text style={[styles.chipLabel, isSelected(opt.id) && styles.chipLabelActive]}>{opt.name}{opt.price_delta > 0 ? ` +${opt.price_delta}₽` : ''}</Text>
                         </Pressable>
                       ))}
                     </View>
-                  </>
-                ) : null;
-              })()}
-
-              {modalItem.has_milk ? (
-                <>
-                  <Text style={styles.modalSection}>Молоко</Text>
-                  <View style={styles.chipsRow}>
-                    {milkMods.map(m => (
-                      <Pressable key={m.name} style={[styles.chip, selMilk === m.name && styles.chipActive]} onPress={() => setSelMilk(selMilk === m.name ? null : m.name)}>
-                        <Text style={[styles.chipLabel, selMilk === m.name && styles.chipLabelActive]}>{m.name}{m.price > 0 ? ` +${m.price}₽` : ''}</Text>
-                      </Pressable>
-                    ))}
                   </View>
-                </>
-              ) : null}
-
-              {modalItem.has_syrup ? (
-                <>
-                  <Text style={styles.modalSection}>Сироп</Text>
-                  <View style={styles.chipsRow}>
-                    {syrupMods.map(s => (
-                      <Pressable key={s.name} style={[styles.chip, selSyrup === s.name && styles.chipActive]} onPress={() => setSelSyrup(selSyrup === s.name ? null : s.name)}>
-                        <Text style={[styles.chipLabel, selSyrup === s.name && styles.chipLabelActive]}>{s.name}{s.price > 0 ? ` +${s.price}₽` : ''}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                </>
-              ) : null}
+                );
+              })}
 
               <View style={styles.modalFooter}>
                 <Text style={styles.modalPrice}>{modalPrice()} ₽</Text>

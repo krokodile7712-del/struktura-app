@@ -36,6 +36,70 @@ export function initDatabase() {
     );
   `);
 
+  // ─── Фаза 1: универсальная модель товаров/вариантов/модификаторов ────────
+
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS business_profile (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      preset        TEXT DEFAULT 'coffee',
+      business_name TEXT DEFAULT '',
+      modules       TEXT DEFAULT '{}',
+      terms         TEXT DEFAULT '{}',
+      units         TEXT DEFAULT '[]',
+      access_key    TEXT DEFAULT ''
+    );
+  `);
+
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS product_axes (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id INTEGER NOT NULL,
+      name       TEXT NOT NULL,
+      position   INTEGER DEFAULT 0
+    );
+  `);
+
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS product_variants (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id   INTEGER NOT NULL,
+      axis_values  TEXT DEFAULT '{}',
+      label        TEXT DEFAULT '',
+      price        REAL DEFAULT 0,
+      sku          TEXT DEFAULT '',
+      active       INTEGER DEFAULT 1
+    );
+  `);
+
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS modifier_groups (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      name           TEXT NOT NULL,
+      selection_type TEXT DEFAULT 'single'
+    );
+  `);
+
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS modifier_options (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      group_id        INTEGER NOT NULL,
+      name            TEXT NOT NULL,
+      price_delta     REAL DEFAULT 0,
+      ingr_to_replace TEXT DEFAULT '',
+      ingr_to_deduct  TEXT DEFAULT '',
+      deduct_amount   REAL DEFAULT 0,
+      deduct_unit     TEXT DEFAULT ''
+    );
+  `);
+
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS product_modifier_groups (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id INTEGER NOT NULL,
+      group_id   INTEGER NOT NULL
+    );
+  `);
+
   db.execSync(`
     CREATE TABLE IF NOT EXISTS orders (
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -163,20 +227,38 @@ export function initDatabase() {
 
   // Добавляем новые колонки если их нет (миграция схемы)
   const migrations = [
-    `ALTER TABLE products  ADD COLUMN variants  TEXT    DEFAULT '[]'`,
-    `ALTER TABLE orders    ADD COLUMN synced    INTEGER DEFAULT 0`,
-    `ALTER TABLE expenses  ADD COLUMN synced    INTEGER DEFAULT 0`,
-    `ALTER TABLE clients   ADD COLUMN synced    INTEGER DEFAULT 0`,
-    `ALTER TABLE shifts    ADD COLUMN synced    INTEGER DEFAULT 0`,
+    `ALTER TABLE products       ADD COLUMN variants   TEXT    DEFAULT '[]'`,
+    `ALTER TABLE products       ADD COLUMN sku        TEXT    DEFAULT ''`,
+    `ALTER TABLE products       ADD COLUMN photo_uri  TEXT    DEFAULT ''`,
+    `ALTER TABLE products       ADD COLUMN price      REAL    DEFAULT 0`,
+    `ALTER TABLE orders         ADD COLUMN synced     INTEGER DEFAULT 0`,
+    `ALTER TABLE expenses       ADD COLUMN synced     INTEGER DEFAULT 0`,
+    `ALTER TABLE clients        ADD COLUMN synced     INTEGER DEFAULT 0`,
+    `ALTER TABLE shifts         ADD COLUMN synced     INTEGER DEFAULT 0`,
+    `ALTER TABLE cost_cards     ADD COLUMN variant_id INTEGER`,
+    `ALTER TABLE order_items    ADD COLUMN variant_id INTEGER`,
+    `ALTER TABLE order_items    ADD COLUMN modifiers  TEXT    DEFAULT '[]'`,
   ];
   for (const sql of migrations) {
     try { db.execSync(sql); } catch (_) {}
   }
 
-  // Добавляем колонку variants если её нет (миграция схемы)
-  try {
-    db.execSync(`ALTER TABLE products ADD COLUMN variants TEXT DEFAULT '[]'`);
-  } catch (_) {}
+  // Профиль бизнеса по умолчанию, если ещё не создан (пресет "coffee" — сохраняет
+  // текущее поведение приложения для уже работающих инстансов без миграции данных)
+  const profileRow = db.getAllSync(`SELECT id FROM business_profile LIMIT 1`);
+  if (profileRow.length === 0) {
+    db.runSync(
+      `INSERT INTO business_profile (preset, business_name, modules, terms, units, access_key) VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        'coffee',
+        'СТРУКТУРА',
+        JSON.stringify({ stock: true, shifts: true, clients: true, loyalty: true, modifiers: true, inventory: true }),
+        JSON.stringify({ item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' }),
+        JSON.stringify(['мл', 'л', 'г', 'кг', 'шт', 'уп', 'пара']),
+        '',
+      ]
+    );
+  }
 
   console.log('[DB] Инициализация завершена');
 }

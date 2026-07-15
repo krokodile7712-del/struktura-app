@@ -5,129 +5,165 @@ import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import {
-  getAllProductsAdmin, updateProductVariants, insertProduct, setProductActive,
+  getAllProductsAdmin, insertProduct, setProductActive,
+  getProductVariants, saveProductAxesAndVariants,
+  getProductModifierGroups, setProductModifierGroups, getAllModifierGroups,
+  insertModifierGroup, updateModifierGroup, deleteModifierGroup,
+  insertModifierOption, updateModifierOption, deleteModifierOption,
+  getCostCardForVariant, saveCostCardForVariant,
   getUsers, updateUserPin,
   getDiscounts, setSetting, getBonusPct,
-  getModifiers, updateModifier, insertModifier, deleteModifier,
   getAllStock, updateStockThreshold,
-  getCostCardsForProduct, saveCostCardForProductSize, migrateCostCardsToProductId, getUnlinkedCostCards,
+  getUnlinkedCostCards,
+  getBusinessProfile, updateBusinessProfile, applyBusinessPreset, BUSINESS_PRESETS,
   exportAllData,
 } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
-function getVariants(product) {
-  try {
-    if (product.variants) {
-      const parsed = typeof product.variants === 'string' ? JSON.parse(product.variants) : product.variants;
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    }
-  } catch (_) {}
-  const variants = [];
-  if (product.price_s > 0) variants.push({ size: 'S', price: product.price_s });
-  if (product.price_m > 0) variants.push({ size: 'M', price: product.price_m });
-  if (product.price_l > 0) variants.push({ size: 'L', price: product.price_l });
-  if (variants.length === 0) variants.push({ size: '', price: 0 });
-  return variants;
-}
-
 export default function SettingsScreen({ navigation }) {
   // ── Данные ──
-  const [products, setProducts]   = useState([]);
-  const [users, setUsers]         = useState([]);
-  const [discounts, setDiscounts] = useState([]);
-  const [modifiers, setModifiers] = useState([]);
-  const [stock, setStock]         = useState([]);
+  const [products, setProducts]             = useState([]);
+  const [users, setUsers]                   = useState([]);
+  const [discounts, setDiscounts]           = useState([]);
+  const [modifierGroups, setModifierGroups] = useState([]);
+  const [stock, setStock]                   = useState([]);
+  const [unlinkedCards, setUnlinkedCards]   = useState([]);
+  const [profile, setProfile]               = useState(null);
 
   // ── Модалки ──
-  const [productModal, setProductModal]   = useState(null); // { product, variants, techCards: { [size]: [{name, amount, unit}] } }
-  const [ingredientPicker, setIngredientPicker] = useState(null); // { sizeKey, search } | null
-  const [unlinkedCards, setUnlinkedCards] = useState([]);
-  const [newProductModal, setNewProductModal] = useState(null); // { name, category, price_s, price_m, price_l }
-  const [discountModal, setDiscountModal] = useState(null); // { index, name, pct } | 'new'
-  const [modifierModal, setModifierModal] = useState(null); // { id, name, price, type } | 'new'
-  const [stockModal, setStockModal]       = useState(null); // { id, name, unit, порог }
+  const [productModal, setProductModal]   = useState(null);
+  // { product, variants: [{id, label, price, sku, active}], groupIds: [], techCards: { [variantKey]: [{name, amount, unit}] } }
+  const [ingredientPicker, setIngredientPicker] = useState(null); // { variantKey, search }
+  const [newProductModal, setNewProductModal]   = useState(null); // { name, category, price }
+  const [discountModal, setDiscountModal]       = useState(null);
+  const [stockModal, setStockModal]             = useState(null);
+  const [groupModal, setGroupModal]             = useState(null);
+  // { id, name, selectionType, options: [{id, name, priceDelta, ingrToReplace, ingrToDeduct, deductAmount, deductUnit}] }
+  const [optionModal, setOptionModal]           = useState(null); // { groupId, id, name, priceDelta, ingrToReplace, ingrToDeduct, deductAmount, deductUnit }
 
-  // ── PIN поля ──
+  // ── PIN ──
   const [pinBarista, setPinBarista] = useState('');
   const [pinAdmin, setPinAdmin]     = useState('');
 
   // ── Общие настройки ──
-  const [bonusPct, setBonusPct] = useState('10');
+  const [bonusPct, setBonusPct]   = useState('10');
   const [exporting, setExporting] = useState(false);
+
+  // ── Скрытый доступ к профилю бизнеса ──
+  const [titleTaps, setTitleTaps]         = useState(0);
+  const [profileUnlocked, setProfileUnlocked] = useState(false);
+  const [keyPromptOpen, setKeyPromptOpen] = useState(false);
+  const [keyInput, setKeyInput]           = useState('');
+  const [profileDraft, setProfileDraft]   = useState(null); // { businessName, modules, terms, units, unitInput }
 
   useEffect(() => { loadAll(); }, []);
 
   const loadAll = () => {
     try {
-      migrateCostCardsToProductId();
       setProducts(getAllProductsAdmin());
       const u = getUsers();
       setUsers(u);
       setPinBarista(u.find(x => x.role === 'barista')?.pin || '');
       setPinAdmin(u.find(x => x.role === 'admin')?.pin || '');
       setDiscounts(getDiscounts());
-      setModifiers(getModifiers());
+      setModifierGroups(getAllModifierGroups());
       setStock(getAllStock());
       setBonusPct(String(getBonusPct()));
       setUnlinkedCards(getUnlinkedCostCards());
+      setProfile(getBusinessProfile());
     } catch (e) { console.error(e); }
   };
 
-  // ── Товары + техкарты ──
+  // ── Товары + варианты + модификаторы + техкарты ──
   const openProduct = (product) => {
-    const variants = getVariants(product).map(v => ({ ...v, price: String(v.price) }));
-    const sizeKeys = variants.length > 0 ? variants.map(v => v.size) : [''];
-    const existingCards = getCostCardsForProduct(product.id);
-    const techCards = {};
-    for (const key of sizeKeys) {
-      const card = existingCards.find(c => (c.size || '') === key);
-      techCards[key] = card
-        ? card.ingredients.map(ing => ({ name: ing.name, amount: String(ing.amount), unit: ing.unit }))
-        : [];
+    let raw = getProductVariants(product.id);
+    if (raw.length === 0) {
+      raw = [{ id: null, label: '', price: product.price || 0, sku: product.sku || '', active: true }];
     }
-    setProductModal({ product, variants, techCards });
+    const variants = raw.map(v => ({ id: v.id, label: v.label, price: String(v.price), sku: v.sku || '', active: v.active !== false }));
+    const groups = getProductModifierGroups(product.id);
+    const techCards = {};
+    variants.forEach((v, idx) => {
+      const key = v.id || `new-${idx}`;
+      const card = v.id ? getCostCardForVariant(v.id) : null;
+      techCards[key] = card ? card.ingredients.map(ing => ({ name: ing.name, amount: String(ing.amount), unit: ing.unit })) : [];
+    });
+    setProductModal({ product, variants, groupIds: groups.map(g => g.id), techCards });
   };
-  const setVariantPrice = (i, value) => {
+
+  const variantKey = (v, idx) => v.id || `new-${idx}`;
+
+  const addVariantRow = () => {
+    setProductModal(m => ({
+      ...m,
+      variants: [...m.variants, { id: null, label: '', price: '', sku: '', active: true }],
+    }));
+  };
+  const removeVariantRow = (idx) => {
+    setProductModal(m => {
+      const key = variantKey(m.variants[idx], idx);
+      const techCards = { ...m.techCards };
+      delete techCards[key];
+      return { ...m, variants: m.variants.filter((_, i) => i !== idx), techCards };
+    });
+  };
+  const setVariantField = (idx, field, value) => {
     setProductModal(m => {
       const variants = [...m.variants];
-      variants[i] = { ...variants[i], price: value };
+      variants[idx] = { ...variants[idx], [field]: value };
       return { ...m, variants };
     });
   };
-  const addIngredientRow = (sizeKey, stockItem) => {
-    setProductModal(m => ({
-      ...m,
-      techCards: { ...m.techCards, [sizeKey]: [...(m.techCards[sizeKey] || []), { name: stockItem.name, amount: '', unit: stockItem.unit }] },
-    }));
-  };
-  const removeIngredientRow = (sizeKey, index) => {
-    setProductModal(m => ({
-      ...m,
-      techCards: { ...m.techCards, [sizeKey]: m.techCards[sizeKey].filter((_, i) => i !== index) },
-    }));
-  };
-  const setIngredientAmount = (sizeKey, index, value) => {
+
+  const toggleGroupForProduct = (groupId) => {
     setProductModal(m => {
-      const rows = [...m.techCards[sizeKey]];
-      rows[index] = { ...rows[index], amount: value };
-      return { ...m, techCards: { ...m.techCards, [sizeKey]: rows } };
+      const has = m.groupIds.includes(groupId);
+      return { ...m, groupIds: has ? m.groupIds.filter(id => id !== groupId) : [...m.groupIds, groupId] };
     });
   };
+
+  const addIngredientRow = (key, stockItem) => {
+    setProductModal(m => ({
+      ...m,
+      techCards: { ...m.techCards, [key]: [...(m.techCards[key] || []), { name: stockItem.name, amount: '', unit: stockItem.unit }] },
+    }));
+  };
+  const removeIngredientRow = (key, index) => {
+    setProductModal(m => ({
+      ...m,
+      techCards: { ...m.techCards, [key]: m.techCards[key].filter((_, i) => i !== index) },
+    }));
+  };
+  const setIngredientAmount = (key, index, value) => {
+    setProductModal(m => {
+      const rows = [...m.techCards[key]];
+      rows[index] = { ...rows[index], amount: value };
+      return { ...m, techCards: { ...m.techCards, [key]: rows } };
+    });
+  };
+
   const saveProduct = () => {
     if (!productModal) return;
-    const variants = productModal.variants.map(v => ({ size: v.size, price: parseFloat(v.price) || 0 }));
+    const payload = productModal.variants.map(v => ({
+      id: v.id, label: v.label.trim(), price: parseFloat(v.price) || 0, sku: v.sku.trim(), active: v.active, axisValues: {},
+    }));
     try {
-      updateProductVariants(productModal.product.id, variants);
-      for (const sizeKey of Object.keys(productModal.techCards)) {
-        const ingredients = productModal.techCards[sizeKey]
+      const saved = saveProductAxesAndVariants(productModal.product.id, [], payload);
+      setProductModifierGroups(productModal.product.id, productModal.groupIds);
+
+      productModal.variants.forEach((v, idx) => {
+        const oldKey = variantKey(v, idx);
+        const savedVariant = saved[idx];
+        const ingredients = (productModal.techCards[oldKey] || [])
           .filter(r => r.name && parseFloat(r.amount) > 0)
           .map(r => ({ name: r.name, amount: parseFloat(r.amount) || 0, unit: r.unit, pricePerUnit: 0 }));
-        saveCostCardForProductSize(productModal.product.id, sizeKey, ingredients);
-      }
+        saveCostCardForVariant(savedVariant.id, ingredients);
+      });
       loadAll();
     } catch (e) { console.error(e); }
     setProductModal(null);
   };
+
   const toggleProductActive = () => {
     if (!productModal) return;
     try {
@@ -138,18 +174,15 @@ export default function SettingsScreen({ navigation }) {
   };
 
   // ── Новый товар ──
-  const openNewProduct = () => setNewProductModal({ name: '', category: products[0]?.category || '', price_s: '', price_m: '', price_l: '' });
+  const openNewProduct = () => setNewProductModal({ name: '', category: products[0]?.category || '', price: '' });
   const saveNewProduct = () => {
     if (!newProductModal || !newProductModal.name.trim() || !newProductModal.category.trim()) return;
     try {
       insertProduct({
         name: newProductModal.name.trim(),
         category: newProductModal.category.trim(),
-        price_s: parseFloat(newProductModal.price_s) || 0,
-        price_m: parseFloat(newProductModal.price_m) || 0,
-        price_l: parseFloat(newProductModal.price_l) || 0,
-        has_milk: false,
-        has_syrup: false,
+        price_s: 0, price_m: 0, price_l: 0,
+        has_milk: false, has_syrup: false,
       });
       loadAll();
     } catch (e) { console.error(e); }
@@ -172,20 +205,6 @@ export default function SettingsScreen({ navigation }) {
     try { setSetting('bonusPct', String(parseFloat(bonusPct) || 0)); } catch (e) { console.error(e); }
   };
 
-  // ── Экспорт / бэкап ──
-  const handleExport = async () => {
-    setExporting(true);
-    try {
-      const data = exportAllData();
-      const json = JSON.stringify(data, null, 2);
-      await Share.share({
-        title: `Бэкап СТРУКТУРА ${new Date().toISOString().slice(0, 10)}`,
-        message: json,
-      });
-    } catch (e) { console.error(e); }
-    setExporting(false);
-  };
-
   // ── PIN ──
   const savePins = () => {
     try {
@@ -197,10 +216,7 @@ export default function SettingsScreen({ navigation }) {
 
   // ── Скидки ──
   const saveDiscounts = (list) => {
-    try {
-      setSetting('discounts', JSON.stringify(list));
-      setDiscounts(list);
-    } catch (e) { console.error(e); }
+    try { setSetting('discounts', JSON.stringify(list)); setDiscounts(list); } catch (e) { console.error(e); }
   };
   const openNewDiscount = () => setDiscountModal({ index: -1, name: '', pct: '' });
   const openEditDiscount = (i) => setDiscountModal({ index: i, name: discounts[i].name, pct: String(discounts[i].pct) });
@@ -208,84 +224,189 @@ export default function SettingsScreen({ navigation }) {
     if (!discountModal || !discountModal.name.trim() || !discountModal.pct) return;
     const entry = { name: discountModal.name.trim(), pct: parseFloat(discountModal.pct) || 0 };
     const list = [...discounts];
-    if (discountModal.index === -1) list.push(entry);
-    else list[discountModal.index] = entry;
+    if (discountModal.index === -1) list.push(entry); else list[discountModal.index] = entry;
     saveDiscounts(list);
     setDiscountModal(null);
   };
   const deleteDiscountModal = () => {
     if (!discountModal || discountModal.index === -1) return;
-    const list = discounts.filter((_, i) => i !== discountModal.index);
-    saveDiscounts(list);
+    saveDiscounts(discounts.filter((_, i) => i !== discountModal.index));
     setDiscountModal(null);
   };
 
-  // ── Модификаторы ──
-  const openNewModifier = (type) => setModifierModal({
-    id: null, name: '', price: '', type,
-    ingrToReplace: '', ingrToDeduct: '', deductAmount: '', deductUnit: 'мл',
-  });
-  const openEditModifier = (m) => setModifierModal({
-    id: m.id, name: m.name, price: String(m.price), type: m.type,
-    ingrToReplace: m.ingr_to_replace || '', ingrToDeduct: m.ingr_to_deduct || '',
-    deductAmount: m.deduct_amount ? String(m.deduct_amount) : '', deductUnit: m.deduct_unit || 'мл',
-  });
-  const saveModifierModal = () => {
-    if (!modifierModal || !modifierModal.name.trim()) return;
-    const payload = {
-      price: parseFloat(modifierModal.price) || 0,
-      ingrToReplace: modifierModal.ingrToReplace.trim(),
-      ingrToDeduct: modifierModal.ingrToDeduct.trim(),
-      deductAmount: parseFloat(modifierModal.deductAmount) || 0,
-      deductUnit: modifierModal.deductUnit.trim(),
-    };
+  // ── Группы модификаторов ──
+  const openNewGroup = () => setGroupModal({ id: null, name: '', selectionType: 'single' });
+  const openEditGroup = (g) => setGroupModal({ id: g.id, name: g.name, selectionType: g.selection_type });
+  const saveGroupModal = () => {
+    if (!groupModal || !groupModal.name.trim()) return;
     try {
-      if (modifierModal.id) {
-        updateModifier(modifierModal.id, payload);
-      } else {
-        insertModifier({ name: modifierModal.name.trim(), type: modifierModal.type, ...payload });
-      }
+      if (groupModal.id) updateModifierGroup(groupModal.id, { name: groupModal.name.trim(), selectionType: groupModal.selectionType });
+      else insertModifierGroup({ name: groupModal.name.trim(), selectionType: groupModal.selectionType });
       loadAll();
     } catch (e) { console.error(e); }
-    setModifierModal(null);
+    setGroupModal(null);
   };
-  const deleteModifierModal = () => {
-    if (!modifierModal || !modifierModal.id) return;
-    try { deleteModifier(modifierModal.id); loadAll(); } catch (e) { console.error(e); }
-    setModifierModal(null);
+  const deleteGroupModal = () => {
+    if (!groupModal?.id) return;
+    try { deleteModifierGroup(groupModal.id); loadAll(); } catch (e) { console.error(e); }
+    setGroupModal(null);
+  };
+
+  const openNewOption = (groupId) => setOptionModal({ groupId, id: null, name: '', priceDelta: '', ingrToReplace: '', ingrToDeduct: '', deductAmount: '', deductUnit: 'мл' });
+  const openEditOption = (groupId, opt) => setOptionModal({
+    groupId, id: opt.id, name: opt.name, priceDelta: String(opt.price_delta || 0),
+    ingrToReplace: opt.ingr_to_replace || '', ingrToDeduct: opt.ingr_to_deduct || '',
+    deductAmount: opt.deduct_amount ? String(opt.deduct_amount) : '', deductUnit: opt.deduct_unit || 'мл',
+  });
+  const saveOptionModal = () => {
+    if (!optionModal || !optionModal.name.trim()) return;
+    const payload = {
+      name: optionModal.name.trim(),
+      priceDelta: parseFloat(optionModal.priceDelta) || 0,
+      ingrToReplace: optionModal.ingrToReplace.trim(),
+      ingrToDeduct: optionModal.ingrToDeduct.trim(),
+      deductAmount: parseFloat(optionModal.deductAmount) || 0,
+      deductUnit: optionModal.deductUnit.trim(),
+    };
+    try {
+      if (optionModal.id) updateModifierOption(optionModal.id, payload);
+      else insertModifierOption({ groupId: optionModal.groupId, ...payload });
+      loadAll();
+    } catch (e) { console.error(e); }
+    setOptionModal(null);
+  };
+  const deleteOptionModal = () => {
+    if (!optionModal?.id) return;
+    try { deleteModifierOption(optionModal.id); loadAll(); } catch (e) { console.error(e); }
+    setOptionModal(null);
+  };
+
+  // ── Профиль бизнеса (скрытый доступ) ──
+  const handleTitleTap = () => {
+    const next = titleTaps + 1;
+    setTitleTaps(next);
+    if (next >= 5) {
+      setTitleTaps(0);
+      if (profile?.access_key) setKeyPromptOpen(true);
+      else openProfileEditor(); // ключ ещё не задан — пускаем сразу один раз, чтобы можно было его установить
+    }
+  };
+  const checkKey = () => {
+    if (keyInput === profile?.access_key) {
+      setKeyPromptOpen(false);
+      setKeyInput('');
+      openProfileEditor();
+    } else {
+      setKeyInput('');
+    }
+  };
+  const openProfileEditor = () => {
+    setProfileDraft({
+      businessName: profile?.business_name || '',
+      modules: { ...(profile?.modules || {}) },
+      terms: { ...(profile?.terms || {}) },
+      units: [...(profile?.units || [])],
+      accessKey: profile?.access_key || '',
+      unitInput: '',
+    });
+    setProfileUnlocked(true);
+  };
+  const applyPresetDraft = (key) => {
+    const preset = BUSINESS_PRESETS[key];
+    if (!preset) return;
+    setProfileDraft(d => ({ ...d, modules: { ...preset.modules }, terms: { ...preset.terms }, units: [...preset.units] }));
+  };
+  const toggleModuleDraft = (key) => {
+    setProfileDraft(d => ({ ...d, modules: { ...d.modules, [key]: !d.modules[key] } }));
+  };
+  const setTermDraft = (key, value) => {
+    setProfileDraft(d => ({ ...d, terms: { ...d.terms, [key]: value } }));
+  };
+  const addUnitDraft = () => {
+    const val = profileDraft.unitInput.trim();
+    if (!val || profileDraft.units.includes(val)) return;
+    setProfileDraft(d => ({ ...d, units: [...d.units, val], unitInput: '' }));
+  };
+  const removeUnitDraft = (u) => {
+    setProfileDraft(d => ({ ...d, units: d.units.filter(x => x !== u) }));
+  };
+  const saveProfileDraft = () => {
+    if (!profileDraft) return;
+    try {
+      updateBusinessProfile({
+        businessName: profileDraft.businessName,
+        modules: profileDraft.modules,
+        terms: profileDraft.terms,
+        units: profileDraft.units,
+        accessKey: profileDraft.accessKey,
+      });
+      loadAll();
+    } catch (e) { console.error(e); }
+    setProfileUnlocked(false);
+  };
+
+  // ── Экспорт / бэкап ──
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const data = exportAllData();
+      const json = JSON.stringify(data, null, 2);
+      await Share.share({ title: `Бэкап ${new Date().toISOString().slice(0, 10)}`, message: json });
+    } catch (e) { console.error(e); }
+    setExporting(false);
   };
 
   const categories = [...new Set(products.map(p => p.category))];
+  const modules = profile?.modules || {};
+  const terms = profile?.terms || {};
 
   return (
     <View style={{ flex: 1 }}>
       <TopBar title="Настройки" onBack={() => navigation.navigate('Admin')} />
       <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
 
+        <Pressable onPress={handleTitleTap}>
+          <Text style={styles.hiddenHint}>{terms.item || 'Товар'} · {profile?.preset ? BUSINESS_PRESETS[profile.preset]?.label || profile.preset : ''}</Text>
+        </Pressable>
+
         {/* Меню и цены */}
         <MetalCard>
-          <Text style={styles.blockTitle}>☕ Меню и цены</Text>
+          <Text style={styles.blockTitle}>☕ {terms.item || 'Товар'}ы и цены</Text>
           {categories.map(cat => (
             <View key={cat} style={{ marginBottom: 12 }}>
               <Text style={styles.catHeader}>{cat}</Text>
               {products.filter(p => p.category === cat).map(p => {
-                const variants = getVariants(p);
-                const priceLabel = variants.map(v => `${v.size ? v.size + ' ' : ''}${v.price}₽`).join(' · ');
                 const inactive = !p.active;
                 return (
                   <Pressable key={p.id} style={styles.row} onPress={() => openProduct(p)}>
                     <Text style={[styles.rowName, inactive && styles.rowNameInactive]}>
                       {inactive ? '🚫 ' : ''}{p.name}
                     </Text>
-                    <Text style={styles.rowPrice}>{priceLabel} ›</Text>
+                    <Text style={styles.rowPrice}>›</Text>
                   </Pressable>
                 );
               })}
             </View>
           ))}
-          {products.length === 0 && <Text style={styles.empty}>Нет товаров. Выполните импорт из Sheets.</Text>}
-          <MetalButton title="+ Добавить товар" variant="default" onPress={openNewProduct} />
+          {products.length === 0 && <Text style={styles.empty}>Пока нет товаров.</Text>}
+          <MetalButton title={`+ Добавить ${(terms.item || 'товар').toLowerCase()}`} variant="default" onPress={openNewProduct} />
         </MetalCard>
+
+        {/* Группы модификаторов */}
+        {modules.modifiers !== false && (
+          <MetalCard style={{ marginTop: 12 }}>
+            <Text style={styles.blockTitle}>🧩 Модификаторы</Text>
+            <Text style={styles.hintText}>Группы опций для товаров (напр. «Молоко», «Цвет», «Размер ленты») — единичный или множественный выбор.</Text>
+            {modifierGroups.length === 0 && <Text style={styles.empty}>Групп пока нет.</Text>}
+            {modifierGroups.map(g => (
+              <Pressable key={g.id} style={styles.row} onPress={() => openEditGroup(g)}>
+                <Text style={styles.rowName}>{g.name} <Text style={styles.rowSub}>({g.selection_type === 'multiple' ? 'неск.' : 'один'})</Text></Text>
+                <Text style={styles.rowPrice}>{g.options.length} опц. ›</Text>
+              </Pressable>
+            ))}
+            <MetalButton title="+ Добавить группу" variant="default" onPress={openNewGroup} />
+          </MetalCard>
+        )}
 
         {/* PIN-коды */}
         <MetalCard style={{ marginTop: 12 }}>
@@ -298,12 +419,14 @@ export default function SettingsScreen({ navigation }) {
         </MetalCard>
 
         {/* Общие настройки */}
-        <MetalCard style={{ marginTop: 12 }}>
-          <Text style={styles.blockTitle}>⭐ Бонусная программа</Text>
-          <Text style={styles.fieldLabel}>Процент начисления баллов</Text>
-          <TextInput style={styles.input} keyboardType="numeric" value={bonusPct} onChangeText={setBonusPct} placeholderTextColor={colors.muted} />
-          <MetalButton title="Сохранить" variant="success" onPress={saveBonusPct} />
-        </MetalCard>
+        {modules.loyalty !== false && (
+          <MetalCard style={{ marginTop: 12 }}>
+            <Text style={styles.blockTitle}>⭐ Бонусная программа</Text>
+            <Text style={styles.fieldLabel}>Процент начисления баллов</Text>
+            <TextInput style={styles.input} keyboardType="numeric" value={bonusPct} onChangeText={setBonusPct} placeholderTextColor={colors.muted} />
+            <MetalButton title="Сохранить" variant="success" onPress={saveBonusPct} />
+          </MetalCard>
+        )}
 
         {/* Скидки */}
         <MetalCard style={{ marginTop: 12 }}>
@@ -318,42 +441,26 @@ export default function SettingsScreen({ navigation }) {
           <MetalButton title="+ Добавить скидку" variant="default" onPress={openNewDiscount} />
         </MetalCard>
 
-        {/* Модификаторы */}
-        <MetalCard style={{ marginTop: 12 }}>
-          <Text style={styles.blockTitle}>🥛 Модификаторы</Text>
-          {modifiers.length === 0 && <Text style={styles.empty}>Модификаторы не настроены</Text>}
-          {modifiers.map(m => (
-            <Pressable key={m.id} style={styles.row} onPress={() => openEditModifier(m)}>
-              <Text style={styles.rowName}>{m.name}</Text>
-              <Text style={styles.rowPrice}>+{m.price}₽ ›</Text>
-            </Pressable>
-          ))}
-          <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
-            <MetalButton title="+ Замена (молоко)" variant="default" onPress={() => openNewModifier('Замена')} style={{ flex: 1 }} />
-            <MetalButton title="+ Добавка (сироп)" variant="default" onPress={() => openNewModifier('Добавление')} style={{ flex: 1 }} />
-          </View>
-        </MetalCard>
-
         {/* Пороги остатка склада */}
-        <MetalCard style={{ marginTop: 12 }}>
-          <Text style={styles.blockTitle}>📦 Пороги остатка склада</Text>
-          {stock.length === 0 && <Text style={styles.empty}>Нет данных. Выполните импорт из Sheets.</Text>}
-          {stock.map(s => (
-            <Pressable key={s.id} style={styles.row} onPress={() => openStockModal(s)}>
-              <Text style={styles.rowName}>{s.name}</Text>
-              <Text style={styles.rowPrice}>порог: {s['порог']} {s.unit} ›</Text>
-            </Pressable>
-          ))}
-        </MetalCard>
+        {modules.stock !== false && (
+          <MetalCard style={{ marginTop: 12 }}>
+            <Text style={styles.blockTitle}>📦 Пороги остатка склада</Text>
+            {stock.length === 0 && <Text style={styles.empty}>Нет данных на складе.</Text>}
+            {stock.map(s => (
+              <Pressable key={s.id} style={styles.row} onPress={() => openStockModal(s)}>
+                <Text style={styles.rowName}>{s.name}</Text>
+                <Text style={styles.rowPrice}>порог: {s['порог']} {s.unit} ›</Text>
+              </Pressable>
+            ))}
+          </MetalCard>
+        )}
 
         {unlinkedCards.length > 0 && (
           <MetalCard style={{ marginTop: 12 }}>
             <Text style={styles.blockTitle}>⚠️ Несвязанные техкарты</Text>
-            <Text style={styles.hintText}>Эти техкарты не удалось автоматически привязать к товару — название не совпадает с «Товар + Размер». Проверьте название товара/размера и пересоздайте техкарту через карточку товара выше, старую можно удалить в разделе «Себестоимость».</Text>
+            <Text style={styles.hintText}>Эти техкарты остались от старой модели и не привязаны к конкретному варианту товара. Пересоздайте их через карточку товара выше.</Text>
             {unlinkedCards.map(c => (
-              <View key={c.id} style={styles.row}>
-                <Text style={styles.rowName}>{c.name}</Text>
-              </View>
+              <View key={c.id} style={styles.row}><Text style={styles.rowName}>{c.name}</Text></View>
             ))}
           </MetalCard>
         )}
@@ -361,12 +468,8 @@ export default function SettingsScreen({ navigation }) {
         {/* Резервное копирование */}
         <MetalCard style={{ marginTop: 12, marginBottom: 20 }}>
           <Text style={styles.blockTitle}>💾 Резервное копирование</Text>
-          <Text style={styles.hintText}>Открывает системное меню «Поделиться» с данными в виде текста — можно переслать себе в Telegram, сохранить в заметки или облако.</Text>
+          <Text style={styles.hintText}>Открывает системное меню «Поделиться» с данными в виде текста.</Text>
           <MetalButton title={exporting ? 'Экспорт...' : '📤 Экспорт и поделиться'} variant="pay" onPress={handleExport} disabled={exporting} />
-          <View style={{ marginTop: 14 }}>
-            <Text style={styles.hintText}>Полностью очищает все данные приложения (заказы, клиенты, склад и т.д.). PIN-коды не затрагиваются. Пока недоступно — включим, когда всё будет настроено.</Text>
-            <MetalButton title="🗑 Сбросить приложение" variant="danger" onPress={() => {}} disabled />
-          </View>
         </MetalCard>
 
       </ScrollView>
@@ -377,55 +480,93 @@ export default function SettingsScreen({ navigation }) {
         <View style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setProductModal(null)} />
           {productModal && (
-            <View style={[styles.modalInner, { maxHeight: '85%' }]}>
+            <View style={[styles.modalInner, { maxHeight: '88%' }]}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>{productModal.product.name}</Text>
                 <Pressable onPress={() => setProductModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
               </View>
               <ScrollView showsVerticalScrollIndicator={false}>
-                {productModal.variants.map((v, i) => (
-                  <View key={i} style={styles.variantRow}>
-                    <Text style={styles.variantLabel}>{v.size || 'Цена'}</Text>
-                    <TextInput
-                      style={styles.variantInput}
-                      keyboardType="numeric"
-                      value={v.price}
-                      onChangeText={(val) => setVariantPrice(i, val)}
-                    />
-                    <Text style={styles.variantUnit}>₽</Text>
-                  </View>
-                ))}
-
-                {Object.keys(productModal.techCards).map(sizeKey => (
-                  <View key={sizeKey || 'default'} style={styles.techCardBlock}>
-                    <Text style={styles.techCardTitle}>
-                      🧾 Техкарта{sizeKey ? ` · ${sizeKey}` : ''}
-                    </Text>
-                    {productModal.techCards[sizeKey].length === 0 && (
-                      <Text style={styles.hintText}>Ингредиенты не заданы — списание со склада для этого варианта работать не будет.</Text>
-                    )}
-                    {productModal.techCards[sizeKey].map((row, idx) => (
-                      <View key={idx} style={styles.ingredientRow}>
-                        <Text style={styles.ingredientName} numberOfLines={1}>{row.name}</Text>
+                <Text style={styles.sectionTitle}>Варианты</Text>
+                <Text style={styles.hintText}>Если у товара один вариант — оставь название пустым, он не будет показываться отдельным чипом в кассе.</Text>
+                {productModal.variants.map((v, idx) => {
+                  const key = variantKey(v, idx);
+                  return (
+                    <View key={key} style={styles.variantBlock}>
+                      <View style={styles.variantHeaderRow}>
                         <TextInput
-                          style={styles.ingredientAmount}
-                          keyboardType="numeric"
-                          value={row.amount}
-                          onChangeText={(val) => setIngredientAmount(sizeKey, idx, val)}
-                          placeholder="0"
+                          style={[styles.input, { flex: 1 }]}
+                          placeholder="Название варианта (напр. Маленький)"
                           placeholderTextColor={colors.muted}
+                          value={v.label}
+                          onChangeText={(val) => setVariantField(idx, 'label', val)}
                         />
-                        <Text style={styles.ingredientUnit}>{row.unit}</Text>
-                        <Pressable onPress={() => removeIngredientRow(sizeKey, idx)} hitSlop={8}>
-                          <Text style={styles.ingredientRemove}>✕</Text>
-                        </Pressable>
+                        {productModal.variants.length > 1 && (
+                          <Pressable onPress={() => removeVariantRow(idx)} hitSlop={8} style={{ marginLeft: 8 }}>
+                            <Text style={styles.ingredientRemove}>✕</Text>
+                          </Pressable>
+                        )}
                       </View>
-                    ))}
-                    <Pressable style={styles.addIngredientBtn} onPress={() => setIngredientPicker({ sizeKey, search: '' })}>
-                      <Text style={styles.addIngredientBtnLabel}>+ добавить ингредиент со склада</Text>
-                    </Pressable>
-                  </View>
-                ))}
+                      <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
+                        <TextInput
+                          style={[styles.input, { flex: 1 }]}
+                          keyboardType="numeric"
+                          placeholder="Цена, ₽"
+                          placeholderTextColor={colors.muted}
+                          value={v.price}
+                          onChangeText={(val) => setVariantField(idx, 'price', val)}
+                        />
+                        <TextInput
+                          style={[styles.input, { flex: 1 }]}
+                          placeholder="Артикул/SKU"
+                          placeholderTextColor={colors.muted}
+                          value={v.sku}
+                          onChangeText={(val) => setVariantField(idx, 'sku', val)}
+                        />
+                      </View>
+
+                      <Text style={styles.techCardTitle}>🧾 Техкарта{v.label ? ` · ${v.label}` : ''}</Text>
+                      {(productModal.techCards[key] || []).length === 0 && (
+                        <Text style={styles.hintText}>Ингредиенты не заданы — списание со склада работать не будет.</Text>
+                      )}
+                      {(productModal.techCards[key] || []).map((row, ri) => (
+                        <View key={ri} style={styles.ingredientRow}>
+                          <Text style={styles.ingredientName} numberOfLines={1}>{row.name}</Text>
+                          <TextInput
+                            style={styles.ingredientAmount}
+                            keyboardType="numeric"
+                            value={row.amount}
+                            onChangeText={(val) => setIngredientAmount(key, ri, val)}
+                            placeholder="0"
+                            placeholderTextColor={colors.muted}
+                          />
+                          <Text style={styles.ingredientUnit}>{row.unit}</Text>
+                          <Pressable onPress={() => removeIngredientRow(key, ri)} hitSlop={8}>
+                            <Text style={styles.ingredientRemove}>✕</Text>
+                          </Pressable>
+                        </View>
+                      ))}
+                      <Pressable style={styles.addIngredientBtn} onPress={() => setIngredientPicker({ variantKey: key, search: '' })}>
+                        <Text style={styles.addIngredientBtnLabel}>+ ингредиент со склада</Text>
+                      </Pressable>
+                    </View>
+                  );
+                })}
+                <MetalButton title="+ Добавить вариант" variant="default" onPress={addVariantRow} style={{ marginTop: 4 }} />
+
+                {modifierGroups.length > 0 && (
+                  <>
+                    <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Модификаторы</Text>
+                    {modifierGroups.map(g => {
+                      const checked = productModal.groupIds.includes(g.id);
+                      return (
+                        <Pressable key={g.id} style={styles.checkRow} onPress={() => toggleGroupForProduct(g.id)}>
+                          <Text style={styles.checkBox}>{checked ? '☑' : '☐'}</Text>
+                          <Text style={styles.rowName}>{g.name}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </>
+                )}
               </ScrollView>
               <MetalButton title="Сохранить" variant="success" onPress={saveProduct} style={{ marginTop: 10 }} />
               <MetalButton
@@ -438,52 +579,7 @@ export default function SettingsScreen({ navigation }) {
         </View>
       </Modal>
 
-      {/* Модалка нового товара */}
-      <Modal visible={!!newProductModal} transparent animationType="fade" onRequestClose={() => setNewProductModal(null)}>
-        <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setNewProductModal(null)} />
-          {newProductModal && (
-            <View style={styles.modalInner}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Новый товар</Text>
-                <Pressable onPress={() => setNewProductModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
-              </View>
-              <Text style={styles.fieldLabel}>Название</Text>
-              <TextInput style={styles.input} value={newProductModal.name} onChangeText={(v) => setNewProductModal(m => ({ ...m, name: v }))} placeholderTextColor={colors.muted} />
-              <Text style={styles.fieldLabel}>Категория</Text>
-              <TextInput style={styles.input} value={newProductModal.category} onChangeText={(v) => setNewProductModal(m => ({ ...m, category: v }))} placeholder="Название категории" placeholderTextColor={colors.muted} />
-              {categories.length > 0 && (
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-                  {categories.map(c => (
-                    <Pressable key={c} style={styles.catChip} onPress={() => setNewProductModal(m => ({ ...m, category: c }))}>
-                      <Text style={styles.catChipLabel}>{c}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-              )}
-              <Text style={[styles.fieldLabel, { marginTop: 14 }]}>Цены по размерам (пусто — если размер не нужен)</Text>
-              <View style={styles.variantRow}>
-                <Text style={styles.variantLabel}>S</Text>
-                <TextInput style={styles.variantInput} keyboardType="numeric" value={newProductModal.price_s} onChangeText={(v) => setNewProductModal(m => ({ ...m, price_s: v }))} />
-                <Text style={styles.variantUnit}>₽</Text>
-              </View>
-              <View style={styles.variantRow}>
-                <Text style={styles.variantLabel}>M</Text>
-                <TextInput style={styles.variantInput} keyboardType="numeric" value={newProductModal.price_m} onChangeText={(v) => setNewProductModal(m => ({ ...m, price_m: v }))} />
-                <Text style={styles.variantUnit}>₽</Text>
-              </View>
-              <View style={styles.variantRow}>
-                <Text style={styles.variantLabel}>L</Text>
-                <TextInput style={styles.variantInput} keyboardType="numeric" value={newProductModal.price_l} onChangeText={(v) => setNewProductModal(m => ({ ...m, price_l: v }))} />
-                <Text style={styles.variantUnit}>₽</Text>
-              </View>
-              <MetalButton title="Добавить товар" variant="success" onPress={saveNewProduct} style={{ marginTop: 10 }} />
-            </View>
-          )}
-        </View>
-      </Modal>
-
-      {/* Модалка выбора ингредиента со склада (для техкарты) */}
+      {/* Модалка выбора ингредиента со склада */}
       <Modal visible={!!ingredientPicker} transparent animationType="fade" onRequestClose={() => setIngredientPicker(null)}>
         <View style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setIngredientPicker(null)} />
@@ -501,25 +597,50 @@ export default function SettingsScreen({ navigation }) {
                 onChangeText={(v) => setIngredientPicker(p => ({ ...p, search: v }))}
               />
               <ScrollView style={{ marginTop: 8 }} showsVerticalScrollIndicator={false}>
-                {stock.length === 0 && (
-                  <Text style={styles.hintText}>На складе пока нет позиций — сначала добавь их через раздел «Склад».</Text>
-                )}
+                {stock.length === 0 && <Text style={styles.hintText}>На складе пока нет позиций.</Text>}
                 {stock
                   .filter(s => s.name.toLowerCase().includes(ingredientPicker.search.trim().toLowerCase()))
                   .map(s => (
                     <Pressable
                       key={s.id}
                       style={styles.row}
-                      onPress={() => {
-                        addIngredientRow(ingredientPicker.sizeKey, s);
-                        setIngredientPicker(null);
-                      }}
+                      onPress={() => { addIngredientRow(ingredientPicker.variantKey, s); setIngredientPicker(null); }}
                     >
                       <Text style={styles.rowName}>{s.name}</Text>
                       <Text style={styles.rowPrice}>{s.unit}</Text>
                     </Pressable>
                   ))}
               </ScrollView>
+            </View>
+          )}
+        </View>
+      </Modal>
+
+      {/* Модалка нового товара */}
+      <Modal visible={!!newProductModal} transparent animationType="fade" onRequestClose={() => setNewProductModal(null)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setNewProductModal(null)} />
+          {newProductModal && (
+            <View style={styles.modalInner}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Новый {(terms.item || 'товар').toLowerCase()}</Text>
+                <Pressable onPress={() => setNewProductModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
+              </View>
+              <Text style={styles.fieldLabel}>Название</Text>
+              <TextInput style={styles.input} value={newProductModal.name} onChangeText={(v) => setNewProductModal(m => ({ ...m, name: v }))} placeholderTextColor={colors.muted} />
+              <Text style={styles.fieldLabel}>Категория</Text>
+              <TextInput style={styles.input} value={newProductModal.category} onChangeText={(v) => setNewProductModal(m => ({ ...m, category: v }))} placeholder="Название категории" placeholderTextColor={colors.muted} />
+              {categories.length > 0 && (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                  {categories.map(c => (
+                    <Pressable key={c} style={styles.catChip} onPress={() => setNewProductModal(m => ({ ...m, category: c }))}>
+                      <Text style={styles.catChipLabel}>{c}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+              <Text style={styles.hintText}>Цену и варианты настроишь сразу после создания — тапни на новый товар в списке.</Text>
+              <MetalButton title="Добавить" variant="success" onPress={saveNewProduct} style={{ marginTop: 10 }} />
             </View>
           )}
         </View>
@@ -568,50 +689,165 @@ export default function SettingsScreen({ navigation }) {
         </View>
       </Modal>
 
-      {/* Модалка модификатора */}
-      <Modal visible={!!modifierModal} transparent animationType="fade" onRequestClose={() => setModifierModal(null)}>
+      {/* Модалка группы модификаторов */}
+      <Modal visible={!!groupModal} transparent animationType="fade" onRequestClose={() => setGroupModal(null)}>
         <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setModifierModal(null)} />
-          {modifierModal && (
-            <View style={styles.modalInner}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setGroupModal(null)} />
+          {groupModal && (
+            <View style={[styles.modalInner, { maxHeight: '80%' }]}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>{modifierModal.id ? 'Изменить модификатор' : 'Новый модификатор'}</Text>
-                <Pressable onPress={() => setModifierModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
+                <Text style={styles.modalTitle}>{groupModal.id ? 'Группа модификаторов' : 'Новая группа'}</Text>
+                <Pressable onPress={() => setGroupModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
               </View>
-              <Text style={styles.fieldLabel}>Название</Text>
-              <TextInput style={styles.input} value={modifierModal.name} onChangeText={(v) => setModifierModal(m => ({ ...m, name: v }))} placeholderTextColor={colors.muted} />
-              <Text style={styles.fieldLabel}>Доплата, ₽</Text>
-              <TextInput style={styles.input} keyboardType="numeric" value={modifierModal.price} onChangeText={(v) => setModifierModal(m => ({ ...m, price: v }))} placeholderTextColor={colors.muted} />
+              <Text style={styles.fieldLabel}>Название группы</Text>
+              <TextInput style={styles.input} value={groupModal.name} onChangeText={(v) => setGroupModal(m => ({ ...m, name: v }))} placeholder="напр. Молоко" placeholderTextColor={colors.muted} />
+              <View style={styles.chipsRowSmall}>
+                <Pressable style={[styles.chipSmall, groupModal.selectionType === 'single' && styles.chipSmallActive]} onPress={() => setGroupModal(m => ({ ...m, selectionType: 'single' }))}>
+                  <Text style={[styles.chipSmallLabel, groupModal.selectionType === 'single' && styles.chipSmallLabelActive]}>Один вариант</Text>
+                </Pressable>
+                <Pressable style={[styles.chipSmall, groupModal.selectionType === 'multiple' && styles.chipSmallActive]} onPress={() => setGroupModal(m => ({ ...m, selectionType: 'multiple' }))}>
+                  <Text style={[styles.chipSmallLabel, groupModal.selectionType === 'multiple' && styles.chipSmallLabelActive]}>Несколько</Text>
+                </Pressable>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                <MetalButton title="Сохранить" variant="success" onPress={saveGroupModal} style={{ flex: 1 }} />
+                {groupModal.id && <MetalButton title="Удалить группу" variant="danger" onPress={deleteGroupModal} style={{ flex: 1 }} />}
+              </View>
 
-              {modifierModal.type === 'Замена' ? (
+              {groupModal.id && (
                 <>
-                  <Text style={styles.fieldLabel}>Ингредиент склада вместо «Молоко»</Text>
-                  <TextInput style={styles.input} value={modifierModal.ingrToReplace} onChangeText={(v) => setModifierModal(m => ({ ...m, ingrToReplace: v }))} placeholder="напр. Овсяное молоко" placeholderTextColor={colors.muted} />
-                  <Text style={styles.hintText}>Количество спишется такое же, как «Молоко» указано в техкарте товара.</Text>
-                </>
-              ) : (
-                <>
-                  <Text style={styles.fieldLabel}>Ингредиент склада для списания</Text>
-                  <TextInput style={styles.input} value={modifierModal.ingrToDeduct} onChangeText={(v) => setModifierModal(m => ({ ...m, ingrToDeduct: v }))} placeholder="напр. Сироп ваниль" placeholderTextColor={colors.muted} />
-                  <View style={{ flexDirection: 'row', gap: 10 }}>
-                    <View style={{ flex: 2 }}>
-                      <Text style={styles.fieldLabel}>Расход за 1 добавку</Text>
-                      <TextInput style={styles.input} keyboardType="numeric" value={modifierModal.deductAmount} onChangeText={(v) => setModifierModal(m => ({ ...m, deductAmount: v }))} placeholderTextColor={colors.muted} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.fieldLabel}>Ед.</Text>
-                      <TextInput style={styles.input} value={modifierModal.deductUnit} onChangeText={(v) => setModifierModal(m => ({ ...m, deductUnit: v }))} placeholderTextColor={colors.muted} />
-                    </View>
-                  </View>
-                  <Text style={styles.hintText}>Оставь поле «Ингредиент» пустым, если этот модификатор не нужно списывать со склада.</Text>
+                  <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Опции</Text>
+                  {(modifierGroups.find(g => g.id === groupModal.id)?.options || []).map(opt => (
+                    <Pressable key={opt.id} style={styles.row} onPress={() => openEditOption(groupModal.id, opt)}>
+                      <Text style={styles.rowName}>{opt.name}</Text>
+                      <Text style={styles.rowPrice}>{opt.price_delta > 0 ? `+${opt.price_delta}₽ ` : ''}›</Text>
+                    </Pressable>
+                  ))}
+                  <MetalButton title="+ Добавить опцию" variant="default" onPress={() => openNewOption(groupModal.id)} style={{ marginTop: 8 }} />
                 </>
               )}
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
-                <MetalButton title="Сохранить" variant="success" onPress={saveModifierModal} style={{ flex: 1 }} />
-                {modifierModal.id && (
-                  <MetalButton title="Удалить" variant="danger" onPress={deleteModifierModal} style={{ flex: 1 }} />
-                )}
+            </View>
+          )}
+        </View>
+      </Modal>
+
+      {/* Модалка опции модификатора */}
+      <Modal visible={!!optionModal} transparent animationType="fade" onRequestClose={() => setOptionModal(null)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setOptionModal(null)} />
+          {optionModal && (
+            <View style={styles.modalInner}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{optionModal.id ? 'Изменить опцию' : 'Новая опция'}</Text>
+                <Pressable onPress={() => setOptionModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
               </View>
+              <Text style={styles.fieldLabel}>Название</Text>
+              <TextInput style={styles.input} value={optionModal.name} onChangeText={(v) => setOptionModal(m => ({ ...m, name: v }))} placeholderTextColor={colors.muted} />
+              <Text style={styles.fieldLabel}>Доплата, ₽</Text>
+              <TextInput style={styles.input} keyboardType="numeric" value={optionModal.priceDelta} onChangeText={(v) => setOptionModal(m => ({ ...m, priceDelta: v }))} placeholderTextColor={colors.muted} />
+
+              <Text style={styles.fieldLabel}>Заменяет ингредиент склада на (если это замена)</Text>
+              <TextInput style={styles.input} value={optionModal.ingrToReplace} onChangeText={(v) => setOptionModal(m => ({ ...m, ingrToReplace: v }))} placeholder="напр. Овсяное молоко" placeholderTextColor={colors.muted} />
+              <Text style={styles.hintText}>Сработает, если в техкарте товара есть ингредиент с названием как у группы модификатора (напр. группа «Молоко» → ингредиент «Молоко»).</Text>
+
+              <Text style={styles.fieldLabel}>Или списывает дополнительно (если это добавка)</Text>
+              <TextInput style={styles.input} value={optionModal.ingrToDeduct} onChangeText={(v) => setOptionModal(m => ({ ...m, ingrToDeduct: v }))} placeholder="напр. Сироп ваниль" placeholderTextColor={colors.muted} />
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <View style={{ flex: 2 }}>
+                  <Text style={styles.fieldLabel}>Расход</Text>
+                  <TextInput style={styles.input} keyboardType="numeric" value={optionModal.deductAmount} onChangeText={(v) => setOptionModal(m => ({ ...m, deductAmount: v }))} placeholderTextColor={colors.muted} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.fieldLabel}>Ед.</Text>
+                  <TextInput style={styles.input} value={optionModal.deductUnit} onChangeText={(v) => setOptionModal(m => ({ ...m, deductUnit: v }))} placeholderTextColor={colors.muted} />
+                </View>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
+                <MetalButton title="Сохранить" variant="success" onPress={saveOptionModal} style={{ flex: 1 }} />
+                {optionModal.id && <MetalButton title="Удалить" variant="danger" onPress={deleteOptionModal} style={{ flex: 1 }} />}
+              </View>
+            </View>
+          )}
+        </View>
+      </Modal>
+
+      {/* Модалка ввода ключа доступа к профилю бизнеса */}
+      <Modal visible={keyPromptOpen} transparent animationType="fade" onRequestClose={() => setKeyPromptOpen(false)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setKeyPromptOpen(false)} />
+          <View style={styles.modalInner}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Ключ доступа</Text>
+              <Pressable onPress={() => setKeyPromptOpen(false)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
+            </View>
+            <TextInput style={styles.input} secureTextEntry value={keyInput} onChangeText={setKeyInput} placeholderTextColor={colors.muted} />
+            <MetalButton title="Войти" variant="success" onPress={checkKey} style={{ marginTop: 10 }} />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Модалка профиля бизнеса */}
+      <Modal visible={profileUnlocked} transparent animationType="fade" onRequestClose={() => setProfileUnlocked(false)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setProfileUnlocked(false)} />
+          {profileDraft && (
+            <View style={[styles.modalInner, { maxHeight: '88%' }]}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Профиль бизнеса</Text>
+                <Pressable onPress={() => setProfileUnlocked(false)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
+              </View>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <Text style={styles.fieldLabel}>Название бизнеса</Text>
+                <TextInput style={styles.input} value={profileDraft.businessName} onChangeText={(v) => setProfileDraft(d => ({ ...d, businessName: v }))} placeholderTextColor={colors.muted} />
+
+                <Text style={styles.sectionTitle}>Быстрый старт (пресет)</Text>
+                <View style={styles.chipsRowSmall}>
+                  {Object.keys(BUSINESS_PRESETS).map(key => (
+                    <Pressable key={key} style={styles.chipSmall} onPress={() => applyPresetDraft(key)}>
+                      <Text style={styles.chipSmallLabel}>{BUSINESS_PRESETS[key].label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <Text style={styles.hintText}>Применяет стартовый набор модулей/терминов/единиц — дальше можно поменять вручную.</Text>
+
+                <Text style={styles.sectionTitle}>Модули</Text>
+                {[
+                  ['stock', 'Склад'], ['shifts', 'Смены'], ['clients', 'Клиенты'],
+                  ['loyalty', 'Лояльность'], ['modifiers', 'Модификаторы'], ['inventory', 'Инвентаризация'],
+                ].map(([key, label]) => (
+                  <Pressable key={key} style={styles.checkRow} onPress={() => toggleModuleDraft(key)}>
+                    <Text style={styles.checkBox}>{profileDraft.modules[key] ? '☑' : '☐'}</Text>
+                    <Text style={styles.rowName}>{label}</Text>
+                  </Pressable>
+                ))}
+
+                <Text style={styles.sectionTitle}>Терминология</Text>
+                {[
+                  ['item', 'Товар/услуга'], ['client', 'Клиент'], ['order', 'Заказ'], ['category', 'Категория'],
+                ].map(([key, label]) => (
+                  <View key={key}>
+                    <Text style={styles.fieldLabel}>{label}</Text>
+                    <TextInput style={styles.input} value={profileDraft.terms[key] || ''} onChangeText={(v) => setTermDraft(key, v)} placeholderTextColor={colors.muted} />
+                  </View>
+                ))}
+
+                <Text style={styles.sectionTitle}>Единицы измерения</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                  {profileDraft.units.map(u => (
+                    <Pressable key={u} style={styles.unitChip} onPress={() => removeUnitDraft(u)}>
+                      <Text style={styles.catChipLabel}>{u} ✕</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TextInput style={[styles.input, { flex: 1 }]} value={profileDraft.unitInput} onChangeText={(v) => setProfileDraft(d => ({ ...d, unitInput: v }))} placeholder="напр. шт" placeholderTextColor={colors.muted} />
+                  <MetalButton title="+" variant="default" onPress={addUnitDraft} style={{ width: 50 }} />
+                </View>
+
+                <Text style={styles.sectionTitle}>Ключ доступа к этому разделу</Text>
+                <TextInput style={styles.input} value={profileDraft.accessKey} onChangeText={(v) => setProfileDraft(d => ({ ...d, accessKey: v }))} placeholder="оставь пустым — раздел без пароля" placeholderTextColor={colors.muted} />
+              </ScrollView>
+              <MetalButton title="Сохранить профиль" variant="success" onPress={saveProfileDraft} style={{ marginTop: 10 }} />
             </View>
           )}
         </View>
@@ -623,29 +859,30 @@ export default function SettingsScreen({ navigation }) {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   inner: { padding: spacing.lg, paddingBottom: 20, maxWidth: 1100, width: '100%', alignSelf: 'center' },
+  hiddenHint: { textAlign: 'center', fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginBottom: 10 },
   blockTitle: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.textDim, textTransform: 'uppercase', letterSpacing: 2, marginBottom: 12, textAlign: 'center' },
   catHeader: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
   rowName: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.text, flex: 1 },
+  rowSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
   rowNameInactive: { color: colors.muted },
   rowPrice: { fontFamily: fonts.family, fontSize: 13, fontWeight: '700', color: colors.greenLight },
   empty: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center', paddingVertical: 12 },
   hintText: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginBottom: 10, lineHeight: 17 },
   catChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e' },
   catChipLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
+  unitChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e' },
   fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, marginTop: 10 },
+  sectionTitle: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.text, textTransform: 'uppercase', letterSpacing: 1, marginTop: 16, marginBottom: 8 },
   input: { padding: 13, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 14, fontFamily: fonts.familyRegular },
   modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center' },
   modalInner: { width: '55%', maxWidth: 540, backgroundColor: '#0e0f11', borderRadius: 20, padding: 24, borderWidth: 1, borderColor: colors.borderHi },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   modalTitle: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, flex: 1 },
   modalClose: { fontSize: 18, color: colors.muted, padding: 4 },
-  variantRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
-  variantLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, width: 90 },
-  variantInput: { flex: 1, padding: 12, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 15, fontFamily: fonts.family, textAlign: 'center' },
-  variantUnit: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
-  techCardBlock: { marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: colors.border },
-  techCardTitle: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, marginBottom: 8 },
+  variantBlock: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border },
+  variantHeaderRow: { flexDirection: 'row', alignItems: 'center' },
+  techCardTitle: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.text, marginTop: 10, marginBottom: 6 },
   ingredientRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   ingredientName: { flex: 1, fontFamily: fonts.familyRegular, fontSize: 13, color: colors.text },
   ingredientAmount: { width: 64, padding: 8, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 10, color: colors.text, fontSize: 13, fontFamily: fonts.family, textAlign: 'center' },
@@ -653,4 +890,11 @@ const styles = StyleSheet.create({
   ingredientRemove: { fontSize: 15, color: colors.redLight, paddingHorizontal: 4 },
   addIngredientBtn: { paddingVertical: 8, alignItems: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: 12, borderStyle: 'dashed', marginTop: 2 },
   addIngredientBtnLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.greenLight },
+  checkRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
+  checkBox: { fontSize: 18, color: colors.greenLight, width: 22 },
+  chipsRowSmall: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  chipSmall: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e' },
+  chipSmallActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.18)' },
+  chipSmallLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
+  chipSmallLabelActive: { color: colors.greenLight },
 });
