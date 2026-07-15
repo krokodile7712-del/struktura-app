@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, Image, StyleSheet, ScrollView, Pressable } from 'react-native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import { getBusinessProfile } from '../db/queries';
+import { getBusinessProfile, getOpenShift } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
 const MENU_ITEMS = [
@@ -12,7 +12,7 @@ const MENU_ITEMS = [
   { icon: '📦', label: 'Склад',          screen: 'Stock',       variant: 'default', module: 'stock' },
   { icon: '🧾', label: 'Себестоимость',  screen: 'CostCards',   variant: 'default', module: 'stock' },
   { icon: '💸', label: 'Расходы',        screen: 'Expenses',    variant: 'danger'  },
-  { icon: '📅', label: 'Открыть смену',  screen: 'Shift',       variant: 'success', module: 'shifts' },
+  { icon: '📅', label: 'Открыть смену',  screen: 'Shift',       variant: 'success', module: 'shifts', hideWhenShiftOpen: true },
   { icon: '👤', label: 'Регистрация',    screen: 'Reg',         variant: 'pay',     module: 'clients' },
   { icon: '📥', label: 'Импорт Sheets',  screen: 'Migrate',     variant: 'success' },
   { icon: '⚙️', label: 'Настройки',      screen: 'Settings',    variant: 'pay'     },
@@ -28,12 +28,19 @@ const ACCENT = {
 
 export default function AdminScreen({ navigation }) {
   const [modules, setModules] = useState({});
+  const [shiftOpen, setShiftOpen] = useState(false);
 
   useEffect(() => {
-    try { setModules(getBusinessProfile()?.modules || {}); } catch (e) { console.error(e); }
+    try {
+      setModules(getBusinessProfile()?.modules || {});
+      setShiftOpen(!!getOpenShift());
+    } catch (e) { console.error(e); }
   }, []);
 
-  const visibleItems = MENU_ITEMS.filter(item => !item.module || modules[item.module] !== false);
+  const visibleItems = MENU_ITEMS.filter(item =>
+    (!item.module || modules[item.module] !== false) &&
+    !(item.hideWhenShiftOpen && shiftOpen)
+  );
 
   return (
     <View style={{ flex: 1 }}>

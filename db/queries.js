@@ -449,6 +449,8 @@ export function openShift(cashOpen = 0) {
   const now = new Date().toISOString();
   // Добавляем колонку cash_open если нет
   try { db.execSync(`ALTER TABLE shifts ADD COLUMN cash_open REAL DEFAULT 0`); } catch (_) {}
+  const existing = db.getFirstSync(`SELECT * FROM shifts WHERE status='open' ORDER BY opened_at DESC LIMIT 1`);
+  if (existing) return existing.id; // смена уже открыта — не плодим дубли
   return db.runSync(`INSERT INTO shifts (opened_at, status, cash_open) VALUES (?, 'open', ?)`, [now, cashOpen]).lastInsertRowId;
 }
 

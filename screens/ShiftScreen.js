@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
-import { openShift } from '../db/queries';
+import { openShift, getOpenShift } from '../db/queries';
 import { getSession } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
 
@@ -13,6 +13,16 @@ export default function ShiftScreen({ navigation }) {
 
   const today = new Date();
   const dateStr = `${String(today.getDate()).padStart(2,'0')}.${String(today.getMonth()+1).padStart(2,'0')}.${today.getFullYear()}`;
+
+  useEffect(() => {
+    // Смена уже открыта — форма тут не нужна, сразу уходим на домашний экран
+    try {
+      if (getOpenShift()) {
+        const user = getSession();
+        navigation.replace(user?.role === 'admin' ? 'Admin' : 'Dashboard');
+      }
+    } catch (e) { console.error(e); }
+  }, []);
 
   const handleOpen = () => {
     const cash = parseFloat(cashOpen) || 0;
