@@ -3,9 +3,8 @@ import { View, Text, Image, StyleSheet, ScrollView, TextInput } from 'react-nati
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
-import { getUserByPin } from '../db/queries';
+import { getUserByPin, getOpenShift, getBusinessProfile } from '../db/queries';
 import { setSession } from '../db/session';
-import { getOpenShift } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
 export default function LoginScreen({ navigation }) {
@@ -21,8 +20,9 @@ export default function LoginScreen({ navigation }) {
     }
     setError('');
     setSession(user);
-    const openShift = getOpenShift();
-    if (!openShift) {
+    const shiftsEnabled = getBusinessProfile()?.modules?.shifts !== false;
+    const openShift = shiftsEnabled ? getOpenShift() : true;
+    if (shiftsEnabled && !openShift) {
       navigation.navigate('Shift');
     } else if (user.role === 'admin') {
       navigation.navigate('Admin');

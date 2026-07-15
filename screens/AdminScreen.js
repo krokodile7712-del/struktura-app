@@ -1,18 +1,19 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Image, StyleSheet, ScrollView, Pressable } from 'react-native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
+import { getBusinessProfile } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
 const MENU_ITEMS = [
   { icon: '☕', label: 'Новый заказ',    screen: 'Kassa',       variant: 'action'  },
-  { icon: '👥', label: 'Лояльность',     screen: 'ClientsList', variant: 'pay'     },
+  { icon: '👥', label: 'Лояльность',     screen: 'ClientsList', variant: 'pay',     module: 'clients' },
   { icon: '📊', label: 'Продажи',        screen: 'Sales',       variant: 'success' },
-  { icon: '📦', label: 'Склад',          screen: 'Stock',       variant: 'default' },
-  { icon: '🧾', label: 'Себестоимость',  screen: 'CostCards',   variant: 'default' },
+  { icon: '📦', label: 'Склад',          screen: 'Stock',       variant: 'default', module: 'stock' },
+  { icon: '🧾', label: 'Себестоимость',  screen: 'CostCards',   variant: 'default', module: 'stock' },
   { icon: '💸', label: 'Расходы',        screen: 'Expenses',    variant: 'danger'  },
-  { icon: '📅', label: 'Открыть смену',  screen: 'Shift',       variant: 'success' },
-  { icon: '👤', label: 'Регистрация',    screen: 'Reg',         variant: 'pay'     },
+  { icon: '📅', label: 'Открыть смену',  screen: 'Shift',       variant: 'success', module: 'shifts' },
+  { icon: '👤', label: 'Регистрация',    screen: 'Reg',         variant: 'pay',     module: 'clients' },
   { icon: '📥', label: 'Импорт Sheets',  screen: 'Migrate',     variant: 'success' },
   { icon: '⚙️', label: 'Настройки',      screen: 'Settings',    variant: 'pay'     },
 ];
@@ -26,6 +27,14 @@ const ACCENT = {
 };
 
 export default function AdminScreen({ navigation }) {
+  const [modules, setModules] = useState({});
+
+  useEffect(() => {
+    try { setModules(getBusinessProfile()?.modules || {}); } catch (e) { console.error(e); }
+  }, []);
+
+  const visibleItems = MENU_ITEMS.filter(item => !item.module || modules[item.module] !== false);
+
   return (
     <View style={{ flex: 1 }}>
       <TopBar title="Администратор" onBack={() => navigation.navigate('Login')} />
@@ -41,7 +50,7 @@ export default function AdminScreen({ navigation }) {
         </View>
 
         <View style={styles.grid}>
-          {MENU_ITEMS.map((item) => {
+          {visibleItems.map((item) => {
             const ac = ACCENT[item.variant] || ACCENT.default;
             return (
               <Pressable
@@ -59,20 +68,32 @@ export default function AdminScreen({ navigation }) {
           })}
         </View>
 
-        <View style={styles.shiftRow}>
-          <Pressable
-            style={[styles.shiftBtn, { borderColor: 'rgba(160,16,32,0.5)', backgroundColor: 'rgba(160,16,32,0.10)' }]}
-            onPress={() => navigation.navigate('ShiftClose')}
-          >
-            <Text style={[styles.shiftBtnText, { color: colors.redLight }]}>🚪 Закрыть смену</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.shiftBtn, { borderColor: 'rgba(74,77,84,0.5)' }]}
-            onPress={() => navigation.navigate('Login')}
-          >
-            <Text style={styles.shiftBtnText}>🔄 Сменить аккаунт</Text>
-          </Pressable>
-        </View>
+        {modules.shifts !== false && (
+          <View style={styles.shiftRow}>
+            <Pressable
+              style={[styles.shiftBtn, { borderColor: 'rgba(160,16,32,0.5)', backgroundColor: 'rgba(160,16,32,0.10)' }]}
+              onPress={() => navigation.navigate('ShiftClose')}
+            >
+              <Text style={[styles.shiftBtnText, { color: colors.redLight }]}>🚪 Закрыть смену</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.shiftBtn, { borderColor: 'rgba(74,77,84,0.5)' }]}
+              onPress={() => navigation.navigate('Login')}
+            >
+              <Text style={styles.shiftBtnText}>🔄 Сменить аккаунт</Text>
+            </Pressable>
+          </View>
+        )}
+        {modules.shifts === false && (
+          <View style={styles.shiftRow}>
+            <Pressable
+              style={[styles.shiftBtn, { borderColor: 'rgba(74,77,84,0.5)' }]}
+              onPress={() => navigation.navigate('Login')}
+            >
+              <Text style={styles.shiftBtnText}>🔄 Сменить аккаунт</Text>
+            </Pressable>
+          </View>
+        )}
       </ScrollView>
 
       <BottomBar navigation={navigation} activeTab="Kassa" />

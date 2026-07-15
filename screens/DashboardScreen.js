@@ -2,15 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet, ScrollView, Pressable } from 'react-native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import { getOpenShift } from '../db/queries';
+import { getOpenShift, getBusinessProfile } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
 const MENU_ITEMS = [
   { icon: '☕', label: 'Новый заказ',    screen: 'Kassa',       variant: 'action'  },
-  { icon: '👥', label: 'Лояльность',     screen: 'ClientsList', variant: 'pay'     },
+  { icon: '👥', label: 'Лояльность',     screen: 'ClientsList', variant: 'pay',     module: 'clients' },
   { icon: '📊', label: 'Продажи',        screen: 'Sales',       variant: 'success' },
-  { icon: '📦', label: 'Склад',          screen: 'Stock',       variant: 'default' },
-  { icon: '🧾', label: 'Себестоимость',  screen: 'CostCards',   variant: 'default' },
+  { icon: '📦', label: 'Склад',          screen: 'Stock',       variant: 'default', module: 'stock' },
+  { icon: '🧾', label: 'Себестоимость',  screen: 'CostCards',   variant: 'default', module: 'stock' },
   { icon: '💸', label: 'Расходы',        screen: 'Expenses',    variant: 'danger'  },
 ];
 
@@ -24,10 +24,16 @@ const ACCENT = {
 
 export default function DashboardScreen({ navigation }) {
   const [shift, setShift] = useState(null);
+  const [modules, setModules] = useState({});
 
   useEffect(() => {
-    try { setShift(getOpenShift()); } catch (e) { console.error(e); }
+    try {
+      setShift(getOpenShift());
+      setModules(getBusinessProfile()?.modules || {});
+    } catch (e) { console.error(e); }
   }, []);
+
+  const visibleItems = MENU_ITEMS.filter(item => !item.module || modules[item.module] !== false);
 
   return (
     <View style={{ flex: 1 }}>
@@ -48,7 +54,7 @@ export default function DashboardScreen({ navigation }) {
 
         {/* Сетка карточек */}
         <View style={styles.grid}>
-          {MENU_ITEMS.map((item) => {
+          {visibleItems.map((item) => {
             const ac = ACCENT[item.variant] || ACCENT.default;
             return (
               <Pressable

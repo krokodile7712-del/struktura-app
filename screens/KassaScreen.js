@@ -7,7 +7,7 @@ import {
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import { getAllProducts, getCategories, getProductVariants, getProductModifierGroups, getDiscounts, createOrder, getOpenShift, addClientVisit } from '../db/queries';
+import { getAllProducts, getCategories, getProductVariants, getProductModifierGroups, getDiscounts, createOrder, getOpenShift, addClientVisit, getBusinessProfile } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
 const CAT_ICONS = { 'Кофе': '☕', 'Лимонады': '🍹', 'Допы': '🍬', 'Прочее': '🫙' };
@@ -27,6 +27,7 @@ export default function KassaScreen({ navigation, route }) {
   const [selVariantId, setSelVariantId] = useState(null);
   const [selModifiers, setSelModifiers] = useState({}); // { [groupId]: optionId | optionId[] }
   const [currentShift, setCurrentShift] = useState(null);
+  const [shiftsEnabled, setShiftsEnabled] = useState(true);
 
   // Модалка оплаты
   const [payModalOpen, setPayModalOpen] = useState(false);
@@ -45,7 +46,9 @@ export default function KassaScreen({ navigation, route }) {
       const cats = getCategories();
       const shift = getOpenShift();
       const disc = getDiscounts();
+      const profile = getBusinessProfile();
 
+      setShiftsEnabled(profile?.modules?.shifts !== false);
       setAllProducts(products);
       setGroups(cats);
       setActiveCat(cats[0] || null);
@@ -162,7 +165,7 @@ export default function KassaScreen({ navigation, route }) {
 
   const openPayModal = () => {
     if (order.length === 0) return;
-    if (!currentShift) {
+    if (shiftsEnabled && !currentShift) {
       setNoShiftWarning(true);
       return;
     }
