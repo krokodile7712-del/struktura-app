@@ -19,6 +19,7 @@ import {
   getTerms, pluralizeRu, genitivePluralRu, genitiveSingularRu,
   exportAllData,
 } from '../db/queries';
+import { canConvert, conversionFactor } from '../constants/units';
 import { colors, fonts, spacing } from '../constants/theme';
 
 export default function SettingsScreen({ navigation }) {
@@ -232,14 +233,25 @@ export default function SettingsScreen({ navigation }) {
       return { ...m, techCards: { ...m.techCards, [key]: rows } };
     });
   };
-  // Смена единицы измерения для ингредиента техкарты
-  // Если новая единица совпадает со складской — сбрасываем фактор на 1
+  // Смена единицы измерения для ингредиента техкарты.
+  // Если новая единица совпадает со складской — сбрасываем фактор на 1.
+  // Если совместима (та же группа) — подставляем авто-фактор.
+  // Несовместимые единицы (разные группы) не принимаются.
   const setIngredientUnit = (key, index, unit) => {
     setProductModal(m => {
       const rows = [...m.techCards[key]];
       const row = rows[index];
-      const factor = unit === row.stockUnit ? '1' : row.factor;
-      rows[index] = { ...row, unit, factor };
+      if (unit === row.stockUnit) {
+        rows[index] = { ...row, unit, factor: '1', autoFactor: false };
+      } else if (canConvert(unit, row.stockUnit)) {
+        const auto = conversionFactor(unit, row.stockUnit);
+        rows[index] = {
+          ...row, unit,
+          factor: auto != null ? String(auto) : row.factor,
+          autoFactor: auto != null,
+        };
+      }
+      // несовместимая единица — просто игнорируем
       return { ...m, techCards: { ...m.techCards, [key]: rows } };
     });
   };
@@ -723,9 +735,13 @@ export default function SettingsScreen({ navigation }) {
                         const availableUnits = [...new Set([row.stockUnit, ...(profile?.units || [])])].filter(Boolean);
                         const needsFactor = row.unit && row.stockUnit && row.unit !== row.stockUnit;
                         const cycleUnit = () => {
-                          if (availableUnits.length <= 1) return;
-                          const idx = availableUnits.indexOf(row.unit);
-                          const next = availableUnits[(idx + 1) % availableUnits.length];
+                          // Оставляем только совместимые единицы (та же группа или совпадение со складской)
+                          const compatible = availableUnits.filter(
+                            u => u === row.stockUnit || canConvert(u, row.stockUnit)
+                          );
+                          if (compatible.length <= 1) return;
+                          const idx = compatible.indexOf(row.unit);
+                          const next = compatible[(idx + 1) % compatible.length];
                           setIngredientUnit(key, ri, next);
                         };
                         return (
@@ -751,13 +767,16 @@ export default function SettingsScreen({ navigation }) {
                               <View style={styles.factorRow}>
                                 <Text style={styles.factorLabel}>× коэф. ({row.unit} → {row.stockUnit})</Text>
                                 <TextInput
-                                  style={styles.factorInput}
+                                  style={[styles.factorInput, row.autoFactor && styles.factorInputAuto]}
                                   keyboardType="numeric"
                                   value={row.factor}
                                   onChangeText={(val) => setIngredientFactor(key, ri, val)}
                                   placeholder="1"
                                   placeholderTextColor={colors.muted}
                                 />
+                                {row.autoFactor && (
+                                  <Text style={styles.factorAutoLabel}>авто</Text>
+                                )}
                               </View>
                             )}
                           </View>
@@ -1120,6 +1139,8 @@ const styles = StyleSheet.create({
   factorRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, paddingLeft: 8 },
   factorLabel: { flex: 1, fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
   factorInput: { width: 72, padding: 6, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(122,158,82,0.4)', borderRadius: 8, color: colors.text, fontSize: 12, fontFamily: fonts.family, textAlign: 'center' },
+  factorInputAuto: { borderColor: 'rgba(61,158,146,0.4)', color: colors.greenLight },
+  factorAutoLabel: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.greenLight, textTransform: 'uppercase', letterSpacing: 1 },
   ingredientRemove: { fontSize: 15, color: colors.redLight, paddingHorizontal: 4 },
   addIngredientBtn: { paddingVertical: 8, alignItems: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: 12, borderStyle: 'dashed', marginTop: 2 },
   addIngredientBtnLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.greenLight },
