@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getHomeRoute } from '../db/session';
+import { getHomeRoute, getCurrentLocationId } from '../db/session';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
   FlatList, Modal, ActivityIndicator, TextInput, Alert,
@@ -245,6 +245,7 @@ export default function KassaScreen({ navigation, route }) {
         items: order,
         cashAmount, cardAmount,
         discountPct: appliedDiscount?.pct || 0,
+        locationId: getCurrentLocationId(),
       });
       if (forClient?.id) {
         addClientVisit(forClient.id, total);

@@ -5,8 +5,15 @@ import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import { getAllStock, addPurchase, getPurchaseHistory, initPurchasesTable } from '../db/queries';
+import {
+  getAllStock, getAllStockWithLocationTotals, getStockForLocation,
+  adjustStockForLocation, setStockForLocation,
+  getLocations, initDefaultLocation,
+  addPurchase, getPurchaseHistory, initPurchasesTable,
+  getBusinessProfile,
+} from '../db/queries';
 import { getDb } from '../db/database';
+import { getCurrentLocationId, setCurrentLocationId } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
 
 function updateStockLocal(itemId, newValue) {
@@ -23,20 +30,57 @@ function fmtDate(iso) {
 const MODES = ['Закупка', 'Добавить', 'Списать', 'Установить'];
 
 export default function StockScreen({ navigation }) {
-  const [stock, setStock]         = useState([]);
-  const [modalItem, setModalItem] = useState(null);
-  const [mode, setMode]           = useState(null);
-  const [inputQty, setInputQty]   = useState('');
-  const [inputPrice, setInputPrice] = useState('');
-  const [history, setHistory]     = useState([]);
+  const [stock, setStock]               = useState([]);
+  const [modalItem, setModalItem]       = useState(null);
+  const [mode, setMode]                 = useState(null);
+  const [inputQty, setInputQty]         = useState('');
+  const [inputPrice, setInputPrice]     = useState('');
+  const [history, setHistory]           = useState([]);
+  const [locEnabled, setLocEnabled]     = useState(false);
+  const [locations, setLocations]       = useState([]);
+  const [selectedLocId, setSelectedLocId] = useState(getCurrentLocationId());
 
   useEffect(() => {
     initPurchasesTable();
-    loadStock();
+    loadProfile();
   }, []);
 
-  const loadStock = () => {
-    try { setStock(getAllStock()); } catch (e) { console.error(e); }
+  const loadProfile = () => {
+    try {
+      const profile = getBusinessProfile();
+      const enabled = profile?.modules?.locations === true;
+      setLocEnabled(enabled);
+      if (enabled) {
+        let locs = getLocations();
+        if (locs.length === 0) { initDefaultLocation(); locs = getLocations(); }
+        setLocations(locs);
+        const curId = getCurrentLocationId();
+        const validId = curId && locs.find(l => l.id === curId) ? curId : (locs[0]?.id || null);
+        setSelectedLocId(validId);
+        setCurrentLocationId(validId);
+        loadStockData(enabled, validId);
+      } else {
+        loadStockData(false, null);
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const loadStockData = (enabled, locId) => {
+    try {
+      if (enabled && locId) {
+        setStock(getStockForLocation(locId));
+      } else if (enabled) {
+        setStock(getAllStockWithLocationTotals());
+      } else {
+        setStock(getAllStock());
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const selectLocation = (id) => {
+    setCurrentLocationId(id);
+    setSelectedLocId(id);
+    loadStockData(locEnabled, id);
   };
 
   const openModal = (item) => {
@@ -67,18 +111,35 @@ export default function StockScreen({ navigation }) {
     if (!qty || isNaN(qty)) return;
 
     try {
-      if (mode === 'Закупка') {
-        const price = parseFloat(inputPrice);
-        if (!price || isNaN(price)) return;
-        addPurchase(modalItem.name, qty, price);
-      } else if (mode === 'Добавить') {
-        updateStockLocal(modalItem.id, (modalItem['остаток'] || 0) + qty);
-      } else if (mode === 'Списать') {
-        updateStockLocal(modalItem.id, Math.max(0, (modalItem['остаток'] || 0) - qty));
-      } else if (mode === 'Установить') {
-        updateStockLocal(modalItem.id, qty);
+      if (locEnabled && selectedLocId) {
+        // Локации включены — работаем с stock_by_location
+        if (mode === 'Закупка') {
+          const price = parseFloat(inputPrice);
+          if (!price || isNaN(price)) return;
+          addPurchase(modalItem.name, qty, price); // обновляет avg_price
+          adjustStockForLocation(modalItem.id, selectedLocId, qty);
+        } else if (mode === 'Добавить') {
+          adjustStockForLocation(modalItem.id, selectedLocId, qty);
+        } else if (mode === 'Списать') {
+          adjustStockForLocation(modalItem.id, selectedLocId, -qty);
+        } else if (mode === 'Установить') {
+          setStockForLocation(modalItem.id, selectedLocId, qty);
+        }
+      } else {
+        // Обычный режим — работаем с stock.остаток напрямую
+        if (mode === 'Закупка') {
+          const price = parseFloat(inputPrice);
+          if (!price || isNaN(price)) return;
+          addPurchase(modalItem.name, qty, price);
+        } else if (mode === 'Добавить') {
+          updateStockLocal(modalItem.id, (modalItem['остаток'] || 0) + qty);
+        } else if (mode === 'Списать') {
+          updateStockLocal(modalItem.id, Math.max(0, (modalItem['остаток'] || 0) - qty));
+        } else if (mode === 'Установить') {
+          updateStockLocal(modalItem.id, qty);
+        }
       }
-      loadStock();
+      loadStockData(locEnabled, selectedLocId);
     } catch (e) { console.error(e); }
 
     closeModal();
@@ -96,6 +157,34 @@ export default function StockScreen({ navigation }) {
   return (
     <View style={{ flex: 1 }}>
       <TopBar title="Склад" onBack={() => navigation.navigate(getHomeRoute())} />
+
+      {/* Пикер локации — показывается только когда модуль включён */}
+      {locEnabled && locations.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.locBar}
+          contentContainerStyle={styles.locBarInner}
+        >
+          <Pressable
+            style={[styles.locChip, !selectedLocId && styles.locChipActive]}
+            onPress={() => selectLocation(null)}
+          >
+            <Text style={[styles.locChipText, !selectedLocId && styles.locChipTextActive]}>Все</Text>
+          </Pressable>
+          {locations.map(loc => (
+            <Pressable
+              key={loc.id}
+              style={[styles.locChip, selectedLocId === loc.id && styles.locChipActive]}
+              onPress={() => selectLocation(loc.id)}
+            >
+              <Text style={[styles.locChipText, selectedLocId === loc.id && styles.locChipTextActive]}>
+                {loc.name}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      )}
       <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
         <MetalCard>
           {stock.length === 0 && (
@@ -264,4 +353,11 @@ const styles = StyleSheet.create({
   histQty: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.text, flex: 1, textAlign: 'center' },
   histPrice: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.text, flex: 1, textAlign: 'center' },
   histTotal: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.greenLight, flex: 1, textAlign: 'right' },
+  // Пикер локации
+  locBar: { maxHeight: 52, borderBottomWidth: 1, borderBottomColor: colors.border },
+  locBarInner: { paddingHorizontal: spacing.lg, paddingVertical: 10, gap: 8, flexDirection: 'row', alignItems: 'center' },
+  locChip: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e' },
+  locChipActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.15)' },
+  locChipText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
+  locChipTextActive: { color: colors.greenLight },
 });

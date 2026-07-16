@@ -503,7 +503,7 @@ export function deleteModifier(id) {
 
 // ─── Заказы ───────────────────────────────────────────────────────────────
 
-export function createOrder({ total, method, shift_id, client_id, items, cashAmount, cardAmount, discountPct }) {
+export function createOrder({ total, method, shift_id, client_id, items, cashAmount, cardAmount, discountPct, locationId }) {
   const db = getDb();
   const now = new Date().toISOString();
 
@@ -533,7 +533,7 @@ export function createOrder({ total, method, shift_id, client_id, items, cashAmo
       ]
     );
     try {
-      const warnings = deductStockForOrderItem(itemResult.lastInsertRowId, item);
+      const warnings = deductStockForOrderItem(itemResult.lastInsertRowId, item, locationId || null);
       stockWarnings.push(...warnings);
     } catch (e) { console.error('[createOrder] Ошибка списания склада:', e); }
   }
