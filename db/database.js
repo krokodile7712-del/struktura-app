@@ -277,6 +277,8 @@ export function initDatabase() {
     `ALTER TABLE users   ADD COLUMN active        INTEGER DEFAULT 1`,
     `ALTER TABLE shifts  ADD COLUMN user_id       INTEGER`,
     `ALTER TABLE shifts  ADD COLUMN employee_name TEXT    DEFAULT ''`,
+    // roles: отображаемые названия ролей (barista_label, admin_label)
+    `ALTER TABLE business_profile ADD COLUMN roles TEXT DEFAULT '{}'`,
   ];
   for (const sql of migrations) {
     try { db.execSync(sql); } catch (_) {}
@@ -287,12 +289,13 @@ export function initDatabase() {
   const profileRow = db.getAllSync(`SELECT id FROM business_profile LIMIT 1`);
   if (profileRow.length === 0) {
     db.runSync(
-      `INSERT INTO business_profile (preset, business_name, modules, terms, units, access_key) VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO business_profile (preset, business_name, modules, terms, roles, units, access_key) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         'coffee',
         'СТРУКТУРА',
         JSON.stringify({ stock: true, shifts: true, clients: true, loyalty: true, modifiers: true, inventory: true }),
         JSON.stringify({ item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' }),
+        JSON.stringify({ barista: 'Бариста', admin: 'Администратор' }),
         JSON.stringify(['мл', 'л', 'г', 'кг', 'шт', 'уп', 'пара']),
         '',
       ]

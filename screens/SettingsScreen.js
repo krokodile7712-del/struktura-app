@@ -442,6 +442,7 @@ export default function SettingsScreen({ navigation }) {
       businessName: profile?.business_name || '',
       modules: { ...(profile?.modules || {}) },
       terms: { ...(profile?.terms || {}) },
+      roles: { ...(profile?.roles || {}) },
       units: [...(profile?.units || [])],
       accessKey: profile?.access_key || '',
       unitInput: '',
@@ -451,7 +452,7 @@ export default function SettingsScreen({ navigation }) {
   const applyPresetDraft = (key) => {
     const preset = BUSINESS_PRESETS[key];
     if (!preset) return;
-    setProfileDraft(d => ({ ...d, modules: { ...preset.modules }, terms: { ...preset.terms }, units: [...preset.units] }));
+    setProfileDraft(d => ({ ...d, modules: { ...preset.modules }, terms: { ...preset.terms }, roles: { ...(preset.roles || {}) }, units: [...preset.units] }));
   };
   const toggleModuleDraft = (key) => {
     setProfileDraft(d => ({ ...d, modules: { ...d.modules, [key]: !d.modules[key] } }));
@@ -474,6 +475,7 @@ export default function SettingsScreen({ navigation }) {
         businessName: profileDraft.businessName,
         modules: profileDraft.modules,
         terms: profileDraft.terms,
+        roles: profileDraft.roles,
         units: profileDraft.units,
         accessKey: profileDraft.accessKey,
       });
@@ -1067,6 +1069,24 @@ export default function SettingsScreen({ navigation }) {
                   <View key={key}>
                     <Text style={styles.fieldLabel}>{label}</Text>
                     <TextInput style={styles.input} value={profileDraft.terms[key] || ''} onChangeText={(v) => setTermDraft(key, v)} placeholderTextColor={colors.muted} />
+                  </View>
+                ))}
+
+                <Text style={styles.sectionTitle}>Названия должностей</Text>
+                <Text style={styles.hintText}>Как называются роли в вашем бизнесе. Права доступа не меняются — только отображение.</Text>
+                {[
+                  ['barista', 'Рядовой сотрудник (бариста / кассир / мастер...)'],
+                  ['admin',   'Администратор / управляющий / владелец...'],
+                ].map(([key, label]) => (
+                  <View key={key}>
+                    <Text style={styles.fieldLabel}>{label}</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={profileDraft.roles?.[key] || ''}
+                      onChangeText={(v) => setProfileDraft(d => ({ ...d, roles: { ...(d.roles || {}), [key]: v } }))}
+                      placeholder={key === 'barista' ? 'напр. Кассир, Мастер, Продавец' : 'напр. Управляющий, Директор'}
+                      placeholderTextColor={colors.muted}
+                    />
                   </View>
                 ))}
 

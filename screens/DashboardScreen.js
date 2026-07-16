@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet, ScrollView, Pressable } from 'react-native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import { getOpenShift, getBusinessProfile, getTerms, pluralizeRu } from '../db/queries';
+import { getOpenShift, getBusinessProfile, getTerms, pluralizeRu, getRoleNames } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
 const getMenuItems = (terms) => [
@@ -26,12 +26,14 @@ export default function DashboardScreen({ navigation }) {
   const [shift, setShift] = useState(null);
   const [modules, setModules] = useState({});
   const [terms, setTerms] = useState({ item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' });
+  const [roleNames, setRoleNames] = useState({ barista: 'Сотрудник', admin: 'Администратор' });
 
   useEffect(() => {
     try {
       setShift(getOpenShift());
       setModules(getBusinessProfile()?.modules || {});
       setTerms(getTerms());
+      setRoleNames(getRoleNames());
     } catch (e) { console.error(e); }
   }, []);
 
@@ -39,7 +41,7 @@ export default function DashboardScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title="Бариста" onBack={() => navigation.navigate('Login')} />
+      <TopBar title={roleNames.barista} onBack={() => navigation.navigate('Login')} />
 
       <ScrollView contentContainerStyle={styles.inner}>
         {/* Логотип */}

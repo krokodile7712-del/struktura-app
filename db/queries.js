@@ -7,18 +7,21 @@ export const BUSINESS_PRESETS = {
     label: 'Кофейня',
     modules: { stock: true, shifts: true, clients: true, loyalty: true, modifiers: true, inventory: true },
     terms: { item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' },
+    roles: { barista: 'Бариста', admin: 'Администратор' },
     units: ['мл', 'л', 'г', 'кг', 'шт', 'уп', 'пара'],
   },
   retail: {
     label: 'Розница',
     modules: { stock: true, shifts: false, clients: true, loyalty: true, modifiers: false, inventory: true },
     terms: { item: 'Товар', client: 'Покупатель', order: 'Продажа', category: 'Категория' },
+    roles: { barista: 'Кассир', admin: 'Управляющий' },
     units: ['шт', 'пара', 'уп', 'м', 'кг'],
   },
   services: {
     label: 'Услуги',
     modules: { stock: false, shifts: true, clients: true, loyalty: true, modifiers: false, inventory: false },
     terms: { item: 'Услуга', client: 'Клиент', order: 'Заказ', category: 'Категория' },
+    roles: { barista: 'Мастер', admin: 'Администратор' },
     units: ['шт', 'ч', 'сеанс'],
   },
 };
@@ -37,12 +40,14 @@ export function getBusinessProfile() {
   return {
     ...row,
     modules: safeParse(row.modules, {}),
-    terms: safeParse(row.terms, {}),
-    units: safeParse(row.units, []),
+    terms:   safeParse(row.terms,   {}),
+    roles:   safeParse(row.roles,   {}),
+    units:   safeParse(row.units,   []),
   };
 }
 
 const DEFAULT_TERMS = { item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' };
+const DEFAULT_ROLES = { barista: 'Сотрудник', admin: 'Администратор' };
 
 // Простое склонение существительного во множественное число (для терминов,
 // которые владелец бизнеса может задать произвольно — "Товар", "Продажа", "Услуга" и т.д.)
@@ -86,24 +91,37 @@ export function getTerms() {
   };
 }
 
-export function updateBusinessProfile({ businessName, modules, terms, units, accessKey }) {
+// Возвращает отображаемые названия ролей из профиля бизнеса.
+// 'barista' / 'admin' — внутренние ключи прав доступа (неизменны).
+// Значения — что показывается: "Бариста", "Кассир", "Мастер" и т.д.
+export function getRoleNames() {
+  const profile = getBusinessProfile();
+  const roles = profile?.roles || {};
+  return {
+    barista: roles.barista || DEFAULT_ROLES.barista,
+    admin:   roles.admin   || DEFAULT_ROLES.admin,
+  };
+}
+
+export function updateBusinessProfile({ businessName, modules, terms, roles, units, accessKey }) {
   const db = getDb();
   const existing = db.getFirstSync(`SELECT id FROM business_profile ORDER BY id LIMIT 1`);
   const payload = [
     businessName ?? '',
     JSON.stringify(modules || {}),
-    JSON.stringify(terms || {}),
-    JSON.stringify(units || []),
+    JSON.stringify(terms  || {}),
+    JSON.stringify(roles  || {}),
+    JSON.stringify(units  || []),
     accessKey ?? '',
   ];
   if (existing) {
     db.runSync(
-      `UPDATE business_profile SET business_name = ?, modules = ?, terms = ?, units = ?, access_key = ? WHERE id = ?`,
+      `UPDATE business_profile SET business_name = ?, modules = ?, terms = ?, roles = ?, units = ?, access_key = ? WHERE id = ?`,
       [...payload, existing.id]
     );
   } else {
     db.runSync(
-      `INSERT INTO business_profile (business_name, modules, terms, units, access_key) VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO business_profile (business_name, modules, terms, roles, units, access_key) VALUES (?, ?, ?, ?, ?, ?)`,
       payload
     );
   }
@@ -115,11 +133,11 @@ export function applyBusinessPreset(presetKey) {
   if (!preset) return;
   const db = getDb();
   const existing = db.getFirstSync(`SELECT id FROM business_profile ORDER BY id LIMIT 1`);
-  const payload = [presetKey, JSON.stringify(preset.modules), JSON.stringify(preset.terms), JSON.stringify(preset.units)];
+  const payload = [presetKey, JSON.stringify(preset.modules), JSON.stringify(preset.terms), JSON.stringify(preset.roles || {}), JSON.stringify(preset.units)];
   if (existing) {
-    db.runSync(`UPDATE business_profile SET preset = ?, modules = ?, terms = ?, units = ? WHERE id = ?`, [...payload, existing.id]);
+    db.runSync(`UPDATE business_profile SET preset = ?, modules = ?, terms = ?, roles = ?, units = ? WHERE id = ?`, [...payload, existing.id]);
   } else {
-    db.runSync(`INSERT INTO business_profile (preset, modules, terms, units) VALUES (?, ?, ?, ?)`, payload);
+    db.runSync(`INSERT INTO business_profile (preset, modules, terms, roles, units) VALUES (?, ?, ?, ?, ?)`, payload);
   }
 }
 

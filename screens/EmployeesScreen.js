@@ -4,18 +4,14 @@ import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import { getAllUsers, addUser, updateUser, toggleUserActive } from '../db/queries';
+import { getAllUsers, addUser, updateUser, toggleUserActive, getRoleNames } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
-
-const ROLES = [
-  { key: 'barista', label: 'Бариста' },
-  { key: 'admin',   label: 'Администратор' },
-];
 
 const emptyModal = { id: null, name: '', pin: '', pinConfirm: '', role: 'barista', active: 1 };
 
 export default function EmployeesScreen({ navigation }) {
   const [users, setUsers]     = useState([]);
+  const [roleNames, setRoleNames] = useState({ barista: 'Сотрудник', admin: 'Администратор' });
   const [modal, setModal]     = useState(null);
   const [error, setError]     = useState('');
   const [showPin, setShowPin] = useState(false);
@@ -23,7 +19,10 @@ export default function EmployeesScreen({ navigation }) {
   useEffect(() => { load(); }, []);
 
   const load = () => {
-    try { setUsers(getAllUsers()); } catch (e) { console.error(e); }
+    try {
+      setUsers(getAllUsers());
+      setRoleNames(getRoleNames());
+    } catch (e) { console.error(e); }
   };
 
   const openAdd = () => {
@@ -82,7 +81,7 @@ export default function EmployeesScreen({ navigation }) {
           <View style={styles.badgeRow}>
             <View style={[styles.badge, isAdmin ? styles.badgeAdmin : styles.badgeBarista]}>
               <Text style={[styles.badgeText, isAdmin ? styles.badgeTextAdmin : styles.badgeTextBarista]}>
-                {isAdmin ? 'Администратор' : 'Бариста'}
+                {isAdmin ? roleNames.admin : roleNames.barista}
               </Text>
             </View>
             {isInactive && (
@@ -145,7 +144,10 @@ export default function EmployeesScreen({ navigation }) {
 
                 <Text style={styles.fieldLabel}>Роль</Text>
                 <View style={styles.chipsRow}>
-                  {ROLES.map(r => (
+                  {[
+                    { key: 'barista', label: roleNames.barista },
+                    { key: 'admin',   label: roleNames.admin   },
+                  ].map(r => (
                     <Pressable
                       key={r.key}
                       style={[styles.chip, modal.role === r.key && styles.chipActive]}
