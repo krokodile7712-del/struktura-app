@@ -249,6 +249,8 @@ export function initDatabase() {
     `ALTER TABLE cost_cards     ADD COLUMN variant_id INTEGER`,
     `ALTER TABLE order_items    ADD COLUMN variant_id INTEGER`,
     `ALTER TABLE order_items    ADD COLUMN modifiers  TEXT    DEFAULT '[]'`,
+    // Фаза 2: коэффициент пересчёта единиц в техкартах (1 = без конвертации)
+    `ALTER TABLE cost_ingredients ADD COLUMN factor REAL DEFAULT 1`,
   ];
   for (const sql of migrations) {
     try { db.execSync(sql); } catch (_) {}

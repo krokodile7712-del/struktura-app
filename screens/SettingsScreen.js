@@ -105,9 +105,16 @@ export default function SettingsScreen({ navigation }) {
     variants.forEach((v, idx) => {
       const key = variantKey(v, idx);
       const card = v.id != null ? getCostCardForVariant(v.id) : null;
-      techCards[key] = card ? card.ingredients.map(ing => ({
-        name: ing.name, amount: String(ing.amount), unit: ing.unit,
-      })) : [];
+      techCards[key] = card ? card.ingredients.map(ing => {
+        const stockItem = stock.find(s => s.name === ing.name);
+        return {
+          name: ing.name,
+          amount: String(ing.amount),
+          unit: ing.unit,
+          stockUnit: stockItem?.unit || ing.unit,
+          factor: String(ing.factor ?? 1),
+        };
+      }) : [];
     });
     setProductModal({ product, axes, variants, groupIds: groups.map(g => g.id), techCards });
   };
@@ -207,7 +214,9 @@ export default function SettingsScreen({ navigation }) {
   const addIngredientRow = (key, stockItem) => {
     setProductModal(m => ({
       ...m,
-      techCards: { ...m.techCards, [key]: [...(m.techCards[key] || []), { name: stockItem.name, amount: '', unit: stockItem.unit }] },
+      techCards: { ...m.techCards, [key]: [...(m.techCards[key] || []), {
+        name: stockItem.name, amount: '', unit: stockItem.unit, stockUnit: stockItem.unit, factor: '1',
+      }]},
     }));
   };
   const removeIngredientRow = (key, index) => {
@@ -220,6 +229,24 @@ export default function SettingsScreen({ navigation }) {
     setProductModal(m => {
       const rows = [...m.techCards[key]];
       rows[index] = { ...rows[index], amount: value };
+      return { ...m, techCards: { ...m.techCards, [key]: rows } };
+    });
+  };
+  // Смена единицы измерения для ингредиента техкарты
+  // Если новая единица совпадает со складской — сбрасываем фактор на 1
+  const setIngredientUnit = (key, index, unit) => {
+    setProductModal(m => {
+      const rows = [...m.techCards[key]];
+      const row = rows[index];
+      const factor = unit === row.stockUnit ? '1' : row.factor;
+      rows[index] = { ...row, unit, factor };
+      return { ...m, techCards: { ...m.techCards, [key]: rows } };
+    });
+  };
+  const setIngredientFactor = (key, index, factor) => {
+    setProductModal(m => {
+      const rows = [...m.techCards[key]];
+      rows[index] = { ...rows[index], factor };
       return { ...m, techCards: { ...m.techCards, [key]: rows } };
     });
   };
@@ -251,7 +278,10 @@ export default function SettingsScreen({ navigation }) {
         if (!savedVariant) return;
         const ingredients = (productModal.techCards[oldKey] || [])
           .filter(r => r.name && parseFloat(r.amount) > 0)
-          .map(r => ({ name: r.name, amount: parseFloat(r.amount) || 0, unit: r.unit, pricePerUnit: 0 }));
+          .map(r => ({
+            name: r.name, amount: parseFloat(r.amount) || 0, unit: r.unit,
+            pricePerUnit: 0, factor: parseFloat(r.factor) || 1,
+          }));
         saveCostCardForVariant(savedVariant.id, ingredients);
       });
       loadAll();
@@ -689,23 +719,50 @@ export default function SettingsScreen({ navigation }) {
                       {(productModal.techCards[key] || []).length === 0 && (
                         <Text style={styles.hintText}>Ингредиенты не заданы — списание со склада работать не будет.</Text>
                       )}
-                      {(productModal.techCards[key] || []).map((row, ri) => (
-                        <View key={ri} style={styles.ingredientRow}>
-                          <Text style={styles.ingredientName} numberOfLines={1}>{row.name}</Text>
-                          <TextInput
-                            style={styles.ingredientAmount}
-                            keyboardType="numeric"
-                            value={row.amount}
-                            onChangeText={(val) => setIngredientAmount(key, ri, val)}
-                            placeholder="0"
-                            placeholderTextColor={colors.muted}
-                          />
-                          <Text style={styles.ingredientUnit}>{row.unit}</Text>
-                          <Pressable onPress={() => removeIngredientRow(key, ri)} hitSlop={8}>
-                            <Text style={styles.ingredientRemove}>✕</Text>
-                          </Pressable>
-                        </View>
-                      ))}
+                      {(productModal.techCards[key] || []).map((row, ri) => {
+                        const availableUnits = [...new Set([row.stockUnit, ...(profile?.units || [])])].filter(Boolean);
+                        const needsFactor = row.unit && row.stockUnit && row.unit !== row.stockUnit;
+                        const cycleUnit = () => {
+                          if (availableUnits.length <= 1) return;
+                          const idx = availableUnits.indexOf(row.unit);
+                          const next = availableUnits[(idx + 1) % availableUnits.length];
+                          setIngredientUnit(key, ri, next);
+                        };
+                        return (
+                          <View key={ri}>
+                            <View style={styles.ingredientRow}>
+                              <Text style={styles.ingredientName} numberOfLines={1}>{row.name}</Text>
+                              <TextInput
+                                style={styles.ingredientAmount}
+                                keyboardType="numeric"
+                                value={row.amount}
+                                onChangeText={(val) => setIngredientAmount(key, ri, val)}
+                                placeholder="0"
+                                placeholderTextColor={colors.muted}
+                              />
+                              <Pressable onPress={cycleUnit} style={styles.ingredientUnitBtn} hitSlop={6}>
+                                <Text style={styles.ingredientUnitBtnText}>{row.unit || row.stockUnit}</Text>
+                              </Pressable>
+                              <Pressable onPress={() => removeIngredientRow(key, ri)} hitSlop={8}>
+                                <Text style={styles.ingredientRemove}>✕</Text>
+                              </Pressable>
+                            </View>
+                            {needsFactor && (
+                              <View style={styles.factorRow}>
+                                <Text style={styles.factorLabel}>× коэф. ({row.unit} → {row.stockUnit})</Text>
+                                <TextInput
+                                  style={styles.factorInput}
+                                  keyboardType="numeric"
+                                  value={row.factor}
+                                  onChangeText={(val) => setIngredientFactor(key, ri, val)}
+                                  placeholder="1"
+                                  placeholderTextColor={colors.muted}
+                                />
+                              </View>
+                            )}
+                          </View>
+                        );
+                      })}
                       <Pressable style={styles.addIngredientBtn} onPress={() => setIngredientPicker({ variantKey: key, search: '' })}>
                         <Text style={styles.addIngredientBtnLabel}>+ ингредиент со склада</Text>
                       </Pressable>
@@ -1054,10 +1111,15 @@ const styles = StyleSheet.create({
   addValueBtn: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed' },
   addValueBtnText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.greenLight },
   techCardTitle: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.text, marginTop: 10, marginBottom: 6 },
-  ingredientRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  ingredientRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
   ingredientName: { flex: 1, fontFamily: fonts.familyRegular, fontSize: 13, color: colors.text },
   ingredientAmount: { width: 64, padding: 8, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 10, color: colors.text, fontSize: 13, fontFamily: fonts.family, textAlign: 'center' },
   ingredientUnit: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, width: 30 },
+  ingredientUnitBtn: { paddingVertical: 5, paddingHorizontal: 8, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(61,95,168,0.5)', backgroundColor: 'rgba(61,95,168,0.1)', minWidth: 36, alignItems: 'center' },
+  ingredientUnitBtnText: { fontFamily: fonts.familySemibold, fontSize: 12, color: '#7a9be8' },
+  factorRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, paddingLeft: 8 },
+  factorLabel: { flex: 1, fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
+  factorInput: { width: 72, padding: 6, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(122,158,82,0.4)', borderRadius: 8, color: colors.text, fontSize: 12, fontFamily: fonts.family, textAlign: 'center' },
   ingredientRemove: { fontSize: 15, color: colors.redLight, paddingHorizontal: 4 },
   addIngredientBtn: { paddingVertical: 8, alignItems: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: 12, borderStyle: 'dashed', marginTop: 2 },
   addIngredientBtnLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.greenLight },

@@ -953,8 +953,8 @@ export function saveCostCardForVariant(variantId, ingredients) {
   }
   for (const ing of ingredients) {
     db.runSync(
-      `INSERT INTO cost_ingredients (cost_card_id, name, amount, unit, price_per_unit) VALUES (?, ?, ?, ?, ?)`,
-      [cardId, ing.name, ing.amount, ing.unit, ing.pricePerUnit || 0]
+      `INSERT INTO cost_ingredients (cost_card_id, name, amount, unit, price_per_unit, factor) VALUES (?, ?, ?, ?, ?, ?)`,
+      [cardId, ing.name, ing.amount, ing.unit, ing.pricePerUnit || 0, ing.factor ?? 1]
     );
   }
 }
@@ -997,28 +997,28 @@ export function deductStockForOrderItem(orderItemId, item) {
   if (card) {
     for (const ing of card.ingredients) {
       let targetName = ing.name;
-      // Модификатор-замена подменяет ингредиент техкарты, если название группы модификатора
-      // совпадает с названием ингредиента (напр. группа "Молоко" → ингредиент техкарты "Молоко")
       const replaceMod = modifiers.find(m => m.ingrToReplace && normName(m.groupName) === normName(ing.name));
       if (replaceMod) targetName = replaceMod.ingrToReplace;
-      deductions.push({ stockName: targetName, amount: ing.amount });
+      deductions.push({ stockName: targetName, amount: ing.amount, factor: ing.factor ?? 1 });
     }
   }
 
   for (const mod of modifiers) {
     if (mod.ingrToDeduct && mod.deductAmount > 0) {
-      deductions.push({ stockName: mod.ingrToDeduct, amount: mod.deductAmount });
+      deductions.push({ stockName: mod.ingrToDeduct, amount: mod.deductAmount, factor: 1 });
     }
   }
 
   for (const d of deductions) {
     const stockRow = findStockByName(d.stockName);
     if (!stockRow) continue; // ингредиент не отслеживается на складе — пропускаем молча
-    const newAmount = (stockRow['остаток'] || 0) - d.amount;
+    // factor конвертирует единицу техкарты в единицу хранения на складе (напр. г → кг: factor=0.001)
+    const deductAmt = d.amount * (d.factor ?? 1);
+    const newAmount = (stockRow['остаток'] || 0) - deductAmt;
     db.runSync(`UPDATE stock SET остаток = ? WHERE id = ?`, [newAmount, stockRow.id]);
     db.runSync(
       `INSERT INTO stock_deductions (order_item_id, stock_name, amount) VALUES (?, ?, ?)`,
-      [orderItemId, stockRow.name, d.amount]
+      [orderItemId, stockRow.name, deductAmt]
     );
     if (newAmount < 0) {
       warnings.push({ name: stockRow.name, amount: newAmount, unit: stockRow.unit });
