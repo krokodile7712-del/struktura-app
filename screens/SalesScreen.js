@@ -4,7 +4,7 @@ import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import { getRecentOrders, getOrderItems, deleteOrder, updateOrder, getTerms, pluralizeRu, genitivePluralRu } from '../db/queries';
+import { getRecentOrders, getOrderItems, deleteOrder, updateOrder, getTerms, pluralizeRu, genitivePluralRu, getPayMethods } from '../db/queries';
 import { getSession, getHomeRoute } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
 
@@ -15,7 +15,7 @@ const PERIODS = [
   { key: 'custom', label: 'Свой' },
 ];
 
-const PAY_METHODS = ['Наличные', 'Карта', 'QR', 'Смешанная'];
+// PAY_METHODS теперь загружается динамически из профиля
 
 function todayStr()    { return new Date().toISOString().slice(0,10); }
 function weekAgoStr()  { const d = new Date(); d.setDate(d.getDate()-7); return d.toISOString().slice(0,10); }
@@ -57,7 +57,8 @@ export default function SalesScreen({ navigation }) {
   // Модалка редактирования
   const [editOrder, setEditOrder]   = useState(null);
   const [editTotal, setEditTotal]   = useState('');
-  const [editMethod, setEditMethod] = useState('Наличные');
+  const [editMethod, setEditMethod] = useState('');
+  const [payMethods, setPayMethods] = useState([]);
 
   // Модалка подтверждения удаления
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -80,6 +81,7 @@ export default function SalesScreen({ navigation }) {
         return d >= dateFrom && d <= dateTo;
       });
       setOrders(filtered);
+      setPayMethods(getPayMethods());
       setShown(true);
       setExpanded(null);
       setItemsMap({});
@@ -118,11 +120,15 @@ export default function SalesScreen({ navigation }) {
     setDeleteTarget(null);
   };
 
-  const cash  = orders.filter(o => o.method === 'Наличные').reduce((s,o) => s + o.total, 0);
-  const card  = orders.filter(o => o.method === 'Карта').reduce((s,o) => s + o.total, 0);
-  const qr    = orders.filter(o => o.method === 'QR').reduce((s,o) => s + o.total, 0);
-  const mixed = orders.filter(o => o.method === 'Смешанная').reduce((s,o) => s + o.total, 0);
-  const total = cash + card + qr + mixed;
+  const allMethods = payMethods.length ? payMethods : [{name:'Наличные',type:'cash'},{name:'Карта',type:'card'}];
+  const methodTotal = (type) => orders.filter(o => {
+    const mt = o.method_type || (o.method === 'Наличные' ? 'cash' : o.method === 'Смешанная' ? 'mixed' : 'card');
+    return mt === type;
+  }).reduce((s,o) => s + o.total, 0);
+  const cash  = methodTotal('cash');
+  const card  = methodTotal('card');
+  const mixed = methodTotal('mixed');
+  const total = orders.reduce((s,o) => s + o.total, 0);
   const grouped = groupByDate(orders);
 
   return (
@@ -155,20 +161,22 @@ export default function SalesScreen({ navigation }) {
 
           {shown && (
             <>
-              {/* Итоги */}
+              {/* Итоги по типам */}
               <View style={styles.totalsRow}>
                 <View style={styles.totalBox}>
-                  <Text style={styles.totalLabel}>💵</Text>
+                  <Text style={styles.totalLabel}>💵 Нал</Text>
                   <Text style={styles.totalValue}>{cash.toLocaleString('ru-RU')} ₽</Text>
                 </View>
                 <View style={styles.totalBox}>
-                  <Text style={styles.totalLabel}>💳</Text>
+                  <Text style={styles.totalLabel}>💳 Безнал</Text>
                   <Text style={styles.totalValue}>{card.toLocaleString('ru-RU')} ₽</Text>
                 </View>
-                <View style={styles.totalBox}>
-                  <Text style={styles.totalLabel}>📱 QR</Text>
-                  <Text style={styles.totalValue}>{qr.toLocaleString('ru-RU')} ₽</Text>
-                </View>
+                {mixed > 0 && (
+                  <View style={styles.totalBox}>
+                    <Text style={styles.totalLabel}>💰 Смешанная</Text>
+                    <Text style={styles.totalValue}>{mixed.toLocaleString('ru-RU')} ₽</Text>
+                  </View>
+                )}
                 <View style={[styles.totalBox, { borderColor: 'rgba(61,158,146,0.4)' }]}>
                   <Text style={styles.totalLabel}>ИТОГО</Text>
                   <Text style={[styles.totalValue, { color: colors.greenLight }]}>{total.toLocaleString('ru-RU')} ₽</Text>
@@ -245,9 +253,9 @@ export default function SalesScreen({ navigation }) {
             <TextInput style={styles.input} value={editTotal} onChangeText={setEditTotal} keyboardType="numeric" placeholderTextColor={colors.muted} />
             <Text style={styles.fieldLabel}>Способ оплаты</Text>
             <View style={styles.chipsRow}>
-              {PAY_METHODS.map(m => (
-                <Pressable key={m} style={[styles.chip, editMethod === m && styles.chipActive]} onPress={() => setEditMethod(m)}>
-                  <Text style={[styles.chipLabel, editMethod === m && styles.chipLabelActive]}>{m}</Text>
+              {(payMethods.length ? payMethods : [{id:'cash',name:'Наличные'},{id:'card',name:'Карта'}]).map(m => (
+                <Pressable key={m.id || m.name} style={[styles.chip, editMethod === m.name && styles.chipActive]} onPress={() => setEditMethod(m.name)}>
+                  <Text style={[styles.chipLabel, editMethod === m.name && styles.chipLabelActive]}>{m.icon ? `${m.icon} ` : ''}{m.name}</Text>
                 </Pressable>
               ))}
             </View>

@@ -284,6 +284,8 @@ export function initDatabase() {
     `ALTER TABLE business_profile ADD COLUMN loyalty_config TEXT DEFAULT '{}'`,
     // индивидуальная скидка клиента (независима от модели лояльности, настраивается в карточке)
     `ALTER TABLE clients ADD COLUMN discount_pct REAL DEFAULT 0`,
+    // Фаза 5: тип способа оплаты для отчётов (чтобы агрегация не зависела от имени метода)
+    `ALTER TABLE orders ADD COLUMN method_type TEXT DEFAULT ''`,
   ];
   for (const sql of migrations) {
     try { db.execSync(sql); } catch (_) {}

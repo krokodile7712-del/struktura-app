@@ -449,10 +449,42 @@ export function setSetting(key, value) {
   );
 }
 
+// Способы оплаты — хранятся в app_settings как JSON-массив объектов.
+// type: 'cash' | 'card' | 'mixed'
+// 'cash'  — считается наличными в отчётах
+// 'card'  — считается безналичным (карта/QR/перевод и т.д.)
+// 'mixed' — особый: показывает UI разделения суммы наличные+карта
+
+const DEFAULT_PAY_METHODS = [
+  { id: 'cash',  name: 'Наличные',  icon: '💵', type: 'cash',  active: true },
+  { id: 'card',  name: 'Карта',     icon: '💳', type: 'card',  active: true },
+  { id: 'qr',    name: 'QR / СБП',  icon: '📱', type: 'card',  active: true },
+  { id: 'mixed', name: 'Смешанная', icon: '💰', type: 'mixed', active: true },
+];
+
 export function getPayMethods() {
-  const raw = getSetting('payMethods');
-  try { return JSON.parse(raw) || ['Наличные', 'Карта']; }
-  catch { return ['Наличные', 'Карта']; }
+  const raw = getSetting('payMethodsV2');
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+  } catch (_) {}
+  return DEFAULT_PAY_METHODS;
+}
+
+export function savePayMethods(methods) {
+  setSetting('payMethodsV2', JSON.stringify(methods));
+}
+
+// Для отчётов: суммируем заказы по типу метода (cash/card/mixed)
+// method_type — новое поле; для старых заказов (пустое) определяем по имени
+function resolveMethodType(order, payMethods) {
+  if (order.method_type) return order.method_type;
+  const found = payMethods.find(m => m.name === order.method || m.id === order.method);
+  if (found) return found.type;
+  // fallback: исторические имена
+  if (order.method === 'Наличные' || order.method === 'Наличка') return 'cash';
+  if (order.method === 'Смешанная') return 'mixed';
+  return 'card';
 }
 
 export function getBonusPct() {
@@ -613,19 +645,18 @@ export function deleteModifier(id) {
 
 // ─── Заказы ───────────────────────────────────────────────────────────────
 
-export function createOrder({ total, method, shift_id, client_id, items, cashAmount, cardAmount, discountPct, locationId }) {
+export function createOrder({ total, method, methodType, shift_id, client_id, items, cashAmount, cardAmount, discountPct, locationId }) {
   const db = getDb();
   const now = new Date().toISOString();
 
-  // Добавляем колонки для смешанной оплаты и скидки если их нет
   try { db.execSync(`ALTER TABLE orders ADD COLUMN cash_amount REAL DEFAULT 0`); } catch (_) {}
   try { db.execSync(`ALTER TABLE orders ADD COLUMN card_amount REAL DEFAULT 0`); } catch (_) {}
   try { db.execSync(`ALTER TABLE orders ADD COLUMN discount_pct REAL DEFAULT 0`); } catch (_) {}
 
   const result = db.runSync(
-    `INSERT INTO orders (created_at, total, method, shift_id, client_id, cash_amount, card_amount, discount_pct)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [now, total, method, shift_id || null, client_id || null, cashAmount || 0, cardAmount || 0, discountPct || 0]
+    `INSERT INTO orders (created_at, total, method, method_type, shift_id, client_id, cash_amount, card_amount, discount_pct)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [now, total, method, methodType || '', shift_id || null, client_id || null, cashAmount || 0, cardAmount || 0, discountPct || 0]
   );
   const orderId = result.lastInsertRowId;
 
@@ -1019,9 +1050,10 @@ export function getShiftSummary(shift_id) {
   if (!shift) return null;
 
   const orders = db.getAllSync(`SELECT * FROM orders WHERE shift_id = ?`, [shift_id]);
-  const cash = orders.filter(o => o.method === 'Наличные').reduce((s, o) => s + o.total, 0);
-  const card = orders.filter(o => o.method === 'Карта').reduce((s, o) => s + o.total, 0);
-  const qr   = orders.filter(o => o.method === 'QR').reduce((s, o) => s + o.total, 0);
+  const payMethods = getPayMethods();
+  const cash = orders.filter(o => resolveMethodType(o, payMethods) === 'cash').reduce((s, o) => s + o.total, 0);
+  const card = orders.filter(o => resolveMethodType(o, payMethods) === 'card').reduce((s, o) => s + o.total, 0);
+  const qr   = 0; // QR теперь входит в card (тип 'card'), оставлено для совместимости
   const total = cash + card + qr;
 
   // Расходы за дату смены

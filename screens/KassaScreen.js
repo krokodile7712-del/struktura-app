@@ -7,7 +7,7 @@ import {
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import { getAllProducts, getCategories, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms, getLoyaltyConfig, spendPoints } from '../db/queries';
+import { getAllProducts, getCategories, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms, getLoyaltyConfig, spendPoints } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
 const CAT_ICONS = { 'Кофе': '☕', 'Лимонады': '🍹', 'Допы': '🍬', 'Прочее': '🫙' };
@@ -33,7 +33,8 @@ export default function KassaScreen({ navigation, route }) {
   const [terms, setTerms] = useState({ item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' });
   const [loyaltyModel, setLoyaltyModel] = useState('points');
   const [loyaltyConfig, setLoyaltyConfig] = useState({});
-  const [pointsToSpend, setPointsToSpend] = useState(''); // для оплаты баллами
+  const [pointsToSpend, setPointsToSpend] = useState('');
+  const [payMethods, setPayMethods] = useState([]); // для оплаты баллами
 
   // Модалка оплаты
   const [payModalOpen, setPayModalOpen] = useState(false);
@@ -59,6 +60,7 @@ export default function KassaScreen({ navigation, route }) {
       const lc = getLoyaltyConfig();
       setLoyaltyModel(lc.model);
       setLoyaltyConfig(lc.config);
+      setPayMethods(getPayMethods().filter(m => m.active !== false));
       setAllProducts(products);
       setGroups(cats);
       setActiveCat(cats[0] || null);
@@ -244,7 +246,8 @@ export default function KassaScreen({ navigation, route }) {
       setNoShiftWarning(true);
       return;
     }
-    setPayMethod('Наличные');
+    const firstMethod = payMethods.find(m => m.active !== false) || payMethods[0];
+    setPayMethod(firstMethod?.name || 'Наличные');
     setMixedCash('');
     setMixedCard('');
     setPayModalOpen(true);
@@ -266,18 +269,21 @@ export default function KassaScreen({ navigation, route }) {
 
   const confirmPay = () => {
     if (order.length === 0) return;
+    const selectedMethod = payMethods.find(m => m.name === payMethod) || { type: 'card' };
+    const isMixed = selectedMethod.type === 'mixed';
+    const isCash  = selectedMethod.type === 'cash';
     let cashAmount = 0, cardAmount = 0;
-    if (payMethod === 'Смешанная') {
+    if (isMixed) {
       cashAmount = parseFloat(mixedCash) || 0;
       cardAmount = parseFloat(mixedCard) || 0;
-    } else if (payMethod === 'Наличные') {
+    } else if (isCash) {
       cashAmount = total;
     } else {
       cardAmount = total;
     }
     try {
       const { stockWarnings } = createOrder({
-        total, method: payMethod,
+        total, method: payMethod, methodType: selectedMethod.type,
         shift_id: currentShift?.id || null,
         client_id: forClient?.id || null,
         items: order,
@@ -286,7 +292,6 @@ export default function KassaScreen({ navigation, route }) {
         locationId: getCurrentLocationId(),
       });
       if (forClient?.id) {
-        // Списываем баллы если нужно (до начисления, чтобы они не компенсировали сами себя)
         if (loyaltyModel === 'points' && loyaltyConfig.allow_spend && pointsToSpend) {
           const pts = parseFloat(pointsToSpend) || 0;
           if (pts > 0) spendPoints(forClient.id, pts);
@@ -568,14 +573,14 @@ export default function KassaScreen({ navigation, route }) {
             </View>
 
             <View style={styles.chipsRow}>
-              {['Наличные', 'Карта', 'QR', 'Смешанная'].map(m => (
-                <Pressable key={m} style={[styles.chip, payMethod === m && styles.chipActive]} onPress={() => setPayMethod(m)}>
-                  <Text style={[styles.chipLabel, payMethod === m && styles.chipLabelActive]}>{m}</Text>
+              {payMethods.map(m => (
+                <Pressable key={m.id} style={[styles.chip, payMethod === m.name && styles.chipActive]} onPress={() => setPayMethod(m.name)}>
+                  <Text style={[styles.chipLabel, payMethod === m.name && styles.chipLabelActive]}>{m.icon} {m.name}</Text>
                 </Pressable>
               ))}
             </View>
 
-            {payMethod === 'Смешанная' && (
+            {payMethods.find(m => m.name === payMethod)?.type === 'mixed' && (
               <View style={{ marginTop: 14 }}>
                 <Text style={styles.modalSection}>Наличными</Text>
                 <TextInput style={styles.mixedInput} placeholder="0" placeholderTextColor={colors.muted} keyboardType="numeric" value={mixedCash} onChangeText={handleMixedCashChange} />

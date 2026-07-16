@@ -13,6 +13,7 @@ import {
   getCostCardForVariant, saveCostCardForVariant,
   getUsers, updateUserPin,
   getDiscounts, setSetting, getLoyaltyConfig, updateLoyaltyConfig,
+  getPayMethods, savePayMethods,
   getAllStock, updateStockThreshold,
   getUnlinkedCostCards,
   getBusinessProfile, updateBusinessProfile, applyBusinessPreset, BUSINESS_PRESETS,
@@ -27,6 +28,8 @@ export default function SettingsScreen({ navigation }) {
   const [products, setProducts]             = useState([]);
   const [users, setUsers]                   = useState([]);
   const [discounts, setDiscounts]           = useState([]);
+  const [payMethodsList, setPayMethodsList] = useState([]);
+  const [payMethodModal, setPayMethodModal] = useState(null); // {index, id, name, icon, type, active}
   const [modifierGroups, setModifierGroups] = useState([]);
   const [stock, setStock]                   = useState([]);
   const [unlinkedCards, setUnlinkedCards]   = useState([]);
@@ -69,6 +72,7 @@ export default function SettingsScreen({ navigation }) {
       setPinBarista(u.find(x => x.role === 'barista')?.pin || '');
       setPinAdmin(u.find(x => x.role === 'admin')?.pin || '');
       setDiscounts(getDiscounts());
+      setPayMethodsList(getPayMethods());
       setModifierGroups(getAllModifierGroups());
       setStock(getAllStock());
       const lc = getLoyaltyConfig();
@@ -352,6 +356,35 @@ export default function SettingsScreen({ navigation }) {
       if (pinAdmin.trim()) updateUserPin('admin', pinAdmin.trim());
       loadAll();
     } catch (e) { console.error(e); }
+  };
+
+  // ── Способы оплаты ──
+  const openNewPayMethod = () => {
+    const id = 'pm_' + Date.now();
+    setPayMethodModal({ index: -1, id, name: '', icon: '💳', type: 'card', active: true });
+  };
+  const openEditPayMethod = (m, idx) => setPayMethodModal({ ...m, index: idx });
+  const savePayMethod = () => {
+    if (!payMethodModal || !payMethodModal.name.trim()) return;
+    const list = [...payMethodsList];
+    const m = { id: payMethodModal.id, name: payMethodModal.name.trim(), icon: payMethodModal.icon || '💳', type: payMethodModal.type, active: payMethodModal.active };
+    if (payMethodModal.index === -1) list.push(m);
+    else list[payMethodModal.index] = m;
+    savePayMethods(list);
+    setPayMethodsList(list);
+    setPayMethodModal(null);
+  };
+  const deletePayMethod = () => {
+    if (!payMethodModal || payMethodsList.length <= 1) return;
+    const list = payMethodsList.filter((_, i) => i !== payMethodModal.index);
+    savePayMethods(list);
+    setPayMethodsList(list);
+    setPayMethodModal(null);
+  };
+  const togglePayMethodActive = (idx) => {
+    const list = payMethodsList.map((m, i) => i === idx ? { ...m, active: !m.active } : m);
+    savePayMethods(list);
+    setPayMethodsList(list);
   };
 
   // ── Скидки ──
@@ -671,6 +704,24 @@ export default function SettingsScreen({ navigation }) {
             <MetalButton title="Сохранить" variant="success" onPress={saveLoyalty} style={{ marginTop: 8 }} />
           </MetalCard>
         )}
+
+        {/* Способы оплаты */}
+        <MetalCard style={{ marginTop: 12 }}>
+          <Text style={styles.blockTitle}>💳 Способы оплаты</Text>
+          <Text style={styles.hintText}>Тип: «нал» = наличные в отчётах, «безнал» = карта/QR, «смешанная» = UI разделения суммы.</Text>
+          {payMethodsList.map((m, i) => (
+            <Pressable key={m.id || i} style={styles.row} onPress={() => openEditPayMethod(m, i)}>
+              <Text style={[styles.rowName, m.active === false && { color: colors.muted }]}>
+                {m.icon} {m.name}
+                {m.active === false ? '  (откл)' : ''}
+              </Text>
+              <Text style={styles.rowPrice}>
+                {m.type === 'cash' ? 'нал' : m.type === 'mixed' ? 'смешанная' : 'безнал'} ›
+              </Text>
+            </Pressable>
+          ))}
+          <MetalButton title="+ Добавить способ оплаты" variant="default" onPress={openNewPayMethod} style={{ marginTop: 8 }} />
+        </MetalCard>
 
         {/* Скидки */}
         <MetalCard style={{ marginTop: 12 }}>
@@ -1026,6 +1077,69 @@ export default function SettingsScreen({ navigation }) {
                 <MetalButton title="Сохранить" variant="success" onPress={saveDiscountModal} style={{ flex: 1 }} />
                 {discountModal.index !== -1 && (
                   <MetalButton title="Удалить" variant="danger" onPress={deleteDiscountModal} style={{ flex: 1 }} />
+                )}
+              </View>
+            </View>
+          )}
+        </View>
+      </Modal>
+
+      {/* Модалка способа оплаты */}
+      <Modal visible={!!payMethodModal} transparent animationType="fade" onRequestClose={() => setPayMethodModal(null)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setPayMethodModal(null)} />
+          {payMethodModal && (
+            <View style={styles.modalInner}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{payMethodModal.index === -1 ? 'Новый способ оплаты' : 'Изменить способ оплаты'}</Text>
+                <Pressable onPress={() => setPayMethodModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
+              </View>
+
+              <Text style={styles.fieldLabel}>Название</Text>
+              <TextInput
+                style={styles.input}
+                value={payMethodModal.name}
+                onChangeText={v => setPayMethodModal(m => ({ ...m, name: v }))}
+                placeholder="напр. Наличные, СБП, ЮMoney"
+                placeholderTextColor={colors.muted}
+              />
+
+              <Text style={styles.fieldLabel}>Иконка (эмодзи)</Text>
+              <TextInput
+                style={[styles.input, { fontSize: 22 }]}
+                value={payMethodModal.icon}
+                onChangeText={v => setPayMethodModal(m => ({ ...m, icon: v }))}
+                placeholder="💳"
+                placeholderTextColor={colors.muted}
+              />
+
+              <Text style={styles.fieldLabel}>Тип</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                {[
+                  { key: 'cash',  label: '💵 Наличные' },
+                  { key: 'card',  label: '💳 Безнал' },
+                  { key: 'mixed', label: '💰 Смешанная' },
+                ].map(t => (
+                  <Pressable
+                    key={t.key}
+                    style={[styles.catChip, payMethodModal.type === t.key && styles.catChipActive]}
+                    onPress={() => setPayMethodModal(m => ({ ...m, type: t.key }))}
+                  >
+                    <Text style={[styles.catChipLabel, payMethodModal.type === t.key && { color: colors.greenLight }]}>{t.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={styles.hintText}>Тип определяет учёт в отчётах. «Смешанная» показывает UI разделения суммы на нал и безнал.</Text>
+
+              <Pressable style={[styles.row, { marginTop: 8 }]} onPress={() => setPayMethodModal(m => ({ ...m, active: !m.active }))}>
+                <Text style={styles.rowName}>Включён в кассе</Text>
+                <Text style={styles.rowPrice}>{payMethodModal.active !== false ? '☑' : '☐'}</Text>
+              </Pressable>
+
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+                <MetalButton title="Сохранить" variant="success" onPress={savePayMethod} style={{ flex: 1 }} />
+                {payMethodModal.index !== -1 && payMethodsList.length > 1 && (
+                  <MetalButton title="Удалить" variant="danger" onPress={deletePayMethod} style={{ flex: 1 }} />
                 )}
               </View>
             </View>
