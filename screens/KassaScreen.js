@@ -7,7 +7,7 @@ import {
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import { getAllProducts, getCategories, getProductVariants, getProductModifierGroups, getDiscounts, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms } from '../db/queries';
+import { getAllProducts, getCategories, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
 const CAT_ICONS = { 'Кофе': '☕', 'Лимонады': '🍹', 'Допы': '🍬', 'Прочее': '🫙' };
@@ -24,7 +24,9 @@ export default function KassaScreen({ navigation, route }) {
   const [modalItem, setModalItem] = useState(null);
   const [modalVariants, setModalVariants] = useState([]);
   const [modalGroups, setModalGroups] = useState([]);
+  const [modalAxes, setModalAxes] = useState([]); // [{id, name, values:[{id,label}]}]
   const [selVariantId, setSelVariantId] = useState(null);
+  const [selAxisValues, setSelAxisValues] = useState({}); // {axisId: valueId} при выборе по осям
   const [selModifiers, setSelModifiers] = useState({}); // { [groupId]: optionId | optionId[] }
   const [currentShift, setCurrentShift] = useState(null);
   const [shiftsEnabled, setShiftsEnabled] = useState(true);
@@ -72,9 +74,20 @@ export default function KassaScreen({ navigation, route }) {
     return { price: product.price || 0, hasRange: false };
   };
 
+  // Находит вариант, у которого axisValues совпадает с выбором по осям
+  const findVariantByAxes = (variants, axisSelection) => {
+    const keys = Object.keys(axisSelection);
+    if (keys.length === 0) return variants[0] || null;
+    return variants.find(v => {
+      const av = v.axisValues || {};
+      return keys.every(axisId => String(av[axisId]) === String(axisSelection[axisId]));
+    }) || null;
+  };
+
   const openModal = (product) => {
     const variants = getProductVariants(product.id).filter(v => v.active);
     const groups = getProductModifierGroups(product.id);
+    const axes = getProductAxesWithValues(product.id);
     // Нет вариантов и нет модификаторов — сразу в чек, без модалки
     if (variants.length <= 1 && groups.length === 0) {
       addDirectToOrder(product, variants[0] || null);
@@ -83,7 +96,17 @@ export default function KassaScreen({ navigation, route }) {
     setModalItem(product);
     setModalVariants(variants);
     setModalGroups(groups);
-    setSelVariantId(variants[0]?.id || null);
+    setModalAxes(axes);
+    if (axes.length > 0) {
+      // Инициализируем выбор — первое значение каждой оси
+      const initSel = {};
+      axes.forEach(a => { if (a.values.length > 0) initSel[a.id] = a.values[0].id; });
+      setSelAxisValues(initSel);
+      setSelVariantId(findVariantByAxes(variants, initSel)?.id || null);
+    } else {
+      setSelAxisValues({});
+      setSelVariantId(variants[0]?.id || null);
+    }
     const initialMods = {};
     groups.forEach(g => { initialMods[g.id] = g.selection_type === 'multiple' ? [] : null; });
     setSelModifiers(initialMods);
@@ -110,8 +133,14 @@ export default function KassaScreen({ navigation, route }) {
 
   const modalPrice = () => {
     if (!modalItem) return 0;
-    const variant = modalVariants.find(v => v.id === selVariantId);
-    const base = variant ? variant.price : (modalItem.price || 0);
+    let base;
+    if (modalAxes.length > 0) {
+      const matched = findVariantByAxes(modalVariants, selAxisValues);
+      base = matched ? matched.price : 0;
+    } else {
+      const variant = modalVariants.find(v => v.id === selVariantId);
+      base = variant ? variant.price : (modalItem.price || 0);
+    }
     const mods = buildSelectedModifiers(modalGroups, selModifiers);
     return base + mods.reduce((s, m) => s + m.priceDelta, 0);
   };
@@ -141,7 +170,13 @@ export default function KassaScreen({ navigation, route }) {
 
   const confirmAdd = () => {
     if (!modalItem) return;
-    const variant = modalVariants.find(v => v.id === selVariantId);
+    let variant;
+    if (modalAxes.length > 0) {
+      variant = findVariantByAxes(modalVariants, selAxisValues);
+      if (!variant) return; // комбинация недоступна
+    } else {
+      variant = modalVariants.find(v => v.id === selVariantId);
+    }
     const mods = buildSelectedModifiers(modalGroups, selModifiers);
     setOrder(prev => [...prev, {
       id: Date.now() + Math.random(),
@@ -337,17 +372,51 @@ export default function KassaScreen({ navigation, route }) {
                 <Pressable onPress={closeModal} style={styles.modalCloseBtn} hitSlop={12}><Text style={styles.modalCloseText}>✕</Text></Pressable>
               </View>
 
-              {modalVariants.length > 1 && (
-                <>
-                  <Text style={styles.modalSection}>Вариант</Text>
-                  <View style={styles.chipsRow}>
-                    {modalVariants.map(v => (
-                      <Pressable key={v.id} style={[styles.chip, selVariantId === v.id && styles.chipActive]} onPress={() => setSelVariantId(v.id)}>
-                        <Text style={[styles.chipLabel, selVariantId === v.id && styles.chipLabelActive]}>{v.label || '—'} · {v.price} ₽</Text>
-                      </Pressable>
-                    ))}
+              {/* Выбор варианта — по осям или плоский список (обратная совместимость) */}
+              {modalAxes.length > 0 ? (
+                modalAxes.map(axis => (
+                  <View key={axis.id}>
+                    <Text style={styles.modalSection}>{axis.name}</Text>
+                    <View style={styles.chipsRow}>
+                      {axis.values.map(val => {
+                        const isSelected = String(selAxisValues[axis.id]) === String(val.id);
+                        // Проверяем доступность комбинации с этим значением
+                        const testSel = { ...selAxisValues, [axis.id]: val.id };
+                        const testVariant = findVariantByAxes(modalVariants, testSel);
+                        const unavailable = !testVariant;
+                        return (
+                          <Pressable
+                            key={val.id}
+                            style={[styles.chip, isSelected && styles.chipActive, unavailable && styles.chipDisabled]}
+                            onPress={() => {
+                              if (unavailable) return;
+                              const newSel = { ...selAxisValues, [axis.id]: val.id };
+                              setSelAxisValues(newSel);
+                              setSelVariantId(findVariantByAxes(modalVariants, newSel)?.id || null);
+                            }}
+                          >
+                            <Text style={[styles.chipLabel, isSelected && styles.chipLabelActive, unavailable && styles.chipLabelDisabled]}>
+                              {val.label}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
                   </View>
-                </>
+                ))
+              ) : (
+                modalVariants.length > 1 && (
+                  <>
+                    <Text style={styles.modalSection}>Вариант</Text>
+                    <View style={styles.chipsRow}>
+                      {modalVariants.map(v => (
+                        <Pressable key={v.id} style={[styles.chip, selVariantId === v.id && styles.chipActive]} onPress={() => setSelVariantId(v.id)}>
+                          <Text style={[styles.chipLabel, selVariantId === v.id && styles.chipLabelActive]}>{v.label || '—'} · {v.price} ₽</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </>
+                )
               )}
 
               {modalGroups.map(group => {
@@ -503,8 +572,10 @@ const styles = StyleSheet.create({
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e' },
   chipActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.18)' },
+  chipDisabled: { borderColor: 'rgba(74,77,84,0.3)', backgroundColor: 'rgba(14,15,17,0.4)', opacity: 0.45 },
   chipLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
   chipLabelActive: { color: colors.greenLight },
+  chipLabelDisabled: { color: colors.muted },
   modalFooter: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 20 },
   modalPrice: { fontFamily: fonts.family, fontSize: 26, fontWeight: '800', color: colors.text, minWidth: 80, textAlign: 'right' },
   discountGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
