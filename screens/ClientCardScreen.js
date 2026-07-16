@@ -4,7 +4,7 @@ import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import { updateClient, getClientOrders, getTerms, genitivePluralRu } from '../db/queries';
+import { updateClient, getClientOrders, getTerms, genitivePluralRu, getLoyaltyConfig, addSubscriptionVisits } from '../db/queries';
 import { getSession } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
 
@@ -26,6 +26,9 @@ export default function ClientCardScreen({ route, navigation }) {
   const [fio, setFio]         = useState(client?.fio || '');
   const [phone, setPhone]     = useState(client?.phone || '');
   const [balance, setBalance] = useState(String(client?.balance || 0));
+  const [loyaltyModel, setLoyaltyModel] = useState('points');
+  const [loyaltyConfig, setLoyaltyConfig] = useState({});
+  const [subAdd, setSubAdd] = useState('');
   const [orders, setOrders]   = useState([]);
   const [expanded, setExpanded] = useState(null);
   const [terms, setTerms] = useState({ item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' });
@@ -34,7 +37,12 @@ export default function ClientCardScreen({ route, navigation }) {
     if (client?.id) {
       try { setOrders(getClientOrders(client.id)); } catch (e) { console.error(e); }
     }
-    try { setTerms(getTerms()); } catch (e) { console.error(e); }
+    try {
+      setTerms(getTerms());
+      const lc = getLoyaltyConfig();
+      setLoyaltyModel(lc.model);
+      setLoyaltyConfig(lc.config);
+    } catch (e) { console.error(e); }
   }, [client]);
 
   if (!client) {
@@ -81,8 +89,13 @@ export default function ClientCardScreen({ route, navigation }) {
             <>
               <Text style={styles.fio}>{client.fio}</Text>
               <Text style={styles.code}>{client.code}</Text>
-              <Text style={styles.balance}>{client.balance}</Text>
-              <Text style={styles.balanceLabel}>баллов</Text>
+              <Text style={styles.balance}>{client.balance || 0}</Text>
+              <Text style={styles.balanceLabel}>
+                {loyaltyModel === 'subscription' ? 'посещений' : loyaltyModel === 'points' ? 'баллов' : ''}
+              </Text>
+              {loyaltyModel === 'discount' && (
+                <Text style={styles.balanceLabel}>Скидка {loyaltyConfig.pct || 0}%</Text>
+              )}
 
               <View style={styles.statsRow}>
                 <View style={styles.statBox}>
@@ -101,6 +114,28 @@ export default function ClientCardScreen({ route, navigation }) {
 
               <Text style={styles.phone}>📞 {client.phone || '—'}</Text>
               <MetalButton title={`☕ Новый ${terms.order.toLowerCase()}`} variant="success" onPress={handleNewOrder} />
+              {isAdmin && loyaltyModel === 'subscription' && (
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 4, alignItems: 'center' }}>
+                  <TextInput
+                    style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                    value={subAdd}
+                    onChangeText={setSubAdd}
+                    keyboardType="numeric"
+                    placeholder="кол-во посещений"
+                    placeholderTextColor={colors.muted}
+                  />
+                  <MetalButton
+                    title="+ Пополнить"
+                    variant="default"
+                    style={{ paddingHorizontal: 12 }}
+                    onPress={() => {
+                      const n = parseInt(subAdd) || 0;
+                      if (n <= 0) return;
+                      try { addSubscriptionVisits(client.id, n); client.balance = (client.balance || 0) + n; setSubAdd(''); } catch (e) { console.error(e); }
+                    }}
+                  />
+                </View>
+              )}
               {isAdmin && (
                 <MetalButton title="✎ Изменить данные" variant="default" onPress={() => setEditing(true)} />
               )}
@@ -111,7 +146,7 @@ export default function ClientCardScreen({ route, navigation }) {
               <TextInput style={styles.input} value={fio} onChangeText={setFio} placeholderTextColor={colors.muted} />
               <Text style={styles.fieldLabel}>Телефон</Text>
               <TextInput style={styles.input} value={phone} onChangeText={setPhone} placeholderTextColor={colors.muted} />
-              <Text style={styles.fieldLabel}>Баллы</Text>
+              <Text style={styles.fieldLabel}>{loyaltyModel === 'subscription' ? 'Посещений' : 'Баллов'}</Text>
               <TextInput style={styles.input} value={balance} onChangeText={setBalance} keyboardType="numeric" placeholderTextColor={colors.muted} />
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
                 <MetalButton title="Сохранить" variant="success" onPress={handleSave} style={{ flex: 1 }} />

@@ -7,7 +7,7 @@ import {
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import { getAllProducts, getCategories, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms } from '../db/queries';
+import { getAllProducts, getCategories, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms, getLoyaltyConfig, spendPoints } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
 const CAT_ICONS = { 'Кофе': '☕', 'Лимонады': '🍹', 'Допы': '🍬', 'Прочее': '🫙' };
@@ -31,6 +31,9 @@ export default function KassaScreen({ navigation, route }) {
   const [currentShift, setCurrentShift] = useState(null);
   const [shiftsEnabled, setShiftsEnabled] = useState(true);
   const [terms, setTerms] = useState({ item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' });
+  const [loyaltyModel, setLoyaltyModel] = useState('points');
+  const [loyaltyConfig, setLoyaltyConfig] = useState({});
+  const [pointsToSpend, setPointsToSpend] = useState(''); // для оплаты баллами
 
   // Модалка оплаты
   const [payModalOpen, setPayModalOpen] = useState(false);
@@ -53,6 +56,9 @@ export default function KassaScreen({ navigation, route }) {
 
       setShiftsEnabled(profile?.modules?.shifts !== false);
       setTerms(getTerms());
+      const lc = getLoyaltyConfig();
+      setLoyaltyModel(lc.model);
+      setLoyaltyConfig(lc.config);
       setAllProducts(products);
       setGroups(cats);
       setActiveCat(cats[0] || null);
@@ -192,9 +198,20 @@ export default function KassaScreen({ navigation, route }) {
 
   const removeFromOrder = (id) => setOrder(prev => prev.filter(i => i.id !== id));
 
-  const rawTotal = order.reduce((s, i) => s + i.price, 0);
-  const discountAmount = appliedDiscount ? Math.round(rawTotal * appliedDiscount.pct / 100) : 0;
-  const total = rawTotal - discountAmount;
+  // Для модели "скидка" — применяем скидку автоматически при наличии клиента
+  const effectiveDiscount = (() => {
+    if (loyaltyModel === 'discount' && forClient && loyaltyConfig.pct) {
+      return { name: `Скидка клиента ${loyaltyConfig.pct}%`, pct: loyaltyConfig.pct };
+    }
+    return appliedDiscount;
+  })();
+
+  const rawTotal      = order.reduce((s, i) => s + i.price, 0);
+  const discountAmount = effectiveDiscount ? Math.round(rawTotal * effectiveDiscount.pct / 100) : 0;
+  const pointsDiscount = loyaltyModel === 'points' && loyaltyConfig.allow_spend
+    ? Math.min(parseFloat(pointsToSpend) || 0, forClient?.balance || 0) * (loyaltyConfig.point_value || 1)
+    : 0;
+  const total = Math.max(0, rawTotal - discountAmount - pointsDiscount);
 
   // ─── Оплата ──────────────────────────────────────────────────────────────
 
@@ -244,14 +261,20 @@ export default function KassaScreen({ navigation, route }) {
         client_id: forClient?.id || null,
         items: order,
         cashAmount, cardAmount,
-        discountPct: appliedDiscount?.pct || 0,
+        discountPct: effectiveDiscount?.pct || 0,
         locationId: getCurrentLocationId(),
       });
       if (forClient?.id) {
-        addClientVisit(forClient.id, total);
+        // Списываем баллы если нужно (до начисления, чтобы они не компенсировали сами себя)
+        if (loyaltyModel === 'points' && loyaltyConfig.allow_spend && pointsToSpend) {
+          const pts = parseFloat(pointsToSpend) || 0;
+          if (pts > 0) spendPoints(forClient.id, pts);
+        }
+        addClientVisit(forClient.id, rawTotal);
       }
       setOrder([]);
       setAppliedDiscount(null);
+      setPointsToSpend('');
       setPayModalOpen(false);
       if (stockWarnings && stockWarnings.length > 0) {
         const lines = stockWarnings.map(w => `${w.name}: ${w.amount.toFixed(1)} ${w.unit || ''}`).join('\n');
@@ -288,9 +311,21 @@ export default function KassaScreen({ navigation, route }) {
             <View style={styles.clientAvatar}>
               <Text style={styles.clientAvatarText}>{(forClient.fio || '?').charAt(0).toUpperCase()}</Text>
             </View>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={styles.clientBadgeName}>{forClient.fio}</Text>
-              <Text style={styles.clientBadgeSub}>★ баллы начислятся автоматически</Text>
+              {loyaltyModel === 'points' && (
+                <Text style={styles.clientBadgeSub}>
+                  ★ {forClient.balance || 0} баллов · +{Math.round(rawTotal * (loyaltyConfig.earn_pct || 10) / 100)} за этот заказ
+                </Text>
+              )}
+              {loyaltyModel === 'subscription' && (
+                <Text style={[styles.clientBadgeSub, (forClient.balance || 0) <= 0 && { color: colors.redLight }]}>
+                  🎟 {forClient.balance || 0} посещений осталось
+                </Text>
+              )}
+              {loyaltyModel === 'discount' && (
+                <Text style={styles.clientBadgeSub}>🏷 Скидка {loyaltyConfig.pct || 0}% применена</Text>
+              )}
             </View>
           </View>
         </View>
@@ -341,19 +376,37 @@ export default function KassaScreen({ navigation, route }) {
           </ScrollView>
 
           <View style={styles.orderFooter}>
-            {appliedDiscount && (
+            {effectiveDiscount && (
               <View style={styles.discountRow}>
-                <Text style={styles.discountText}>🏷 {appliedDiscount.name} −{appliedDiscount.pct}%</Text>
-                <Pressable onPress={() => setAppliedDiscount(null)}><Text style={styles.discountRemove}>✕</Text></Pressable>
+                <Text style={styles.discountText}>🏷 {effectiveDiscount.name} −{effectiveDiscount.pct}%</Text>
+                {loyaltyModel !== 'discount' && (
+                  <Pressable onPress={() => setAppliedDiscount(null)}><Text style={styles.discountRemove}>✕</Text></Pressable>
+                )}
               </View>
             )}
-            {discountAmount > 0 && (
-              <Text style={styles.rawTotal}>{rawTotal} ₽ → −{discountAmount} ₽</Text>
+            {loyaltyModel === 'points' && loyaltyConfig.allow_spend && forClient && (forClient.balance || 0) > 0 && (
+              <View style={styles.discountRow}>
+                <Text style={styles.discountText}>★ Баллы:</Text>
+                <TextInput
+                  style={styles.pointsInput}
+                  keyboardType="numeric"
+                  value={pointsToSpend}
+                  onChangeText={v => setPointsToSpend(v)}
+                  placeholder={`макс ${forClient.balance}`}
+                  placeholderTextColor={colors.muted}
+                />
+                <Text style={styles.discountText}>→ −{pointsDiscount} ₽</Text>
+              </View>
+            )}
+            {(discountAmount > 0 || pointsDiscount > 0) && (
+              <Text style={styles.rawTotal}>{rawTotal} ₽ → −{discountAmount + pointsDiscount} ₽</Text>
             )}
             <Text style={styles.orderTotal}>{total} ₽</Text>
 
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
-              <MetalButton title="🏷 Скидка" variant="default" onPress={() => setDiscountModalOpen(true)} style={{ flex: 1 }} />
+              {loyaltyModel !== 'discount' && (
+                <MetalButton title="🏷 Скидка" variant="default" onPress={() => setDiscountModalOpen(true)} style={{ flex: 1 }} />
+              )}
             </View>
             <MetalButton title="💰 Оплатить" variant="action" onPress={openPayModal} />
           </View>
@@ -559,6 +612,7 @@ const styles = StyleSheet.create({
   emptyHint: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center', marginBottom: 24, lineHeight: 20 },
   orderFooter: { padding: 14 },
   discountRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  pointsInput: { width: 70, paddingVertical: 4, paddingHorizontal: 8, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(122,158,82,0.5)', borderRadius: 8, color: colors.greenLight, fontSize: 13, fontFamily: fonts.family, textAlign: 'center' },
   discountText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.greenLight },
   discountRemove: { fontSize: 14, color: colors.muted, paddingHorizontal: 6 },
   rawTotal: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'center', marginBottom: 2 },

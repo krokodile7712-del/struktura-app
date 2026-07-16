@@ -39,10 +39,11 @@ export function getBusinessProfile() {
   if (!row) return null;
   return {
     ...row,
-    modules: safeParse(row.modules, {}),
-    terms:   safeParse(row.terms,   {}),
-    roles:   safeParse(row.roles,   {}),
-    units:   safeParse(row.units,   []),
+    modules:        safeParse(row.modules,        {}),
+    terms:          safeParse(row.terms,          {}),
+    roles:          safeParse(row.roles,          {}),
+    units:          safeParse(row.units,          []),
+    loyalty_config: safeParse(row.loyalty_config, {}),
   };
 }
 
@@ -101,6 +102,55 @@ export function getRoleNames() {
     barista: roles.barista || DEFAULT_ROLES.barista,
     admin:   roles.admin   || DEFAULT_ROLES.admin,
   };
+}
+
+// ─── Лояльность ────────────────────────────────────────────────────────────
+
+// Конфиги по умолчанию для каждой модели
+const DEFAULT_LOYALTY_CONFIGS = {
+  points:       { earn_pct: 10, allow_spend: false, point_value: 1 },
+  discount:     { pct: 5 },
+  subscription: { deduct_per_visit: 1 },
+};
+
+// Возвращает {model, config} из профиля бизнеса
+export function getLoyaltyConfig() {
+  const profile = getBusinessProfile();
+  const model = profile?.loyalty_model || 'points';
+  const rawConfig = profile?.loyalty_config || {};
+  const defaults = DEFAULT_LOYALTY_CONFIGS[model] || {};
+  return { model, config: { ...defaults, ...rawConfig } };
+}
+
+// Сохраняет модель лояльности и её конфиг
+export function updateLoyaltyConfig(model, config) {
+  const db = getDb();
+  const existing = db.getFirstSync(`SELECT id FROM business_profile ORDER BY id LIMIT 1`);
+  if (existing) {
+    db.runSync(
+      `UPDATE business_profile SET loyalty_model = ?, loyalty_config = ? WHERE id = ?`,
+      [model, JSON.stringify(config || {}), existing.id]
+    );
+  }
+}
+
+// Добавляет посещения (абонемент) — продаёт посещения клиенту (действие администратора)
+export function addSubscriptionVisits(client_id, count) {
+  const db = getDb();
+  db.runSync(`UPDATE clients SET balance = balance + ? WHERE id = ?`, [count, client_id]);
+}
+
+// Списывает баллы у клиента (модель points, allow_spend).
+// Возвращает реально списанную сумму (не больше баланса).
+export function spendPoints(client_id, points) {
+  const db = getDb();
+  const client = db.getFirstSync(`SELECT balance FROM clients WHERE id = ?`, [client_id]);
+  const available = client?.balance || 0;
+  const spend = Math.min(Math.round(points), Math.floor(available));
+  if (spend > 0) {
+    db.runSync(`UPDATE clients SET balance = balance - ? WHERE id = ?`, [spend, client_id]);
+  }
+  return spend;
 }
 
 export function updateBusinessProfile({ businessName, modules, terms, roles, units, accessKey }) {
@@ -649,12 +699,35 @@ export function updateClient(id, { fio, phone, balance }) {
 
 export function addClientVisit(client_id, amount) {
   const db = getDb();
-  const bonusPct = getBonusPct();
-  const points = Math.round(amount * bonusPct / 100);
+  const { model, config } = getLoyaltyConfig();
+
+  if (model === 'points') {
+    const earnPct = config.earn_pct ?? 10;
+    const points  = Math.round(amount * earnPct / 100);
+    db.runSync(
+      `UPDATE clients SET visits = visits + 1, total_sum = total_sum + ?, balance = balance + ? WHERE id = ?`,
+      [amount, points, client_id]
+    );
+    return { model, pointsEarned: points };
+  }
+
+  if (model === 'subscription') {
+    const deduct = config.deduct_per_visit ?? 1;
+    const client = db.getFirstSync(`SELECT balance FROM clients WHERE id = ?`, [client_id]);
+    const newBalance = Math.max(0, (client?.balance || 0) - deduct);
+    db.runSync(
+      `UPDATE clients SET visits = visits + 1, total_sum = total_sum + ?, balance = ? WHERE id = ?`,
+      [amount, newBalance, client_id]
+    );
+    return { model, visitsRemaining: newBalance };
+  }
+
+  // discount и любые другие — только счётчик посещений, баланс не трогаем
   db.runSync(
-    `UPDATE clients SET visits = visits + 1, total_sum = total_sum + ?, balance = balance + ? WHERE id = ?`,
-    [amount, points, client_id]
+    `UPDATE clients SET visits = visits + 1, total_sum = total_sum + ? WHERE id = ?`,
+    [amount, client_id]
   );
+  return { model };
 }
 
 // ─── Смены ────────────────────────────────────────────────────────────────

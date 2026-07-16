@@ -279,6 +279,9 @@ export function initDatabase() {
     `ALTER TABLE shifts  ADD COLUMN employee_name TEXT    DEFAULT ''`,
     // roles: отображаемые названия ролей (barista_label, admin_label)
     `ALTER TABLE business_profile ADD COLUMN roles TEXT DEFAULT '{}'`,
+    // loyalty: модель лояльности и её конфиг
+    `ALTER TABLE business_profile ADD COLUMN loyalty_model  TEXT DEFAULT 'points'`,
+    `ALTER TABLE business_profile ADD COLUMN loyalty_config TEXT DEFAULT '{}'`,
   ];
   for (const sql of migrations) {
     try { db.execSync(sql); } catch (_) {}

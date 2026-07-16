@@ -12,7 +12,7 @@ import {
   insertModifierOption, updateModifierOption, deleteModifierOption,
   getCostCardForVariant, saveCostCardForVariant,
   getUsers, updateUserPin,
-  getDiscounts, setSetting, getBonusPct,
+  getDiscounts, setSetting, getLoyaltyConfig, updateLoyaltyConfig,
   getAllStock, updateStockThreshold,
   getUnlinkedCostCards,
   getBusinessProfile, updateBusinessProfile, applyBusinessPreset, BUSINESS_PRESETS,
@@ -48,7 +48,8 @@ export default function SettingsScreen({ navigation }) {
   const [pinAdmin, setPinAdmin]     = useState('');
 
   // ── Общие настройки ──
-  const [bonusPct, setBonusPct]   = useState('10');
+  const [loyaltyModel,  setLoyaltyModel]  = useState('points');
+  const [loyaltyConfig, setLoyaltyConfig] = useState({ earn_pct: 10, allow_spend: false, point_value: 1, pct: 5, deduct_per_visit: 1 });
   const [exporting, setExporting] = useState(false);
 
   // ── Скрытый доступ к профилю бизнеса ──
@@ -70,7 +71,9 @@ export default function SettingsScreen({ navigation }) {
       setDiscounts(getDiscounts());
       setModifierGroups(getAllModifierGroups());
       setStock(getAllStock());
-      setBonusPct(String(getBonusPct()));
+      const lc = getLoyaltyConfig();
+      setLoyaltyModel(lc.model || 'points');
+      setLoyaltyConfig(c => ({ ...c, ...lc.config }));
       setUnlinkedCards(getUnlinkedCostCards());
       setProfile(getBusinessProfile());
     } catch (e) { console.error(e); }
@@ -337,9 +340,9 @@ export default function SettingsScreen({ navigation }) {
     setStockModal(null);
   };
 
-  // ── Бонусный процент ──
-  const saveBonusPct = () => {
-    try { setSetting('bonusPct', String(parseFloat(bonusPct) || 0)); } catch (e) { console.error(e); }
+  // ── Лояльность ──
+  const saveLoyalty = () => {
+    try { updateLoyaltyConfig(loyaltyModel, loyaltyConfig); loadAll(); } catch (e) { console.error(e); }
   };
 
   // ── PIN ──
@@ -559,13 +562,92 @@ export default function SettingsScreen({ navigation }) {
           />
         </MetalCard>
 
-        {/* Общие настройки */}
+        {/* Программа лояльности */}
         {modules.loyalty !== false && (
           <MetalCard style={{ marginTop: 12 }}>
-            <Text style={styles.blockTitle}>⭐ Бонусная программа</Text>
-            <Text style={styles.fieldLabel}>Процент начисления баллов</Text>
-            <TextInput style={styles.input} keyboardType="numeric" value={bonusPct} onChangeText={setBonusPct} placeholderTextColor={colors.muted} />
-            <MetalButton title="Сохранить" variant="success" onPress={saveBonusPct} />
+            <Text style={styles.blockTitle}>⭐ Программа лояльности</Text>
+
+            {/* Выбор модели */}
+            <Text style={styles.fieldLabel}>Модель</Text>
+            <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+              {[
+                { key: 'points',       label: '⭐ Баллы' },
+                { key: 'discount',     label: '🏷 Скидка' },
+                { key: 'subscription', label: '🎟 Абонемент' },
+              ].map(opt => (
+                <Pressable
+                  key={opt.key}
+                  style={[styles.catChip, loyaltyModel === opt.key && styles.catChipActive]}
+                  onPress={() => setLoyaltyModel(opt.key)}
+                >
+                  <Text style={[styles.catChipLabel, loyaltyModel === opt.key && { color: colors.greenLight }]}>
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {/* Баллы */}
+            {loyaltyModel === 'points' && <>
+              <Text style={styles.fieldLabel}>% от суммы заказа → баллы</Text>
+              <TextInput
+                style={styles.input}
+                keyboardType="numeric"
+                value={String(loyaltyConfig.earn_pct ?? 10)}
+                onChangeText={v => setLoyaltyConfig(c => ({ ...c, earn_pct: parseFloat(v) || 0 }))}
+                placeholderTextColor={colors.muted}
+              />
+              <Text style={styles.fieldLabel}>Ценность 1 балла, ₽</Text>
+              <TextInput
+                style={styles.input}
+                keyboardType="numeric"
+                value={String(loyaltyConfig.point_value ?? 1)}
+                onChangeText={v => setLoyaltyConfig(c => ({ ...c, point_value: parseFloat(v) || 1 }))}
+                placeholderTextColor={colors.muted}
+              />
+              <Pressable
+                style={styles.row}
+                onPress={() => setLoyaltyConfig(c => ({ ...c, allow_spend: !c.allow_spend }))}
+              >
+                <Text style={styles.rowName}>Разрешить оплату баллами</Text>
+                <Text style={styles.rowPrice}>{loyaltyConfig.allow_spend ? '☑' : '☐'}</Text>
+              </Pressable>
+              <Text style={styles.hintText}>
+                Клиент накапливает баллы и может оплатить ими часть заказа (если разрешено).
+              </Text>
+            </>}
+
+            {/* Скидка */}
+            {loyaltyModel === 'discount' && <>
+              <Text style={styles.fieldLabel}>Скидка для зарегистрированных клиентов, %</Text>
+              <TextInput
+                style={styles.input}
+                keyboardType="numeric"
+                value={String(loyaltyConfig.pct ?? 5)}
+                onChangeText={v => setLoyaltyConfig(c => ({ ...c, pct: parseFloat(v) || 0 }))}
+                placeholderTextColor={colors.muted}
+              />
+              <Text style={styles.hintText}>
+                При выборе клиента в кассе скидка применяется автоматически.
+              </Text>
+            </>}
+
+            {/* Абонемент */}
+            {loyaltyModel === 'subscription' && <>
+              <Text style={styles.fieldLabel}>Списывать посещений за 1 заказ</Text>
+              <TextInput
+                style={styles.input}
+                keyboardType="numeric"
+                value={String(loyaltyConfig.deduct_per_visit ?? 1)}
+                onChangeText={v => setLoyaltyConfig(c => ({ ...c, deduct_per_visit: parseFloat(v) || 1 }))}
+                placeholderTextColor={colors.muted}
+              />
+              <Text style={styles.hintText}>
+                Администратор пополняет баланс клиента в карточке клиента. В кассе при продаже посещение списывается автоматически.
+              </Text>
+            </>}
+
+            <MetalButton title="Сохранить" variant="success" onPress={saveLoyalty} style={{ marginTop: 8 }} />
           </MetalCard>
         )}
 
@@ -1129,6 +1211,7 @@ const styles = StyleSheet.create({
   empty: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center', paddingVertical: 12 },
   hintText: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginBottom: 10, lineHeight: 17 },
   catChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e' },
+  catChipActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.12)' },
   catChipLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
   unitChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e' },
   fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, marginTop: 10 },
