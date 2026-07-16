@@ -6,7 +6,7 @@ import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import {
   getAllProductsAdmin, insertProduct, setProductActive,
-  getProductVariants, saveProductAxesAndVariants,
+  getProductVariants, getProductAxesWithValues, saveProductAxesAndVariants,
   getProductModifierGroups, setProductModifierGroups, getAllModifierGroups,
   insertModifierGroup, updateModifierGroup, deleteModifierGroup,
   insertModifierOption, updateModifierOption, deleteModifierOption,
@@ -76,28 +76,109 @@ export default function SettingsScreen({ navigation }) {
   };
 
   // ── Товары + варианты + модификаторы + техкарты ──
+
+  // Уникальный ключ для варианта в techCards (стабильный пока открыта модалка)
+  const variantKey = (v, idx) => v.id != null ? String(v.id) : `new-${idx}`;
+
+  // Уникальный ключ для оси (id из БД или временный _uid)
+  const axisUid = (a) => a.id != null ? String(a.id) : a._uid;
+  const valueUid = (v) => v.id != null ? String(v.id) : v._uid;
+
+  // Вспомогательная: счётчик для временных uid (не нужен счётчик — Date.now достаточно)
+  const mkUid = () => `t_${Date.now()}_${Math.floor(Math.random()*10000)}`;
+
   const openProduct = (product) => {
     let raw = getProductVariants(product.id);
     if (raw.length === 0) {
-      raw = [{ id: null, label: '', price: product.price || 0, sku: product.sku || '', active: true }];
+      raw = [{ id: null, label: '', price: product.price || 0, sku: product.sku || '', active: true, axisValues: {} }];
     }
-    const variants = raw.map(v => ({ id: v.id, label: v.label, price: String(v.price), sku: v.sku || '', active: v.active !== false }));
+    const variants = raw.map(v => ({
+      id: v.id, label: v.label, price: String(v.price), sku: v.sku || '',
+      active: v.active !== false, axisValues: v.axisValues || {},
+    }));
+    const axes = getProductAxesWithValues(product.id).map(a => ({
+      id: a.id, name: a.name,
+      values: a.values.map(vv => ({ id: vv.id, label: vv.label })),
+    }));
     const groups = getProductModifierGroups(product.id);
     const techCards = {};
     variants.forEach((v, idx) => {
-      const key = v.id || `new-${idx}`;
-      const card = v.id ? getCostCardForVariant(v.id) : null;
-      techCards[key] = card ? card.ingredients.map(ing => ({ name: ing.name, amount: String(ing.amount), unit: ing.unit })) : [];
+      const key = variantKey(v, idx);
+      const card = v.id != null ? getCostCardForVariant(v.id) : null;
+      techCards[key] = card ? card.ingredients.map(ing => ({
+        name: ing.name, amount: String(ing.amount), unit: ing.unit,
+      })) : [];
     });
-    setProductModal({ product, variants, groupIds: groups.map(g => g.id), techCards });
+    setProductModal({ product, axes, variants, groupIds: groups.map(g => g.id), techCards });
   };
 
-  const variantKey = (v, idx) => v.id || `new-${idx}`;
+  // ── Управление осями вариативности ──
+  const addAxis = () => {
+    setProductModal(m => ({
+      ...m,
+      axes: [...m.axes, { _uid: mkUid(), name: '', values: [] }],
+    }));
+  };
+  const removeAxis = (aKey) => {
+    setProductModal(m => ({ ...m, axes: m.axes.filter(a => axisUid(a) !== aKey) }));
+  };
+  const setAxisName = (aKey, name) => {
+    setProductModal(m => ({
+      ...m,
+      axes: m.axes.map(a => axisUid(a) === aKey ? { ...a, name } : a),
+    }));
+  };
+  const addAxisValue = (aKey) => {
+    const uid = mkUid();
+    setProductModal(m => ({
+      ...m,
+      axes: m.axes.map(a => axisUid(a) !== aKey ? a : {
+        ...a, values: [...a.values, { _uid: uid, label: '' }],
+      }),
+    }));
+  };
+  const removeAxisValue = (aKey, vKey) => {
+    setProductModal(m => ({
+      ...m,
+      axes: m.axes.map(a => axisUid(a) !== aKey ? a : {
+        ...a, values: a.values.filter(v => valueUid(v) !== vKey),
+      }),
+    }));
+  };
+  const setAxisValueLabel = (aKey, vKey, label) => {
+    setProductModal(m => ({
+      ...m,
+      axes: m.axes.map(a => axisUid(a) !== aKey ? a : {
+        ...a, values: a.values.map(v => valueUid(v) !== vKey ? v : { ...v, label }),
+      }),
+    }));
+  };
 
+  // Декартово произведение значений осей → создаёт варианты
+  const generateCombinations = () => {
+    if (!productModal) return;
+    const validAxes = productModal.axes.filter(a => a.values.some(v => v.label.trim()));
+    if (validAxes.length === 0) return;
+    const arrays = validAxes.map(a => a.values.filter(v => v.label.trim()));
+    const combos = arrays.reduce(
+      (acc, vals) => acc.flatMap(combo => vals.map(val => [...combo, val])),
+      [[]]
+    );
+    const newVariants = combos.map(combo => {
+      const axisValues = {};
+      combo.forEach((val, i) => {
+        axisValues[axisUid(validAxes[i])] = valueUid(val);
+      });
+      return { id: null, label: combo.map(v => v.label).join(' / '), price: '', sku: '', active: true, axisValues };
+    });
+    setProductModal(m => ({ ...m, variants: newVariants, techCards: {} }));
+  };
+
+  // ── Управление вариантами ──
   const addVariantRow = () => {
     setProductModal(m => ({
       ...m,
-      variants: [...m.variants, { id: null, label: '', price: '', sku: '', active: true }],
+      variants: [...m.variants, { id: null, label: '', price: '', sku: '', active: true, axisValues: {} }],
     }));
   };
   const removeVariantRow = (idx) => {
@@ -145,16 +226,29 @@ export default function SettingsScreen({ navigation }) {
 
   const saveProduct = () => {
     if (!productModal) return;
-    const payload = productModal.variants.map(v => ({
-      id: v.id, label: v.label.trim(), price: parseFloat(v.price) || 0, sku: v.sku.trim(), active: v.active, axisValues: {},
+    // Фильтруем пустые оси и значения
+    const axesPayload = (productModal.axes || [])
+      .filter(a => a.name.trim())
+      .map(a => ({
+        id: a.id, _uid: a._uid, name: a.name.trim(),
+        values: (a.values || []).filter(v => v.label?.trim()).map(v => ({
+          id: v.id, _uid: v._uid, label: v.label.trim(),
+        })),
+      }));
+    const variantsPayload = productModal.variants.map(v => ({
+      id: v.id, label: v.label.trim(),
+      price: parseFloat(v.price) || 0, sku: (v.sku || '').trim(),
+      active: v.active, axisValues: v.axisValues || {},
     }));
     try {
-      const saved = saveProductAxesAndVariants(productModal.product.id, [], payload);
+      const { variants: savedVariants } = saveProductAxesAndVariants(
+        productModal.product.id, axesPayload, variantsPayload
+      );
       setProductModifierGroups(productModal.product.id, productModal.groupIds);
-
       productModal.variants.forEach((v, idx) => {
         const oldKey = variantKey(v, idx);
-        const savedVariant = saved[idx];
+        const savedVariant = savedVariants[idx];
+        if (!savedVariant) return;
         const ingredients = (productModal.techCards[oldKey] || [])
           .filter(r => r.name && parseFloat(r.amount) > 0)
           .map(r => ({ name: r.name, amount: parseFloat(r.amount) || 0, unit: r.unit, pricePerUnit: 0 }));
@@ -487,7 +581,73 @@ export default function SettingsScreen({ navigation }) {
                 <Pressable onPress={() => setProductModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
               </View>
               <ScrollView showsVerticalScrollIndicator={false}>
-                <Text style={styles.sectionTitle}>Варианты</Text>
+                {/* ─── Секция осей вариативности ─── */}
+                <Text style={styles.sectionTitle}>Оси вариативности</Text>
+                <Text style={styles.hintText}>
+                  Задайте оси (напр. «Размер», «Цвет») и их значения, затем нажмите «Сгенерировать комбинации» — варианты создадутся автоматически. Без осей добавляйте варианты вручную ниже.
+                </Text>
+
+                {(productModal.axes || []).map(axis => {
+                  const aKey = axisUid(axis);
+                  return (
+                    <View key={aKey} style={styles.axisBlock}>
+                      {/* Название оси */}
+                      <View style={styles.axisHeaderRow}>
+                        <TextInput
+                          style={[styles.input, { flex: 1 }]}
+                          placeholder="Название оси (напр. Размер, Цвет)"
+                          placeholderTextColor={colors.muted}
+                          value={axis.name}
+                          onChangeText={v => setAxisName(aKey, v)}
+                        />
+                        <Pressable onPress={() => removeAxis(aKey)} hitSlop={10} style={{ marginLeft: 8, padding: 4 }}>
+                          <Text style={styles.ingredientRemove}>✕</Text>
+                        </Pressable>
+                      </View>
+                      {/* Значения оси — чипы-инпуты */}
+                      <View style={styles.axisValuesWrap}>
+                        {(axis.values || []).map(val => {
+                          const vKey = valueUid(val);
+                          return (
+                            <View key={vKey} style={styles.axisValueChip}>
+                              <TextInput
+                                style={styles.axisValueInput}
+                                value={val.label}
+                                onChangeText={v => setAxisValueLabel(aKey, vKey, v)}
+                                placeholder="—"
+                                placeholderTextColor={colors.muted}
+                              />
+                              <Pressable onPress={() => removeAxisValue(aKey, vKey)} hitSlop={6} style={{ paddingLeft: 4 }}>
+                                <Text style={styles.axisValueRemove}>×</Text>
+                              </Pressable>
+                            </View>
+                          );
+                        })}
+                        <Pressable style={styles.addValueBtn} onPress={() => addAxisValue(aKey)}>
+                          <Text style={styles.addValueBtnText}>+ значение</Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  );
+                })}
+
+                <MetalButton title="+ Добавить ось" variant="default" onPress={addAxis} style={{ marginTop: 4 }} />
+
+                {(productModal.axes || []).some(a => (a.values || []).some(v => v.label?.trim())) && (() => {
+                  const validAxes = (productModal.axes || []).filter(a => (a.values || []).some(v => v.label?.trim()));
+                  const count = validAxes.reduce((acc, a) => acc * a.values.filter(v => v.label?.trim()).length, 1);
+                  return (
+                    <MetalButton
+                      title={`🔄 Сгенерировать комбинации (${count})`}
+                      variant="pay"
+                      onPress={generateCombinations}
+                      style={{ marginTop: 8 }}
+                    />
+                  );
+                })()}
+
+                {/* ─── Секция вариантов ─── */}
+                <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Варианты</Text>
                 <Text style={styles.hintText}>Если у {genitiveSingularRu(terms.item).toLowerCase()} один вариант — оставь название пустым, он не будет показываться отдельным чипом в кассе.</Text>
                 {productModal.variants.map((v, idx) => {
                   const key = variantKey(v, idx);
@@ -883,6 +1043,16 @@ const styles = StyleSheet.create({
   modalClose: { fontSize: 18, color: colors.muted, padding: 4 },
   variantBlock: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border },
   variantHeaderRow: { flexDirection: 'row', alignItems: 'center' },
+
+  // Оси вариативности
+  axisBlock: { marginTop: 10, padding: 10, borderWidth: 1, borderColor: 'rgba(61,95,168,0.35)', borderRadius: 12, backgroundColor: 'rgba(61,95,168,0.06)' },
+  axisHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  axisValuesWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
+  axisValueChip: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(61,158,146,0.45)', borderRadius: 10, backgroundColor: 'rgba(61,158,146,0.08)', paddingHorizontal: 8, paddingVertical: 4 },
+  axisValueInput: { fontFamily: fonts.family, fontSize: 13, color: colors.text, minWidth: 40, maxWidth: 90, padding: 0 },
+  axisValueRemove: { fontSize: 14, color: colors.redLight },
+  addValueBtn: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed' },
+  addValueBtnText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.greenLight },
   techCardTitle: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.text, marginTop: 10, marginBottom: 6 },
   ingredientRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   ingredientName: { flex: 1, fontFamily: fonts.familyRegular, fontSize: 13, color: colors.text },

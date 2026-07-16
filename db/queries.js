@@ -184,7 +184,11 @@ export function saveProductAxesAndVariants(productId, axes, variants) {
   }
 
   // 2. Сохраняем оси и их значения
+  // uidToRealId строит маппинг: временный _uid (строка) или числовой id → реальный integer id
+  // Нужно для перевода axisValues в вариантах из {_uid: _uid} в {realId: realId}
+  const uidToRealId = {};
   const savedAxes = [];
+
   for (let ai = 0; ai < (axes || []).length; ai++) {
     const axis = axes[ai];
     let axisId;
@@ -201,6 +205,9 @@ export function saveProductAxesAndVariants(productId, axes, variants) {
       );
       axisId = res.lastInsertRowId;
     }
+    // Маппируем как _uid → realId, так и String(realId) → realId (для идемпотентности)
+    if (axis._uid) uidToRealId[axis._uid] = axisId;
+    uidToRealId[String(axisId)] = axisId;
 
     // Значения оси
     const dbValueIds = db.getAllSync(
@@ -228,12 +235,14 @@ export function saveProductAxesAndVariants(productId, axes, variants) {
         );
         valueId = res.lastInsertRowId;
       }
+      if (val._uid) uidToRealId[val._uid] = valueId;
+      uidToRealId[String(valueId)] = valueId;
       savedValues.push({ id: valueId, label: val.label, position: vi });
     }
     savedAxes.push({ id: axisId, name: axis.name, position: ai, values: savedValues });
   }
 
-  // 3. Сохраняем варианты
+  // 3. Сохраняем варианты, перемаппируя axisValues через uidToRealId
   const dbVariantIds = db.getAllSync(
     `SELECT id FROM product_variants WHERE product_id = ?`, [productId]
   ).map(r => r.id);
@@ -244,7 +253,16 @@ export function saveProductAxesAndVariants(productId, axes, variants) {
 
   const savedVariants = [];
   for (const v of (variants || [])) {
-    const axisValuesJson = JSON.stringify(v.axisValues || {});
+    // Перемаппируем {_uid|id: _uid|id} → {realAxisId: realValueId}
+    const remappedAV = {};
+    for (const [aKey, vKey] of Object.entries(v.axisValues || {})) {
+      const realAxisId = uidToRealId[String(aKey)];
+      const realValueId = uidToRealId[String(vKey)];
+      if (realAxisId != null && realValueId != null) {
+        remappedAV[realAxisId] = realValueId;
+      }
+    }
+    const axisValuesJson = JSON.stringify(remappedAV);
     if (v.id) {
       db.runSync(
         `UPDATE product_variants SET axis_values = ?, label = ?, price = ?, sku = ?, active = ? WHERE id = ?`,
