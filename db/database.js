@@ -203,6 +203,28 @@ export function initDatabase() {
     );
   `);
 
+  // Точки хранения (модуль "Локации")
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS locations (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      name        TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      active      INTEGER DEFAULT 1
+    );
+  `);
+
+  // Остатки склада по локациям — заполняется только когда модуль "Локации" включён.
+  // Уникальная пара stock_id + location_id гарантирует одну запись на позицию/локацию.
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS stock_by_location (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      stock_id    INTEGER NOT NULL,
+      location_id INTEGER NOT NULL,
+      остаток     REAL DEFAULT 0,
+      UNIQUE(stock_id, location_id)
+    );
+  `);
+
   db.execSync(`
     CREATE TABLE IF NOT EXISTS app_settings (
       key   TEXT PRIMARY KEY,
