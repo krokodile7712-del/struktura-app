@@ -198,19 +198,40 @@ export default function KassaScreen({ navigation, route }) {
 
   const removeFromOrder = (id) => setOrder(prev => prev.filter(i => i.id !== id));
 
-  // Для модели "скидка" — применяем скидку автоматически при наличии клиента
+  const rawTotal = order.reduce((s, i) => s + i.price, 0);
+  const maxDiscountPct = loyaltyConfig.max_discount_pct ?? 100;
+
+  // Личная скидка клиента имеет приоритет над глобальной моделью discount
   const effectiveDiscount = (() => {
-    if (loyaltyModel === 'discount' && forClient && loyaltyConfig.pct) {
-      return { name: `Скидка клиента ${loyaltyConfig.pct}%`, pct: loyaltyConfig.pct };
+    if (forClient?.discount_pct > 0) {
+      const pct = Math.min(forClient.discount_pct, maxDiscountPct);
+      return { name: `Личная скидка ${pct}%`, pct };
     }
-    return appliedDiscount;
+    if (loyaltyModel === 'discount' && forClient && loyaltyConfig.pct) {
+      const pct = Math.min(loyaltyConfig.pct, maxDiscountPct);
+      return { name: `Скидка клиента ${pct}%`, pct };
+    }
+    if (appliedDiscount) {
+      const pct = Math.min(appliedDiscount.pct, maxDiscountPct);
+      return { ...appliedDiscount, pct };
+    }
+    return null;
   })();
 
-  const rawTotal      = order.reduce((s, i) => s + i.price, 0);
   const discountAmount = effectiveDiscount ? Math.round(rawTotal * effectiveDiscount.pct / 100) : 0;
-  const pointsDiscount = loyaltyModel === 'points' && loyaltyConfig.allow_spend
-    ? Math.min(parseFloat(pointsToSpend) || 0, forClient?.balance || 0) * (loyaltyConfig.point_value || 1)
+
+  // Оплата баллами с ограничением max_spend_pct
+  const maxSpendRub = loyaltyModel === 'points' && loyaltyConfig.allow_spend
+    ? Math.round(rawTotal * (loyaltyConfig.max_spend_pct ?? 100) / 100)
     : 0;
+  const pointsDiscount = loyaltyModel === 'points' && loyaltyConfig.allow_spend
+    ? Math.min(
+        Math.round((parseFloat(pointsToSpend) || 0) * (loyaltyConfig.point_value || 1)),
+        maxSpendRub,
+        Math.max(0, rawTotal - discountAmount) // нельзя уйти ниже нуля с учётом уже применённой скидки
+      )
+    : 0;
+
   const total = Math.max(0, rawTotal - discountAmount - pointsDiscount);
 
   // ─── Оплата ──────────────────────────────────────────────────────────────
@@ -386,7 +407,7 @@ export default function KassaScreen({ navigation, route }) {
             )}
             {loyaltyModel === 'points' && loyaltyConfig.allow_spend && forClient && (forClient.balance || 0) > 0 && (
               <View style={styles.discountRow}>
-                <Text style={styles.discountText}>★ Баллы:</Text>
+                <Text style={styles.discountText}>★ Баллов:</Text>
                 <TextInput
                   style={styles.pointsInput}
                   keyboardType="numeric"
@@ -395,7 +416,7 @@ export default function KassaScreen({ navigation, route }) {
                   placeholder={`макс ${forClient.balance}`}
                   placeholderTextColor={colors.muted}
                 />
-                <Text style={styles.discountText}>→ −{pointsDiscount} ₽</Text>
+                <Text style={styles.discountText}>→ −{pointsDiscount} ₽{maxSpendRub < rawTotal ? ` (лимит ${loyaltyConfig.max_spend_pct}%)` : ''}</Text>
               </View>
             )}
             {(discountAmount > 0 || pointsDiscount > 0) && (

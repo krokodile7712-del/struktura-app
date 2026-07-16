@@ -108,9 +108,9 @@ export function getRoleNames() {
 
 // Конфиги по умолчанию для каждой модели
 const DEFAULT_LOYALTY_CONFIGS = {
-  points:       { earn_pct: 10, allow_spend: false, point_value: 1 },
-  discount:     { pct: 5 },
-  subscription: { deduct_per_visit: 1 },
+  points:       { earn_pct: 10, allow_spend: false, point_value: 1, max_spend_pct: 50, max_discount_pct: 100 },
+  discount:     { pct: 5, max_discount_pct: 100 },
+  subscription: { deduct_per_visit: 1, max_discount_pct: 100 },
 };
 
 // Возвращает {model, config} из профиля бизнеса
@@ -689,11 +689,11 @@ export function insertClient({ fio, phone, code }) {
   );
 }
 
-export function updateClient(id, { fio, phone, balance }) {
+export function updateClient(id, { fio, phone, balance, discount_pct }) {
   const db = getDb();
   db.runSync(
-    `UPDATE clients SET fio = ?, phone = ?, balance = ? WHERE id = ?`,
-    [fio, phone, balance, id]
+    `UPDATE clients SET fio = ?, phone = ?, balance = ?, discount_pct = ? WHERE id = ?`,
+    [fio, phone, balance, discount_pct ?? 0, id]
   );
 }
 

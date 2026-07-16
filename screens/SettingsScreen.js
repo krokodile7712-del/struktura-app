@@ -612,9 +612,18 @@ export default function SettingsScreen({ navigation }) {
                 <Text style={styles.rowName}>Разрешить оплату баллами</Text>
                 <Text style={styles.rowPrice}>{loyaltyConfig.allow_spend ? '☑' : '☐'}</Text>
               </Pressable>
-              <Text style={styles.hintText}>
-                Клиент накапливает баллы и может оплатить ими часть заказа (если разрешено).
-              </Text>
+              {loyaltyConfig.allow_spend && <>
+                <Text style={styles.fieldLabel}>Макс. % суммы чека оплачиваемый баллами</Text>
+                <TextInput
+                  style={styles.input}
+                  keyboardType="numeric"
+                  value={String(loyaltyConfig.max_spend_pct ?? 50)}
+                  onChangeText={v => setLoyaltyConfig(c => ({ ...c, max_spend_pct: parseFloat(v) || 0 }))}
+                  placeholder="50"
+                  placeholderTextColor={colors.muted}
+                />
+                <Text style={styles.hintText}>Например 50 — клиент может оплатить баллами не более половины чека.</Text>
+              </>}
             </>}
 
             {/* Скидка */}
@@ -646,6 +655,18 @@ export default function SettingsScreen({ navigation }) {
                 Администратор пополняет баланс клиента в карточке клиента. В кассе при продаже посещение списывается автоматически.
               </Text>
             </>}
+
+            {/* Общий лимит скидки — для всех моделей */}
+            <Text style={styles.fieldLabel}>Максимальная скидка на заказ, %</Text>
+            <TextInput
+              style={styles.input}
+              keyboardType="numeric"
+              value={String(loyaltyConfig.max_discount_pct ?? 100)}
+              onChangeText={v => setLoyaltyConfig(c => ({ ...c, max_discount_pct: parseFloat(v) || 100 }))}
+              placeholder="100"
+              placeholderTextColor={colors.muted}
+            />
+            <Text style={styles.hintText}>Суммарная скидка (авто + ручная + баллы) не превысит этот %.</Text>
 
             <MetalButton title="Сохранить" variant="success" onPress={saveLoyalty} style={{ marginTop: 8 }} />
           </MetalCard>

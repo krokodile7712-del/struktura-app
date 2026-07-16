@@ -26,6 +26,7 @@ export default function ClientCardScreen({ route, navigation }) {
   const [fio, setFio]         = useState(client?.fio || '');
   const [phone, setPhone]     = useState(client?.phone || '');
   const [balance, setBalance] = useState(String(client?.balance || 0));
+  const [discountPct, setDiscountPct] = useState(String(client?.discount_pct || 0));
   const [loyaltyModel, setLoyaltyModel] = useState('points');
   const [loyaltyConfig, setLoyaltyConfig] = useState({});
   const [subAdd, setSubAdd] = useState('');
@@ -63,8 +64,9 @@ export default function ClientCardScreen({ route, navigation }) {
 
   const handleSave = () => {
     try {
-      updateClient(client.id, { fio: fio.trim(), phone: phone.trim(), balance: parseFloat(balance) || 0 });
+      updateClient(client.id, { fio: fio.trim(), phone: phone.trim(), balance: parseFloat(balance) || 0, discount_pct: parseFloat(discountPct) || 0 });
       client.fio     = fio.trim();
+      client.discount_pct = parseFloat(discountPct) || 0;
       client.phone   = phone.trim();
       client.balance = parseFloat(balance) || 0;
       setEditing(false);
@@ -95,6 +97,9 @@ export default function ClientCardScreen({ route, navigation }) {
               </Text>
               {loyaltyModel === 'discount' && (
                 <Text style={styles.balanceLabel}>Скидка {loyaltyConfig.pct || 0}%</Text>
+              )}
+              {(client.discount_pct > 0) && (
+                <Text style={styles.personalDiscount}>🏷 Личная скидка: {client.discount_pct}%</Text>
               )}
 
               <View style={styles.statsRow}>
@@ -148,6 +153,18 @@ export default function ClientCardScreen({ route, navigation }) {
               <TextInput style={styles.input} value={phone} onChangeText={setPhone} placeholderTextColor={colors.muted} />
               <Text style={styles.fieldLabel}>{loyaltyModel === 'subscription' ? 'Посещений' : 'Баллов'}</Text>
               <TextInput style={styles.input} value={balance} onChangeText={setBalance} keyboardType="numeric" placeholderTextColor={colors.muted} />
+              <Text style={styles.fieldLabel}>Индивидуальная скидка клиента, %</Text>
+              <TextInput
+                style={styles.input}
+                value={discountPct}
+                onChangeText={setDiscountPct}
+                keyboardType="numeric"
+                placeholder="0"
+                placeholderTextColor={colors.muted}
+              />
+              <Text style={[styles.hintText, { marginTop: -8, marginBottom: 12 }]}>
+                0 — применяется глобальная скидка программы лояльности
+              </Text>
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
                 <MetalButton title="Сохранить" variant="success" onPress={handleSave} style={{ flex: 1 }} />
                 <MetalButton title="Отмена"    variant="back"    onPress={() => setEditing(false)} style={{ flex: 1 }} />
@@ -200,6 +217,8 @@ const styles = StyleSheet.create({
   code: { fontFamily: 'monospace', fontSize: 12, color: colors.muted, textAlign: 'center', marginBottom: 14 },
   balance: { fontFamily: fonts.family, fontSize: 56, fontWeight: '800', color: colors.greenLight, textAlign: 'center' },
   balanceLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textAlign: 'center', textTransform: 'uppercase', marginBottom: 16 },
+  personalDiscount: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.greenLight, textAlign: 'center', marginBottom: 10 },
+  hintText: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, lineHeight: 16 },
   statsRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
   statBox: { flex: 1, backgroundColor: '#07090f', borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 12, alignItems: 'center' },
   statValue: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text },
