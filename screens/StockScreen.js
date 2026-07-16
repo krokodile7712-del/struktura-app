@@ -146,6 +146,10 @@ export default function StockScreen({ navigation }) {
   };
 
   const categories = [...new Set(stock.map(i => i.category))];
+  const [stockSearch, setStockSearch] = useState('');
+  const filteredStock = stockSearch.trim()
+    ? stock.filter(i => i.name.toLowerCase().includes(stockSearch.toLowerCase()) || (i.category || '').toLowerCase().includes(stockSearch.toLowerCase()))
+    : null; // null = показываем по категориям
 
   const modeLabel = {
     'Закупка':   '💰 Закупка (обновит среднюю цену и себестоимость)',
@@ -186,6 +190,35 @@ export default function StockScreen({ navigation }) {
         </ScrollView>
       )}
       <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
+        <TextInput
+          style={styles.searchInput}
+          value={stockSearch}
+          onChangeText={setStockSearch}
+          placeholder="🔍 Поиск по названию или категории..."
+          placeholderTextColor={colors.muted}
+        />
+        {filteredStock ? (
+          <MetalCard>
+            {filteredStock.length === 0 && <Text style={styles.empty}>Ничего не найдено</Text>}
+            {filteredStock.map(item => {
+              const isNegative = item['остаток'] < 0;
+              const isLow = item['остаток'] <= item['порог'];
+              return (
+                <Pressable key={item.id} style={styles.row} onPress={() => openModal(item)}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.itemName, isLow && styles.itemNameLow, isNegative && styles.itemNameNegative]}>
+                      {isNegative ? '🔴 ' : isLow ? '⚠️ ' : ''}{item.name}
+                    </Text>
+                    <Text style={styles.itemSub}>{item.category} · порог: {item['порог']}</Text>
+                  </View>
+                  <Text style={[styles.itemQty, isLow && styles.itemQtyLow, isNegative && styles.itemQtyNegative]}>
+                    {item['остаток']} {item.unit}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </MetalCard>
+        ) : (
         <MetalCard>
           {stock.length === 0 && (
             <Text style={styles.empty}>Нет данных. Выполните импорт из Sheets.</Text>
@@ -222,6 +255,7 @@ export default function StockScreen({ navigation }) {
             );
           })}
         </MetalCard>
+        )}
       </ScrollView>
       <BottomBar navigation={navigation} activeTab="Kassa" />
 
@@ -321,6 +355,7 @@ export default function StockScreen({ navigation }) {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   inner: { padding: spacing.lg, paddingBottom: 20, maxWidth: 1100, width: '100%', alignSelf: 'center' },
+  searchInput: { padding: 11, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 14, color: colors.text, fontSize: 14, fontFamily: fonts.family, marginBottom: 12 },
   empty: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', paddingVertical: 20 },
   catHeader: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.textDim, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 },
   catHeaderLow: { color: '#c47a5a' },

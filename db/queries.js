@@ -223,6 +223,12 @@ export function getProductVariants(productId) {
   return rows.map(r => ({ ...r, axisValues: safeParse(r.axis_values, {}) }));
 }
 
+// Все активные варианты с непустым SKU — для поиска в кассе
+export function getAllVariantsWithSku() {
+  const db = getDb();
+  return db.getAllSync(`SELECT product_id, sku FROM product_variants WHERE sku != '' AND active = 1`);
+}
+
 export function getProductVariantById(id) {
   const db = getDb();
   const row = db.getFirstSync(`SELECT * FROM product_variants WHERE id = ?`, [id]);
@@ -645,7 +651,7 @@ export function deleteModifier(id) {
 
 // ─── Заказы ───────────────────────────────────────────────────────────────
 
-export function createOrder({ total, method, methodType, shift_id, client_id, items, cashAmount, cardAmount, discountPct, locationId }) {
+export function createOrder({ total, method, methodType, shift_id, client_id, items, cashAmount, cardAmount, discountPct, locationId, note }) {
   const db = getDb();
   const now = new Date().toISOString();
 
@@ -654,9 +660,9 @@ export function createOrder({ total, method, methodType, shift_id, client_id, it
   try { db.execSync(`ALTER TABLE orders ADD COLUMN discount_pct REAL DEFAULT 0`); } catch (_) {}
 
   const result = db.runSync(
-    `INSERT INTO orders (created_at, total, method, method_type, shift_id, client_id, cash_amount, card_amount, discount_pct)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [now, total, method, methodType || '', shift_id || null, client_id || null, cashAmount || 0, cardAmount || 0, discountPct || 0]
+    `INSERT INTO orders (created_at, total, method, method_type, shift_id, client_id, cash_amount, card_amount, discount_pct, note)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [now, total, method, methodType || '', shift_id || null, client_id || null, cashAmount || 0, cardAmount || 0, discountPct || 0, note || '']
   );
   const orderId = result.lastInsertRowId;
 
@@ -665,12 +671,12 @@ export function createOrder({ total, method, methodType, shift_id, client_id, it
     // size/milk/syrup оставлены для обратной совместимости отображения в Продажах;
     // размер варианта дублируется в size как читаемая метка, модификаторы — в JSON
     const itemResult = db.runSync(
-      `INSERT INTO order_items (order_id, product_id, variant_id, name, size, milk, syrup, price, modifiers)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO order_items (order_id, product_id, variant_id, name, size, milk, syrup, price, modifiers, quantity)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         orderId, item.product_id || null, item.variant_id || null, item.name,
         item.size || '', item.milk || '', item.syrup || '', item.price,
-        JSON.stringify(item.modifiers || []),
+        JSON.stringify(item.modifiers || []), item.quantity || 1,
       ]
     );
     try {
@@ -1271,7 +1277,7 @@ export function deductStockForOrderItem(orderItemId, item, locationId = null) {
   for (const d of deductions) {
     const stockRow = findStockByName(d.stockName);
     if (!stockRow) continue;
-    const deductAmt = d.amount * (d.factor ?? 1);
+    const deductAmt = d.amount * (d.factor ?? 1) * (item.quantity || 1);
 
     if (locationId) {
       // Модуль локаций включён — списываем из конкретной локации

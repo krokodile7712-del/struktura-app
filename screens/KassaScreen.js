@@ -7,7 +7,7 @@ import {
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import { getAllProducts, getCategories, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms, getLoyaltyConfig, spendPoints } from '../db/queries';
+import { getAllProducts, getCategories, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, getAllVariantsWithSku, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms, getLoyaltyConfig, spendPoints } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
 const CAT_ICONS = { 'Кофе': '☕', 'Лимонады': '🍹', 'Допы': '🍬', 'Прочее': '🫙' };
@@ -34,7 +34,17 @@ export default function KassaScreen({ navigation, route }) {
   const [loyaltyModel, setLoyaltyModel] = useState('points');
   const [loyaltyConfig, setLoyaltyConfig] = useState({});
   const [pointsToSpend, setPointsToSpend] = useState('');
-  const [payMethods, setPayMethods] = useState([]); // для оплаты баллами
+  const [payMethods, setPayMethods] = useState([]);
+  // Поиск
+  const [searchQuery, setSearchQuery] = useState('');
+  const [skuMap, setSkuMap] = useState({});       // {sku_lower: product_id}
+  // Заметка к заказу
+  const [orderNote, setOrderNote] = useState('');
+  const [noteModalOpen, setNoteModalOpen] = useState(false);
+  // Редактирование позиции корзины
+  const [editingCartItemId, setEditingCartItemId] = useState(null);
+  // Развёрнутая позиция (модификаторы)
+  const [expandedCartId, setExpandedCartId] = useState(null); // для оплаты баллами
 
   // Модалка оплаты
   const [payModalOpen, setPayModalOpen] = useState(false);
@@ -61,6 +71,11 @@ export default function KassaScreen({ navigation, route }) {
       setLoyaltyModel(lc.model);
       setLoyaltyConfig(lc.config);
       setPayMethods(getPayMethods().filter(m => m.active !== false));
+      // Строим SKU-карту для поиска по артикулу
+      const skuEntries = getAllVariantsWithSku();
+      const map = {};
+      for (const e of skuEntries) { if (e.sku) map[e.sku.toLowerCase()] = e.product_id; }
+      setSkuMap(map);
       setAllProducts(products);
       setGroups(cats);
       setActiveCat(cats[0] || null);
@@ -70,7 +85,25 @@ export default function KassaScreen({ navigation, route }) {
     setLoading(false);
   };
 
-  const itemsInCategory = allProducts.filter(p => p.category === activeCat);
+  // Фильтр товаров по поиску (имя + SKU)
+  const filteredProducts = (() => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return allProducts.filter(p => p.category === activeCat);
+    const skuMatches = new Set(
+      Object.entries(skuMap)
+        .filter(([sku]) => sku.includes(q))
+        .map(([, pid]) => pid)
+    );
+    return allProducts.filter(p =>
+      p.name.toLowerCase().includes(q) || skuMatches.has(p.id)
+    );
+  })();
+
+  // Счётчик: сколько раз товар есть в корзине (учитывая quantity)
+  const cartQtyByProduct = order.reduce((acc, item) => {
+    acc[item.product_id] = (acc[item.product_id] || 0) + (item.quantity || 1);
+    return acc;
+  }, {});
 
   // Показывает цену "от", учитывая либо варианты, либо простую цену без вариантов
   const displayPrice = (product) => {
@@ -92,12 +125,12 @@ export default function KassaScreen({ navigation, route }) {
     }) || null;
   };
 
-  const openModal = (product) => {
+  // Открывает модалку варианта/модификаторов для добавления или редактирования
+  const openModal = (product, preselectedVariantId = null, preselectedMods = null) => {
     const variants = getProductVariants(product.id).filter(v => v.active);
     const groups = getProductModifierGroups(product.id);
     const axes = getProductAxesWithValues(product.id);
-    // Нет вариантов и нет модификаторов — сразу в чек, без модалки
-    if (variants.length <= 1 && groups.length === 0) {
+    if (variants.length <= 1 && groups.length === 0 && !preselectedVariantId) {
       addDirectToOrder(product, variants[0] || null);
       return;
     }
@@ -106,18 +139,68 @@ export default function KassaScreen({ navigation, route }) {
     setModalGroups(groups);
     setModalAxes(axes);
     if (axes.length > 0) {
-      // Инициализируем выбор — первое значение каждой оси
-      const initSel = {};
-      axes.forEach(a => { if (a.values.length > 0) initSel[a.id] = a.values[0].id; });
+      const targetVariant = preselectedVariantId
+        ? variants.find(v => v.id === preselectedVariantId)
+        : null;
+      const initSel = targetVariant?.axisValues || {};
+      if (!targetVariant) axes.forEach(a => { if (a.values.length > 0) initSel[a.id] = a.values[0].id; });
       setSelAxisValues(initSel);
       setSelVariantId(findVariantByAxes(variants, initSel)?.id || null);
     } else {
       setSelAxisValues({});
-      setSelVariantId(variants[0]?.id || null);
+      setSelVariantId(preselectedVariantId || variants[0]?.id || null);
     }
     const initialMods = {};
-    groups.forEach(g => { initialMods[g.id] = g.selection_type === 'multiple' ? [] : null; });
+    groups.forEach(g => {
+      if (preselectedMods) {
+        initialMods[g.id] = preselectedMods[g.id] ?? (g.selection_type === 'multiple' ? [] : null);
+      } else {
+        initialMods[g.id] = g.selection_type === 'multiple' ? [] : null;
+      }
+    });
     setSelModifiers(initialMods);
+  };
+
+  // Объединяет дубли (одинаковый товар + вариант + модификаторы) вместо новой строки
+  const addToCart = (newItem) => {
+    setOrder(prev => {
+      const dupIdx = prev.findIndex(it =>
+        it.product_id === newItem.product_id &&
+        it.variant_id === newItem.variant_id &&
+        JSON.stringify(it.modifiers) === JSON.stringify(newItem.modifiers)
+      );
+      if (dupIdx !== -1) {
+        return prev.map((it, i) => i === dupIdx ? { ...it, quantity: (it.quantity || 1) + 1 } : it);
+      }
+      return [...prev, { ...newItem, quantity: 1 }];
+    });
+  };
+
+  // Изменяет количество позиции в корзине (удаляет если <= 0)
+  const setItemQty = (id, qty) => {
+    if (qty <= 0) {
+      setOrder(prev => prev.filter(i => i.id !== id));
+      if (expandedCartId === id) setExpandedCartId(null);
+    } else {
+      setOrder(prev => prev.map(i => i.id === id ? { ...i, quantity: qty } : i));
+    }
+  };
+
+  // Открывает модалку для редактирования позиции уже в корзине
+  const editCartItemMods = (item) => {
+    const product = allProducts.find(p => p.id === item.product_id);
+    if (!product) return;
+    // Строим preselectedMods из сохранённых модификаторов
+    const groups = getProductModifierGroups(product.id);
+    const preselectedMods = {};
+    groups.forEach(g => {
+      const existing = (item.modifiers || []).filter(m => m.groupId === g.id);
+      preselectedMods[g.id] = g.selection_type === 'multiple'
+        ? existing.map(m => m.optionId)
+        : existing[0]?.optionId ?? null;
+    });
+    setEditingCartItemId(item.id);
+    openModal(product, item.variant_id, preselectedMods);
   };
   const closeModal = () => setModalItem(null);
 
@@ -165,7 +248,7 @@ export default function KassaScreen({ navigation, route }) {
   };
 
   const addDirectToOrder = (product, variant) => {
-    setOrder(prev => [...prev, {
+    addToCart({
       id: Date.now() + Math.random(),
       product_id: product.id,
       variant_id: variant?.id || null,
@@ -173,7 +256,7 @@ export default function KassaScreen({ navigation, route }) {
       size: variant?.label || '',
       price: variant ? variant.price : (product.price || 0),
       modifiers: [],
-    }]);
+    });
   };
 
   const confirmAdd = () => {
@@ -181,26 +264,40 @@ export default function KassaScreen({ navigation, route }) {
     let variant;
     if (modalAxes.length > 0) {
       variant = findVariantByAxes(modalVariants, selAxisValues);
-      if (!variant) return; // комбинация недоступна
+      if (!variant) return;
     } else {
       variant = modalVariants.find(v => v.id === selVariantId);
     }
     const mods = buildSelectedModifiers(modalGroups, selModifiers);
-    setOrder(prev => [...prev, {
-      id: Date.now() + Math.random(),
-      product_id: modalItem.id,
-      variant_id: variant?.id || null,
-      name: modalItem.name,
-      size: variant?.label || '',
-      price: modalPrice(),
-      modifiers: mods,
-    }]);
+    const unitPrice = modalPrice();
+
+    if (editingCartItemId) {
+      setOrder(prev => prev.map(item =>
+        item.id === editingCartItemId
+          ? { ...item, variant_id: variant?.id || null, size: variant?.label || '', price: unitPrice, modifiers: mods }
+          : item
+      ));
+      setEditingCartItemId(null);
+    } else {
+      addToCart({
+        id: Date.now() + Math.random(),
+        product_id: modalItem.id,
+        variant_id: variant?.id || null,
+        name: modalItem.name,
+        size: variant?.label || '',
+        price: unitPrice,
+        modifiers: mods,
+      });
+    }
     closeModal();
   };
 
-  const removeFromOrder = (id) => setOrder(prev => prev.filter(i => i.id !== id));
+  const removeFromOrder = (id) => {
+    setOrder(prev => prev.filter(i => i.id !== id));
+    if (expandedCartId === id) setExpandedCartId(null);
+  };
 
-  const rawTotal = order.reduce((s, i) => s + i.price, 0);
+  const rawTotal = order.reduce((s, i) => s + i.price * (i.quantity || 1), 0);
   const maxDiscountPct = loyaltyConfig.max_discount_pct ?? 100;
 
   // Личная скидка клиента имеет приоритет над глобальной моделью discount
@@ -290,6 +387,7 @@ export default function KassaScreen({ navigation, route }) {
         cashAmount, cardAmount,
         discountPct: effectiveDiscount?.pct || 0,
         locationId: getCurrentLocationId(),
+        note: orderNote,
       });
       if (forClient?.id) {
         if (loyaltyModel === 'points' && loyaltyConfig.allow_spend && pointsToSpend) {
@@ -301,6 +399,7 @@ export default function KassaScreen({ navigation, route }) {
       setOrder([]);
       setAppliedDiscount(null);
       setPointsToSpend('');
+      setOrderNote('');
       setPayModalOpen(false);
       if (stockWarnings && stockWarnings.length > 0) {
         const lines = stockWarnings.map(w => `${w.name}: ${w.amount.toFixed(1)} ${w.unit || ''}`).join('\n');
@@ -359,45 +458,100 @@ export default function KassaScreen({ navigation, route }) {
 
       <View style={styles.layout}>
         <View style={styles.left}>
-          <FlatList
-            horizontal data={groups} keyExtractor={(g) => g} showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.catList}
-            renderItem={({ item: group }) => (
-              <Pressable style={[styles.catBtn, activeCat === group && styles.catBtnActive]} onPress={() => setActiveCat(group)}>
-                <Text style={styles.catIcon}>{CAT_ICONS[group] || '🫙'}</Text>
-                <Text style={[styles.catLabel, activeCat === group && styles.catLabelActive]}>{group}</Text>
-              </Pressable>
-            )}
-          />
+          {/* Строка поиска */}
+          <View style={styles.searchWrap}>
+            <TextInput
+              style={styles.searchInput}
+              value={searchQuery}
+              onChangeText={v => { setSearchQuery(v); if (v) setActiveCat(groups[0]); }}
+              placeholder="🔍 Поиск по названию или артикулу..."
+              placeholderTextColor={colors.muted}
+              clearButtonMode="while-editing"
+            />
+          </View>
+          {!searchQuery && (
+            <FlatList
+              horizontal data={groups} keyExtractor={(g) => g} showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.catList}
+              renderItem={({ item: group }) => (
+                <Pressable style={[styles.catBtn, activeCat === group && styles.catBtnActive]} onPress={() => setActiveCat(group)}>
+                  <Text style={styles.catIcon}>{CAT_ICONS[group] || '🫙'}</Text>
+                  <Text style={[styles.catLabel, activeCat === group && styles.catLabelActive]}>{group}</Text>
+                </Pressable>
+              )}
+            />
+          )}
           <ScrollView contentContainerStyle={styles.menuGrid}>
-            {itemsInCategory.map((item) => {
+            {filteredProducts.map((item) => {
               const { price, hasRange } = displayPrice(item);
+              const cartQty = cartQtyByProduct[item.id] || 0;
               return (
                 <Pressable key={item.id} style={styles.menuItem} onPress={() => openModal(item)}>
+                  {cartQty > 0 && (
+                    <View style={styles.cartBadge}><Text style={styles.cartBadgeText}>{cartQty}</Text></View>
+                  )}
                   <Text style={styles.menuItemName}>{item.name}</Text>
                   <Text style={styles.menuItemPrice}>{hasRange ? `от ${price}` : price} ₽</Text>
                 </Pressable>
               );
             })}
+            {filteredProducts.length === 0 && (
+              <Text style={styles.emptyOrder}>Ничего не найдено</Text>
+            )}
           </ScrollView>
         </View>
 
         <View style={styles.orderPanel}>
           <View style={styles.orderHeader}>
-            <Text style={styles.orderHeaderText}>🛒 {terms.order} ({order.length})</Text>
-          </View>
-          <ScrollView style={{ flex: 1 }}>
-            {order.map((item) => (
-              <Pressable key={item.id} style={styles.orderItem} onPress={() => removeFromOrder(item.id)}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.orderItemName}>{item.name}{item.size ? ` ${item.size}` : ''}</Text>
-                  {(item.modifiers || []).map((m, mi) => (
-                    <Text key={mi} style={styles.orderItemMod}>· {m.optionName}{m.priceDelta > 0 ? ` +${m.priceDelta}₽` : ''}</Text>
-                  ))}
-                </View>
-                <Text style={styles.orderItemPrice}>{item.price} ₽</Text>
+            <Text style={styles.orderHeaderText}>🛒 {terms.order} ({order.reduce((s,i)=>s+(i.quantity||1),0)})</Text>
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              <Pressable onPress={() => setNoteModalOpen(true)} hitSlop={8} style={styles.orderHeaderBtn}>
+                <Text style={[styles.orderHeaderBtnText, orderNote && { color: colors.greenLight }]}>📝</Text>
               </Pressable>
-            ))}
+              {order.length > 0 && (
+                <Pressable onPress={() => { setOrder([]); setExpandedCartId(null); }} hitSlop={8} style={styles.orderHeaderBtn}>
+                  <Text style={styles.orderHeaderBtnText}>🗑</Text>
+                </Pressable>
+              )}
+            </View>
+          </View>
+          {orderNote ? <Text style={styles.orderNotePreview}>📝 {orderNote}</Text> : null}
+          <ScrollView style={{ flex: 1 }}>
+            {order.map((item) => {
+              const isExpanded = expandedCartId === item.id;
+              const hasMods = (item.modifiers || []).length > 0;
+              return (
+                <View key={item.id} style={styles.orderItem}>
+                  <Pressable style={styles.orderItemMain} onPress={() => hasMods && setExpandedCartId(isExpanded ? null : item.id)}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.orderItemName}>
+                        {item.name}{item.size ? ` · ${item.size}` : ''}
+                        {hasMods && <Text style={styles.modsToggle}> {isExpanded ? '▲' : '▼'}</Text>}
+                      </Text>
+                      {isExpanded && (item.modifiers || []).map((m, mi) => (
+                        <Text key={mi} style={styles.orderItemMod}>· {m.optionName}{m.priceDelta > 0 ? ` +${m.priceDelta}₽` : ''}</Text>
+                      ))}
+                    </View>
+                    <Text style={styles.orderItemPrice}>{(item.price * (item.quantity || 1)).toFixed(0)} ₽</Text>
+                  </Pressable>
+                  <View style={styles.orderItemControls}>
+                    <Pressable style={styles.qtyBtn} onPress={() => setItemQty(item.id, (item.quantity || 1) - 1)} hitSlop={6}>
+                      <Text style={styles.qtyBtnText}>−</Text>
+                    </Pressable>
+                    <Text style={styles.qtyVal}>{item.quantity || 1}</Text>
+                    <Pressable style={styles.qtyBtn} onPress={() => setItemQty(item.id, (item.quantity || 1) + 1)} hitSlop={6}>
+                      <Text style={styles.qtyBtnText}>+</Text>
+                    </Pressable>
+                    <Pressable style={styles.editModsBtn} onPress={() => editCartItemMods(item)} hitSlop={6}>
+                      <Text style={styles.editModsBtnText}>✎</Text>
+                    </Pressable>
+                    <Pressable style={styles.removeBtn} onPress={() => removeFromOrder(item.id)} hitSlop={6}>
+                      <Text style={styles.removeBtnText}>✕</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              );
+            })}
             {order.length === 0 && <Text style={styles.emptyOrder}>Корзина пуста</Text>}
           </ScrollView>
 
@@ -440,6 +594,34 @@ export default function KassaScreen({ navigation, route }) {
       </View>
 
       <BottomBar navigation={navigation} activeTab="Kassa" />
+
+      {/* Модалка заметки к заказу */}
+      <Modal visible={noteModalOpen} transparent animationType="fade" onRequestClose={() => setNoteModalOpen(false)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setNoteModalOpen(false)} />
+          <View style={[styles.modalInner, { width: '45%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>📝 Заметка к заказу</Text>
+              <Pressable onPress={() => setNoteModalOpen(false)} hitSlop={12}>
+                <Text style={styles.modalCloseText}>✕</Text>
+              </Pressable>
+            </View>
+            <TextInput
+              style={[styles.input, { height: 100, textAlignVertical: 'top', fontSize: 15 }]}
+              value={orderNote}
+              onChangeText={setOrderNote}
+              placeholder="Без сахара, на вынос, стол 5..."
+              placeholderTextColor={colors.muted}
+              multiline
+              autoFocus
+            />
+            <MetalButton title="Готово" variant="success" onPress={() => setNoteModalOpen(false)} style={{ marginTop: 10 }} />
+            {orderNote ? (
+              <MetalButton title="Очистить заметку" variant="back" onPress={() => { setOrderNote(''); setNoteModalOpen(false); }} style={{ marginTop: 6 }} />
+            ) : null}
+          </View>
+        </View>
+      </Modal>
 
       {/* Модалка товара */}
       <Modal visible={!!modalItem} transparent animationType="fade" onRequestClose={closeModal}>
@@ -623,13 +805,31 @@ const styles = StyleSheet.create({
   catLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase' },
   catLabelActive: { color: colors.greenLight },
   menuGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, padding: 10 },
-  menuItem: { width: '30%', minWidth: 110, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: colors.borderHi, backgroundColor: colors.surface2, alignItems: 'center' },
+  menuItem: { width: '30%', minWidth: 110, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: colors.borderHi, backgroundColor: colors.surface2, alignItems: 'center', position: 'relative' },
   menuItemName: { fontFamily: fonts.family, fontSize: 13, fontWeight: '600', color: colors.text, textAlign: 'center', textTransform: 'uppercase' },
   menuItemPrice: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 6 },
+  cartBadge: { position: 'absolute', top: -6, right: -6, minWidth: 20, height: 20, borderRadius: 10, backgroundColor: colors.greenLight, alignItems: 'center', justifyContent: 'center', zIndex: 1, paddingHorizontal: 4 },
+  cartBadgeText: { fontFamily: fonts.familySemibold, fontSize: 11, color: '#000' },
+  searchWrap: { paddingHorizontal: 10, paddingTop: 8, paddingBottom: 4 },
+  searchInput: { padding: 10, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 14, color: colors.text, fontSize: 14, fontFamily: fonts.family },
+  orderNotePreview: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.greenLight, paddingHorizontal: 14, paddingBottom: 4, fontStyle: 'italic' },
+  orderHeaderBtn: { padding: 6 },
+  orderHeaderBtnText: { fontSize: 16, color: colors.muted },
+  orderItemMain: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 12, paddingTop: 10 },
+  orderItemControls: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingBottom: 8, paddingTop: 4 },
+  qtyBtn: { width: 28, height: 28, borderRadius: 8, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  qtyBtnText: { fontFamily: fonts.family, fontSize: 16, color: colors.text, lineHeight: 20 },
+  qtyVal: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, minWidth: 22, textAlign: 'center' },
+  editModsBtn: { marginLeft: 6, paddingHorizontal: 10, height: 28, borderRadius: 8, backgroundColor: 'rgba(61,95,168,0.15)', borderWidth: 1, borderColor: 'rgba(61,95,168,0.4)', alignItems: 'center', justifyContent: 'center' },
+  editModsBtnText: { fontSize: 14, color: '#7a9be8' },
+  removeBtn: { marginLeft: 2, paddingHorizontal: 10, height: 28, borderRadius: 8, backgroundColor: 'rgba(160,16,32,0.12)', borderWidth: 1, borderColor: 'rgba(160,16,32,0.3)', alignItems: 'center', justifyContent: 'center' },
+  removeBtnText: { fontSize: 13, color: colors.redLight },
+  modsToggle: { fontSize: 10, color: colors.muted },
+  input: { padding: 13, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 15, fontFamily: fonts.family },
   orderPanel: { width: '33%', minWidth: 240, borderLeftWidth: 1, borderLeftColor: colors.border, backgroundColor: colors.surface },
-  orderHeader: { padding: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
+  orderHeader: { paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   orderHeaderText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 2 },
-  orderItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
+  orderItem: { borderBottomWidth: 1, borderBottomColor: colors.border },
   orderItemName: { fontFamily: fonts.family, fontSize: 14, color: colors.text },
   orderItemMod: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
   orderItemPrice: { fontFamily: fonts.family, fontSize: 14, fontWeight: '700', color: colors.text },
