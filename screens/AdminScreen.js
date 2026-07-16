@@ -17,6 +17,7 @@ const getMenuItems = (terms) => [
   { icon: '🗂️', label: 'Локации',         screen: 'Locations',   variant: 'default',  module: 'locations' },
   { icon: '📋', label: 'Инвентаризация',  screen: 'Inventory',   variant: 'default',  module: 'inventory' },
   { icon: '📥', label: 'Импорт Sheets',   screen: 'Migrate',     variant: 'success' },
+  { icon: '👥', label: 'Сотрудники',     screen: 'Employees',   variant: 'pay'     },
   { icon: '⚙️', label: 'Настройки',      screen: 'Settings',    variant: 'pay'     },
 ];
 

@@ -403,14 +403,56 @@ export function getDiscounts() {
 
 export function getUserByPin(pin) {
   const db = getDb();
-  return db.getFirstSync(`SELECT * FROM users WHERE pin = ?`, [pin]) || null;
+  // Только активные сотрудники могут войти
+  return db.getFirstSync(`SELECT * FROM users WHERE pin = ? AND active != 0`, [pin]) || null;
 }
 
 export function getUsers() {
   const db = getDb();
-  return db.getAllSync(`SELECT * FROM users`);
+  return db.getAllSync(`SELECT * FROM users WHERE active != 0 ORDER BY role DESC, name`);
 }
 
+export function getAllUsers() {
+  const db = getDb();
+  return db.getAllSync(`SELECT * FROM users ORDER BY role DESC, name, active DESC`);
+}
+
+// Добавляет нового сотрудника. Возвращает {ok, error}
+export function addUser(name, pin, role) {
+  const db = getDb();
+  if (!name?.trim()) return { ok: false, error: 'Укажите имя сотрудника' };
+  if (!pin?.trim() || pin.trim().length < 4) return { ok: false, error: 'PIN — минимум 4 цифры' };
+  const exists = db.getFirstSync(`SELECT id FROM users WHERE pin = ?`, [pin.trim()]);
+  if (exists) return { ok: false, error: 'Этот PIN уже используется' };
+  db.runSync(`INSERT INTO users (name, pin, role, active) VALUES (?, ?, ?, 1)`, [name.trim(), pin.trim(), role]);
+  return { ok: true };
+}
+
+// Обновляет сотрудника. Возвращает {ok, error}
+export function updateUser(id, name, pin, role) {
+  const db = getDb();
+  if (!name?.trim()) return { ok: false, error: 'Укажите имя сотрудника' };
+  if (!pin?.trim() || pin.trim().length < 4) return { ok: false, error: 'PIN — минимум 4 цифры' };
+  const exists = db.getFirstSync(`SELECT id FROM users WHERE pin = ? AND id != ?`, [pin.trim(), id]);
+  if (exists) return { ok: false, error: 'Этот PIN уже занят другим сотрудником' };
+  db.runSync(`UPDATE users SET name = ?, pin = ?, role = ? WHERE id = ?`, [name.trim(), pin.trim(), role, id]);
+  return { ok: true };
+}
+
+// Мягкое удаление/восстановление. Нельзя деактивировать последнего активного админа.
+export function toggleUserActive(id) {
+  const db = getDb();
+  const user = db.getFirstSync(`SELECT * FROM users WHERE id = ?`, [id]);
+  if (!user) return { ok: false, error: 'Сотрудник не найден' };
+  if (user.active && user.role === 'admin') {
+    const adminCount = db.getFirstSync(`SELECT COUNT(*) as n FROM users WHERE role='admin' AND active != 0`);
+    if ((adminCount?.n || 0) <= 1) return { ok: false, error: 'Нельзя деактивировать единственного администратора' };
+  }
+  db.runSync(`UPDATE users SET active = ? WHERE id = ?`, [user.active ? 0 : 1, id]);
+  return { ok: true };
+}
+
+// Оставляем для обратной совместимости (Settings → EmployeesScreen заменяет эту логику)
 export function updateUserPin(role, pin) {
   const db = getDb();
   db.runSync(`UPDATE users SET pin = ? WHERE role = ?`, [pin, role]);
@@ -599,14 +641,16 @@ export function addClientVisit(client_id, amount) {
 
 // ─── Смены ────────────────────────────────────────────────────────────────
 
-export function openShift(cashOpen = 0) {
+export function openShift(cashOpen = 0, userId = null, employeeName = '') {
   const db = getDb();
   const now = new Date().toISOString();
-  // Добавляем колонку cash_open если нет
   try { db.execSync(`ALTER TABLE shifts ADD COLUMN cash_open REAL DEFAULT 0`); } catch (_) {}
   const existing = db.getFirstSync(`SELECT * FROM shifts WHERE status='open' ORDER BY opened_at DESC LIMIT 1`);
-  if (existing) return existing.id; // смена уже открыта — не плодим дубли
-  return db.runSync(`INSERT INTO shifts (opened_at, status, cash_open) VALUES (?, 'open', ?)`, [now, cashOpen]).lastInsertRowId;
+  if (existing) return existing.id;
+  return db.runSync(
+    `INSERT INTO shifts (opened_at, status, cash_open, user_id, employee_name) VALUES (?, 'open', ?, ?, ?)`,
+    [now, cashOpen, userId || null, employeeName || '']
+  ).lastInsertRowId;
 }
 
 export function closeShift(shift_id) {
@@ -912,6 +956,7 @@ export function getShiftSummary(shift_id) {
     cash, card, qr, total,
     expenses, expTotal, expByCategory,
     openingCash, cashRemaining,
+    employeeName: shift.employee_name || '',
   };
 }
 

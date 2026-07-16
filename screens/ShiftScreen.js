@@ -27,8 +27,8 @@ export default function ShiftScreen({ navigation }) {
   const handleOpen = () => {
     const cash = parseFloat(cashOpen) || 0;
     try {
-      openShift(cash);
       const user = getSession();
+      openShift(cash, user?.id || null, user?.name || '');
       if (user?.role === 'admin') {
         navigation.navigate('Admin');
       } else {

@@ -545,14 +545,16 @@ export default function SettingsScreen({ navigation }) {
           </MetalCard>
         )}
 
-        {/* PIN-коды */}
+        {/* Сотрудники (заменяет старую секцию PIN-кодов) */}
         <MetalCard style={{ marginTop: 12 }}>
-          <Text style={styles.blockTitle}>🔑 PIN-коды</Text>
-          <Text style={styles.fieldLabel}>Бариста</Text>
-          <TextInput style={styles.input} keyboardType="number-pad" maxLength={6} value={pinBarista} onChangeText={setPinBarista} placeholderTextColor={colors.muted} />
-          <Text style={styles.fieldLabel}>Администратор</Text>
-          <TextInput style={styles.input} keyboardType="number-pad" maxLength={6} value={pinAdmin} onChangeText={setPinAdmin} placeholderTextColor={colors.muted} />
-          <MetalButton title="Сохранить PIN-коды" variant="success" onPress={savePins} />
+          <Text style={styles.blockTitle}>👥 Сотрудники</Text>
+          <Text style={styles.hintText}>Управление именными сотрудниками и их PIN-кодами.</Text>
+          <MetalButton
+            title="→ Управление сотрудниками"
+            variant="default"
+            onPress={() => navigation.navigate('Employees')}
+            style={{ marginTop: 8 }}
+          />
         </MetalCard>
 
         {/* Общие настройки */}

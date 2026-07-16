@@ -55,6 +55,9 @@ export default function ShiftCloseScreen({ navigation }) {
       <ScrollView contentContainerStyle={styles.inner}>
         <MetalCard>
           <Text style={styles.cardTitle}>📋 Итоги смены</Text>
+          {summary.employeeName ? (
+            <Text style={styles.employeeLabel}>👤 {summary.employeeName}</Text>
+          ) : null}
 
           <Text style={styles.sectionTitle}>{pluralizeRu(terms.order)}</Text>
           <View style={styles.row}><Text style={styles.rowLabel}>💵 Наличные</Text><Text style={styles.rowValue}>{summary.cash} ₽</Text></View>
@@ -122,7 +125,8 @@ export default function ShiftCloseScreen({ navigation }) {
 const styles = StyleSheet.create({
   inner: { padding: spacing.lg, paddingBottom: 80, maxWidth: 1100, width: '100%', alignSelf: 'center' },
   emptyText: { fontFamily: fonts.familyRegular, fontSize: 15, color: colors.muted, marginBottom: 20 },
-  cardTitle: { fontFamily: fonts.family, fontSize: 11, letterSpacing: 3, color: colors.textDim, textAlign: 'center', textTransform: 'uppercase', marginBottom: 18 },
+  cardTitle: { fontFamily: fonts.family, fontSize: 11, letterSpacing: 3, color: colors.textDim, textAlign: 'center', textTransform: 'uppercase', marginBottom: 8 },
+  employeeLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, textAlign: 'center', marginBottom: 14 },
   sectionTitle: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 2, marginTop: 16, marginBottom: 6 },
   row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
   rowLabel: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.text },

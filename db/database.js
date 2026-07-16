@@ -273,6 +273,10 @@ export function initDatabase() {
     `ALTER TABLE order_items    ADD COLUMN modifiers  TEXT    DEFAULT '[]'`,
     // Фаза 2: коэффициент пересчёта единиц в техкартах (1 = без конвертации)
     `ALTER TABLE cost_ingredients ADD COLUMN factor REAL DEFAULT 1`,
+    // Фаза 3: именные сотрудники и привязка смен
+    `ALTER TABLE users   ADD COLUMN active        INTEGER DEFAULT 1`,
+    `ALTER TABLE shifts  ADD COLUMN user_id       INTEGER`,
+    `ALTER TABLE shifts  ADD COLUMN employee_name TEXT    DEFAULT ''`,
   ];
   for (const sql of migrations) {
     try { db.execSync(sql); } catch (_) {}
