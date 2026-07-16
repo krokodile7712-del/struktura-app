@@ -199,7 +199,9 @@ export default function StockScreen({ navigation }) {
         />
         {filteredStock ? (
           <MetalCard>
-            {filteredStock.length === 0 && <Text style={styles.empty}>Ничего не найдено</Text>}
+            {filteredStock.length === 0 && (
+              <EmptyState icon="🔍" title="Ничего не найдено" text="Попробуйте изменить запрос или проверьте написание." />
+            )}
             {filteredStock.map(item => {
               const isNegative = item['остаток'] < 0;
               const isLow = item['остаток'] <= item['порог'];
@@ -221,7 +223,11 @@ export default function StockScreen({ navigation }) {
         ) : (
         <MetalCard>
           {stock.length === 0 && (
-            <Text style={styles.empty}>Нет данных. Выполните импорт из Sheets.</Text>
+            <EmptyState
+              icon="📦"
+              title="Склад пока пуст"
+              text="Здесь будут отображаться все ваши запасы: ингредиенты, товары, расходники. Добавьте первую позицию, чтобы отслеживать остатки и получать предупреждения когда что-то заканчивается."
+            />
           )}
           {categories.map(cat => {
             const items = stock.filter(i => i.category === cat);

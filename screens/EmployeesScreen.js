@@ -5,6 +5,8 @@ import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import { getAllUsers, addUser, updateUser, toggleUserActive, getRoleNames } from '../db/queries';
+import Hint from '../components/Hint';
+import EmptyState from '../components/EmptyState';
 import { colors, fonts, spacing } from '../constants/theme';
 
 const emptyModal = { id: null, name: '', pin: '', pinConfirm: '', role: 'barista', active: 1 };
@@ -104,7 +106,13 @@ export default function EmployeesScreen({ navigation }) {
 
         <MetalCard>
           {active.length === 0 && (
-            <Text style={styles.empty}>Нет активных сотрудников</Text>
+            <EmptyState
+              icon="👥"
+              title="Сотрудников пока нет"
+              text="Добавьте сотрудников чтобы каждый мог войти в систему по своему PIN-коду. Можно назначить разные уровни доступа."
+              action="Добавить первого сотрудника"
+              onAction={openAdd}
+            />
           )}
           {active.map(renderUser)}
           <MetalButton title="+ Добавить сотрудника" variant="default" onPress={openAdd} style={{ marginTop: 12 }} />
@@ -188,6 +196,7 @@ export default function EmployeesScreen({ navigation }) {
                   placeholder="Повторите PIN"
                   placeholderTextColor={colors.muted}
                 />
+                <Hint>4-6 цифр. Каждый сотрудник вводит свой уникальный PIN при начале работы. Не используйте одинаковые коды для разных людей.</Hint>
 
                 {error !== '' && <Text style={styles.errorText}>{error}</Text>}
 

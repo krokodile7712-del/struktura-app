@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TextInput } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
+import Hint from '../components/Hint';
 import { openShift, getOpenShift } from '../db/queries';
 import { getSession } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
@@ -15,7 +16,6 @@ export default function ShiftScreen({ navigation }) {
   const dateStr = `${String(today.getDate()).padStart(2,'0')}.${String(today.getMonth()+1).padStart(2,'0')}.${today.getFullYear()}`;
 
   useEffect(() => {
-    // Смена уже открыта — форма тут не нужна, сразу уходим на домашний экран
     try {
       if (getOpenShift()) {
         const user = getSession();
@@ -29,37 +29,44 @@ export default function ShiftScreen({ navigation }) {
     try {
       const user = getSession();
       openShift(cash, user?.id || null, user?.name || '');
-      if (user?.role === 'admin') {
-        navigation.navigate('Admin');
-      } else {
-        navigation.navigate('Dashboard');
-      }
+      navigation.navigate(user?.role === 'admin' ? 'Admin' : 'Dashboard');
     } catch (e) {
-      setError('Ошибка открытия смены: ' + e.message);
+      setError('Не удалось открыть смену: ' + e.message);
     }
   };
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title="Открытие смены" />
+      <TopBar title="Начало рабочего дня" />
       <ScrollView contentContainerStyle={styles.inner}>
-        <MetalCard>
-          <Text style={styles.dateText}>📅 {dateStr}</Text>
+        <Text style={styles.dateText}>📅 {dateStr}</Text>
+        <Text style={styles.subtitle}>Прежде чем начать принимать заказы, откройте смену</Text>
 
-          <Text style={styles.label}>Наличные в кассе на начало смены</Text>
+        <MetalCard style={{ marginTop: 16 }}>
+          <Text style={styles.label}>Наличные в кассе сейчас, ₽</Text>
           <TextInput
             style={styles.input}
-            placeholder="0 ₽"
+            placeholder="0"
             placeholderTextColor={colors.muted}
             keyboardType="numeric"
             value={cashOpen}
             onChangeText={v => { setCashOpen(v); setError(''); }}
             autoFocus
           />
+          <Hint>
+            Пересчитайте купюры в кассе и введите сумму. Это нужно чтобы в конце дня сравнить — сколько должно быть и сколько есть на самом деле. Если не знаете точно — введите 0, это не обязательное поле.
+          </Hint>
 
-          {error !== '' && <Text style={styles.error}>{error}</Text>}
+          {error !== '' && <Text style={styles.error}>⚠️ {error}</Text>}
 
-          <MetalButton title="▶ Открыть смену" variant="action" onPress={handleOpen} />
+          <MetalButton title="▶ Начать рабочий день" variant="action" onPress={handleOpen} />
+        </MetalCard>
+
+        <MetalCard style={{ marginTop: 12 }}>
+          <Text style={styles.infoTitle}>Что такое смена?</Text>
+          <Text style={styles.infoText}>
+            Смена — это один рабочий период (обычно один день). В течение смены записываются все продажи, расходы и действия сотрудников. В конце смены вы увидите итоговый отчёт: выручка, средний чек, способы оплаты.
+          </Text>
         </MetalCard>
       </ScrollView>
     </View>
@@ -67,14 +74,17 @@ export default function ShiftScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  inner: { padding: spacing.lg, paddingBottom: 80, maxWidth: 900, width: '100%', alignSelf: 'center' },
-  dateText: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text, textAlign: 'center', marginBottom: 20 },
+  inner: { padding: spacing.lg, paddingBottom: 80, maxWidth: 700, width: '100%', alignSelf: 'center' },
+  dateText: { fontFamily: fonts.familySemibold, fontSize: 18, color: colors.text, textAlign: 'center', marginBottom: 6 },
+  subtitle: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', lineHeight: 20 },
   label: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 2, marginBottom: 10 },
   input: {
     width: '100%', padding: 18, backgroundColor: '#07080a',
     borderWidth: 1, borderColor: colors.border, borderRadius: 14,
-    color: colors.text, fontSize: 28, marginBottom: 16,
+    color: colors.text, fontSize: 32, marginBottom: 4,
     textAlign: 'center', fontFamily: fonts.family,
   },
-  error: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.red, textAlign: 'center', marginBottom: 10 },
+  error: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.redLight, textAlign: 'center', marginBottom: 10 },
+  infoTitle: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, marginBottom: 8 },
+  infoText: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, lineHeight: 20 },
 });

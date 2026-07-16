@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
+import Hint from '../components/Hint';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
+import Hint from '../components/Hint';
 import { migrateFromSheets } from '../db/migrate';
+import Hint from '../components/Hint';
 import { colors, fonts, spacing } from '../constants/theme';
 
 export default function MigrateScreen({ navigation }) {

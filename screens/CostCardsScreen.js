@@ -5,6 +5,7 @@ import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
+import EmptyState from '../components/EmptyState';
 import { getAllCostCards, deleteCostCard, getTerms, genitiveSingularRu } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
@@ -38,7 +39,11 @@ export default function CostCardsScreen({ navigation }) {
           </Text>
           <Text style={styles.sectionTitle}>Техкарты ({cards.length})</Text>
           {cards.length === 0 && (
-            <Text style={styles.empty}>Пока ни одной техкарты не создано.</Text>
+            <EmptyState
+              icon="🧾"
+              title="Техкарт пока нет"
+              text="Техкарта (рецепт) — это список ингредиентов которые списываются со склада при каждой продаже. Создайте техкарту в разделе «Настройки → Меню и цены», открыв карточку товара."
+            />
           )}
           {cards.map(card => {
             const isOpen = expandedId === card.id;

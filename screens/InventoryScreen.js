@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import EmptyState from '../components/EmptyState';
 import { View, Text, StyleSheet, ScrollView, Pressable, Modal } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
@@ -144,7 +145,13 @@ export default function InventoryScreen({ navigation }) {
         )}
 
         {acts.length === 0 && (
-          <Text style={styles.empty}>Актов инвентаризации пока нет.</Text>
+          <EmptyState
+            icon="📋"
+            title="Инвентаризаций пока не проводилось"
+            text="Инвентаризация — это сверка фактических остатков на складе с тем что записано в системе. Помогает найти недостачи или излишки. Проводите раз в неделю или месяц."
+            action="Начать первую инвентаризацию"
+            onAction={openSetup}
+          />
         )}
       </ScrollView>
       <BottomBar navigation={navigation} activeTab="Kassa" />

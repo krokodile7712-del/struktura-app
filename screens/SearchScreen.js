@@ -4,6 +4,7 @@ import MetalCard from '../components/MetalCard';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import { searchClients, getTerms } from '../db/queries';
+import Hint from '../components/Hint';
 import { colors, fonts, spacing } from '../constants/theme';
 
 export default function SearchScreen({ navigation }) {
@@ -36,7 +37,7 @@ export default function SearchScreen({ navigation }) {
             autoFocus
           />
           {query.length >= 2 && results.length === 0 && (
-            <Text style={styles.empty}>{terms.client} не найден</Text>
+            <Text style={styles.empty}>{terms.client} не найден. Проверьте написание или зарегистрируйте нового.</Text>
           )}
           {results.map((client) => (
             <Pressable

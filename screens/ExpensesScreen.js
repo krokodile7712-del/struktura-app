@@ -1,11 +1,19 @@
 import React, { useState } from 'react';
+import EmptyState from '../components/EmptyState';
+import Hint from '../components/Hint';
 import { getHomeRoute } from '../db/session';
+import EmptyState from '../components/EmptyState';
+import Hint from '../components/Hint';
 import { View, Text, StyleSheet, ScrollView, TextInput, Pressable } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
+import EmptyState from '../components/EmptyState';
+import Hint from '../components/Hint';
 import { getAllExpenses, insertExpense } from '../db/queries';
+import EmptyState from '../components/EmptyState';
+import Hint from '../components/Hint';
 import { colors, fonts, spacing } from '../constants/theme';
 
 const PERIODS = [

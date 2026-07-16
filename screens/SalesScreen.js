@@ -4,6 +4,7 @@ import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
+import EmptyState from '../components/EmptyState';
 import { getRecentOrders, getOrderItems, deleteOrder, updateOrder, getTerms, pluralizeRu, genitivePluralRu, getPayMethods } from '../db/queries';
 import { getSession, getHomeRoute } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
@@ -183,7 +184,13 @@ export default function SalesScreen({ navigation }) {
                 </View>
               </View>
 
-              {orders.length === 0 && <Text style={styles.empty}>Нет {genitivePluralRu(terms.order).toLowerCase()} за выбранный период</Text>}
+              {orders.length === 0 && (
+              <EmptyState
+                icon="📊"
+                title="Продаж за этот период нет"
+                text="Выберите другой период или убедитесь что в этот день были оформлены заказы."
+              />
+            )}
 
               {/* Список сгруппированный по датам */}
               {grouped.map(([date, dayOrders]) => {

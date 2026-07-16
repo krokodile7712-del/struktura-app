@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, ScrollView, TextInput, Pressable } from 'react-
 import MetalCard from '../components/MetalCard';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
+import EmptyState from '../components/EmptyState';
 import { getAllClients, searchClients, getTerms, pluralizeRu, genitivePluralRu } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
@@ -34,7 +35,7 @@ export default function ClientsListScreen({ navigation }) {
           />
           {filtered.length === 0 && (
             <Text style={styles.empty}>
-              {clients.length === 0 ? `Нет ${genitivePluralRu(terms.client).toLowerCase()}. Выполните импорт из Sheets.` : 'Ничего не найдено'}
+              {clients.length === 0 ? `У вас пока нет ни одного ${terms.client.toLowerCase()}. Зарегистрируйте первого клиента через раздел «Лояльность».` : 'По этому запросу ничего не найдено'}
             </Text>
           )}
           {filtered.map((client) => (

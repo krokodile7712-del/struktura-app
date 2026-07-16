@@ -3,29 +3,32 @@ import { View, Text, StyleSheet, ScrollView, TextInput } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
+import Hint from '../components/Hint';
 import BottomBar from '../components/BottomBar';
-import { insertClient, getClientByCode } from '../db/queries';
+import { insertClient, getClientByCode, getTerms } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
 export default function RegScreen({ navigation }) {
   const [fio, setFio] = useState('');
   const [phone, setPhone] = useState('');
+  const [error, setError] = useState('');
+
+  const terms = (() => { try { return getTerms(); } catch { return {}; } })();
 
   const generateUniqueCode = () => {
     let code;
-    do {
-      code = 'CLI-' + String(Math.floor(Math.random() * 900) + 100);
-    } while (getClientByCode(code));
+    do { code = 'CLI-' + String(Math.floor(Math.random() * 9000) + 1000); }
+    while (getClientByCode(code));
     return code;
   };
 
   const handleReg = () => {
-    if (!fio.trim()) return;
+    if (!fio.trim()) { setError('Введите имя клиента'); return; }
     const code = generateUniqueCode();
     try {
       insertClient({ fio: fio.trim(), phone: phone.trim(), code });
     } catch (e) {
-      console.error(e);
+      setError('Не удалось создать карту. Попробуйте ещё раз.');
       return;
     }
     navigation.navigate('RegResult', { fio: fio.trim(), code });
@@ -33,18 +36,25 @@ export default function RegScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title="Регистрация" onBack={() => navigation.navigate('Loyalty')} />
+      <TopBar title={`Новый ${(terms.client || 'клиент').toLowerCase()}`} onBack={() => navigation.navigate('Loyalty')} />
       <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
         <MetalCard>
-          <Text style={styles.label}>Имя и фамилия</Text>
+          <Text style={styles.intro}>
+            Заполните данные — система создаст уникальную карту клиента и начнёт автоматически накапливать историю покупок.
+          </Text>
+
+          <Text style={styles.label}>Имя и фамилия *</Text>
           <TextInput
             style={styles.input}
             placeholder="Анна Смирнова"
             placeholderTextColor={colors.muted}
             value={fio}
-            onChangeText={setFio}
+            onChangeText={v => { setFio(v); setError(''); }}
+            autoFocus
           />
-          <Text style={styles.label}>Телефон</Text>
+          <Hint>Обязательное поле. Как обращаться к клиенту.</Hint>
+
+          <Text style={styles.label}>Номер телефона</Text>
           <TextInput
             style={styles.input}
             placeholder="+7 900 000-00-00"
@@ -53,7 +63,11 @@ export default function RegScreen({ navigation }) {
             value={phone}
             onChangeText={setPhone}
           />
-          <MetalButton title="Создать карту" variant="action" onPress={handleReg} />
+          <Hint>Необязательно. Может пригодиться для уведомлений или поиска клиента.</Hint>
+
+          {error ? <Text style={styles.error}>⚠️ {error}</Text> : null}
+
+          <MetalButton title="Создать карту клиента →" variant="action" onPress={handleReg} />
         </MetalCard>
       </ScrollView>
       <BottomBar navigation={navigation} activeTab="Loyalty" />
@@ -63,16 +77,9 @@ export default function RegScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  inner: { padding: spacing.lg, paddingBottom: 20, maxWidth: 1100, width: '100%', alignSelf: 'center' },
-  label: {
-    fontFamily: fonts.familySemibold, fontSize: 11,
-    color: colors.muted, textTransform: 'uppercase',
-    letterSpacing: 2, marginBottom: 8, marginTop: 8,
-  },
-  input: {
-    padding: 13, backgroundColor: '#07080a',
-    borderWidth: 1, borderColor: colors.border, borderRadius: 12,
-    color: colors.text, fontSize: 14, marginBottom: 14,
-    fontFamily: fonts.familyRegular,
-  },
+  inner: { padding: spacing.lg, paddingBottom: 20, maxWidth: 700, width: '100%', alignSelf: 'center' },
+  intro: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, lineHeight: 20, marginBottom: 16 },
+  label: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 2, marginBottom: 8 },
+  input: { padding: 14, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 16, fontFamily: fonts.family, marginBottom: 4 },
+  error: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.redLight, marginBottom: 10 },
 });
