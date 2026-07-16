@@ -190,8 +190,15 @@ export default function KassaScreen({ navigation, route }) {
   const editCartItemMods = (item) => {
     const product = allProducts.find(p => p.id === item.product_id);
     if (!product) return;
-    // Строим preselectedMods из сохранённых модификаторов
-    const groups = getProductModifierGroups(product.id);
+
+    const variants = getProductVariants(product.id).filter(v => v.active);
+    const groups   = getProductModifierGroups(product.id);
+    const axes     = getProductAxesWithValues(product.id);
+
+    // Если нечего редактировать — тихо выходим (кнопка не должна была появиться)
+    if (variants.length <= 1 && groups.length === 0 && axes.length === 0) return;
+
+    // Предзаполняем выбранные модификаторы из сохранённых в позиции корзины
     const preselectedMods = {};
     groups.forEach(g => {
       const existing = (item.modifiers || []).filter(m => m.groupId === g.id);
@@ -199,8 +206,26 @@ export default function KassaScreen({ navigation, route }) {
         ? existing.map(m => m.optionId)
         : existing[0]?.optionId ?? null;
     });
+
+    // Напрямую устанавливаем состояние модалки, минуя проверки openModal
+    setModalItem(product);
+    setModalVariants(variants);
+    setModalGroups(groups);
+    setModalAxes(axes);
     setEditingCartItemId(item.id);
-    openModal(product, item.variant_id, preselectedMods);
+
+    if (axes.length > 0) {
+      const currentVariant = variants.find(v => v.id === item.variant_id);
+      const initSel = currentVariant?.axisValues ? { ...currentVariant.axisValues } : {};
+      if (!currentVariant) axes.forEach(a => { if (a.values.length > 0) initSel[a.id] = a.values[0].id; });
+      setSelAxisValues(initSel);
+      setSelVariantId(findVariantByAxes(variants, initSel)?.id || null);
+    } else {
+      setSelAxisValues({});
+      setSelVariantId(item.variant_id || variants[0]?.id || null);
+    }
+
+    setSelModifiers(preselectedMods);
   };
   const closeModal = () => setModalItem(null);
 
@@ -542,9 +567,11 @@ export default function KassaScreen({ navigation, route }) {
                     <Pressable style={styles.qtyBtn} onPress={() => setItemQty(item.id, (item.quantity || 1) + 1)} hitSlop={6}>
                       <Text style={styles.qtyBtnText}>+</Text>
                     </Pressable>
-                    <Pressable style={styles.editModsBtn} onPress={() => editCartItemMods(item)} hitSlop={6}>
-                      <Text style={styles.editModsBtnText}>✎</Text>
-                    </Pressable>
+                    {((item.modifiers && item.modifiers.length > 0) || item.variant_id || item.size) && (
+                      <Pressable style={styles.editModsBtn} onPress={() => editCartItemMods(item)} hitSlop={6}>
+                        <Text style={styles.editModsBtnText}>✎</Text>
+                      </Pressable>
+                    )}
                     <Pressable style={styles.removeBtn} onPress={() => removeFromOrder(item.id)} hitSlop={6}>
                       <Text style={styles.removeBtnText}>✕</Text>
                     </Pressable>

@@ -1570,3 +1570,58 @@ export function deleteInventoryAct(actId) {
   db.runSync(`DELETE FROM inventory_act_items WHERE act_id = ?`, [actId]);
   db.runSync(`DELETE FROM inventory_acts WHERE id = ?`, [actId]);
 }
+
+// ─── Виджет дашборда ────────────────────────────────────────────────────────
+
+// Быстрая статистика для главного экрана:
+// - информация о текущей смене
+// - выручка и количество заказов за сегодня
+// - количество позиций склада ниже порогового значения
+export function getDashboardStats() {
+  const db = getDb();
+
+  // Текущая открытая смена
+  const shift = db.getFirstSync(`SELECT * FROM shifts WHERE status = 'open' ORDER BY opened_at DESC LIMIT 1`) || null;
+
+  // Сегодняшняя дата в формате YYYY-MM-DD
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Заказы за сегодня
+  const todayOrders = db.getAllSync(
+    `SELECT total, method_type, method FROM orders WHERE created_at LIKE ?`,
+    [`${today}%`]
+  );
+
+  const payMethods = getPayMethods();
+  const todayCash  = todayOrders.filter(o => resolveMethodType(o, payMethods) === 'cash').reduce((s, o) => s + o.total, 0);
+  const todayCard  = todayOrders.filter(o => resolveMethodType(o, payMethods) !== 'cash' && resolveMethodType(o, payMethods) !== 'mixed').reduce((s, o) => s + o.total, 0);
+  const todayMixed = todayOrders.filter(o => resolveMethodType(o, payMethods) === 'mixed').reduce((s, o) => s + o.total, 0);
+  const todayTotal = todayOrders.reduce((s, o) => s + o.total, 0);
+
+  // Позиции склада ниже порога (только если модуль склада включён)
+  const lowStockItems = db.getAllSync(
+    `SELECT name, остаток, порог, unit FROM stock WHERE остаток <= порог AND порог > 0 ORDER BY (остаток - порог) ASC LIMIT 5`
+  );
+
+  // Продолжительность текущей смены
+  let shiftDuration = null;
+  if (shift?.opened_at) {
+    const ms = Date.now() - new Date(shift.opened_at).getTime();
+    const totalMin = Math.floor(ms / 60000);
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    shiftDuration = h > 0 ? `${h}ч ${m}мин` : `${m}мин`;
+  }
+
+  return {
+    shift,
+    shiftDuration,
+    todayOrders: todayOrders.length,
+    todayTotal,
+    todayCash,
+    todayCard,
+    todayMixed,
+    lowStockItems,
+    lowStockCount: lowStockItems.length,
+  };
+}

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, Image, StyleSheet, ScrollView, Pressable } from 'react-native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import { getBusinessProfile, getOpenShift, getTerms, pluralizeRu, getRoleNames } from '../db/queries';
+import { getBusinessProfile, getOpenShift, getTerms, pluralizeRu, getRoleNames, getDashboardStats } from '../db/queries';
+import DashboardWidget from '../components/DashboardWidget';
 import { colors, fonts, spacing } from '../constants/theme';
 
 const getMenuItems = (terms) => [
@@ -34,13 +35,16 @@ export default function AdminScreen({ navigation }) {
   const [shiftOpen, setShiftOpen] = useState(false);
   const [terms, setTerms] = useState({ item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' });
   const [roleNames, setRoleNames] = useState({ barista: 'Сотрудник', admin: 'Администратор' });
+  const [stats, setStats] = useState(null);
 
   useEffect(() => {
     try {
-      setModules(getBusinessProfile()?.modules || {});
+      const profile = getBusinessProfile();
+      setModules(profile?.modules || {});
       setShiftOpen(!!getOpenShift());
       setTerms(getTerms());
       setRoleNames(getRoleNames());
+      setStats(getDashboardStats());
     } catch (e) { console.error(e); }
   }, []);
 
@@ -52,6 +56,11 @@ export default function AdminScreen({ navigation }) {
   return (
     <View style={{ flex: 1 }}>
       <TopBar title={roleNames.admin} onBack={() => navigation.navigate('Login')} />
+      <DashboardWidget
+        stats={stats}
+        modules={modules}
+        onLowStockPress={() => navigation.navigate('Stock')}
+      />
 
       <ScrollView contentContainerStyle={styles.inner}>
         <View style={styles.brandHeader}>
