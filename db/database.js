@@ -71,6 +71,17 @@ export function initDatabase() {
     );
   `);
 
+  // Значения осей вариативности — каждая ось (product_axes) имеет набор значений,
+  // которые администратор задаёт произвольно: "S" / "маленький" / "250мл" и т.д.
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS axis_values (
+      id       INTEGER PRIMARY KEY AUTOINCREMENT,
+      axis_id  INTEGER NOT NULL,
+      label    TEXT    NOT NULL,
+      position INTEGER DEFAULT 0
+    );
+  `);
+
   db.execSync(`
     CREATE TABLE IF NOT EXISTS modifier_groups (
       id             INTEGER PRIMARY KEY AUTOINCREMENT,

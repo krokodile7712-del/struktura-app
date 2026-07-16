@@ -125,6 +125,24 @@ export function applyBusinessPreset(presetKey) {
 
 // ─── Товары: произвольные оси вариативности ───────────────────────────────
 
+// Возвращает оси товара с их значениями (для редактора в UI)
+// Формат: [{id, name, position, values: [{id, label, position}]}]
+export function getProductAxesWithValues(productId) {
+  const db = getDb();
+  const axes = db.getAllSync(
+    `SELECT * FROM product_axes WHERE product_id = ? ORDER BY position`,
+    [productId]
+  );
+  return axes.map(axis => ({
+    ...axis,
+    values: db.getAllSync(
+      `SELECT * FROM axis_values WHERE axis_id = ? ORDER BY position`,
+      [axis.id]
+    ),
+  }));
+}
+
+// Оставляем для обратной совместимости с кодом, который не нуждается в values
 export function getProductAxes(productId) {
   const db = getDb();
   return db.getAllSync(`SELECT * FROM product_axes WHERE product_id = ? ORDER BY position`, [productId]);
@@ -133,6 +151,7 @@ export function getProductAxes(productId) {
 export function getProductVariants(productId) {
   const db = getDb();
   const rows = db.getAllSync(`SELECT * FROM product_variants WHERE product_id = ? ORDER BY id`, [productId]);
+  // axisValues: {axisId: valueId} — ссылки на axis_values.id
   return rows.map(r => ({ ...r, axisValues: safeParse(r.axis_values, {}) }));
 }
 
@@ -143,41 +162,115 @@ export function getProductVariantById(id) {
   return { ...row, axisValues: safeParse(row.axis_values, {}) };
 }
 
-// Полностью заменяет оси и варианты товара (проще и надёжнее, чем точечный diff в UI-редакторе)
-export function saveProductAxesAndVariants(productId, axisNames, variants) {
+// Полностью заменяет оси, значения осей и варианты товара.
+//
+// axes: [{id?, name, values: [{id?, label}]}]
+//   id — реальный ID из БД (если уже существовало), иначе отсутствует → insert
+//
+// variants: [{id?, label, price, sku, active, axisValues: {axisId: valueId}}]
+//
+// Возвращает {axes (с реальными id и values), variants (с реальными id)}
+export function saveProductAxesAndVariants(productId, axes, variants) {
   const db = getDb();
-  db.runSync(`DELETE FROM product_axes WHERE product_id = ?`, [productId]);
-  axisNames.forEach((name, i) => {
-    db.runSync(`INSERT INTO product_axes (product_id, name, position) VALUES (?, ?, ?)`, [productId, name, i]);
-  });
 
-  const existingIds = db.getAllSync(`SELECT id FROM product_variants WHERE product_id = ?`, [productId]).map(r => r.id);
-  const keepIds = variants.filter(v => v.id).map(v => v.id);
-  const toDelete = existingIds.filter(id => !keepIds.includes(id));
-  for (const id of toDelete) {
-    db.runSync(`DELETE FROM product_variants WHERE id = ?`, [id]);
+  // 1. Удаляем оси, которых нет в новом наборе
+  const dbAxisIds = db.getAllSync(
+    `SELECT id FROM product_axes WHERE product_id = ?`, [productId]
+  ).map(r => r.id);
+  const keepAxisIds = (axes || []).filter(a => a.id).map(a => a.id);
+  for (const axisId of dbAxisIds.filter(id => !keepAxisIds.includes(id))) {
+    db.runSync(`DELETE FROM axis_values WHERE axis_id = ?`, [axisId]);
+    db.runSync(`DELETE FROM product_axes WHERE id = ?`, [axisId]);
   }
-  const saved = [];
-  for (const v of variants) {
+
+  // 2. Сохраняем оси и их значения
+  const savedAxes = [];
+  for (let ai = 0; ai < (axes || []).length; ai++) {
+    const axis = axes[ai];
+    let axisId;
+    if (axis.id) {
+      db.runSync(
+        `UPDATE product_axes SET name = ?, position = ? WHERE id = ?`,
+        [axis.name, ai, axis.id]
+      );
+      axisId = axis.id;
+    } else {
+      const res = db.runSync(
+        `INSERT INTO product_axes (product_id, name, position) VALUES (?, ?, ?)`,
+        [productId, axis.name, ai]
+      );
+      axisId = res.lastInsertRowId;
+    }
+
+    // Значения оси
+    const dbValueIds = db.getAllSync(
+      `SELECT id FROM axis_values WHERE axis_id = ?`, [axisId]
+    ).map(r => r.id);
+    const keepValueIds = (axis.values || []).filter(v => v.id).map(v => v.id);
+    for (const vid of dbValueIds.filter(id => !keepValueIds.includes(id))) {
+      db.runSync(`DELETE FROM axis_values WHERE id = ?`, [vid]);
+    }
+
+    const savedValues = [];
+    for (let vi = 0; vi < (axis.values || []).length; vi++) {
+      const val = axis.values[vi];
+      let valueId;
+      if (val.id) {
+        db.runSync(
+          `UPDATE axis_values SET label = ?, position = ? WHERE id = ?`,
+          [val.label, vi, val.id]
+        );
+        valueId = val.id;
+      } else {
+        const res = db.runSync(
+          `INSERT INTO axis_values (axis_id, label, position) VALUES (?, ?, ?)`,
+          [axisId, val.label, vi]
+        );
+        valueId = res.lastInsertRowId;
+      }
+      savedValues.push({ id: valueId, label: val.label, position: vi });
+    }
+    savedAxes.push({ id: axisId, name: axis.name, position: ai, values: savedValues });
+  }
+
+  // 3. Сохраняем варианты
+  const dbVariantIds = db.getAllSync(
+    `SELECT id FROM product_variants WHERE product_id = ?`, [productId]
+  ).map(r => r.id);
+  const keepVariantIds = (variants || []).filter(v => v.id).map(v => v.id);
+  for (const vid of dbVariantIds.filter(id => !keepVariantIds.includes(id))) {
+    db.runSync(`DELETE FROM product_variants WHERE id = ?`, [vid]);
+  }
+
+  const savedVariants = [];
+  for (const v of (variants || [])) {
+    const axisValuesJson = JSON.stringify(v.axisValues || {});
     if (v.id) {
       db.runSync(
         `UPDATE product_variants SET axis_values = ?, label = ?, price = ?, sku = ?, active = ? WHERE id = ?`,
-        [JSON.stringify(v.axisValues || {}), v.label || '', v.price || 0, v.sku || '', v.active === false ? 0 : 1, v.id]
+        [axisValuesJson, v.label || '', v.price || 0, v.sku || '', v.active === false ? 0 : 1, v.id]
       );
-      saved.push({ ...v, id: v.id });
+      savedVariants.push({ ...v, id: v.id });
     } else {
-      const result = db.runSync(
+      const res = db.runSync(
         `INSERT INTO product_variants (product_id, axis_values, label, price, sku, active) VALUES (?, ?, ?, ?, ?, ?)`,
-        [productId, JSON.stringify(v.axisValues || {}), v.label || '', v.price || 0, v.sku || '', v.active === false ? 0 : 1]
+        [productId, axisValuesJson, v.label || '', v.price || 0, v.sku || '', v.active === false ? 0 : 1]
       );
-      saved.push({ ...v, id: result.lastInsertRowId });
+      savedVariants.push({ ...v, id: res.lastInsertRowId });
     }
   }
-  return saved;
+
+  return { axes: savedAxes, variants: savedVariants };
 }
 
 export function deleteProductVariants(productId) {
   const db = getDb();
+  const axisIds = db.getAllSync(
+    `SELECT id FROM product_axes WHERE product_id = ?`, [productId]
+  ).map(r => r.id);
+  for (const axisId of axisIds) {
+    db.runSync(`DELETE FROM axis_values WHERE axis_id = ?`, [axisId]);
+  }
   db.runSync(`DELETE FROM product_variants WHERE product_id = ?`, [productId]);
   db.runSync(`DELETE FROM product_axes WHERE product_id = ?`, [productId]);
 }
