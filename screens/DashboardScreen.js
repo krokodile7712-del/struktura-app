@@ -2,13 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet, ScrollView, Pressable } from 'react-native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import { getOpenShift, getBusinessProfile } from '../db/queries';
+import { getOpenShift, getBusinessProfile, getTerms, pluralizeRu } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
-const MENU_ITEMS = [
-  { icon: '☕', label: 'Новый заказ',    screen: 'Kassa',       variant: 'action'  },
+const getMenuItems = (terms) => [
+  { icon: '☕', label: `Новый ${terms.order.toLowerCase()}`, screen: 'Kassa',       variant: 'action'  },
   { icon: '👥', label: 'Лояльность',     screen: 'ClientsList', variant: 'pay',     module: 'clients' },
-  { icon: '📊', label: 'Продажи',        screen: 'Sales',       variant: 'success' },
+  { icon: '📊', label: pluralizeRu(terms.order),   screen: 'Sales',       variant: 'success' },
   { icon: '📦', label: 'Склад',          screen: 'Stock',       variant: 'default', module: 'stock' },
   { icon: '🧾', label: 'Себестоимость',  screen: 'CostCards',   variant: 'default', module: 'stock' },
   { icon: '💸', label: 'Расходы',        screen: 'Expenses',    variant: 'danger'  },
@@ -25,15 +25,17 @@ const ACCENT = {
 export default function DashboardScreen({ navigation }) {
   const [shift, setShift] = useState(null);
   const [modules, setModules] = useState({});
+  const [terms, setTerms] = useState({ item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' });
 
   useEffect(() => {
     try {
       setShift(getOpenShift());
       setModules(getBusinessProfile()?.modules || {});
+      setTerms(getTerms());
     } catch (e) { console.error(e); }
   }, []);
 
-  const visibleItems = MENU_ITEMS.filter(item => !item.module || modules[item.module] !== false);
+  const visibleItems = getMenuItems(terms).filter(item => !item.module || modules[item.module] !== false);
 
   return (
     <View style={{ flex: 1 }}>

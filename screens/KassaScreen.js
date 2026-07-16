@@ -7,7 +7,7 @@ import {
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import { getAllProducts, getCategories, getProductVariants, getProductModifierGroups, getDiscounts, createOrder, getOpenShift, addClientVisit, getBusinessProfile } from '../db/queries';
+import { getAllProducts, getCategories, getProductVariants, getProductModifierGroups, getDiscounts, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
 const CAT_ICONS = { 'Кофе': '☕', 'Лимонады': '🍹', 'Допы': '🍬', 'Прочее': '🫙' };
@@ -28,6 +28,7 @@ export default function KassaScreen({ navigation, route }) {
   const [selModifiers, setSelModifiers] = useState({}); // { [groupId]: optionId | optionId[] }
   const [currentShift, setCurrentShift] = useState(null);
   const [shiftsEnabled, setShiftsEnabled] = useState(true);
+  const [terms, setTerms] = useState({ item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' });
 
   // Модалка оплаты
   const [payModalOpen, setPayModalOpen] = useState(false);
@@ -49,6 +50,7 @@ export default function KassaScreen({ navigation, route }) {
       const profile = getBusinessProfile();
 
       setShiftsEnabled(profile?.modules?.shifts !== false);
+      setTerms(getTerms());
       setAllProducts(products);
       setGroups(cats);
       setActiveCat(cats[0] || null);
@@ -285,7 +287,7 @@ export default function KassaScreen({ navigation, route }) {
 
         <View style={styles.orderPanel}>
           <View style={styles.orderHeader}>
-            <Text style={styles.orderHeaderText}>🛒 Заказ ({order.length})</Text>
+            <Text style={styles.orderHeaderText}>🛒 {terms.order} ({order.length})</Text>
           </View>
           <ScrollView style={{ flex: 1 }}>
             {order.map((item) => (
@@ -380,7 +382,7 @@ export default function KassaScreen({ navigation, route }) {
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setDiscountModalOpen(false)} />
           <View style={styles.modalInner}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Скидка на заказ</Text>
+              <Text style={styles.modalTitle}>Скидка на {terms.order.toLowerCase()}</Text>
               <Pressable onPress={() => setDiscountModalOpen(false)} hitSlop={12}><Text style={styles.modalCloseText}>✕</Text></Pressable>
             </View>
             {discounts.length === 0 && <Text style={styles.emptyOrder}>Скидки не настроены</Text>}

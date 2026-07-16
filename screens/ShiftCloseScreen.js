@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TextInput } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
-import { getOpenShift, getShiftSummary, closeShift } from '../db/queries';
+import { getOpenShift, getShiftSummary, closeShift, getTerms, pluralizeRu } from '../db/queries';
 import { clearSession, getHomeRoute } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
 
@@ -11,11 +11,13 @@ export default function ShiftCloseScreen({ navigation }) {
   const [summary, setSummary] = useState(null);
   const [factCash, setFactCash] = useState('');
   const [closed, setClosed] = useState(false);
+  const [terms, setTerms] = useState({ item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' });
 
   useEffect(() => {
     try {
       const shift = getOpenShift();
       if (shift) setSummary(getShiftSummary(shift.id));
+      setTerms(getTerms());
     } catch (e) { console.error(e); }
   }, []);
 
@@ -54,7 +56,7 @@ export default function ShiftCloseScreen({ navigation }) {
         <MetalCard>
           <Text style={styles.cardTitle}>📋 Итоги смены</Text>
 
-          <Text style={styles.sectionTitle}>Продажи</Text>
+          <Text style={styles.sectionTitle}>{pluralizeRu(terms.order)}</Text>
           <View style={styles.row}><Text style={styles.rowLabel}>💵 Наличные</Text><Text style={styles.rowValue}>{summary.cash} ₽</Text></View>
           <View style={styles.row}><Text style={styles.rowLabel}>💳 Карта</Text><Text style={styles.rowValue}>{summary.card} ₽</Text></View>
           <View style={styles.row}><Text style={styles.rowLabel}>📱 QR</Text><Text style={styles.rowValue}>{summary.qr} ₽</Text></View>

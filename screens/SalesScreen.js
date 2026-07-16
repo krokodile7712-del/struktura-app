@@ -4,7 +4,7 @@ import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import { getRecentOrders, getOrderItems, deleteOrder, updateOrder } from '../db/queries';
+import { getRecentOrders, getOrderItems, deleteOrder, updateOrder, getTerms, pluralizeRu, genitivePluralRu } from '../db/queries';
 import { getSession, getHomeRoute } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
 
@@ -61,6 +61,9 @@ export default function SalesScreen({ navigation }) {
 
   // Модалка подтверждения удаления
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [terms] = useState(() => {
+    try { return getTerms(); } catch (e) { return { item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' }; }
+  });
 
   const handlePeriodChange = (key) => {
     setPeriod(key); setShown(false);
@@ -124,7 +127,7 @@ export default function SalesScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title="Продажи" onBack={() => navigation.navigate(getHomeRoute())} />
+      <TopBar title={pluralizeRu(terms.order)} onBack={() => navigation.navigate(getHomeRoute())} />
       <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
         <MetalCard>
           {/* Выбор периода */}
@@ -172,7 +175,7 @@ export default function SalesScreen({ navigation }) {
                 </View>
               </View>
 
-              {orders.length === 0 && <Text style={styles.empty}>Нет заказов за выбранный период</Text>}
+              {orders.length === 0 && <Text style={styles.empty}>Нет {genitivePluralRu(terms.order).toLowerCase()} за выбранный период</Text>}
 
               {/* Список сгруппированный по датам */}
               {grouped.map(([date, dayOrders]) => {
@@ -235,7 +238,7 @@ export default function SalesScreen({ navigation }) {
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setEditOrder(null)} />
           <View style={styles.modalInner}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Редактировать заказ #{editOrder?.id}</Text>
+              <Text style={styles.modalTitle}>Редактировать {terms.order.toLowerCase()} #{editOrder?.id}</Text>
               <Pressable onPress={() => setEditOrder(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
             </View>
             <Text style={styles.fieldLabel}>Сумма</Text>
@@ -261,7 +264,7 @@ export default function SalesScreen({ navigation }) {
         <View style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setDeleteTarget(null)} />
           <View style={styles.modalInner}>
-            <Text style={styles.modalTitle}>Удалить заказ #{deleteTarget?.id}?</Text>
+            <Text style={styles.modalTitle}>Удалить {terms.order.toLowerCase()} #{deleteTarget?.id}?</Text>
             <Text style={styles.deleteHint}>Это действие нельзя отменить.</Text>
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
               <MetalButton title="Удалить" variant="danger" onPress={confirmDelete} style={{ flex: 1 }} />

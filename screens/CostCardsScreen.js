@@ -5,7 +5,7 @@ import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import { getAllCostCards, deleteCostCard } from '../db/queries';
+import { getAllCostCards, deleteCostCard, getTerms, genitiveSingularRu } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
 function cardCost(card) {
@@ -15,8 +15,9 @@ function cardCost(card) {
 export default function CostCardsScreen({ navigation }) {
   const [cards, setCards] = useState([]);
   const [expandedId, setExpandedId] = useState(null);
+  const [terms, setTerms] = useState({ item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' });
 
-  useEffect(() => { loadCards(); }, []);
+  useEffect(() => { loadCards(); try { setTerms(getTerms()); } catch (e) { console.error(e); } }, []);
 
   const loadCards = () => {
     try { setCards(getAllCostCards()); } catch (e) { console.error(e); }
@@ -33,7 +34,7 @@ export default function CostCardsScreen({ navigation }) {
       <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
         <MetalCard>
           <Text style={styles.hint}>
-            Только просмотр. Создавать и редактировать техкарты нужно через Настройки → Меню и цены → карточка товара (там же выбираются ингредиенты со склада и размер, к которому привязана техкарта).
+            Только просмотр. Создавать и редактировать техкарты нужно через Настройки → Меню и цены → карточка {genitiveSingularRu(terms.item).toLowerCase()} (там же выбираются ингредиенты со склада и размер, к которому привязана техкарта).
           </Text>
           <Text style={styles.sectionTitle}>Техкарты ({cards.length})</Text>
           {cards.length === 0 && (
@@ -48,7 +49,7 @@ export default function CostCardsScreen({ navigation }) {
                 <Pressable style={styles.row} onPress={() => setExpandedId(isOpen ? null : card.id)}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.rowName}>{linked ? '' : '⚠️ '}{card.name}</Text>
-                    {!linked && <Text style={styles.unlinkedHint}>Не привязана к товару</Text>}
+                    {!linked && <Text style={styles.unlinkedHint}>Не привязана к {genitiveSingularRu(terms.item).toLowerCase()}</Text>}
                   </View>
                   <Text style={styles.rowPrice}>{cost.toFixed(2)} ₽ ›</Text>
                 </Pressable>

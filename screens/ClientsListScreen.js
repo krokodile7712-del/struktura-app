@@ -4,14 +4,15 @@ import { View, Text, StyleSheet, ScrollView, TextInput, Pressable } from 'react-
 import MetalCard from '../components/MetalCard';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import { getAllClients, searchClients } from '../db/queries';
+import { getAllClients, searchClients, getTerms, pluralizeRu, genitivePluralRu } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
 export default function ClientsListScreen({ navigation }) {
   const [query, setQuery] = useState('');
   const [clients, setClients] = useState([]);
+  const [terms, setTerms] = useState({ item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' });
 
-  useEffect(() => { loadClients(); }, []);
+  useEffect(() => { loadClients(); setTerms(getTerms()); }, []);
 
   const loadClients = () => {
     try { setClients(getAllClients()); } catch (e) { console.error(e); }
@@ -21,7 +22,7 @@ export default function ClientsListScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title="Клиенты" onBack={() => navigation.navigate(getHomeRoute())} />
+      <TopBar title={pluralizeRu(terms.client)} onBack={() => navigation.navigate(getHomeRoute())} />
       <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
         <MetalCard>
           <TextInput
@@ -33,7 +34,7 @@ export default function ClientsListScreen({ navigation }) {
           />
           {filtered.length === 0 && (
             <Text style={styles.empty}>
-              {clients.length === 0 ? 'Нет клиентов. Выполните импорт из Sheets.' : 'Ничего не найдено'}
+              {clients.length === 0 ? `Нет ${genitivePluralRu(terms.client).toLowerCase()}. Выполните импорт из Sheets.` : 'Ничего не найдено'}
             </Text>
           )}
           {filtered.map((client) => (

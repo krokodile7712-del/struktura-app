@@ -3,12 +3,15 @@ import { View, Text, StyleSheet, ScrollView, TextInput, Pressable } from 'react-
 import MetalCard from '../components/MetalCard';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import { searchClients } from '../db/queries';
+import { searchClients, getTerms } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
 export default function SearchScreen({ navigation }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
+  const [terms, setTerms] = useState({ item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' });
+
+  React.useEffect(() => { try { setTerms(getTerms()); } catch (e) { console.error(e); } }, []);
 
   const handleSearch = (text) => {
     setQuery(text);
@@ -21,7 +24,7 @@ export default function SearchScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title="Поиск клиента" onBack={() => navigation.navigate('Loyalty')} />
+      <TopBar title={`Поиск: ${terms.client}`} onBack={() => navigation.navigate('Loyalty')} />
       <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
         <MetalCard>
           <TextInput
@@ -33,7 +36,7 @@ export default function SearchScreen({ navigation }) {
             autoFocus
           />
           {query.length >= 2 && results.length === 0 && (
-            <Text style={styles.empty}>Клиент не найден</Text>
+            <Text style={styles.empty}>{terms.client} не найден</Text>
           )}
           {results.map((client) => (
             <Pressable

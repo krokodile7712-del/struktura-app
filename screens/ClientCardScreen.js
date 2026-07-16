@@ -4,7 +4,7 @@ import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import { updateClient, getClientOrders } from '../db/queries';
+import { updateClient, getClientOrders, getTerms, genitivePluralRu } from '../db/queries';
 import { getSession } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
 
@@ -28,19 +28,21 @@ export default function ClientCardScreen({ route, navigation }) {
   const [balance, setBalance] = useState(String(client?.balance || 0));
   const [orders, setOrders]   = useState([]);
   const [expanded, setExpanded] = useState(null);
+  const [terms, setTerms] = useState({ item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' });
 
   useEffect(() => {
     if (client?.id) {
       try { setOrders(getClientOrders(client.id)); } catch (e) { console.error(e); }
     }
+    try { setTerms(getTerms()); } catch (e) { console.error(e); }
   }, [client]);
 
   if (!client) {
     return (
       <View style={{ flex: 1 }}>
-        <TopBar title="Клиент" onBack={() => navigation.goBack()} />
+        <TopBar title={terms.client} onBack={() => navigation.goBack()} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: colors.text }}>Клиент не найден</Text>
+          <Text style={{ color: colors.text }}>{terms.client} не найден</Text>
         </View>
         <BottomBar navigation={navigation} activeTab="Loyalty" />
       </View>
@@ -68,7 +70,7 @@ export default function ClientCardScreen({ route, navigation }) {
   return (
     <View style={{ flex: 1 }}>
       <TopBar
-        title="Карта клиента"
+        title={`Карта: ${terms.client}`}
         onBack={() => navigation.goBack()}
       />
       <ScrollView contentContainerStyle={styles.inner}>
@@ -98,7 +100,7 @@ export default function ClientCardScreen({ route, navigation }) {
               </View>
 
               <Text style={styles.phone}>📞 {client.phone || '—'}</Text>
-              <MetalButton title="☕ Новый заказ" variant="success" onPress={handleNewOrder} />
+              <MetalButton title={`☕ Новый ${terms.order.toLowerCase()}`} variant="success" onPress={handleNewOrder} />
               {isAdmin && (
                 <MetalButton title="✎ Изменить данные" variant="default" onPress={() => setEditing(true)} />
               )}
@@ -121,10 +123,10 @@ export default function ClientCardScreen({ route, navigation }) {
 
         {/* История заказов */}
         <MetalCard style={{ marginTop: 12 }}>
-          <Text style={styles.sectionTitle}>История заказов ({orders.length})</Text>
+          <Text style={styles.sectionTitle}>История {genitivePluralRu(terms.order).toLowerCase()} ({orders.length})</Text>
 
           {orders.length === 0 && (
-            <Text style={styles.empty}>Нет заказов в базе</Text>
+            <Text style={styles.empty}>Нет {genitivePluralRu(terms.order).toLowerCase()} в базе</Text>
           )}
 
           {orders.map(order => (

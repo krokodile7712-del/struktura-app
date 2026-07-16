@@ -42,6 +42,50 @@ export function getBusinessProfile() {
   };
 }
 
+const DEFAULT_TERMS = { item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' };
+
+// Простое склонение существительного во множественное число (для терминов,
+// которые владелец бизнеса может задать произвольно — "Товар", "Продажа", "Услуга" и т.д.)
+export function pluralizeRu(word) {
+  if (!word) return word;
+  const last = word.slice(-1);
+  const lower = last.toLowerCase();
+  if (lower === 'а' || lower === 'я' || lower === 'ь') return word.slice(0, -1) + 'и';
+  if ('гкхшщчж'.includes(lower)) return word + 'и';
+  return word + 'ы';
+}
+
+// Родительный падеж множественного числа (для фраз вида "История заказов", "Нет клиентов")
+export function genitivePluralRu(word) {
+  if (!word) return word;
+  const last = word.slice(-1).toLowerCase();
+  if (last === 'а') return word.slice(0, -1);
+  if (last === 'я') return word.slice(0, -1) + 'й';
+  if (last === 'ь') return word.slice(0, -1) + 'ей';
+  if ('жшчщ'.includes(last)) return word + 'ей';
+  return word + 'ов';
+}
+
+// Родительный падеж единственного числа (для фраз вида "вариант товара", "карточка клиента")
+export function genitiveSingularRu(word) {
+  if (!word) return word;
+  const last = word.slice(-1).toLowerCase();
+  if (last === 'а' || last === 'я') return word.slice(0, -1) + 'и';
+  if (last === 'ь') return word.slice(0, -1) + 'я';
+  return word + 'а';
+}
+
+export function getTerms() {
+  const profile = getBusinessProfile();
+  const terms = profile?.terms || {};
+  return {
+    item: terms.item || DEFAULT_TERMS.item,
+    client: terms.client || DEFAULT_TERMS.client,
+    order: terms.order || DEFAULT_TERMS.order,
+    category: terms.category || DEFAULT_TERMS.category,
+  };
+}
+
 export function updateBusinessProfile({ businessName, modules, terms, units, accessKey }) {
   const db = getDb();
   const existing = db.getFirstSync(`SELECT id FROM business_profile ORDER BY id LIMIT 1`);

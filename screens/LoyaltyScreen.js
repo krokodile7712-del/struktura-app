@@ -1,12 +1,17 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Image, StyleSheet, ScrollView } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
+import { getTerms, pluralizeRu } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
 export default function LoyaltyScreen({ navigation }) {
+  const [terms, setTerms] = useState({ item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' });
+
+  useEffect(() => { try { setTerms(getTerms()); } catch (e) { console.error(e); } }, []);
+
   return (
     <View style={{ flex: 1 }}>
       <TopBar title="Лояльность" />
@@ -20,9 +25,9 @@ export default function LoyaltyScreen({ navigation }) {
           <Text style={styles.subLogo}>System Loyalty</Text>
         </View>
         <MetalCard>
-          <MetalButton title="👤 Регистрация клиента" variant="default" onPress={() => navigation.navigate('Reg')} />
-          <MetalButton title="🔍 Поиск клиента" variant="default" onPress={() => navigation.navigate('Search')} />
-          <MetalButton title="👥 Все клиенты" variant="default" onPress={() => navigation.navigate('ClientsList')} />
+          <MetalButton title={`👤 Новый ${terms.client}`} variant="default" onPress={() => navigation.navigate('Reg')} />
+          <MetalButton title={`🔍 Поиск: ${terms.client}`} variant="default" onPress={() => navigation.navigate('Search')} />
+          <MetalButton title={`👥 Все ${pluralizeRu(terms.client).toLowerCase()}`} variant="default" onPress={() => navigation.navigate('ClientsList')} />
         </MetalCard>
       </ScrollView>
       <BottomBar navigation={navigation} activeTab="Loyalty" />

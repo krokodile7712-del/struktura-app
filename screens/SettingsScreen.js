@@ -16,6 +16,7 @@ import {
   getAllStock, updateStockThreshold,
   getUnlinkedCostCards,
   getBusinessProfile, updateBusinessProfile, applyBusinessPreset, BUSINESS_PRESETS,
+  getTerms, pluralizeRu, genitivePluralRu, genitiveSingularRu,
   exportAllData,
 } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
@@ -358,7 +359,7 @@ export default function SettingsScreen({ navigation }) {
 
   const categories = [...new Set(products.map(p => p.category))];
   const modules = profile?.modules || {};
-  const terms = profile?.terms || {};
+  const terms = getTerms();
 
   return (
     <View style={{ flex: 1 }}>
@@ -366,12 +367,12 @@ export default function SettingsScreen({ navigation }) {
       <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
 
         <Pressable onPress={handleTitleTap}>
-          <Text style={styles.hiddenHint}>{terms.item || 'Товар'} · {profile?.preset ? BUSINESS_PRESETS[profile.preset]?.label || profile.preset : ''}</Text>
+          <Text style={styles.hiddenHint}>{terms.item} · {profile?.preset ? BUSINESS_PRESETS[profile.preset]?.label || profile.preset : ''}</Text>
         </Pressable>
 
         {/* Меню и цены */}
         <MetalCard>
-          <Text style={styles.blockTitle}>☕ {terms.item || 'Товар'}ы и цены</Text>
+          <Text style={styles.blockTitle}>☕ {pluralizeRu(terms.item)} и цены</Text>
           {categories.map(cat => (
             <View key={cat} style={{ marginBottom: 12 }}>
               <Text style={styles.catHeader}>{cat}</Text>
@@ -388,15 +389,15 @@ export default function SettingsScreen({ navigation }) {
               })}
             </View>
           ))}
-          {products.length === 0 && <Text style={styles.empty}>Пока нет товаров.</Text>}
-          <MetalButton title={`+ Добавить ${(terms.item || 'товар').toLowerCase()}`} variant="default" onPress={openNewProduct} />
+          {products.length === 0 && <Text style={styles.empty}>Пока нет {genitivePluralRu(terms.item).toLowerCase()}.</Text>}
+          <MetalButton title={`+ Добавить ${terms.item.toLowerCase()}`} variant="default" onPress={openNewProduct} />
         </MetalCard>
 
         {/* Группы модификаторов */}
         {modules.modifiers !== false && (
           <MetalCard style={{ marginTop: 12 }}>
             <Text style={styles.blockTitle}>🧩 Модификаторы</Text>
-            <Text style={styles.hintText}>Группы опций для товаров (напр. «Молоко», «Цвет», «Размер ленты») — единичный или множественный выбор.</Text>
+            <Text style={styles.hintText}>Группы опций для {genitivePluralRu(terms.item).toLowerCase()} (напр. «Молоко», «Цвет», «Размер ленты») — единичный или множественный выбор.</Text>
             {modifierGroups.length === 0 && <Text style={styles.empty}>Групп пока нет.</Text>}
             {modifierGroups.map(g => (
               <Pressable key={g.id} style={styles.row} onPress={() => openEditGroup(g)}>
@@ -458,7 +459,7 @@ export default function SettingsScreen({ navigation }) {
         {unlinkedCards.length > 0 && (
           <MetalCard style={{ marginTop: 12 }}>
             <Text style={styles.blockTitle}>⚠️ Несвязанные техкарты</Text>
-            <Text style={styles.hintText}>Эти техкарты остались от старой модели и не привязаны к конкретному варианту товара. Пересоздайте их через карточку товара выше.</Text>
+            <Text style={styles.hintText}>Эти техкарты остались от старой модели и не привязаны к конкретному варианту {genitiveSingularRu(terms.item).toLowerCase()}. Пересоздайте их через карточку {genitiveSingularRu(terms.item).toLowerCase()} выше.</Text>
             {unlinkedCards.map(c => (
               <View key={c.id} style={styles.row}><Text style={styles.rowName}>{c.name}</Text></View>
             ))}
@@ -487,7 +488,7 @@ export default function SettingsScreen({ navigation }) {
               </View>
               <ScrollView showsVerticalScrollIndicator={false}>
                 <Text style={styles.sectionTitle}>Варианты</Text>
-                <Text style={styles.hintText}>Если у товара один вариант — оставь название пустым, он не будет показываться отдельным чипом в кассе.</Text>
+                <Text style={styles.hintText}>Если у {genitiveSingularRu(terms.item).toLowerCase()} один вариант — оставь название пустым, он не будет показываться отдельным чипом в кассе.</Text>
                 {productModal.variants.map((v, idx) => {
                   const key = variantKey(v, idx);
                   return (
@@ -623,13 +624,13 @@ export default function SettingsScreen({ navigation }) {
           {newProductModal && (
             <View style={styles.modalInner}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Новый {(terms.item || 'товар').toLowerCase()}</Text>
+                <Text style={styles.modalTitle}>Новый {terms.item.toLowerCase()}</Text>
                 <Pressable onPress={() => setNewProductModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
               </View>
               <Text style={styles.fieldLabel}>Название</Text>
               <TextInput style={styles.input} value={newProductModal.name} onChangeText={(v) => setNewProductModal(m => ({ ...m, name: v }))} placeholderTextColor={colors.muted} />
-              <Text style={styles.fieldLabel}>Категория</Text>
-              <TextInput style={styles.input} value={newProductModal.category} onChangeText={(v) => setNewProductModal(m => ({ ...m, category: v }))} placeholder="Название категории" placeholderTextColor={colors.muted} />
+              <Text style={styles.fieldLabel}>{terms.category}</Text>
+              <TextInput style={styles.input} value={newProductModal.category} onChangeText={(v) => setNewProductModal(m => ({ ...m, category: v }))} placeholder={`Название ${terms.category.toLowerCase()}и`} placeholderTextColor={colors.muted} />
               {categories.length > 0 && (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
                   {categories.map(c => (
@@ -639,7 +640,7 @@ export default function SettingsScreen({ navigation }) {
                   ))}
                 </View>
               )}
-              <Text style={styles.hintText}>Цену и варианты настроишь сразу после создания — тапни на новый товар в списке.</Text>
+              <Text style={styles.hintText}>Цену и варианты настроишь сразу после создания — тапни на новый {terms.item.toLowerCase()} в списке.</Text>
               <MetalButton title="Добавить" variant="success" onPress={saveNewProduct} style={{ marginTop: 10 }} />
             </View>
           )}
@@ -748,7 +749,7 @@ export default function SettingsScreen({ navigation }) {
 
               <Text style={styles.fieldLabel}>Заменяет ингредиент склада на (если это замена)</Text>
               <TextInput style={styles.input} value={optionModal.ingrToReplace} onChangeText={(v) => setOptionModal(m => ({ ...m, ingrToReplace: v }))} placeholder="напр. Овсяное молоко" placeholderTextColor={colors.muted} />
-              <Text style={styles.hintText}>Сработает, если в техкарте товара есть ингредиент с названием как у группы модификатора (напр. группа «Молоко» → ингредиент «Молоко»).</Text>
+              <Text style={styles.hintText}>Сработает, если в техкарте {genitiveSingularRu(terms.item).toLowerCase()} есть ингредиент с названием как у группы модификатора (напр. группа «Молоко» → ингредиент «Молоко»).</Text>
 
               <Text style={styles.fieldLabel}>Или списывает дополнительно (если это добавка)</Text>
               <TextInput style={styles.input} value={optionModal.ingrToDeduct} onChangeText={(v) => setOptionModal(m => ({ ...m, ingrToDeduct: v }))} placeholder="напр. Сироп ваниль" placeholderTextColor={colors.muted} />

@@ -1,13 +1,17 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
+import { getTerms } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
 export default function RegResultScreen({ route, navigation }) {
   const { fio, code } = route.params || {};
+  const [terms, setTerms] = useState({ item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' });
+
+  useEffect(() => { try { setTerms(getTerms()); } catch (e) { console.error(e); } }, []);
 
   return (
     <View style={{ flex: 1 }}>
@@ -17,7 +21,7 @@ export default function RegResultScreen({ route, navigation }) {
           <Text style={styles.check}>✅</Text>
           <Text style={styles.fioText}>{fio}</Text>
           <View style={styles.codeBox}>
-            <Text style={styles.codeLabel}>ID клиента</Text>
+            <Text style={styles.codeLabel}>ID: {terms.client}</Text>
             <Text style={styles.codeValue}>{code}</Text>
           </View>
           <MetalButton title="В меню лояльности" variant="action" onPress={() => navigation.navigate('Loyalty')} />
