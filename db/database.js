@@ -295,5 +295,36 @@ export function initDatabase() {
     );
   }
 
+  // ─── Инвентаризация ────────────────────────────────────────────────────────
+
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS inventory_acts (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      created_at   TEXT NOT NULL,
+      location_id  INTEGER,
+      location_name TEXT DEFAULT '',
+      scope        TEXT DEFAULT 'all',
+      scope_value  TEXT DEFAULT '',
+      status       TEXT DEFAULT 'draft',
+      confirmed_at TEXT DEFAULT ''
+    );
+  `);
+
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS inventory_act_items (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      act_id        INTEGER NOT NULL,
+      stock_id      INTEGER NOT NULL,
+      stock_name    TEXT NOT NULL,
+      unit          TEXT DEFAULT '',
+      expected      REAL DEFAULT 0,
+      actual        REAL,
+      diff_qty      REAL,
+      cost_per_unit REAL DEFAULT 0,
+      diff_money    REAL DEFAULT 0,
+      FOREIGN KEY (act_id) REFERENCES inventory_acts(id)
+    );
+  `);
+
   console.log('[DB] Инициализация завершена');
 }

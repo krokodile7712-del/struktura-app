@@ -34,6 +34,8 @@ import AdminScreen from './screens/AdminScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import MigrateScreen from './screens/MigrateScreen';
 import LocationsScreen from './screens/LocationsScreen';
+import InventoryScreen from './screens/InventoryScreen';
+import InventoryCountScreen from './screens/InventoryCountScreen';
 import { colors, fonts } from './constants/theme';
 
 const Stack = createNativeStackNavigator();
@@ -117,7 +119,9 @@ export default function App() {
             <Stack.Screen name="CostCards"   component={CostCardsScreen} />
             <Stack.Screen name="Expenses"    component={ExpensesScreen} />
             <Stack.Screen name="Migrate"     component={MigrateScreen} />
-            <Stack.Screen name="Locations"   component={LocationsScreen} />
+            <Stack.Screen name="Locations"      component={LocationsScreen} />
+            <Stack.Screen name="Inventory"      component={InventoryScreen} />
+            <Stack.Screen name="InventoryCount" component={InventoryCountScreen} />
           </Stack.Navigator>
         </AppBackground>
       </NavigationContainer>

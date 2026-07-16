@@ -1233,3 +1233,166 @@ export function resetDatabase() {
     try { db.execSync(`DELETE FROM ${table}`); } catch (_) {}
   }
 }
+
+// ─── Инвентаризация ─────────────────────────────────────────────────────────
+
+// Средняя себестоимость по последним N закупкам (взвешенная по объёму)
+export function getAvgCostLast10(stockName, count = 10) {
+  const db = getDb();
+  try {
+    initPurchasesTable();
+    const rows = db.getAllSync(
+      `SELECT qty, price_per_unit FROM purchases
+       WHERE LOWER(stock_name) = LOWER(?) ORDER BY created_at DESC LIMIT ?`,
+      [stockName, count]
+    );
+    if (rows.length === 0) {
+      // Fallback: avg_price из stock
+      const s = db.getFirstSync(`SELECT avg_price FROM stock WHERE LOWER(name) = LOWER(?)`, [stockName]);
+      return s?.avg_price || 0;
+    }
+    const totalQty = rows.reduce((s, r) => s + r.qty, 0);
+    const totalSum = rows.reduce((s, r) => s + r.qty * r.price_per_unit, 0);
+    return totalQty > 0 ? Math.round((totalSum / totalQty) * 100) / 100 : 0;
+  } catch (_) { return 0; }
+}
+
+// Создаёт черновой акт инвентаризации.
+// scope: 'all' | 'category' | 'manual'
+// scopeValue: '' | 'Кофе' | '1,2,5' (id через запятую)
+// locationId: null | integer
+// Возвращает id созданного акта.
+export function createInventoryAct({ scope, scopeValue, locationId, locationName }) {
+  const db = getDb();
+  const now = new Date().toISOString();
+
+  // Удаляем незавершённые черновики (только один черновик единовременно)
+  const drafts = db.getAllSync(`SELECT id FROM inventory_acts WHERE status = 'draft'`);
+  for (const d of drafts) {
+    db.runSync(`DELETE FROM inventory_act_items WHERE act_id = ?`, [d.id]);
+    db.runSync(`DELETE FROM inventory_acts WHERE id = ?`, [d.id]);
+  }
+
+  const res = db.runSync(
+    `INSERT INTO inventory_acts (created_at, location_id, location_name, scope, scope_value, status)
+     VALUES (?, ?, ?, ?, ?, 'draft')`,
+    [now, locationId || null, locationName || '', scope || 'all', scopeValue || '']
+  );
+  const actId = res.lastInsertRowId;
+
+  // Собираем позиции склада по scope
+  let stockItems = [];
+  if (scope === 'category' && scopeValue) {
+    stockItems = db.getAllSync(
+      `SELECT * FROM stock WHERE LOWER(category) = LOWER(?) ORDER BY name`,
+      [scopeValue]
+    );
+  } else if (scope === 'manual' && scopeValue) {
+    const ids = scopeValue.split(',').map(x => parseInt(x.trim())).filter(Boolean);
+    if (ids.length > 0) {
+      const placeholders = ids.map(() => '?').join(',');
+      stockItems = db.getAllSync(
+        `SELECT * FROM stock WHERE id IN (${placeholders}) ORDER BY category, name`,
+        ids
+      );
+    }
+  } else {
+    stockItems = db.getAllSync(`SELECT * FROM stock ORDER BY category, name`);
+  }
+
+  // Для каждой позиции: берём учётный остаток (с учётом локации) и среднюю себестоимость
+  for (const item of stockItems) {
+    let expected = item['остаток'] || 0;
+    if (locationId) {
+      const locRow = db.getFirstSync(
+        `SELECT остаток FROM stock_by_location WHERE stock_id = ? AND location_id = ?`,
+        [item.id, locationId]
+      );
+      expected = locRow ? locRow['остаток'] : 0;
+    }
+    const costPerUnit = getAvgCostLast10(item.name);
+    db.runSync(
+      `INSERT INTO inventory_act_items (act_id, stock_id, stock_name, unit, expected, cost_per_unit)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [actId, item.id, item.name, item.unit || '', expected, costPerUnit]
+    );
+  }
+
+  return actId;
+}
+
+// Обновляет фактический остаток по одной строке акта
+export function setInventoryItemActual(itemId, actual) {
+  const db = getDb();
+  const row = db.getFirstSync(`SELECT * FROM inventory_act_items WHERE id = ?`, [itemId]);
+  if (!row) return;
+  const diffQty = actual - (row.expected || 0);
+  const diffMoney = Math.round(diffQty * (row.cost_per_unit || 0) * 100) / 100;
+  db.runSync(
+    `UPDATE inventory_act_items SET actual = ?, diff_qty = ?, diff_money = ? WHERE id = ?`,
+    [actual, diffQty, diffMoney, itemId]
+  );
+}
+
+// Подтверждает акт: применяет фактические остатки на склад, меняет статус на 'confirmed'
+export function confirmInventoryAct(actId) {
+  const db = getDb();
+  const act = db.getFirstSync(`SELECT * FROM inventory_acts WHERE id = ?`, [actId]);
+  if (!act || act.status !== 'draft') return false;
+
+  const items = db.getAllSync(
+    `SELECT * FROM inventory_act_items WHERE act_id = ? AND actual IS NOT NULL`,
+    [actId]
+  );
+
+  for (const item of items) {
+    if (act.location_id) {
+      // Обновляем остаток в конкретной локации
+      db.runSync(`
+        INSERT INTO stock_by_location (stock_id, location_id, остаток)
+        VALUES (?, ?, ?)
+        ON CONFLICT(stock_id, location_id) DO UPDATE SET остаток = excluded.остаток
+      `, [item.stock_id, act.location_id, item.actual]);
+    } else {
+      // Обновляем общий остаток
+      db.runSync(
+        `UPDATE stock SET остаток = ? WHERE id = ?`,
+        [item.actual, item.stock_id]
+      );
+    }
+  }
+
+  db.runSync(
+    `UPDATE inventory_acts SET status = 'confirmed', confirmed_at = ? WHERE id = ?`,
+    [new Date().toISOString(), actId]
+  );
+  return true;
+}
+
+// Акт с его строками
+export function getInventoryAct(actId) {
+  const db = getDb();
+  const act = db.getFirstSync(`SELECT * FROM inventory_acts WHERE id = ?`, [actId]);
+  if (!act) return null;
+  const items = db.getAllSync(
+    `SELECT * FROM inventory_act_items WHERE act_id = ? ORDER BY stock_name`,
+    [actId]
+  );
+  return { ...act, items };
+}
+
+// Список актов (для истории)
+export function getInventoryActs(limit = 30) {
+  const db = getDb();
+  return db.getAllSync(
+    `SELECT * FROM inventory_acts ORDER BY created_at DESC LIMIT ?`,
+    [limit]
+  );
+}
+
+// Удаляет черновик
+export function deleteInventoryAct(actId) {
+  const db = getDb();
+  db.runSync(`DELETE FROM inventory_act_items WHERE act_id = ?`, [actId]);
+  db.runSync(`DELETE FROM inventory_acts WHERE id = ?`, [actId]);
+}
