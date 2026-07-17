@@ -1630,12 +1630,14 @@ export function getDashboardStats() {
 
 export function getZones() {
   const db = getDb();
+  try { db.execSync(`CREATE TABLE IF NOT EXISTS zone_tables (id INTEGER PRIMARY KEY AUTOINCREMENT, zone_id INTEGER NOT NULL, name TEXT NOT NULL, position INTEGER DEFAULT 0)`); } catch (_) {}
   const zones = db.getAllSync(`SELECT * FROM zones WHERE active = 1 ORDER BY position, id`);
   return zones.map(z => ({
     ...z,
-    tables: db.getAllSync(
-      `SELECT * FROM zone_tables WHERE zone_id = ? ORDER BY position, id`, [z.id]
-    ),
+    tables: (() => {
+      try { return db.getAllSync(`SELECT * FROM zone_tables WHERE zone_id = ? ORDER BY position, id`, [z.id]); }
+      catch (_) { return []; }
+    })(),
   }));
 }
 
@@ -1659,13 +1661,9 @@ export function deleteZone(id) {
 // Столы внутри зоны
 export function addZoneTable(zoneId, name) {
   const db = getDb();
-  const pos = (db.getFirstSync(
-    `SELECT MAX(position) as m FROM zone_tables WHERE zone_id = ?`, [zoneId]
-  )?.m || 0) + 1;
-  return db.runSync(
-    `INSERT INTO zone_tables (zone_id, name, position) VALUES (?, ?, ?)`,
-    [zoneId, name, pos]
-  ).lastInsertRowId;
+  try { db.execSync(`CREATE TABLE IF NOT EXISTS zone_tables (id INTEGER PRIMARY KEY AUTOINCREMENT, zone_id INTEGER NOT NULL, name TEXT NOT NULL, position INTEGER DEFAULT 0)`); } catch (_) {}
+  const pos = (db.getFirstSync(`SELECT MAX(position) as m FROM zone_tables WHERE zone_id = ?`, [zoneId])?.m || 0) + 1;
+  return db.runSync(`INSERT INTO zone_tables (zone_id, name, position) VALUES (?, ?, ?)`, [zoneId, name, pos]).lastInsertRowId;
 }
 
 export function updateZoneTable(id, name) {

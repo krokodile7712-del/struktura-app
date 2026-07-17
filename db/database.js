@@ -291,6 +291,8 @@ export function initDatabase() {
     `ALTER TABLE orders      ADD COLUMN note     TEXT    DEFAULT ''`,
     // Блок В: зона/стол заказа
     `ALTER TABLE orders ADD COLUMN zone TEXT DEFAULT ''`,
+    // Таблица столов внутри зон (CREATE TABLE IF NOT EXISTS безопасен как миграция)
+    `CREATE TABLE IF NOT EXISTS zone_tables (id INTEGER PRIMARY KEY AUTOINCREMENT, zone_id INTEGER NOT NULL, name TEXT NOT NULL, position INTEGER DEFAULT 0)`,
   ];
   for (const sql of migrations) {
     try { db.execSync(sql); } catch (_) {}
