@@ -4,9 +4,7 @@ import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-nat
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
-import Hint from '../components/Hint';
 import { migrateFromSheets } from '../db/migrate';
-import Hint from '../components/Hint';
 import { colors, fonts, spacing } from '../constants/theme';
 
 export default function MigrateScreen({ navigation }) {
