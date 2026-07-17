@@ -5,7 +5,7 @@ import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import EmptyState from '../components/EmptyState';
-import { getRecentOrders, getOrderItems, deleteOrder, updateOrder, getTerms, pluralizeRu, genitivePluralRu, getPayMethods } from '../db/queries';
+import { getRecentOrders, getOrderItems, deleteOrder, updateOrder, returnOrder, getTerms, pluralizeRu, genitivePluralRu, getPayMethods } from '../db/queries';
 import { getSession, getHomeRoute } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
 
@@ -63,6 +63,7 @@ export default function SalesScreen({ navigation }) {
 
   // Модалка подтверждения удаления
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [returnTarget, setReturnTarget] = useState(null);
   const [terms] = useState(() => {
     try { return getTerms(); } catch (e) { return { item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' }; }
   });
@@ -110,6 +111,15 @@ export default function SalesScreen({ navigation }) {
       handleShow();
     } catch (e) { console.error(e); }
     setEditOrder(null);
+  };
+
+  const confirmReturn = () => {
+    if (!returnTarget) return;
+    try {
+      returnOrder(returnTarget.id);
+      handleShow();
+    } catch (e) { console.error(e); }
+    setReturnTarget(null);
   };
 
   const confirmDelete = () => {
@@ -284,6 +294,23 @@ export default function SalesScreen({ navigation }) {
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
               <MetalButton title="Удалить" variant="danger" onPress={confirmDelete} style={{ flex: 1 }} />
               <MetalButton title="Отмена" variant="back" onPress={() => setDeleteTarget(null)} style={{ flex: 1 }} />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Модалка подтверждения возврата */}
+      <Modal visible={!!returnTarget} transparent animationType="fade" onRequestClose={() => setReturnTarget(null)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setReturnTarget(null)} />
+          <View style={[styles.modalInner, { width: '45%' }]}>
+            <Text style={styles.modalTitle}>↩ Оформить возврат</Text>
+            <Text style={{ color: colors.muted, fontFamily: fonts.familyRegular, fontSize: 13, marginVertical: 12, lineHeight: 20 }}>
+              {terms.order} #{returnTarget?.id} на сумму {returnTarget?.total} ₽ будет помечен как возвращённый, остатки на складе восстановятся.
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <MetalButton title="Отмена" variant="back" onPress={() => setReturnTarget(null)} style={{ flex: 1 }} />
+              <MetalButton title="↩ Подтвердить возврат" variant="danger" onPress={confirmReturn} style={{ flex: 1 }} />
             </View>
           </View>
         </View>

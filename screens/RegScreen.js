@@ -10,6 +10,7 @@ import { colors, fonts, spacing } from '../constants/theme';
 
 export default function RegScreen({ navigation }) {
   const [fio, setFio] = useState('');
+  const [birthDate, setBirthDate] = useState('');
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
 
@@ -25,8 +26,9 @@ export default function RegScreen({ navigation }) {
   const handleReg = () => {
     if (!fio.trim()) { setError('Введите имя клиента'); return; }
     const code = generateUniqueCode();
+    const bd = birthDate.trim().replace(/[^0-9.\-]/g, '');
     try {
-      insertClient({ fio: fio.trim(), phone: phone.trim(), code });
+      insertClient({ fio: fio.trim(), phone: phone.trim(), code, birth_date: bd });
     } catch (e) {
       setError('Не удалось создать карту. Попробуйте ещё раз.');
       return;
@@ -67,6 +69,16 @@ export default function RegScreen({ navigation }) {
 
           {error ? <Text style={styles.error}>⚠️ {error}</Text> : null}
 
+          <Text style={styles.label}>Дата рождения</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="01.01.1990 (необязательно)"
+            placeholderTextColor={colors.muted}
+            value={birthDate}
+            onChangeText={setBirthDate}
+            keyboardType="numbers-and-punctuation"
+          />
+          <Hint>Укажите чтобы поздравлять клиента и делать скидку в день рождения.</Hint>
           <MetalButton title="Создать карту клиента →" variant="action" onPress={handleReg} />
         </MetalCard>
       </ScrollView>

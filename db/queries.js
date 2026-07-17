@@ -717,20 +717,27 @@ export function getClientByCode(code) {
   return db.getFirstSync(`SELECT * FROM clients WHERE code = ?`, [code]) || null;
 }
 
-export function insertClient({ fio, phone, code }) {
+export function insertClient({ fio, phone, code, birth_date }) {
   const db = getDb();
   const now = new Date().toISOString();
   db.runSync(
     `INSERT INTO clients (fio, phone, code, balance, visits, total_sum, created_at) VALUES (?, ?, ?, 0, 0, 0, ?)`,
     [fio, phone || '', code, now]
   );
+  // birth_date сохраняем отдельным UPDATE (на случай если колонки ещё нет)
+  if (birth_date) {
+    try {
+      const c = db.getFirstSync(`SELECT id FROM clients WHERE code = ?`, [code]);
+      if (c) db.runSync(`UPDATE clients SET birth_date = ? WHERE id = ?`, [birth_date, c.id]);
+    } catch (_) {}
+  }
 }
 
-export function updateClient(id, { fio, phone, balance, discount_pct }) {
+export function updateClient(id, { fio, phone, balance, discount_pct, birth_date }) {
   const db = getDb();
   db.runSync(
-    `UPDATE clients SET fio = ?, phone = ?, balance = ?, discount_pct = ? WHERE id = ?`,
-    [fio, phone, balance, discount_pct ?? 0, id]
+    `UPDATE clients SET fio = ?, phone = ?, balance = ?, discount_pct = ?, birth_date = ? WHERE id = ?`,
+    [fio, phone, balance, discount_pct ?? 0, birth_date || '', id]
   );
 }
 
@@ -1704,4 +1711,168 @@ export function saveOrderTemplate(name, items) {
 export function deleteOrderTemplate(id) {
   const db = getDb();
   db.runSync(`DELETE FROM order_templates WHERE id = ?`, [id]);
+}
+
+// ─── Блок Г: Возврат заказа ─────────────────────────────────────────────────
+
+// Помечает заказ как возвращённый и восстанавливает склад
+export function returnOrder(orderId) {
+  const db = getDb();
+  const order = db.getFirstSync(`SELECT * FROM orders WHERE id = ?`, [orderId]);
+  if (!order || order.status === 'returned') return false;
+
+  // Восстанавливаем склад (возвращаем то, что было списано)
+  try { reverseStockForOrder(orderId); } catch (e) { console.error('[returnOrder] stock reversal error:', e); }
+
+  // Если был клиент — возвращаем ему балл/посещение/сумму
+  if (order.client_id) {
+    try {
+      const client = db.getFirstSync(`SELECT * FROM clients WHERE id = ?`, [order.client_id]);
+      if (client) {
+        // Вычитаем сумму из total_sum и уменьшаем visits
+        db.runSync(
+          `UPDATE clients SET visits = MAX(0, visits - 1), total_sum = MAX(0, total_sum - ?) WHERE id = ?`,
+          [order.total, order.client_id]
+        );
+      }
+    } catch (e) { console.error('[returnOrder] client update error:', e); }
+  }
+
+  db.runSync(`UPDATE orders SET status = 'returned' WHERE id = ?`, [orderId]);
+  return true;
+}
+
+// Возвращает заказы за период (исключает возвраты по умолчанию)
+export function getOrdersByPeriod(dateFrom, dateTo, includeReturned = false) {
+  const db = getDb();
+  const statusFilter = includeReturned ? '' : `AND (status IS NULL OR status != 'returned')`;
+  return db.getAllSync(
+    `SELECT * FROM orders WHERE created_at >= ? AND created_at <= ? ${statusFilter} ORDER BY created_at DESC`,
+    [dateFrom + 'T00:00:00', dateTo + 'T23:59:59']
+  );
+}
+
+// ─── Блок Г: P&L + Графики ──────────────────────────────────────────────────
+
+// Вычисляет COGS (себестоимость) для списка заказов
+function calcCOGS(orders) {
+  const db = getDb();
+  let total = 0;
+  for (const order of orders) {
+    const items = db.getAllSync(`SELECT * FROM order_items WHERE order_id = ?`, [order.id]);
+    for (const item of items) {
+      const qty = item.quantity || 1;
+      let card = null;
+      if (item.variant_id) {
+        card = db.getFirstSync(`SELECT * FROM cost_cards WHERE variant_id = ?`, [item.variant_id]);
+      }
+      if (!card && item.product_id) {
+        card = db.getFirstSync(`SELECT * FROM cost_cards WHERE product_id = ? AND (variant_id IS NULL OR variant_id = 0)`, [item.product_id]);
+      }
+      if (card) {
+        const ings = db.getAllSync(`SELECT * FROM cost_ingredients WHERE cost_card_id = ?`, [card.id]);
+        const cardCost = ings.reduce((s, ing) => s + ing.amount * (ing.factor || 1) * ing.price_per_unit, 0);
+        total += cardCost * qty;
+      }
+    }
+  }
+  return Math.round(total * 100) / 100;
+}
+
+// P&L за период
+export function getPnL(dateFrom, dateTo) {
+  const db = getDb();
+  const orders = getOrdersByPeriod(dateFrom, dateTo, false);
+  const revenue = orders.reduce((s, o) => s + o.total, 0);
+  const cogs    = calcCOGS(orders);
+  const grossProfit = revenue - cogs;
+
+  const expenses = db.getAllSync(
+    `SELECT SUM(amount) as total FROM expenses WHERE date >= ? AND date <= ?`,
+    [dateFrom, dateTo]
+  );
+  const totalExpenses = expenses[0]?.total || 0;
+  const netProfit = grossProfit - totalExpenses;
+
+  return {
+    revenue: Math.round(revenue * 100) / 100,
+    cogs:    Math.round(cogs * 100) / 100,
+    grossProfit: Math.round(grossProfit * 100) / 100,
+    expenses: Math.round(totalExpenses * 100) / 100,
+    netProfit: Math.round(netProfit * 100) / 100,
+    grossMarginPct: revenue > 0 ? Math.round(grossProfit / revenue * 1000) / 10 : 0,
+    netMarginPct:   revenue > 0 ? Math.round(netProfit   / revenue * 1000) / 10 : 0,
+    orderCount: orders.length,
+    avgCheck: orders.length > 0 ? Math.round(revenue / orders.length * 100) / 100 : 0,
+  };
+}
+
+// Выручка по дням для графика
+export function getRevenueByDay(dateFrom, dateTo) {
+  const db = getDb();
+  return db.getAllSync(
+    `SELECT SUBSTR(created_at, 1, 10) as day, SUM(total) as total, COUNT(*) as orders
+     FROM orders WHERE created_at >= ? AND created_at <= ? AND (status IS NULL OR status != 'returned')
+     GROUP BY day ORDER BY day`,
+    [dateFrom + 'T00:00:00', dateTo + 'T23:59:59']
+  );
+}
+
+// Топ товаров по количеству продаж
+export function getTopProducts(dateFrom, dateTo, limit = 10) {
+  const db = getDb();
+  return db.getAllSync(
+    `SELECT oi.name, SUM(oi.quantity) as qty, SUM(oi.price * oi.quantity) as revenue
+     FROM order_items oi
+     JOIN orders o ON o.id = oi.order_id
+     WHERE o.created_at >= ? AND o.created_at <= ? AND (o.status IS NULL OR o.status != 'returned')
+     GROUP BY oi.name ORDER BY qty DESC LIMIT ?`,
+    [dateFrom + 'T00:00:00', dateTo + 'T23:59:59', limit]
+  );
+}
+
+// ─── Блок Г: Плановые цены ──────────────────────────────────────────────────
+
+export function addPriceSchedule(productId, variantId, newPrice, effectiveDate) {
+  const db = getDb();
+  try { db.execSync(`CREATE TABLE IF NOT EXISTS price_schedules (id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER NOT NULL, variant_id INTEGER, new_price REAL NOT NULL, effective_date TEXT NOT NULL, applied INTEGER DEFAULT 0, created_at TEXT NOT NULL)`); } catch (_) {}
+  return db.runSync(
+    `INSERT INTO price_schedules (product_id, variant_id, new_price, effective_date, applied, created_at) VALUES (?, ?, ?, ?, 0, ?)`,
+    [productId, variantId || null, newPrice, effectiveDate, new Date().toISOString()]
+  ).lastInsertRowId;
+}
+
+export function getPriceSchedules(productId) {
+  const db = getDb();
+  try { db.execSync(`CREATE TABLE IF NOT EXISTS price_schedules (id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER NOT NULL, variant_id INTEGER, new_price REAL NOT NULL, effective_date TEXT NOT NULL, applied INTEGER DEFAULT 0, created_at TEXT NOT NULL)`); } catch (_) {}
+  return db.getAllSync(
+    `SELECT * FROM price_schedules WHERE product_id = ? AND applied = 0 ORDER BY effective_date`,
+    [productId]
+  );
+}
+
+export function deletePriceSchedule(id) {
+  const db = getDb();
+  db.runSync(`DELETE FROM price_schedules WHERE id = ?`, [id]);
+}
+
+// Применяет плановые цены у которых наступила дата — вызывать при старте кассы
+export function applyPendingPriceSchedules() {
+  const db = getDb();
+  try {
+    db.execSync(`CREATE TABLE IF NOT EXISTS price_schedules (id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER NOT NULL, variant_id INTEGER, new_price REAL NOT NULL, effective_date TEXT NOT NULL, applied INTEGER DEFAULT 0, created_at TEXT NOT NULL)`);
+    const today = new Date().toISOString().slice(0, 10);
+    const pending = db.getAllSync(
+      `SELECT * FROM price_schedules WHERE effective_date <= ? AND applied = 0`, [today]
+    );
+    for (const s of pending) {
+      if (s.variant_id) {
+        db.runSync(`UPDATE product_variants SET price = ? WHERE id = ?`, [s.new_price, s.variant_id]);
+      } else {
+        db.runSync(`UPDATE products SET price = ? WHERE id = ?`, [s.new_price, s.product_id]);
+      }
+      db.runSync(`UPDATE price_schedules SET applied = 1 WHERE id = ?`, [s.id]);
+    }
+    return pending.length;
+  } catch (e) { console.error('[applyPendingPriceSchedules]', e); return 0; }
 }

@@ -37,6 +37,7 @@ import LocationsScreen from './screens/LocationsScreen';
 import EmployeesScreen from './screens/EmployeesScreen';
 import InventoryScreen from './screens/InventoryScreen';
 import InventoryCountScreen from './screens/InventoryCountScreen';
+import ReportsScreen from './screens/ReportsScreen';
 import { colors, fonts } from './constants/theme';
 
 const Stack = createNativeStackNavigator();
@@ -124,6 +125,7 @@ export default function App() {
             <Stack.Screen name="Employees"      component={EmployeesScreen} />
             <Stack.Screen name="Inventory"      component={InventoryScreen} />
             <Stack.Screen name="InventoryCount" component={InventoryCountScreen} />
+            <Stack.Screen name="Reports"        component={ReportsScreen} />
           </Stack.Navigator>
         </AppBackground>
       </NavigationContainer>

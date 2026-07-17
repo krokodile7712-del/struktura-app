@@ -16,6 +16,7 @@ import {
   getPayMethods, savePayMethods,
   getZones, addZone, updateZone, deleteZone,
   addZoneTable, updateZoneTable, deleteZoneTable, bulkAddZoneTables,
+  getPriceSchedules, addPriceSchedule, deletePriceSchedule, applyPendingPriceSchedules,
   getAllStock, updateStockThreshold,
   getUnlinkedCostCards,
   getBusinessProfile, updateBusinessProfile, applyBusinessPreset, BUSINESS_PRESETS,
@@ -44,6 +45,7 @@ export default function SettingsScreen({ navigation }) {
 
   // ── Модалки ──
   const [productModal, setProductModal]   = useState(null);
+  const [priceSchedules, setPriceSchedules] = useState([]);
   // { product, variants: [{id, label, price, sku, active}], groupIds: [], techCards: { [variantKey]: [{name, amount, unit}] } }
   const [ingredientPicker, setIngredientPicker] = useState(null); // { variantKey, search }
   const [newProductModal, setNewProductModal]   = useState(null); // { name, category, price }
@@ -133,6 +135,7 @@ export default function SettingsScreen({ navigation }) {
       }) : [];
     });
     setProductModal({ product, axes, variants, groupIds: groups.map(g => g.id), techCards });
+    try { setPriceSchedules(getPriceSchedules(product.id)); } catch(_) { setPriceSchedules([]); }
   };
 
   // ── Управление осями вариативности ──
@@ -1088,6 +1091,46 @@ export default function SettingsScreen({ navigation }) {
                   </>
                 )}
               </ScrollView>
+
+              {/* Плановые цены */}
+              <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
+                <Text style={styles.sectionTitle}>📅 Плановые цены</Text>
+                <Text style={styles.hintText}>Цена изменится автоматически в указанную дату при открытии кассы.</Text>
+                {priceSchedules.map(s => (
+                  <View key={s.id} style={[styles.row, { alignItems: 'center' }]}>
+                    <Text style={styles.rowName}>{s.effective_date} → {s.new_price} ₽</Text>
+                    <Pressable onPress={() => { deletePriceSchedule(s.id); setPriceSchedules(getPriceSchedules(productModal.product.id)); }} hitSlop={10}>
+                      <Text style={{ color: colors.redLight, fontSize: 14, padding: 4 }}>✕</Text>
+                    </Pressable>
+                  </View>
+                ))}
+                <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
+                  <TextInput
+                    style={[styles.input, { flex: 1, padding: 10 }]}
+                    placeholder="Цена ₽"
+                    keyboardType="numeric"
+                    placeholderTextColor={colors.muted}
+                    value={productModal._newSchedulePrice || ''}
+                    onChangeText={v => setProductModal(m => ({ ...m, _newSchedulePrice: v }))}
+                  />
+                  <TextInput
+                    style={[styles.input, { flex: 1.5, padding: 10 }]}
+                    placeholder="ГГГГ-ММ-ДД"
+                    placeholderTextColor={colors.muted}
+                    value={productModal._newScheduleDate || ''}
+                    onChangeText={v => setProductModal(m => ({ ...m, _newScheduleDate: v }))}
+                  />
+                  <MetalButton title="+" variant="default" style={{ paddingHorizontal: 16 }} onPress={() => {
+                    const price = parseFloat(productModal._newSchedulePrice);
+                    const date  = (productModal._newScheduleDate || '').trim();
+                    if (!price || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+                    addPriceSchedule(productModal.product.id, null, price, date);
+                    setPriceSchedules(getPriceSchedules(productModal.product.id));
+                    setProductModal(m => ({ ...m, _newSchedulePrice: '', _newScheduleDate: '' }));
+                  }} />
+                </View>
+              </View>
+
               <MetalButton title="Сохранить" variant="success" onPress={saveProduct} style={{ marginTop: 10 }} />
               <MetalButton
                 title={productModal.product.active ? '🚫 Деактивировать' : '✓ Активировать'}

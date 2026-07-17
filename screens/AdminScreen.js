@@ -15,6 +15,7 @@ const getMenuItems = (terms) => [
   { icon: '💸', label: 'Расходы',        screen: 'Expenses',    variant: 'danger'  },
   { icon: '📅', label: 'Открыть смену',  screen: 'Shift',       variant: 'success', module: 'shifts', hideWhenShiftOpen: true },
   { icon: '👤', label: `Новый ${terms.client}`, screen: 'Reg',  variant: 'pay',     module: 'clients' },
+  { icon: '📊', label: 'Отчётность',     screen: 'Reports',     variant: 'success' },
   { icon: '🗂️', label: 'Локации',         screen: 'Locations',   variant: 'default',  module: 'locations' },
   { icon: '📋', label: 'Инвентаризация',  screen: 'Inventory',   variant: 'default',  module: 'inventory' },
   { icon: '📥', label: 'Импорт Sheets',   screen: 'Migrate',     variant: 'success' },

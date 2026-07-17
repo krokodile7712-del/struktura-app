@@ -27,6 +27,7 @@ export default function ClientCardScreen({ route, navigation }) {
   const [phone, setPhone]     = useState(client?.phone || '');
   const [balance, setBalance] = useState(String(client?.balance || 0));
   const [discountPct, setDiscountPct] = useState(String(client?.discount_pct || 0));
+  const [birthDate, setBirthDate] = useState(client?.birth_date || '');
   const [loyaltyModel, setLoyaltyModel] = useState('points');
   const [loyaltyConfig, setLoyaltyConfig] = useState({});
   const [subAdd, setSubAdd] = useState('');
@@ -64,9 +65,10 @@ export default function ClientCardScreen({ route, navigation }) {
 
   const handleSave = () => {
     try {
-      updateClient(client.id, { fio: fio.trim(), phone: phone.trim(), balance: parseFloat(balance) || 0, discount_pct: parseFloat(discountPct) || 0 });
+      updateClient(client.id, { fio: fio.trim(), phone: phone.trim(), balance: parseFloat(balance) || 0, discount_pct: parseFloat(discountPct) || 0, birth_date: birthDate.trim() });
       client.fio     = fio.trim();
       client.discount_pct = parseFloat(discountPct) || 0;
+      client.birth_date = birthDate.trim();
       client.phone   = phone.trim();
       client.balance = parseFloat(balance) || 0;
       setEditing(false);
@@ -101,6 +103,17 @@ export default function ClientCardScreen({ route, navigation }) {
               {(client.discount_pct > 0) && (
                 <Text style={styles.personalDiscount}>🏷 Личная скидка: {client.discount_pct}%</Text>
               )}
+              {client.birth_date ? (() => {
+                const today = new Date();
+                const mm = String(today.getMonth()+1).padStart(2,'0');
+                const dd = String(today.getDate()).padStart(2,'0');
+                const isBirthday = client.birth_date.includes(`${dd}.${mm}`) || client.birth_date.includes(`-${mm}-${dd}`) || client.birth_date.startsWith(`${mm}-${dd}`);
+                return (
+                  <Text style={[styles.personalDiscount, isBirthday && { color: '#f5c842', fontSize: 15 }]}>
+                    {isBirthday ? '🎂 Сегодня день рождения!' : `🎂 ${client.birth_date}`}
+                  </Text>
+                );
+              })() : null}
 
               <View style={styles.statsRow}>
                 <View style={styles.statBox}>
@@ -165,6 +178,15 @@ export default function ClientCardScreen({ route, navigation }) {
               <Text style={[styles.hintText, { marginTop: -8, marginBottom: 12 }]}>
                 0 — применяется глобальная скидка программы лояльности
               </Text>
+              <Text style={styles.fieldLabel}>Дата рождения</Text>
+              <TextInput
+                style={styles.input}
+                value={birthDate}
+                onChangeText={setBirthDate}
+                placeholder="01.01.1990"
+                placeholderTextColor={colors.muted}
+                keyboardType="numbers-and-punctuation"
+              />
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
                 <MetalButton title="Сохранить" variant="success" onPress={handleSave} style={{ flex: 1 }} />
                 <MetalButton title="Отмена"    variant="back"    onPress={() => setEditing(false)} style={{ flex: 1 }} />
