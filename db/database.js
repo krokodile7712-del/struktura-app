@@ -289,6 +289,8 @@ export function initDatabase() {
     // Блок Б: количество позиции в корзине + заметка к заказу
     `ALTER TABLE order_items ADD COLUMN quantity INTEGER DEFAULT 1`,
     `ALTER TABLE orders      ADD COLUMN note     TEXT    DEFAULT ''`,
+    // Блок В: зона/стол заказа
+    `ALTER TABLE orders ADD COLUMN zone TEXT DEFAULT ''`,
   ];
   for (const sql of migrations) {
     try { db.execSync(sql); } catch (_) {}
@@ -303,7 +305,7 @@ export function initDatabase() {
       [
         'coffee',
         'СТРУКТУРА',
-        JSON.stringify({ stock: true, shifts: true, clients: true, loyalty: true, modifiers: true, inventory: true }),
+        JSON.stringify({ stock: true, shifts: true, clients: true, loyalty: true, modifiers: true, inventory: true, locations: false, zones: false, templates: false }),
         JSON.stringify({ item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' }),
         JSON.stringify({ barista: 'Бариста', admin: 'Администратор' }),
         JSON.stringify(['мл', 'л', 'г', 'кг', 'шт', 'уп', 'пара']),
@@ -340,6 +342,26 @@ export function initDatabase() {
       cost_per_unit REAL DEFAULT 0,
       diff_money    REAL DEFAULT 0,
       FOREIGN KEY (act_id) REFERENCES inventory_acts(id)
+    );
+  `);
+
+  // ─── Блок В: Зоны/столы ────────────────────────────────────────────────────
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS zones (
+      id       INTEGER PRIMARY KEY AUTOINCREMENT,
+      name     TEXT NOT NULL,
+      position INTEGER DEFAULT 0,
+      active   INTEGER DEFAULT 1
+    );
+  `);
+
+  // ─── Блок В: Шаблоны заказов ───────────────────────────────────────────────
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS order_templates (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      name       TEXT NOT NULL,
+      items      TEXT NOT NULL,
+      created_at TEXT NOT NULL
     );
   `);
 

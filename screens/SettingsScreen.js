@@ -14,6 +14,7 @@ import {
   getUsers, updateUserPin,
   getDiscounts, setSetting, getLoyaltyConfig, updateLoyaltyConfig,
   getPayMethods, savePayMethods,
+  getZones, addZone, updateZone, deleteZone,
   getAllStock, updateStockThreshold,
   getUnlinkedCostCards,
   getBusinessProfile, updateBusinessProfile, applyBusinessPreset, BUSINESS_PRESETS,
@@ -32,7 +33,9 @@ export default function SettingsScreen({ navigation }) {
   const [users, setUsers]                   = useState([]);
   const [discounts, setDiscounts]           = useState([]);
   const [payMethodsList, setPayMethodsList] = useState([]);
-  const [payMethodModal, setPayMethodModal] = useState(null); // {index, id, name, icon, type, active}
+  const [payMethodModal, setPayMethodModal] = useState(null);
+  const [zones, setZones]           = useState([]);
+  const [zoneModal, setZoneModal]   = useState(null); // {id?, name} // {index, id, name, icon, type, active}
   const [modifierGroups, setModifierGroups] = useState([]);
   const [stock, setStock]                   = useState([]);
   const [unlinkedCards, setUnlinkedCards]   = useState([]);
@@ -76,6 +79,7 @@ export default function SettingsScreen({ navigation }) {
       setPinAdmin(u.find(x => x.role === 'admin')?.pin || '');
       setDiscounts(getDiscounts());
       setPayMethodsList(getPayMethods());
+      setZones(getZones());
       setModifierGroups(getAllModifierGroups());
       setStock(getAllStock());
       const lc = getLoyaltyConfig();
@@ -388,6 +392,22 @@ export default function SettingsScreen({ navigation }) {
     const list = payMethodsList.map((m, i) => i === idx ? { ...m, active: !m.active } : m);
     savePayMethods(list);
     setPayMethodsList(list);
+  };
+
+  // ── Зоны/столы ──
+  const saveZone = () => {
+    if (!zoneModal || !zoneModal.name.trim()) return;
+    try {
+      if (zoneModal.id) updateZone(zoneModal.id, zoneModal.name.trim());
+      else addZone(zoneModal.name.trim());
+      setZones(getZones());
+    } catch (e) { console.error(e); }
+    setZoneModal(null);
+  };
+  const removeZone = () => {
+    if (!zoneModal?.id) return;
+    try { deleteZone(zoneModal.id); setZones(getZones()); } catch (e) { console.error(e); }
+    setZoneModal(null);
   };
 
   // ── Скидки ──
@@ -744,6 +764,28 @@ export default function SettingsScreen({ navigation }) {
           <MetalButton title="+ Добавить способ оплаты" variant="default" onPress={openNewPayMethod} style={{ marginTop: 8 }} />
         </MetalCard>
 
+        {/* Зоны / столы */}
+        {modules.zones !== false && (
+          <MetalCard style={{ marginTop: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+              <Text style={styles.blockTitle}>📍 Зоны и столы</Text>
+              <InfoTip
+                title="Зачем нужны зоны?"
+                text="Зоны помогают разделить заказы по месту обслуживания: Стол 1, Бар, С собой, Доставка. Сотрудник выбирает зону в кассе при оформлении. Зона сохраняется в истории заказов для отчётности."
+              />
+            </View>
+            <Hint>Добавьте зоны под ваш бизнес. Например: Стол 1–10, Бар, Терраса, С собой.</Hint>
+            {zones.length === 0 && <Text style={styles.empty}>Зон пока нет — без них заказ оформляется без указания места.</Text>}
+            {zones.map((z, i) => (
+              <Pressable key={z.id} style={styles.row} onPress={() => setZoneModal({ id: z.id, name: z.name })}>
+                <Text style={styles.rowName}>📍 {z.name}</Text>
+                <Text style={styles.rowPrice}>✎</Text>
+              </Pressable>
+            ))}
+            <MetalButton title="+ Добавить зону" variant="default" onPress={() => setZoneModal({ name: '' })} style={{ marginTop: 8 }} />
+          </MetalCard>
+        )}
+
         {/* Скидки */}
         <MetalCard style={{ marginTop: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
@@ -1093,6 +1135,35 @@ export default function SettingsScreen({ navigation }) {
               <Text style={styles.fieldLabel}>Порог нехватки ({stockModal.unit})</Text>
               <TextInput style={styles.input} keyboardType="numeric" value={stockModal['порог']} onChangeText={(v) => setStockModal(m => ({ ...m, порог: v }))} placeholderTextColor={colors.muted} />
               <MetalButton title="Сохранить" variant="success" onPress={saveStockModal} style={{ marginTop: 10 }} />
+            </View>
+          )}
+        </View>
+      </Modal>
+
+      {/* Модалка зоны */}
+      <Modal visible={!!zoneModal} transparent animationType="fade" onRequestClose={() => setZoneModal(null)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setZoneModal(null)} />
+          {zoneModal && (
+            <View style={[styles.modalInner, { width: '40%', maxWidth: 380 }]}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{zoneModal.id ? 'Изменить зону' : 'Новая зона'}</Text>
+                <Pressable onPress={() => setZoneModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
+              </View>
+              <Text style={styles.fieldLabel}>Название</Text>
+              <TextInput
+                style={styles.input}
+                value={zoneModal.name}
+                onChangeText={v => setZoneModal(m => ({ ...m, name: v }))}
+                placeholder="напр. Стол 1, Бар, С собой"
+                placeholderTextColor={colors.muted}
+                autoFocus
+              />
+              <Hint>Короткое понятное название — сотрудник будет выбирать его в кассе.</Hint>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
+                <MetalButton title="Сохранить" variant="success" onPress={saveZone} style={{ flex: 1 }} />
+                {zoneModal.id && <MetalButton title="Удалить" variant="danger" onPress={removeZone} style={{ flex: 1 }} />}
+              </View>
             </View>
           )}
         </View>

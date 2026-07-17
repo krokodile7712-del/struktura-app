@@ -651,7 +651,7 @@ export function deleteModifier(id) {
 
 // ─── Заказы ───────────────────────────────────────────────────────────────
 
-export function createOrder({ total, method, methodType, shift_id, client_id, items, cashAmount, cardAmount, discountPct, locationId, note }) {
+export function createOrder({ total, method, methodType, shift_id, client_id, items, cashAmount, cardAmount, discountPct, locationId, note, zone }) {
   const db = getDb();
   const now = new Date().toISOString();
 
@@ -660,9 +660,9 @@ export function createOrder({ total, method, methodType, shift_id, client_id, it
   try { db.execSync(`ALTER TABLE orders ADD COLUMN discount_pct REAL DEFAULT 0`); } catch (_) {}
 
   const result = db.runSync(
-    `INSERT INTO orders (created_at, total, method, method_type, shift_id, client_id, cash_amount, card_amount, discount_pct, note)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [now, total, method, methodType || '', shift_id || null, client_id || null, cashAmount || 0, cardAmount || 0, discountPct || 0, note || '']
+    `INSERT INTO orders (created_at, total, method, method_type, shift_id, client_id, cash_amount, card_amount, discount_pct, note, zone)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [now, total, method, methodType || '', shift_id || null, client_id || null, cashAmount || 0, cardAmount || 0, discountPct || 0, note || '', zone || '']
   );
   const orderId = result.lastInsertRowId;
 
@@ -1624,4 +1624,50 @@ export function getDashboardStats() {
     lowStockItems,
     lowStockCount: lowStockItems.length,
   };
+}
+
+// ─── Блок В: Зоны/столы ────────────────────────────────────────────────────
+
+export function getZones() {
+  const db = getDb();
+  return db.getAllSync(`SELECT * FROM zones WHERE active = 1 ORDER BY position, id`);
+}
+
+export function addZone(name) {
+  const db = getDb();
+  const pos = (db.getFirstSync(`SELECT MAX(position) as m FROM zones`)?.m || 0) + 1;
+  return db.runSync(`INSERT INTO zones (name, position, active) VALUES (?, ?, 1)`, [name, pos]).lastInsertRowId;
+}
+
+export function updateZone(id, name) {
+  const db = getDb();
+  db.runSync(`UPDATE zones SET name = ? WHERE id = ?`, [name, id]);
+}
+
+export function deleteZone(id) {
+  const db = getDb();
+  db.runSync(`UPDATE zones SET active = 0 WHERE id = ?`, [id]);
+}
+
+// ─── Блок В: Шаблоны заказов ───────────────────────────────────────────────
+
+export function getOrderTemplates() {
+  const db = getDb();
+  return db.getAllSync(`SELECT * FROM order_templates ORDER BY name`).map(t => ({
+    ...t, items: safeParse(t.items, []),
+  }));
+}
+
+export function saveOrderTemplate(name, items) {
+  const db = getDb();
+  const now = new Date().toISOString();
+  return db.runSync(
+    `INSERT INTO order_templates (name, items, created_at) VALUES (?, ?, ?)`,
+    [name, JSON.stringify(items), now]
+  ).lastInsertRowId;
+}
+
+export function deleteOrderTemplate(id) {
+  const db = getDb();
+  db.runSync(`DELETE FROM order_templates WHERE id = ?`, [id]);
 }

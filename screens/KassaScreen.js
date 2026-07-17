@@ -7,20 +7,19 @@ import {
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import { getAllProducts, getCategories, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, getAllVariantsWithSku, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms, getLoyaltyConfig, spendPoints } from '../db/queries';
+import { getAllProducts, getCategories, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, getAllVariantsWithSku, getZones, getOrderTemplates, saveOrderTemplate, deleteOrderTemplate, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms, getLoyaltyConfig, spendPoints } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
 const CAT_ICONS = { 'Кофе': '☕', 'Лимонады': '🍹', 'Допы': '🍬', 'Прочее': '🫙' };
 
 export default function KassaScreen({ navigation, route }) {
-  const forClient = route?.params?.forClient || null;
+  const loading2 = false; // placeholder
   const [loading, setLoading] = useState(true);
   const [groups, setGroups] = useState([]);
   const [allProducts, setAllProducts] = useState([]);
   const [discounts, setDiscounts] = useState([]);
   const [activeCat, setActiveCat] = useState(null);
-  const [order, setOrder] = useState([]);
-  const [appliedDiscount, setAppliedDiscount] = useState(null); // { name, pct }
+  // appliedDiscount теперь в слоте
   const [modalItem, setModalItem] = useState(null);
   const [modalVariants, setModalVariants] = useState([]);
   const [modalGroups, setModalGroups] = useState([]);
@@ -33,18 +32,75 @@ export default function KassaScreen({ navigation, route }) {
   const [terms, setTerms] = useState({ item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' });
   const [loyaltyModel, setLoyaltyModel] = useState('points');
   const [loyaltyConfig, setLoyaltyConfig] = useState({});
-  const [pointsToSpend, setPointsToSpend] = useState('');
   const [payMethods, setPayMethods] = useState([]);
   // Поиск
   const [searchQuery, setSearchQuery] = useState('');
   const [skuMap, setSkuMap] = useState({});       // {sku_lower: product_id}
+  // ── Парковка заказов (слоты) ────────────────────────────────────────────────
+  // Каждый слот = один активный чек со своим состоянием
+  const [slots, setSlots] = useState([
+    { id: 1, order: [], orderNote: '', appliedDiscount: null, pointsToSpend: '', zone: null, forClient: route?.params?.forClient || null }
+  ]);
+  const [activeSlotId, setActiveSlotId] = useState(1);
+  const [nextSlotId, setNextSlotId] = useState(2);
+
+  // Зоны и шаблоны
+  const [zones, setZones]               = useState([]);
+  const [zonesEnabled, setZonesEnabled] = useState(false);
+  const [templates, setTemplates]       = useState([]);
+  const [templatesEnabled, setTemplatesEnabled] = useState(false);
+  const [templateModalOpen, setTemplateModalOpen] = useState(false);
+  const [templateNameInput, setTemplateNameInput] = useState('');
+  const [templatesListOpen, setTemplatesListOpen] = useState(false);
+
   // Заметка к заказу
-  const [orderNote, setOrderNote] = useState('');
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   // Редактирование позиции корзины
   const [editingCartItemId, setEditingCartItemId] = useState(null);
   // Развёрнутая позиция (модификаторы)
-  const [expandedCartId, setExpandedCartId] = useState(null); // для оплаты баллами
+  const [expandedCartId, setExpandedCartId] = useState(null);
+
+  // ── Хелперы активного слота ─────────────────────────────────────────────────
+  const activeSlot = slots.find(s => s.id === activeSlotId) || slots[0];
+  const order          = activeSlot.order;
+  const orderNote      = activeSlot.orderNote;
+  const appliedDiscount = activeSlot.appliedDiscount;
+  const pointsToSpend  = activeSlot.pointsToSpend;
+  const activeZone     = activeSlot.zone;
+  const forClient      = activeSlot.forClient;
+
+  const updateSlot = (updates) =>
+    setSlots(prev => prev.map(s => s.id === activeSlotId ? { ...s, ...updates } : s));
+
+  const setOrder          = (fn) => setSlots(prev => prev.map(s =>
+    s.id !== activeSlotId ? s : { ...s, order: typeof fn === 'function' ? fn(s.order) : fn }));
+  const setOrderNote      = (v) => updateSlot({ orderNote: v });
+  const setAppliedDiscount = (v) => updateSlot({ appliedDiscount: v });
+  const setPointsToSpend  = (v) => updateSlot({ pointsToSpend: v });
+  const setActiveZone     = (v) => updateSlot({ zone: v });
+
+  // Парковать текущий чек и открыть новый
+  const parkAndNew = () => {
+    const newId = nextSlotId;
+    setNextSlotId(newId + 1);
+    setSlots(prev => [...prev, { id: newId, order: [], orderNote: '', appliedDiscount: null, pointsToSpend: '', zone: null, forClient: null }]);
+    setActiveSlotId(newId);
+    setExpandedCartId(null);
+  };
+
+  // Закрыть слот после оплаты или вручную
+  const closeSlot = (id) => {
+    setSlots(prev => {
+      const remaining = prev.filter(s => s.id !== id);
+      if (remaining.length === 0) return [{ id: 1, order: [], orderNote: '', appliedDiscount: null, pointsToSpend: '', zone: null, forClient: null }];
+      return remaining;
+    });
+    setActiveSlotId(prev => {
+      const remaining = slots.filter(s => s.id !== id);
+      if (remaining.length === 0) return 1;
+      return remaining[remaining.length - 1].id;
+    });
+  }; // для оплаты баллами
 
   // Модалка оплаты
   const [payModalOpen, setPayModalOpen] = useState(false);
@@ -71,6 +127,12 @@ export default function KassaScreen({ navigation, route }) {
       setLoyaltyModel(lc.model);
       setLoyaltyConfig(lc.config);
       setPayMethods(getPayMethods().filter(m => m.active !== false));
+      const zonesOn = profile?.modules?.zones === true;
+      const templatesOn = profile?.modules?.templates === true;
+      setZonesEnabled(zonesOn);
+      setTemplatesEnabled(templatesOn);
+      if (zonesOn) setZones(getZones());
+      if (templatesOn) setTemplates(getOrderTemplates());
       // Строим SKU-карту для поиска по артикулу
       const skuEntries = getAllVariantsWithSku();
       const map = {};
@@ -413,6 +475,7 @@ export default function KassaScreen({ navigation, route }) {
         discountPct: effectiveDiscount?.pct || 0,
         locationId: getCurrentLocationId(),
         note: orderNote,
+        zone: activeZone?.name || '',
       });
       if (forClient?.id) {
         if (loyaltyModel === 'points' && loyaltyConfig.allow_spend && pointsToSpend) {
@@ -421,11 +484,9 @@ export default function KassaScreen({ navigation, route }) {
         }
         addClientVisit(forClient.id, rawTotal);
       }
-      setOrder([]);
-      setAppliedDiscount(null);
-      setPointsToSpend('');
-      setOrderNote('');
+      setExpandedCartId(null);
       setPayModalOpen(false);
+      closeSlot(activeSlotId);
       if (stockWarnings && stockWarnings.length > 0) {
         const lines = stockWarnings.map(w => `${w.name}: ${w.amount.toFixed(1)} ${w.unit || ''}`).join('\n');
         Alert.alert('⚠️ Склад ушёл в минус', lines);
@@ -527,12 +588,56 @@ export default function KassaScreen({ navigation, route }) {
         </View>
 
         <View style={styles.orderPanel}>
+          {/* Вкладки парковки — показываются когда есть 2+ слота */}
+          {slots.length > 1 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.slotBar} contentContainerStyle={styles.slotBarInner}>
+              {slots.map((s, i) => {
+                const qty = s.order.reduce((sum, it) => sum + (it.quantity || 1), 0);
+                const isActive = s.id === activeSlotId;
+                return (
+                  <Pressable key={s.id} style={[styles.slotTab, isActive && styles.slotTabActive]} onPress={() => { setActiveSlotId(s.id); setExpandedCartId(null); }}>
+                    <Text style={[styles.slotTabText, isActive && styles.slotTabTextActive]}>
+                      №{i + 1}{s.zone ? ` · ${s.zone.name}` : ''}{qty > 0 ? ` (${qty})` : ''}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+              <Pressable style={styles.slotTabNew} onPress={parkAndNew}>
+                <Text style={styles.slotTabNewText}>+ Чек</Text>
+              </Pressable>
+            </ScrollView>
+          )}
+
+          {/* Выбор зоны */}
+          {zonesEnabled && zones.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.zoneBar} contentContainerStyle={styles.zoneBarInner}>
+              <Pressable style={[styles.zoneChip, !activeZone && styles.zoneChipActive]} onPress={() => setActiveZone(null)}>
+                <Text style={[styles.zoneChipText, !activeZone && styles.zoneChipTextActive]}>Без зоны</Text>
+              </Pressable>
+              {zones.map(z => (
+                <Pressable key={z.id} style={[styles.zoneChip, activeZone?.id === z.id && styles.zoneChipActive]} onPress={() => setActiveZone(z)}>
+                  <Text style={[styles.zoneChipText, activeZone?.id === z.id && styles.zoneChipTextActive]}>📍 {z.name}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
+
           <View style={styles.orderHeader}>
             <Text style={styles.orderHeaderText}>🛒 {terms.order} ({order.reduce((s,i)=>s+(i.quantity||1),0)})</Text>
             <View style={{ flexDirection: 'row', gap: 6 }}>
+              {templatesEnabled && (
+                <Pressable onPress={() => setTemplatesListOpen(true)} hitSlop={8} style={styles.orderHeaderBtn}>
+                  <Text style={styles.orderHeaderBtnText}>⚡</Text>
+                </Pressable>
+              )}
               <Pressable onPress={() => setNoteModalOpen(true)} hitSlop={8} style={styles.orderHeaderBtn}>
                 <Text style={[styles.orderHeaderBtnText, orderNote && { color: colors.greenLight }]}>📝</Text>
               </Pressable>
+              {slots.length === 1 && (
+                <Pressable onPress={parkAndNew} hitSlop={8} style={styles.orderHeaderBtn} title="Припарковать чек и открыть новый">
+                  <Text style={styles.orderHeaderBtnText}>⏸</Text>
+                </Pressable>
+              )}
               {order.length > 0 && (
                 <Pressable onPress={() => { setOrder([]); setExpandedCartId(null); }} hitSlop={8} style={styles.orderHeaderBtn}>
                   <Text style={styles.orderHeaderBtnText}>🗑</Text>
@@ -615,12 +720,73 @@ export default function KassaScreen({ navigation, route }) {
                 <MetalButton title="🏷 Скидка" variant="default" onPress={() => setDiscountModalOpen(true)} style={{ flex: 1 }} />
               )}
             </View>
+            {templatesEnabled && order.length > 0 && (
+              <MetalButton title="⚡ Сохранить как шаблон" variant="default" onPress={() => { setTemplateNameInput(''); setTemplateModalOpen(true); }} style={{ marginBottom: 6 }} />
+            )}
             <MetalButton title="💰 Оплатить" variant="action" onPress={openPayModal} />
           </View>
         </View>
       </View>
 
       <BottomBar navigation={navigation} activeTab="Kassa" />
+
+      {/* Модалка сохранения шаблона */}
+      <Modal visible={templateModalOpen} transparent animationType="fade" onRequestClose={() => setTemplateModalOpen(false)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setTemplateModalOpen(false)} />
+          <View style={[styles.modalInner, { width: '45%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>⚡ Сохранить шаблон</Text>
+              <Pressable onPress={() => setTemplateModalOpen(false)} hitSlop={12}><Text style={styles.modalCloseText}>✕</Text></Pressable>
+            </View>
+            <TextInput
+              style={styles.input}
+              value={templateNameInput}
+              onChangeText={setTemplateNameInput}
+              placeholder="Название шаблона (напр. Бизнес-ланч)"
+              placeholderTextColor={colors.muted}
+              autoFocus
+            />
+            <MetalButton title="Сохранить" variant="success" onPress={() => {
+              if (!templateNameInput.trim()) return;
+              saveOrderTemplate(templateNameInput.trim(), order);
+              setTemplates(getOrderTemplates());
+              setTemplateModalOpen(false);
+            }} style={{ marginTop: 10 }} />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Модалка выбора шаблона */}
+      <Modal visible={templatesListOpen} transparent animationType="fade" onRequestClose={() => setTemplatesListOpen(false)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setTemplatesListOpen(false)} />
+          <View style={[styles.modalInner, { width: '50%', maxHeight: '70%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>⚡ Шаблоны заказов</Text>
+              <Pressable onPress={() => setTemplatesListOpen(false)} hitSlop={12}><Text style={styles.modalCloseText}>✕</Text></Pressable>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {templates.length === 0 && <Text style={{ color: colors.muted, textAlign: 'center', paddingVertical: 20 }}>Шаблонов пока нет. Оформите заказ и нажмите «Сохранить как шаблон» в корзине.</Text>}
+              {templates.map(t => (
+                <View key={t.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                  <Pressable style={{ flex: 1 }} onPress={() => {
+                    const items = t.items.map(i => ({ ...i, id: Date.now() + Math.random() }));
+                    items.forEach(item => addToCart(item));
+                    setTemplatesListOpen(false);
+                  }}>
+                    <Text style={{ fontFamily: fonts.family, fontSize: 15, color: colors.text }}>⚡ {t.name}</Text>
+                    <Text style={{ fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 }}>{t.items.length} позиций</Text>
+                  </Pressable>
+                  <Pressable hitSlop={10} onPress={() => { deleteOrderTemplate(t.id); setTemplates(getOrderTemplates()); }}>
+                    <Text style={{ color: colors.redLight, fontSize: 15, padding: 6 }}>✕</Text>
+                  </Pressable>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {/* Модалка заметки к заказу */}
       <Modal visible={noteModalOpen} transparent animationType="fade" onRequestClose={() => setNoteModalOpen(false)}>
@@ -857,6 +1023,22 @@ const styles = StyleSheet.create({
   orderHeader: { paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   orderHeaderText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 2 },
   orderItem: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  // Слоты парковки
+  slotBar: { maxHeight: 44, borderBottomWidth: 1, borderBottomColor: colors.border },
+  slotBarInner: { paddingHorizontal: 10, paddingVertical: 8, gap: 6, flexDirection: 'row', alignItems: 'center' },
+  slotTab: { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: '#07080a' },
+  slotTabActive: { borderColor: 'rgba(61,95,168,0.6)', backgroundColor: 'rgba(61,95,168,0.15)' },
+  slotTabText: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
+  slotTabTextActive: { color: '#7a9be8' },
+  slotTabNew: { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(61,158,146,0.4)', borderStyle: 'dashed' },
+  slotTabNewText: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.greenLight },
+  // Зоны
+  zoneBar: { maxHeight: 44, borderBottomWidth: 1, borderBottomColor: colors.border },
+  zoneBarInner: { paddingHorizontal: 10, paddingVertical: 8, gap: 6, flexDirection: 'row', alignItems: 'center' },
+  zoneChip: { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: '#07080a' },
+  zoneChipActive: { borderColor: 'rgba(122,158,82,0.5)', backgroundColor: 'rgba(122,158,82,0.12)' },
+  zoneChipText: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
+  zoneChipTextActive: { color: colors.greenLight },
   orderItemName: { fontFamily: fonts.family, fontSize: 14, color: colors.text },
   orderItemMod: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
   orderItemPrice: { fontFamily: fonts.family, fontSize: 14, fontWeight: '700', color: colors.text },
