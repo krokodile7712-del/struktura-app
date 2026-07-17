@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { getHomeRoute, getCurrentLocationId } from '../db/session';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
@@ -113,6 +114,21 @@ export default function KassaScreen({ navigation, route }) {
 
   useEffect(() => { loadData(); }, []);
 
+  // Перезагружаем настройки при каждом возврате на экран
+  // (зоны, шаблоны, модули могли измениться в Настройках)
+  useFocusEffect(useCallback(() => {
+    try {
+      const profile = getBusinessProfile();
+      const zonesOn = profile?.modules?.zones === true;
+      const templatesOn = profile?.modules?.templates === true;
+      setZonesEnabled(zonesOn);
+      setTemplatesEnabled(templatesOn);
+      if (zonesOn) setZones(getZones());
+      if (templatesOn) setTemplates(getOrderTemplates());
+      setPayMethods(getPayMethods().filter(m => m.active !== false));
+    } catch (e) { console.error(e); }
+  }, []));
+
   const loadData = () => {
     try {
       const products = getAllProducts();
@@ -126,13 +142,6 @@ export default function KassaScreen({ navigation, route }) {
       const lc = getLoyaltyConfig();
       setLoyaltyModel(lc.model);
       setLoyaltyConfig(lc.config);
-      setPayMethods(getPayMethods().filter(m => m.active !== false));
-      const zonesOn = profile?.modules?.zones === true;
-      const templatesOn = profile?.modules?.templates === true;
-      setZonesEnabled(zonesOn);
-      setTemplatesEnabled(templatesOn);
-      if (zonesOn) setZones(getZones());
-      if (templatesOn) setTemplates(getOrderTemplates());
       // Строим SKU-карту для поиска по артикулу
       const skuEntries = getAllVariantsWithSku();
       const map = {};
