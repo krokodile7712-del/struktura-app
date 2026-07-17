@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TextInput } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
+import InfoTip from '../components/InfoTip';
 import { getOpenShift, getShiftSummary, closeShift, getTerms, pluralizeRu } from '../db/queries';
 import { clearSession, getHomeRoute } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';

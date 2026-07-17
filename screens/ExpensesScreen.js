@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import EmptyState from '../components/EmptyState';
 import Hint from '../components/Hint';
+import InfoTip from '../components/InfoTip';
 import { getHomeRoute } from '../db/session';
 import { View, Text, StyleSheet, ScrollView, TextInput, Pressable } from 'react-native';
 import MetalCard from '../components/MetalCard';
@@ -93,7 +94,13 @@ export default function ExpensesScreen({ navigation }) {
 
         {/* Блок просмотра */}
         <MetalCard>
-          <Text style={styles.blockTitle}>📊 Расходы за период</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+              <Text style={[styles.blockTitle, { marginBottom: 0 }]}>📊 Расходы за период</Text>
+              <InfoTip
+                title="Зачем записывать расходы?"
+                text="Расходы — это всё что вы тратите на бизнес помимо закупки товаров: аренда, коммунальные, зарплата, реклама, канцелярия. Фиксируйте их здесь чтобы видеть реальную прибыль, а не просто выручку."
+              />
+            </View>
           <View style={styles.periodRow}>
             {PERIODS.map(p => (
               <Pressable

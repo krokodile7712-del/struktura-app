@@ -573,7 +573,13 @@ export default function SettingsScreen({ navigation }) {
         {/* Группы модификаторов */}
         {modules.modifiers !== false && (
           <MetalCard style={{ marginTop: 12 }}>
-            <Text style={styles.blockTitle}>🧩 Модификаторы</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+              <Text style={styles.blockTitle}>🧩 Модификаторы</Text>
+              <InfoTip
+                title="Что такое модификаторы?"
+                text="Модификаторы — это дополнения к товару, которые клиент выбирает при заказе. Например для кофе: выбор молока (коровье, овсяное, миндальное) или добавка сиропа. Каждый модификатор может менять цену и списывать ингредиент со склада. Группа = категория (напр. «Молоко»), внутри — варианты выбора."
+              />
+            </View>
             <Text style={styles.hintText}>Группы опций для {genitivePluralRu(terms.item).toLowerCase()} (напр. «Молоко», «Цвет», «Размер ленты») — единичный или множественный выбор.</Text>
             {modifierGroups.length === 0 && <Text style={styles.empty}>Групп пока нет.</Text>}
             {modifierGroups.map(g => (
@@ -601,7 +607,13 @@ export default function SettingsScreen({ navigation }) {
         {/* Программа лояльности */}
         {modules.loyalty !== false && (
           <MetalCard style={{ marginTop: 12 }}>
-            <Text style={styles.blockTitle}>⭐ Программа лояльности</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+              <Text style={styles.blockTitle}>⭐ Программа лояльности</Text>
+              <InfoTip
+                title="Программа лояльности"
+                text="Помогает удерживать клиентов — они возвращаются снова чтобы получить бонус или потратить накопленное. Выберите модель: Баллы (клиент копит и тратит), Скидка (автоматическая скидка для всех клиентов), Абонемент (фиксированное число посещений)."
+              />
+            </View>
 
             {/* Выбор модели */}
             <Text style={styles.fieldLabel}>Модель</Text>
@@ -710,7 +722,13 @@ export default function SettingsScreen({ navigation }) {
 
         {/* Способы оплаты */}
         <MetalCard style={{ marginTop: 12 }}>
-          <Text style={styles.blockTitle}>💳 Способы оплаты</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+            <Text style={styles.blockTitle}>💳 Способы оплаты</Text>
+            <InfoTip
+              title="Способы оплаты"
+              text="Настройте какими способами клиенты могут платить — наличные, карта, QR-код, перевод. Тип (нал / безнал) влияет на итоги в отчётах и при закрытии смены. Смешанная оплата позволяет разделить сумму между наличными и картой."
+            />
+          </View>
           <Text style={styles.hintText}>Тип: «нал» = наличные в отчётах, «безнал» = карта/QR, «смешанная» = UI разделения суммы.</Text>
           {payMethodsList.map((m, i) => (
             <Pressable key={m.id || i} style={styles.row} onPress={() => openEditPayMethod(m, i)}>
@@ -728,7 +746,13 @@ export default function SettingsScreen({ navigation }) {
 
         {/* Скидки */}
         <MetalCard style={{ marginTop: 12 }}>
-          <Text style={styles.blockTitle}>🏷 Скидки</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+            <Text style={styles.blockTitle}>🏷 Скидки</Text>
+            <InfoTip
+              title="Ручные скидки"
+              text="Скидки которые сотрудник может применить вручную в кассе — например 'скидка дня' или 'скидка для друзей'. Задайте название и процент. Автоматические скидки для клиентов настраиваются в программе лояльности."
+            />
+          </View>
           {discounts.length === 0 && <Text style={styles.empty}>Скидки не настроены</Text>}
           {discounts.map((d, i) => (
             <Pressable key={i} style={styles.row} onPress={() => openEditDiscount(i)}>
@@ -742,7 +766,13 @@ export default function SettingsScreen({ navigation }) {
         {/* Пороги остатка склада */}
         {modules.stock !== false && (
           <MetalCard style={{ marginTop: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
             <Text style={styles.blockTitle}>📦 Пороги остатка склада</Text>
+            <InfoTip
+              title="Пороговый остаток"
+              text="Минимальный остаток при котором появится предупреждение что товар заканчивается. Например, для кофе поставьте 500 г — когда останется меньше, вы увидите предупреждение на главном экране. Это помогает вовремя делать закупки."
+            />
+          </View>
             {stock.length === 0 && <Text style={styles.empty}>Нет данных на складе.</Text>}
             {stock.map(s => (
               <Pressable key={s.id} style={styles.row} onPress={() => openStockModal(s)}>
@@ -888,7 +918,13 @@ export default function SettingsScreen({ navigation }) {
                         />
                       </View>
 
-                      <Text style={styles.techCardTitle}>🧾 Техкарта{v.label ? ` · ${v.label}` : ''}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+                        <Text style={styles.techCardTitle}>🧾 Техкарта{v.label ? ` · ${v.label}` : ''}</Text>
+                        <InfoTip
+                          title="Что такое техкарта?"
+                          text="Техкарта (рецепт) — список ингредиентов со склада, которые автоматически списываются при каждой продаже. Например для латте: молоко 200 мл + кофе 18 г. Без техкарты остатки на складе не изменятся при продаже."
+                        />
+                      </View>
                       {(productModal.techCards[key] || []).length === 0 && (
                         <Text style={styles.hintText}>Ингредиенты не заданы — списание со склада работать не будет.</Text>
                       )}

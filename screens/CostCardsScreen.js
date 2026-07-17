@@ -6,6 +6,7 @@ import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import EmptyState from '../components/EmptyState';
+import InfoTip from '../components/InfoTip';
 import { getAllCostCards, deleteCostCard, getTerms, genitiveSingularRu } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
@@ -37,7 +38,13 @@ export default function CostCardsScreen({ navigation }) {
           <Text style={styles.hint}>
             Только просмотр. Создавать и редактировать техкарты нужно через Настройки → Меню и цены → карточка {genitiveSingularRu(terms.item).toLowerCase()} (там же выбираются ингредиенты со склада и размер, к которому привязана техкарта).
           </Text>
-          <Text style={styles.sectionTitle}>Техкарты ({cards.length})</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+            <Text style={styles.sectionTitle}>Техкарты ({cards.length})</Text>
+            <InfoTip
+              title="Что такое себестоимость?"
+              text="Себестоимость — это сколько вам реально стоит приготовить и продать один товар. Сюда входят все ингредиенты по техкарте. Чем ниже себестоимость при той же цене продажи — тем выше ваша маржа (прибыль с единицы). Цель: себестоимость должна быть не больше 30-40% от цены продажи."
+            />
+          </View>
           {cards.length === 0 && (
             <EmptyState
               icon="🧾"

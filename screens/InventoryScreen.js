@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import EmptyState from '../components/EmptyState';
+import InfoTip from '../components/InfoTip';
 import { View, Text, StyleSheet, ScrollView, Pressable, Modal } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
