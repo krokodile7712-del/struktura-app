@@ -15,6 +15,7 @@ import {
   getDiscounts, setSetting, getLoyaltyConfig, updateLoyaltyConfig,
   getPayMethods, savePayMethods,
   getZones, addZone, updateZone, deleteZone,
+  addZoneTable, updateZoneTable, deleteZoneTable, bulkAddZoneTables,
   getAllStock, updateStockThreshold,
   getUnlinkedCostCards,
   getBusinessProfile, updateBusinessProfile, applyBusinessPreset, BUSINESS_PRESETS,
@@ -35,7 +36,7 @@ export default function SettingsScreen({ navigation }) {
   const [payMethodsList, setPayMethodsList] = useState([]);
   const [payMethodModal, setPayMethodModal] = useState(null);
   const [zones, setZones]           = useState([]);
-  const [zoneModal, setZoneModal]   = useState(null); // {id?, name} // {index, id, name, icon, type, active}
+  const [zoneModal, setZoneModal]   = useState(null); // {id?, name, tables:[{id,name}], newTableInput, bulkPrefix, bulkFrom, bulkTo} // {index, id, name, icon, type, active}
   const [modifierGroups, setModifierGroups] = useState([]);
   const [stock, setStock]                   = useState([]);
   const [unlinkedCards, setUnlinkedCards]   = useState([]);
@@ -395,14 +396,52 @@ export default function SettingsScreen({ navigation }) {
   };
 
   // ── Зоны/столы ──
-  const saveZone = () => {
+  const saveZoneName = () => {
     if (!zoneModal || !zoneModal.name.trim()) return;
     try {
       if (zoneModal.id) updateZone(zoneModal.id, zoneModal.name.trim());
-      else addZone(zoneModal.name.trim());
+      else {
+        const newId = addZone(zoneModal.name.trim());
+        setZoneModal(m => ({ ...m, id: newId, tables: [] }));
+        setZones(getZones());
+        return; // остаёмся в модалке для добавления столов
+      }
       setZones(getZones());
     } catch (e) { console.error(e); }
     setZoneModal(null);
+  };
+  const addTableToZone = () => {
+    if (!zoneModal?.id || !zoneModal.newTableInput?.trim()) return;
+    try {
+      addZoneTable(zoneModal.id, zoneModal.newTableInput.trim());
+      const updated = getZones();
+      setZones(updated);
+      const z = updated.find(z => z.id === zoneModal.id);
+      setZoneModal(m => ({ ...m, tables: z?.tables || [], newTableInput: '' }));
+    } catch (e) { console.error(e); }
+  };
+  const removeTableFromZone = (tableId) => {
+    try {
+      deleteZoneTable(tableId);
+      const updated = getZones();
+      setZones(updated);
+      const z = updated.find(z => z.id === zoneModal?.id);
+      setZoneModal(m => ({ ...m, tables: z?.tables || [] }));
+    } catch (e) { console.error(e); }
+  };
+  const bulkAddTables = () => {
+    if (!zoneModal?.id) return;
+    const prefix = zoneModal.bulkPrefix?.trim() || 'Стол';
+    const from = parseInt(zoneModal.bulkFrom) || 1;
+    const to = parseInt(zoneModal.bulkTo) || from;
+    if (from > to || to - from > 99) return;
+    try {
+      bulkAddZoneTables(zoneModal.id, prefix, from, to);
+      const updated = getZones();
+      setZones(updated);
+      const z = updated.find(z => z.id === zoneModal.id);
+      setZoneModal(m => ({ ...m, tables: z?.tables || [], bulkFrom: '', bulkTo: '' }));
+    } catch (e) { console.error(e); }
   };
   const removeZone = () => {
     if (!zoneModal?.id) return;
@@ -776,13 +815,18 @@ export default function SettingsScreen({ navigation }) {
             </View>
             <Hint>Добавьте зоны под ваш бизнес. Например: Стол 1–10, Бар, Терраса, С собой.</Hint>
             {zones.length === 0 && <Text style={styles.empty}>Зон пока нет — без них заказ оформляется без указания места.</Text>}
-            {zones.map((z, i) => (
-              <Pressable key={z.id} style={styles.row} onPress={() => setZoneModal({ id: z.id, name: z.name })}>
-                <Text style={styles.rowName}>📍 {z.name}</Text>
+            {zones.map((z) => (
+              <Pressable key={z.id} style={styles.row} onPress={() => setZoneModal({ id: z.id, name: z.name, tables: z.tables || [], newTableInput: '', bulkPrefix: 'Стол', bulkFrom: '', bulkTo: '' })}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.rowName}>📍 {z.name}</Text>
+                  {z.tables?.length > 0 && (
+                    <Text style={styles.rowSub}>{z.tables.length} {z.tables.length === 1 ? 'стол' : z.tables.length < 5 ? 'стола' : 'столов'}: {z.tables.slice(0,4).map(t=>t.name).join(', ')}{z.tables.length > 4 ? '...' : ''}</Text>
+                  )}
+                </View>
                 <Text style={styles.rowPrice}>✎</Text>
               </Pressable>
             ))}
-            <MetalButton title="+ Добавить зону" variant="default" onPress={() => setZoneModal({ name: '' })} style={{ marginTop: 8 }} />
+            <MetalButton title="+ Добавить зону" variant="default" onPress={() => setZoneModal({ name: '', tables: [], newTableInput: '', bulkPrefix: 'Стол', bulkFrom: '', bulkTo: '' })} style={{ marginTop: 8 }} />
           </MetalCard>
         )}
 
@@ -1145,25 +1189,99 @@ export default function SettingsScreen({ navigation }) {
         <View style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setZoneModal(null)} />
           {zoneModal && (
-            <View style={[styles.modalInner, { width: '40%', maxWidth: 380 }]}>
+            <View style={[styles.modalInner, { width: '55%', maxWidth: 500, maxHeight: '88%' }]}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>{zoneModal.id ? 'Изменить зону' : 'Новая зона'}</Text>
+                <Text style={styles.modalTitle}>{zoneModal.id ? `Зона: ${zoneModal.name}` : 'Новая зона'}</Text>
                 <Pressable onPress={() => setZoneModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
               </View>
-              <Text style={styles.fieldLabel}>Название</Text>
-              <TextInput
-                style={styles.input}
-                value={zoneModal.name}
-                onChangeText={v => setZoneModal(m => ({ ...m, name: v }))}
-                placeholder="напр. Стол 1, Бар, С собой"
-                placeholderTextColor={colors.muted}
-                autoFocus
-              />
-              <Hint>Короткое понятное название — сотрудник будет выбирать его в кассе.</Hint>
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
-                <MetalButton title="Сохранить" variant="success" onPress={saveZone} style={{ flex: 1 }} />
-                {zoneModal.id && <MetalButton title="Удалить" variant="danger" onPress={removeZone} style={{ flex: 1 }} />}
-              </View>
+
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {/* Название зоны */}
+                <Text style={styles.fieldLabel}>Название зоны</Text>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TextInput
+                    style={[styles.input, { flex: 1 }]}
+                    value={zoneModal.name}
+                    onChangeText={v => setZoneModal(m => ({ ...m, name: v }))}
+                    placeholder="Зал, Терраса, Бар, Вынос..."
+                    placeholderTextColor={colors.muted}
+                    autoFocus={!zoneModal.id}
+                  />
+                  <MetalButton title={zoneModal.id ? 'Сохранить' : 'Создать →'} variant="success" onPress={saveZoneName} style={{ paddingHorizontal: 16 }} />
+                </View>
+
+                {/* Столы — только если зона уже сохранена */}
+                {zoneModal.id ? (<>
+                  <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Столы в этой зоне ({(zoneModal.tables || []).length})</Text>
+
+                  {/* Список столов */}
+                  {(zoneModal.tables || []).length === 0 && (
+                    <Text style={styles.empty}>Столов пока нет. Добавьте вручную или используйте быстрое добавление.</Text>
+                  )}
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                    {(zoneModal.tables || []).map(t => (
+                      <View key={t.id} style={styles.tableChipEdit}>
+                        <Text style={styles.tableChipEditText}>{t.name}</Text>
+                        <Pressable onPress={() => removeTableFromZone(t.id)} hitSlop={6}>
+                          <Text style={{ fontSize: 13, color: colors.redLight, marginLeft: 4 }}>✕</Text>
+                        </Pressable>
+                      </View>
+                    ))}
+                  </View>
+
+                  {/* Добавить один стол */}
+                  <Text style={styles.fieldLabel}>Добавить стол</Text>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <TextInput
+                      style={[styles.input, { flex: 1 }]}
+                      value={zoneModal.newTableInput || ''}
+                      onChangeText={v => setZoneModal(m => ({ ...m, newTableInput: v }))}
+                      placeholder="Стол 1 / VIP / Место у окна"
+                      placeholderTextColor={colors.muted}
+                      onSubmitEditing={addTableToZone}
+                      returnKeyType="done"
+                    />
+                    <MetalButton title="+" variant="default" onPress={addTableToZone} style={{ paddingHorizontal: 20 }} />
+                  </View>
+
+                  {/* Быстрое добавление диапазона */}
+                  <Text style={styles.fieldLabel}>Быстро добавить диапазон</Text>
+                  <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <TextInput
+                      style={[styles.input, { flex: 2 }]}
+                      value={zoneModal.bulkPrefix || 'Стол'}
+                      onChangeText={v => setZoneModal(m => ({ ...m, bulkPrefix: v }))}
+                      placeholder="Стол"
+                      placeholderTextColor={colors.muted}
+                    />
+                    <Text style={{ color: colors.muted, fontFamily: fonts.family }}>с</Text>
+                    <TextInput
+                      style={[styles.input, { flex: 1 }]}
+                      value={zoneModal.bulkFrom || ''}
+                      onChangeText={v => setZoneModal(m => ({ ...m, bulkFrom: v }))}
+                      keyboardType="numeric"
+                      placeholder="1"
+                      placeholderTextColor={colors.muted}
+                    />
+                    <Text style={{ color: colors.muted, fontFamily: fonts.family }}>по</Text>
+                    <TextInput
+                      style={[styles.input, { flex: 1 }]}
+                      value={zoneModal.bulkTo || ''}
+                      onChangeText={v => setZoneModal(m => ({ ...m, bulkTo: v }))}
+                      keyboardType="numeric"
+                      placeholder="10"
+                      placeholderTextColor={colors.muted}
+                    />
+                    <MetalButton title="Добавить" variant="default" onPress={bulkAddTables} style={{ flex: 2 }} />
+                  </View>
+                  <Hint>Например: префикс "Стол", с 1 по 10 → создаст Стол 1, Стол 2 ... Стол 10</Hint>
+
+                  {/* Удалить зону */}
+                  <MetalButton title="Удалить зону" variant="danger" onPress={removeZone} style={{ marginTop: 12 }} />
+                </>) : (
+                  <Hint>После создания вы сможете добавить столы к этой зоне.</Hint>
+                )}
+              </ScrollView>
             </View>
           )}
         </View>
@@ -1458,6 +1576,8 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
   rowName: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.text, flex: 1 },
   rowSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+  tableChipEdit: { flexDirection: 'row', alignItems: 'center', paddingVertical: 5, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(61,95,168,0.4)', backgroundColor: 'rgba(61,95,168,0.1)' },
+  tableChipEditText: { fontFamily: fonts.familySemibold, fontSize: 12, color: '#7a9be8' },
   rowNameInactive: { color: colors.muted },
   rowPrice: { fontFamily: fonts.family, fontSize: 13, fontWeight: '700', color: colors.greenLight },
   empty: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center', paddingVertical: 12 },

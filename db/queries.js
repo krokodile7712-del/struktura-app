@@ -1630,7 +1630,13 @@ export function getDashboardStats() {
 
 export function getZones() {
   const db = getDb();
-  return db.getAllSync(`SELECT * FROM zones WHERE active = 1 ORDER BY position, id`);
+  const zones = db.getAllSync(`SELECT * FROM zones WHERE active = 1 ORDER BY position, id`);
+  return zones.map(z => ({
+    ...z,
+    tables: db.getAllSync(
+      `SELECT * FROM zone_tables WHERE zone_id = ? ORDER BY position, id`, [z.id]
+    ),
+  }));
 }
 
 export function addZone(name) {
@@ -1647,6 +1653,36 @@ export function updateZone(id, name) {
 export function deleteZone(id) {
   const db = getDb();
   db.runSync(`UPDATE zones SET active = 0 WHERE id = ?`, [id]);
+  // Столы зоны не трогаем — мягкое удаление только самой зоны
+}
+
+// Столы внутри зоны
+export function addZoneTable(zoneId, name) {
+  const db = getDb();
+  const pos = (db.getFirstSync(
+    `SELECT MAX(position) as m FROM zone_tables WHERE zone_id = ?`, [zoneId]
+  )?.m || 0) + 1;
+  return db.runSync(
+    `INSERT INTO zone_tables (zone_id, name, position) VALUES (?, ?, ?)`,
+    [zoneId, name, pos]
+  ).lastInsertRowId;
+}
+
+export function updateZoneTable(id, name) {
+  const db = getDb();
+  db.runSync(`UPDATE zone_tables SET name = ? WHERE id = ?`, [name, id]);
+}
+
+export function deleteZoneTable(id) {
+  const db = getDb();
+  db.runSync(`DELETE FROM zone_tables WHERE id = ?`, [id]);
+}
+
+// Быстро добавить несколько столов по диапазону (напр. "Стол 1" до "Стол 10")
+export function bulkAddZoneTables(zoneId, prefix, from, to) {
+  for (let i = from; i <= to; i++) {
+    addZoneTable(zoneId, `${prefix} ${i}`);
+  }
 }
 
 // ─── Блок В: Шаблоны заказов ───────────────────────────────────────────────

@@ -68,6 +68,7 @@ export default function KassaScreen({ navigation, route }) {
   const appliedDiscount = activeSlot.appliedDiscount;
   const pointsToSpend  = activeSlot.pointsToSpend;
   const activeZone     = activeSlot.zone;
+  const activeTable    = activeSlot.table || null;
   const forClient      = activeSlot.forClient;
 
   const updateSlot = (updates) =>
@@ -78,7 +79,8 @@ export default function KassaScreen({ navigation, route }) {
   const setOrderNote      = (v) => updateSlot({ orderNote: v });
   const setAppliedDiscount = (v) => updateSlot({ appliedDiscount: v });
   const setPointsToSpend  = (v) => updateSlot({ pointsToSpend: v });
-  const setActiveZone     = (v) => updateSlot({ zone: v });
+  const setActiveZone     = (v) => updateSlot({ zone: v, table: null }); // при смене зоны сбрасываем стол
+  const setActiveTable    = (v) => updateSlot({ table: v });
 
   // Парковать текущий чек и открыть новый
   const parkAndNew = () => {
@@ -484,7 +486,7 @@ export default function KassaScreen({ navigation, route }) {
         discountPct: effectiveDiscount?.pct || 0,
         locationId: getCurrentLocationId(),
         note: orderNote,
-        zone: activeZone?.name || '',
+        zone: activeZone ? (activeTable ? `${activeZone.name} · ${activeTable.name}` : activeZone.name) : '',
       });
       if (forClient?.id) {
         if (loyaltyModel === 'points' && loyaltyConfig.allow_spend && pointsToSpend) {
@@ -606,7 +608,7 @@ export default function KassaScreen({ navigation, route }) {
                 return (
                   <Pressable key={s.id} style={[styles.slotTab, isActive && styles.slotTabActive]} onPress={() => { setActiveSlotId(s.id); setExpandedCartId(null); }}>
                     <Text style={[styles.slotTabText, isActive && styles.slotTabTextActive]}>
-                      №{i + 1}{s.zone ? ` · ${s.zone.name}` : ''}{qty > 0 ? ` (${qty})` : ''}
+                      {s.zone ? (s.table ? `${s.zone.name}·${s.table.name}` : s.zone.name) : `№${i + 1}`}{qty > 0 ? ` (${qty})` : ''}
                     </Text>
                   </Pressable>
                 );
@@ -625,7 +627,25 @@ export default function KassaScreen({ navigation, route }) {
               </Pressable>
               {zones.map(z => (
                 <Pressable key={z.id} style={[styles.zoneChip, activeZone?.id === z.id && styles.zoneChipActive]} onPress={() => setActiveZone(z)}>
-                  <Text style={[styles.zoneChipText, activeZone?.id === z.id && styles.zoneChipTextActive]}>📍 {z.name}</Text>
+                  <Text style={[styles.zoneChipText, activeZone?.id === z.id && styles.zoneChipTextActive]}>
+                    📍 {z.name}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
+
+          {/* Выбор стола — показывается если у зоны есть столы */}
+          {zonesEnabled && activeZone?.tables?.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.zoneBar} contentContainerStyle={styles.zoneBarInner}>
+              <Pressable style={[styles.zoneChip, !activeTable && styles.zoneChipActive]} onPress={() => setActiveTable(null)}>
+                <Text style={[styles.zoneChipText, !activeTable && styles.zoneChipTextActive]}>Без стола</Text>
+              </Pressable>
+              {activeZone.tables.map(t => (
+                <Pressable key={t.id} style={[styles.zoneChip, activeTable?.id === t.id && styles.zoneChipActive]} onPress={() => setActiveTable(t)}>
+                  <Text style={[styles.zoneChipText, activeTable?.id === t.id && styles.zoneChipTextActive]}>
+                    {t.name}
+                  </Text>
                 </Pressable>
               ))}
             </ScrollView>

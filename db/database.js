@@ -355,6 +355,15 @@ export function initDatabase() {
     );
   `);
 
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS zone_tables (
+      id       INTEGER PRIMARY KEY AUTOINCREMENT,
+      zone_id  INTEGER NOT NULL,
+      name     TEXT NOT NULL,
+      position INTEGER DEFAULT 0
+    );
+  `);
+
   // ─── Блок В: Шаблоны заказов ───────────────────────────────────────────────
   db.execSync(`
     CREATE TABLE IF NOT EXISTS order_templates (
