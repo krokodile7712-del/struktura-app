@@ -765,7 +765,7 @@ export default function SettingsScreen({ navigation }) {
         </MetalCard>
 
         {/* Зоны / столы */}
-        {modules.zones !== false && (
+        {modules.zones === true && (
           <MetalCard style={{ marginTop: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
               <Text style={styles.blockTitle}>📍 Зоны и столы</Text>
@@ -1380,8 +1380,15 @@ export default function SettingsScreen({ navigation }) {
 
                 <Text style={styles.sectionTitle}>Модули</Text>
                 {[
-                  ['stock', 'Склад'], ['shifts', 'Смены'], ['clients', 'Клиенты'],
-                  ['loyalty', 'Лояльность'], ['modifiers', 'Модификаторы'], ['inventory', 'Инвентаризация'],
+                  ['stock',      'Склад'],
+                  ['shifts',     'Смены'],
+                  ['clients',    'Клиенты'],
+                  ['loyalty',    'Лояльность'],
+                  ['modifiers',  'Модификаторы'],
+                  ['inventory',  'Инвентаризация'],
+                  ['locations',  'Локации (несколько точек хранения)'],
+                  ['zones',      'Зоны / Столы (нумерация мест)'],
+                  ['templates',  'Шаблоны заказов'],
                 ].map(([key, label]) => (
                   <Pressable key={key} style={styles.checkRow} onPress={() => toggleModuleDraft(key)}>
                     <Text style={styles.checkBox}>{profileDraft.modules[key] ? '☑' : '☐'}</Text>
