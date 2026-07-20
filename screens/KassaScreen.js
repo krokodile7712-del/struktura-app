@@ -60,6 +60,8 @@ export default function KassaScreen({ navigation, route }) {
   const [editingCartItemId, setEditingCartItemId] = useState(null);
   // Развёрнутая позиция (модификаторы)
   const [expandedCartId, setExpandedCartId] = useState(null);
+  // Заметка к позиции корзины
+  const [itemNoteModal, setItemNoteModal] = useState(null); // {id, note}
 
   // ── Хелперы активного слота ─────────────────────────────────────────────────
   const activeSlot = slots.find(s => s.id === activeSlotId) || slots[0];
@@ -683,11 +685,12 @@ export default function KassaScreen({ navigation, route }) {
               const hasMods = (item.modifiers || []).length > 0;
               return (
                 <View key={item.id} style={styles.orderItem}>
-                  <Pressable style={styles.orderItemMain} onPress={() => hasMods && setExpandedCartId(isExpanded ? null : item.id)}>
+                  <Pressable style={styles.orderItemMain} onPress={() => hasMods && setExpandedCartId(isExpanded ? null : item.id)} onLongPress={() => setItemNoteModal({ id: item.id, note: item.note || '' })}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.orderItemName}>
                         {item.name}{item.size ? ` · ${item.size}` : ''}
                         {hasMods && <Text style={styles.modsToggle}> {isExpanded ? '▲' : '▼'}</Text>}
+                        {item.note ? <Text style={styles.itemNoteIndicator}> 💬</Text> : null}
                       </Text>
                       {isExpanded && (item.modifiers || []).map((m, mi) => (
                         <Text key={mi} style={styles.orderItemMod}>· {m.optionName}{m.priceDelta > 0 ? ` +${m.priceDelta}₽` : ''}</Text>
@@ -816,6 +819,42 @@ export default function KassaScreen({ navigation, route }) {
               ))}
             </ScrollView>
           </View>
+        </View>
+      </Modal>
+
+      {/* Модалка заметки к позиции */}
+      <Modal visible={!!itemNoteModal} transparent animationType="fade" onRequestClose={() => setItemNoteModal(null)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setItemNoteModal(null)} />
+          {itemNoteModal && (
+            <View style={[styles.modalInner, { width: '45%' }]}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>💬 Заметка к позиции</Text>
+                <Pressable onPress={() => setItemNoteModal(null)} hitSlop={12}>
+                  <Text style={styles.modalCloseText}>✕</Text>
+                </Pressable>
+              </View>
+              <TextInput
+                style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+                value={itemNoteModal.note}
+                onChangeText={v => setItemNoteModal(m => ({ ...m, note: v }))}
+                placeholder="Без сахара, аллергия на орехи..."
+                placeholderTextColor={colors.muted}
+                multiline
+                autoFocus
+              />
+              <MetalButton title="Готово" variant="success" onPress={() => {
+                setOrder(prev => prev.map(it => it.id === itemNoteModal.id ? { ...it, note: itemNoteModal.note } : it));
+                setItemNoteModal(null);
+              }} style={{ marginTop: 10 }} />
+              {itemNoteModal.note ? (
+                <MetalButton title="Очистить" variant="back" onPress={() => {
+                  setOrder(prev => prev.map(it => it.id === itemNoteModal.id ? { ...it, note: '' } : it));
+                  setItemNoteModal(null);
+                }} style={{ marginTop: 6 }} />
+              ) : null}
+            </View>
+          )}
         </View>
       </Modal>
 
@@ -1049,6 +1088,7 @@ const styles = StyleSheet.create({
   removeBtn: { marginLeft: 2, paddingHorizontal: 10, height: 28, borderRadius: 8, backgroundColor: 'rgba(160,16,32,0.12)', borderWidth: 1, borderColor: 'rgba(160,16,32,0.3)', alignItems: 'center', justifyContent: 'center' },
   removeBtnText: { fontSize: 13, color: colors.redLight },
   modsToggle: { fontSize: 10, color: colors.muted },
+  itemNoteIndicator: { fontSize: 10, color: '#7a9be8' },
   input: { padding: 13, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 15, fontFamily: fonts.family },
   orderPanel: { width: '33%', minWidth: 240, borderLeftWidth: 1, borderLeftColor: colors.border, backgroundColor: colors.surface },
   orderHeader: { paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

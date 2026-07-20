@@ -524,24 +524,24 @@ export function getAllUsers() {
 }
 
 // Добавляет нового сотрудника. Возвращает {ok, error}
-export function addUser(name, pin, role) {
+export function addUser(name, pin, role, salaryType = 'shift', salaryAmount = 0) {
   const db = getDb();
   if (!name?.trim()) return { ok: false, error: 'Укажите имя сотрудника' };
   if (!pin?.trim() || pin.trim().length < 4) return { ok: false, error: 'PIN — минимум 4 цифры' };
   const exists = db.getFirstSync(`SELECT id FROM users WHERE pin = ?`, [pin.trim()]);
   if (exists) return { ok: false, error: 'Этот PIN уже используется' };
-  db.runSync(`INSERT INTO users (name, pin, role, active) VALUES (?, ?, ?, 1)`, [name.trim(), pin.trim(), role]);
+  db.runSync(`INSERT INTO users (name, pin, role, active, salary_type, salary_amount) VALUES (?, ?, ?, 1, ?, ?)`, [name.trim(), pin.trim(), role, salaryType, salaryAmount]);
   return { ok: true };
 }
 
 // Обновляет сотрудника. Возвращает {ok, error}
-export function updateUser(id, name, pin, role) {
+export function updateUser(id, name, pin, role, salaryType = 'shift', salaryAmount = 0) {
   const db = getDb();
   if (!name?.trim()) return { ok: false, error: 'Укажите имя сотрудника' };
   if (!pin?.trim() || pin.trim().length < 4) return { ok: false, error: 'PIN — минимум 4 цифры' };
   const exists = db.getFirstSync(`SELECT id FROM users WHERE pin = ? AND id != ?`, [pin.trim(), id]);
   if (exists) return { ok: false, error: 'Этот PIN уже занят другим сотрудником' };
-  db.runSync(`UPDATE users SET name = ?, pin = ?, role = ? WHERE id = ?`, [name.trim(), pin.trim(), role, id]);
+  db.runSync(`UPDATE users SET name = ?, pin = ?, role = ?, salary_type = ?, salary_amount = ? WHERE id = ?`, [name.trim(), pin.trim(), role, salaryType, salaryAmount, id]);
   return { ok: true };
 }
 
@@ -671,12 +671,12 @@ export function createOrder({ total, method, methodType, shift_id, client_id, it
     // size/milk/syrup оставлены для обратной совместимости отображения в Продажах;
     // размер варианта дублируется в size как читаемая метка, модификаторы — в JSON
     const itemResult = db.runSync(
-      `INSERT INTO order_items (order_id, product_id, variant_id, name, size, milk, syrup, price, modifiers, quantity)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO order_items (order_id, product_id, variant_id, name, size, milk, syrup, price, modifiers, quantity, note)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         orderId, item.product_id || null, item.variant_id || null, item.name,
         item.size || '', item.milk || '', item.syrup || '', item.price,
-        JSON.stringify(item.modifiers || []), item.quantity || 1,
+        JSON.stringify(item.modifiers || []), item.quantity || 1, item.note || '',
       ]
     );
     try {
@@ -1875,4 +1875,261 @@ export function applyPendingPriceSchedules() {
     }
     return pending.length;
   } catch (e) { console.error('[applyPendingPriceSchedules]', e); return 0; }
+}
+
+// ─── Блок Ж: Оборудование ───────────────────────────────────────────────────
+
+function ensureEquipment(db) {
+  try { db.execSync(`CREATE TABLE IF NOT EXISTS equipment (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, cost REAL DEFAULT 0, purchase_date TEXT DEFAULT '', amort_type TEXT DEFAULT 'linear', amort_period INTEGER DEFAULT 12, amort_cycles INTEGER DEFAULT 0, current_cycles INTEGER DEFAULT 0, counter_type TEXT DEFAULT 'order', counter_product_id INTEGER, cycles_per_use REAL DEFAULT 1, active INTEGER DEFAULT 1, created_at TEXT NOT NULL)`); } catch (_) {}
+}
+
+export function getEquipment() {
+  const db = getDb(); ensureEquipment(db);
+  return db.getAllSync(`SELECT * FROM equipment WHERE active = 1 ORDER BY name`);
+}
+
+export function addEquipment(data) {
+  const db = getDb(); ensureEquipment(db);
+  const now = new Date().toISOString();
+  const id = db.runSync(
+    `INSERT INTO equipment (name, cost, purchase_date, amort_type, amort_period, amort_cycles, current_cycles, counter_type, counter_product_id, cycles_per_use, active, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, 1, ?)`,
+    [data.name, data.cost||0, data.purchase_date||'', data.amort_type||'linear',
+     data.amort_period||12, data.amort_cycles||0, data.counter_type||'order',
+     data.counter_product_id||null, data.cycles_per_use||1, now]
+  ).lastInsertRowId;
+  // Автоматически добавляем в инвестиционный трекер
+  if ((data.cost || 0) > 0) {
+    ensureInvestments(db);
+    db.runSync(
+      `INSERT INTO investments (name, amount, invest_date, amort_months, category, equipment_id, returnable, created_at) VALUES (?, ?, ?, ?, 'equipment', ?, 0, ?)`,
+      [data.name, data.cost, data.purchase_date||now.slice(0,10), data.amort_period||0, id, now]
+    );
+  }
+  return id;
+}
+
+export function updateEquipment(id, data) {
+  const db = getDb();
+  db.runSync(
+    `UPDATE equipment SET name=?, cost=?, purchase_date=?, amort_type=?, amort_period=?, amort_cycles=?, counter_type=?, counter_product_id=?, cycles_per_use=? WHERE id=?`,
+    [data.name, data.cost||0, data.purchase_date||'', data.amort_type||'linear',
+     data.amort_period||12, data.amort_cycles||0, data.counter_type||'order',
+     data.counter_product_id||null, data.cycles_per_use||1, id]
+  );
+}
+
+export function deleteEquipment(id) {
+  const db = getDb();
+  db.runSync(`UPDATE equipment SET active = 0 WHERE id = ?`, [id]);
+}
+
+export function incrementEquipmentCycles(productId, orderId) {
+  const db = getDb(); ensureEquipment(db);
+  // Для оборудования с counter_type='order' — каждый заказ
+  const byOrder = db.getAllSync(`SELECT * FROM equipment WHERE counter_type = 'order' AND active = 1`);
+  for (const eq of byOrder) {
+    db.runSync(`UPDATE equipment SET current_cycles = current_cycles + ? WHERE id = ?`, [eq.cycles_per_use||1, eq.id]);
+  }
+  // Для оборудования с counter_type='product' — при продаже конкретного товара
+  if (productId) {
+    const byProduct = db.getAllSync(
+      `SELECT * FROM equipment WHERE counter_type = 'product' AND counter_product_id = ? AND active = 1`,
+      [productId]
+    );
+    for (const eq of byProduct) {
+      db.runSync(`UPDATE equipment SET current_cycles = current_cycles + ? WHERE id = ?`, [eq.cycles_per_use||1, eq.id]);
+    }
+  }
+}
+
+export function manualIncrementEquipment(id, cycles = 1) {
+  const db = getDb();
+  db.runSync(`UPDATE equipment SET current_cycles = current_cycles + ? WHERE id = ?`, [cycles, id]);
+}
+
+// Амортизация за заказ для включения в себестоимость
+export function getEquipmentCostPerOrder(ordersInPeriod = 1) {
+  const db = getDb(); ensureEquipment(db);
+  const eq = db.getAllSync(`SELECT * FROM equipment WHERE active = 1 AND cost > 0`);
+  let total = 0;
+  for (const e of eq) {
+    if (e.amort_type === 'production' && e.amort_cycles > 0) {
+      total += e.cost / e.amort_cycles;
+    } else if (e.amort_type === 'linear' && e.amort_period > 0 && ordersInPeriod > 0) {
+      total += (e.cost / e.amort_period / 30) / ordersInPeriod; // per day / per order
+    }
+  }
+  return Math.round(total * 100) / 100;
+}
+
+// ─── Блок Ж: Накладные расходы ──────────────────────────────────────────────
+
+function ensureOverheads(db) {
+  try { db.execSync(`CREATE TABLE IF NOT EXISTS overhead_items (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, amount REAL DEFAULT 0, period TEXT DEFAULT 'month', basis TEXT DEFAULT 'order', basis_value REAL DEFAULT 0, active INTEGER DEFAULT 1)`); } catch (_) {}
+}
+
+export function getOverheadItems() {
+  const db = getDb(); ensureOverheads(db);
+  return db.getAllSync(`SELECT * FROM overhead_items WHERE active = 1 ORDER BY name`);
+}
+
+export function addOverheadItem(data) {
+  const db = getDb(); ensureOverheads(db);
+  return db.runSync(
+    `INSERT INTO overhead_items (name, amount, period, basis, basis_value, active) VALUES (?, ?, ?, ?, ?, 1)`,
+    [data.name, data.amount||0, data.period||'month', data.basis||'order', data.basis_value||0]
+  ).lastInsertRowId;
+}
+
+export function updateOverheadItem(id, data) {
+  const db = getDb();
+  db.runSync(
+    `UPDATE overhead_items SET name=?, amount=?, period=?, basis=?, basis_value=? WHERE id=?`,
+    [data.name, data.amount||0, data.period||'month', data.basis||'order', data.basis_value||0, id]
+  );
+}
+
+export function deleteOverheadItem(id) {
+  const db = getDb();
+  db.runSync(`UPDATE overhead_items SET active = 0 WHERE id = ?`, [id]);
+}
+
+// Накладные на заказ (для включения в себестоимость и P&L)
+export function getOverheadPerOrder(ordersThisMonth = 1, revenueThisMonth = 1, hoursThisMonth = 160) {
+  const db = getDb(); ensureOverheads(db);
+  const items = db.getAllSync(`SELECT * FROM overhead_items WHERE active = 1`);
+  let total = 0;
+  for (const item of items) {
+    // Нормализуем к месяцу
+    const monthlyAmount = item.period === 'year' ? item.amount / 12
+      : item.period === 'week' ? item.amount * 4.33
+      : item.amount;
+    if (item.basis === 'order') {
+      total += ordersThisMonth > 0 ? monthlyAmount / ordersThisMonth : 0;
+    } else if (item.basis === 'hour') {
+      total += hoursThisMonth > 0 ? (monthlyAmount / hoursThisMonth) / (ordersThisMonth / hoursThisMonth) : 0;
+    } else if (item.basis === 'revenue_pct') {
+      total += revenueThisMonth > 0 ? (revenueThisMonth * (item.basis_value || 0) / 100) / ordersThisMonth : 0;
+    }
+  }
+  return Math.round(total * 100) / 100;
+}
+
+// ─── Блок Ж: Инвестиции ─────────────────────────────────────────────────────
+
+function ensureInvestments(db) {
+  try { db.execSync(`CREATE TABLE IF NOT EXISTS investments (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, amount REAL NOT NULL, invest_date TEXT DEFAULT '', amort_months INTEGER DEFAULT 0, category TEXT DEFAULT 'other', equipment_id INTEGER, returnable INTEGER DEFAULT 0, created_at TEXT NOT NULL)`); } catch (_) {}
+}
+
+export function getInvestments() {
+  const db = getDb(); ensureInvestments(db);
+  return db.getAllSync(`SELECT * FROM investments ORDER BY invest_date DESC, created_at DESC`);
+}
+
+export function addInvestment(data) {
+  const db = getDb(); ensureInvestments(db);
+  const now = new Date().toISOString();
+  return db.runSync(
+    `INSERT INTO investments (name, amount, invest_date, amort_months, category, equipment_id, returnable, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [data.name, data.amount||0, data.invest_date||now.slice(0,10), data.amort_months||0,
+     data.category||'other', data.equipment_id||null, data.returnable?1:0, now]
+  ).lastInsertRowId;
+}
+
+export function updateInvestment(id, data) {
+  const db = getDb();
+  db.runSync(
+    `UPDATE investments SET name=?, amount=?, invest_date=?, amort_months=?, category=?, returnable=? WHERE id=?`,
+    [data.name, data.amount||0, data.invest_date||'', data.amort_months||0, data.category||'other', data.returnable?1:0, id]
+  );
+}
+
+export function deleteInvestment(id) {
+  const db = getDb();
+  db.runSync(`DELETE FROM investments WHERE id = ?`, [id]);
+}
+
+// Суммарные вложения и прогресс окупаемости
+export function getInvestmentSummary() {
+  const db = getDb(); ensureInvestments(db);
+  const all = db.getAllSync(`SELECT * FROM investments`);
+  const nonReturnable = all.filter(i => !i.returnable);
+  const returnable = all.filter(i => i.returnable);
+  const totalInvested = nonReturnable.reduce((s, i) => s + i.amount, 0);
+  const totalReturnable = returnable.reduce((s, i) => s + i.amount, 0);
+  // Накопленная прибыль из P&L (за всё время)
+  const profitRow = db.getFirstSync(
+    `SELECT SUM(total) as rev FROM orders WHERE status IS NULL OR status != 'returned'`
+  );
+  const totalRevenue = profitRow?.rev || 0;
+  return { totalInvested, totalReturnable, totalRevenue, all };
+}
+
+// ─── Блок Ж: Журнал работ ───────────────────────────────────────────────────
+
+// Заказы с заметками (к заказу или к позициям)
+export function getWorkJournal({ dateFrom, dateTo, clientId, limit = 50 } = {}) {
+  const db = getDb();
+  let where = `(o.note != '' OR oi.note != '')`;
+  const params = [];
+  if (dateFrom) { where += ` AND o.created_at >= ?`; params.push(dateFrom + 'T00:00:00'); }
+  if (dateTo)   { where += ` AND o.created_at <= ?`; params.push(dateTo   + 'T23:59:59'); }
+  if (clientId) { where += ` AND o.client_id = ?`;   params.push(clientId); }
+  params.push(limit);
+  return db.getAllSync(
+    `SELECT DISTINCT o.*, c.fio as client_name
+     FROM orders o
+     LEFT JOIN clients c ON c.id = o.client_id
+     LEFT JOIN order_items oi ON oi.order_id = o.id
+     WHERE ${where}
+     ORDER BY o.created_at DESC LIMIT ?`,
+    params
+  );
+}
+
+// Заметки на позиции конкретного заказа
+export function getOrderItemsWithNotes(orderId) {
+  const db = getDb();
+  return db.getAllSync(
+    `SELECT * FROM order_items WHERE order_id = ? ORDER BY id`,
+    [orderId]
+  );
+}
+
+// Сохранить заметку к позиции заказа
+export function updateOrderItemNote(itemId, note) {
+  const db = getDb();
+  db.runSync(`UPDATE order_items SET note = ? WHERE id = ?`, [note, itemId]);
+}
+
+// ─── Блок Ж: Зарплата — обновление сотрудников ──────────────────────────────
+// Возвращает среднюю стоимость смены по всем сотрудникам с заданной ставкой
+// revenueInShift нужен для типа 'revenue_pct', hoursInShift для 'hourly'
+export function calcShiftSalaryCost({ employeeName, revenueInShift = 0, hoursInShift = 8, avgOrdersPerMonth = 600 }) {
+  const db = getDb();
+  let user = null;
+  if (employeeName) {
+    user = db.getFirstSync(`SELECT * FROM users WHERE name = ? AND active != 0`, [employeeName]);
+  }
+  if (!user) {
+    // Берём среднюю ставку по всем активным сотрудникам с ненулевой ставкой
+    const all = db.getAllSync(`SELECT * FROM users WHERE active != 0 AND salary_amount > 0`);
+    if (all.length === 0) return 0;
+    const avg = all.reduce((s, u) => s + calcSingleSalary(u, revenueInShift, hoursInShift), 0) / all.length;
+    return Math.round(avg * 100) / 100;
+  }
+  return calcSingleSalary(user, revenueInShift, hoursInShift);
+}
+
+function calcSingleSalary(user, revenue, hours) {
+  const amt = user.salary_amount || 0;
+  switch (user.salary_type) {
+    case 'shift':       return amt;
+    case 'hourly':      return amt * (hours || 8);
+    case 'revenue_pct': return revenue * amt / 100;
+    case 'monthly':     return amt / 22; // рабочих дней в месяце
+    case 'profit_pct':  return revenue * amt / 100; // упрощённо от выручки
+    default:            return amt;
+  }
 }

@@ -297,6 +297,13 @@ export function initDatabase() {
     `ALTER TABLE orders  ADD COLUMN status     TEXT DEFAULT 'completed'`,
     `ALTER TABLE clients ADD COLUMN birth_date TEXT DEFAULT ''`,
     `CREATE TABLE IF NOT EXISTS price_schedules (id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER NOT NULL, variant_id INTEGER, new_price REAL NOT NULL, effective_date TEXT NOT NULL, applied INTEGER DEFAULT 0, created_at TEXT NOT NULL)`,
+    // Блок Ж: управленческий учёт
+    `ALTER TABLE order_items ADD COLUMN note TEXT DEFAULT ''`,
+    `ALTER TABLE users ADD COLUMN salary_type   TEXT DEFAULT 'shift'`,
+    `ALTER TABLE users ADD COLUMN salary_amount REAL DEFAULT 0`,
+    `CREATE TABLE IF NOT EXISTS equipment (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, cost REAL DEFAULT 0, purchase_date TEXT DEFAULT '', amort_type TEXT DEFAULT 'linear', amort_period INTEGER DEFAULT 12, amort_cycles INTEGER DEFAULT 0, current_cycles INTEGER DEFAULT 0, counter_type TEXT DEFAULT 'order', counter_product_id INTEGER, cycles_per_use REAL DEFAULT 1, active INTEGER DEFAULT 1, created_at TEXT NOT NULL)`,
+    `CREATE TABLE IF NOT EXISTS overhead_items (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, amount REAL DEFAULT 0, period TEXT DEFAULT 'month', basis TEXT DEFAULT 'order', basis_value REAL DEFAULT 0, active INTEGER DEFAULT 1)`,
+    `CREATE TABLE IF NOT EXISTS investments (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, amount REAL NOT NULL, invest_date TEXT DEFAULT '', amort_months INTEGER DEFAULT 0, category TEXT DEFAULT 'other', equipment_id INTEGER, returnable INTEGER DEFAULT 0, created_at TEXT NOT NULL)`,
   ];
   for (const sql of migrations) {
     try { db.execSync(sql); } catch (_) {}

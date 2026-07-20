@@ -9,7 +9,16 @@ import Hint from '../components/Hint';
 import EmptyState from '../components/EmptyState';
 import { colors, fonts, spacing } from '../constants/theme';
 
-const emptyModal = { id: null, name: '', pin: '', pinConfirm: '', role: 'barista', active: 1 };
+
+const SALARY_TYPES = [
+  { key: 'shift',       label: 'За смену, ₽',        hint: 'Фиксированная сумма за каждую отработанную смену' },
+  { key: 'hourly',      label: 'Почасовая, ₽/час',   hint: 'Ставка × количество часов в смене' },
+  { key: 'revenue_pct', label: '% от выручки',        hint: 'Процент от всей выручки за смену сотрудника' },
+  { key: 'monthly',     label: 'Оклад в месяц, ₽',   hint: 'Месячный оклад ÷ 22 рабочих дня = стоимость смены' },
+  { key: 'profit_pct',  label: '% от прибыли смены', hint: 'Мотивационная ставка: процент от чистой прибыли за смену' },
+];
+
+const emptyModal = { id: null, name: '', pin: '', pinConfirm: '', role: 'barista', active: 1, salary_type: 'shift', salary_amount: '' };
 
 export default function EmployeesScreen({ navigation }) {
   const [users, setUsers]     = useState([]);
@@ -36,7 +45,7 @@ export default function EmployeesScreen({ navigation }) {
   const openEdit = (user) => {
     setError('');
     setShowPin(false);
-    setModal({ id: user.id, name: user.name, pin: user.pin, pinConfirm: user.pin, role: user.role, active: user.active ?? 1 });
+    setModal({ id: user.id, name: user.name, pin: user.pin, pinConfirm: user.pin, role: user.role, active: user.active ?? 1, salary_type: user.salary_type || 'shift', salary_amount: String(user.salary_amount || '') });
   };
 
   const closeModal = () => { setModal(null); setError(''); };
@@ -50,9 +59,9 @@ export default function EmployeesScreen({ navigation }) {
     try {
       let result;
       if (modal.id) {
-        result = updateUser(modal.id, modal.name, modal.pin, modal.role);
+        result = updateUser(modal.id, modal.name, modal.pin, modal.role, modal.salary_type, parseFloat(modal.salary_amount)||0);
       } else {
-        result = addUser(modal.name, modal.pin, modal.role);
+        result = addUser(modal.name, modal.pin, modal.role, modal.salary_type, parseFloat(modal.salary_amount)||0);
       }
       if (!result.ok) { setError(result.error); return; }
       load();
@@ -200,6 +209,24 @@ export default function EmployeesScreen({ navigation }) {
 
                 {error !== '' && <Text style={styles.errorText}>{error}</Text>}
 
+                <Text style={styles.fieldLabel}>Ставка заработной платы</Text>
+                {SALARY_TYPES.map(t => (
+                  <Pressable key={t.key} style={[styles.salaryRow, modal.salary_type === t.key && styles.salaryRowActive]} onPress={() => setModal(m => ({ ...m, salary_type: t.key }))}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.catChipLabel, modal.salary_type === t.key && { color: colors.greenLight }]}>{modal.salary_type===t.key?'◉ ':'○ '}{t.label}</Text>
+                      <Text style={{ fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted }}>{t.hint}</Text>
+                    </View>
+                  </Pressable>
+                ))}
+                <TextInput
+                  style={styles.input}
+                  value={modal.salary_amount}
+                  onChangeText={v => setModal(m => ({ ...m, salary_amount: v }))}
+                  keyboardType="numeric"
+                  placeholder={modal.salary_type === 'revenue_pct' || modal.salary_type === 'profit_pct' ? '% (напр. 5)' : '₽ (напр. 2000)'}
+                  placeholderTextColor={colors.muted}
+                />
+
                 <MetalButton title="Сохранить" variant="success" onPress={save} style={{ marginTop: 8 }} />
 
                 {modal.id && (
@@ -255,4 +282,6 @@ const styles = StyleSheet.create({
   pinLabelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, marginBottom: 6 },
   showPinBtn: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.greenLight },
   errorText: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.redLight, marginBottom: 8, textAlign: 'center' },
+  salaryRow: { padding: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, marginBottom: 6 },
+  salaryRowActive: { borderColor: 'rgba(61,158,146,0.5)', backgroundColor: 'rgba(61,158,146,0.08)' },
 });

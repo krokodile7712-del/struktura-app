@@ -234,13 +234,22 @@ export default function SalesScreen({ navigation }) {
 
                         {expanded === order.id && itemsMap[order.id] && (
                           <View style={styles.detail}>
+                            {order.note ? (
+                              <View style={styles.noteRow}>
+                                <Text style={styles.noteText}>📝 {order.note}</Text>
+                              </View>
+                            ) : null}
                             {itemsMap[order.id].map((item, i) => (
                               <View key={i} style={styles.detailRow}>
-                                <Text style={styles.detailName}>
-                                  {item.name}{item.size ? ` ${item.size}` : ''}
-                                  {item.milk && item.milk !== '' ? ` · ${item.milk}` : ''}
-                                  {item.syrup && item.syrup !== '' ? ` · ${item.syrup}` : ''}
-                                </Text>
+                                <View style={{ flex: 1 }}>
+                                  <Text style={styles.detailName}>
+                                    {item.name}{item.size ? ` ${item.size}` : ''}
+                                    {item.milk && item.milk !== '' ? ` · ${item.milk}` : ''}
+                                    {item.syrup && item.syrup !== '' ? ` · ${item.syrup}` : ''}
+                                    {item.quantity > 1 ? ` ×${item.quantity}` : ''}
+                                  </Text>
+                                  {item.note ? <Text style={styles.itemNoteText}>💬 {item.note}</Text> : null}
+                                </View>
                                 <Text style={styles.detailPrice}>{item.price} ₽</Text>
                               </View>
                             ))}
@@ -347,6 +356,9 @@ const styles = StyleSheet.create({
   adminBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e' },
   adminBtnText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
   detail: { paddingLeft: 12, paddingVertical: 6, backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 8, marginBottom: 4 },
+  noteRow: { paddingVertical: 6, paddingHorizontal: 8, marginBottom: 4, backgroundColor: 'rgba(61,158,146,0.08)', borderRadius: 8 },
+  noteText: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.greenLight },
+  itemNoteText: { fontFamily: fonts.familyRegular, fontSize: 11, color: '#7a9be8', marginTop: 2 },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 },
   detailName: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.textDim },
   detailPrice: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.textDim },

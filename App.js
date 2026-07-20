@@ -38,6 +38,10 @@ import EmployeesScreen from './screens/EmployeesScreen';
 import InventoryScreen from './screens/InventoryScreen';
 import InventoryCountScreen from './screens/InventoryCountScreen';
 import ReportsScreen from './screens/ReportsScreen';
+import EquipmentScreen from './screens/EquipmentScreen';
+import OverheadsScreen from './screens/OverheadsScreen';
+import InvestmentsScreen from './screens/InvestmentsScreen';
+import WorkJournalScreen from './screens/WorkJournalScreen';
 import { colors, fonts } from './constants/theme';
 
 const Stack = createNativeStackNavigator();
@@ -126,6 +130,10 @@ export default function App() {
             <Stack.Screen name="Inventory"      component={InventoryScreen} />
             <Stack.Screen name="InventoryCount" component={InventoryCountScreen} />
             <Stack.Screen name="Reports"        component={ReportsScreen} />
+            <Stack.Screen name="Equipment"      component={EquipmentScreen} />
+            <Stack.Screen name="Overheads"      component={OverheadsScreen} />
+            <Stack.Screen name="Investments"    component={InvestmentsScreen} />
+            <Stack.Screen name="WorkJournal"    component={WorkJournalScreen} />
           </Stack.Navigator>
         </AppBackground>
       </NavigationContainer>
