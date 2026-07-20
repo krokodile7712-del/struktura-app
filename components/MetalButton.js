@@ -111,7 +111,7 @@ export default function MetalButton({ title, onPress, variant = 'default', style
           end={{ x: 0, y: 0.45 }}
           style={[StyleSheet.absoluteFill, { borderRadius: radius.md }]}
         />
-        <Text style={[styles.text, { color: v.textColor }, textStyle]}>{title}</Text>
+        <Text style={[styles.text, { color: disabled ? 'rgba(221,216,208,0.35)' : v.textColor }, textStyle]}>{title}</Text>
       </Pressable>
     </Animated.View>
   );

@@ -90,7 +90,7 @@ export default function ExpensesScreen({ navigation }) {
   return (
     <View style={{ flex: 1 }}>
       <TopBar title="Расходы" onBack={() => navigation.navigate(getHomeRoute())} />
-      <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
+      <ScrollView style={styles.screen} contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
 
         {/* Блок просмотра */}
         <MetalCard>
@@ -211,7 +211,7 @@ export default function ExpensesScreen({ navigation }) {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   inner: { padding: spacing.lg, paddingBottom: 20, maxWidth: 1100, width: '100%', alignSelf: 'center' },
-  blockTitle: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.textDim, textTransform: 'uppercase', letterSpacing: 2, marginBottom: 14, textAlign: 'center' },
+  blockTitle: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.textDim, textTransform: 'uppercase', letterSpacing: 2, marginBottom: 10 },
   periodRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   periodBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e', alignItems: 'center' },
   periodBtnActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.18)' },
@@ -221,13 +221,13 @@ const styles = StyleSheet.create({
   dateInput: { padding: 12, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 13, fontFamily: fonts.familyRegular },
   dateSep: { color: colors.muted, fontFamily: fonts.familyRegular },
   dateRange: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center', marginBottom: 12 },
-  sectionTitle: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 2, marginBottom: 8 },
+  sectionTitle: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, marginBottom: 8, marginTop: 4 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
   totalRow: { borderTopWidth: 1, borderTopColor: colors.borderHi, marginTop: 8 },
   totalLabel: { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.text },
   totalValue: { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.greenLight },
   rowName: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.text },
-  rowSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+  rowSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
   rowPrice: { fontFamily: fonts.family, fontSize: 14, fontWeight: '700', color: colors.text },
   empty: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', paddingVertical: 16 },
   fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, marginTop: 10 },
@@ -241,5 +241,5 @@ const styles = StyleSheet.create({
   dateChipActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.18)' },
   dateChipLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
   dateChipLabelActive: { color: colors.greenLight },
-  input: { padding: 13, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 14, marginBottom: 4, fontFamily: fonts.familyRegular },
+  input: { padding: 14, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 15, fontFamily: fonts.family, marginBottom: 4 },
 });

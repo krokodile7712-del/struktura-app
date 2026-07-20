@@ -6,6 +6,7 @@ import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import EmptyState from '../components/EmptyState';
 import { getRecentOrders, getOrderItems, deleteOrder, updateOrder, returnOrder, getTerms, pluralizeRu, genitivePluralRu, getPayMethods } from '../db/queries';
+import { useToast } from '../components/Toast';
 import { getSession, getHomeRoute } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
 
@@ -62,6 +63,7 @@ export default function SalesScreen({ navigation }) {
   const [payMethods, setPayMethods] = useState([]);
 
   // Модалка подтверждения удаления
+  const toast = useToast();
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [returnTarget, setReturnTarget] = useState(null);
   const [terms] = useState(() => {
@@ -117,6 +119,7 @@ export default function SalesScreen({ navigation }) {
     if (!returnTarget) return;
     try {
       returnOrder(returnTarget.id);
+      toast.show('Возврат оформлен ✓', 'info');
       handleShow();
     } catch (e) { console.error(e); }
     setReturnTarget(null);
@@ -126,6 +129,7 @@ export default function SalesScreen({ navigation }) {
     if (!deleteTarget) return;
     try {
       deleteOrder(deleteTarget.id);
+      toast.show('Заказ удалён', 'warn');
       handleShow();
     } catch (e) { console.error(e); }
     setDeleteTarget(null);
@@ -362,13 +366,13 @@ const styles = StyleSheet.create({
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 },
   detailName: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.textDim },
   detailPrice: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.textDim },
-  modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center' },
+  modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   modalInner: { width: '55%', maxWidth: 500, backgroundColor: '#0e0f11', borderRadius: 20, padding: 24, borderWidth: 1, borderColor: colors.borderHi },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  modalTitle: { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.text, flex: 1 },
+  modalTitle: { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text, flex: 1, marginRight: 12 },
   modalClose: { fontSize: 18, color: colors.muted },
-  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, marginTop: 10 },
-  input: { padding: 13, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 16, fontFamily: fonts.family },
+  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 6, marginTop: 14 },
+  input: { padding: 14, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 15, fontFamily: fonts.family, marginBottom: 4 },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   chip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e' },
   chipActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.18)' },

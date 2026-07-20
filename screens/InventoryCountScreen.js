@@ -7,6 +7,7 @@ import TopBar from '../components/TopBar';
 import {
   getInventoryAct, setInventoryItemActual, confirmInventoryAct,
 } from '../db/queries';
+import { useToast } from '../components/Toast';
 import { colors, fonts, spacing } from '../constants/theme';
 
 function fmtDate(iso) {
@@ -31,6 +32,7 @@ export default function InventoryCountScreen({ navigation, route }) {
   const [act, setAct]               = useState(null);
   const [items, setItems]           = useState([]);
   const [localActuals, setLocalActuals] = useState({}); // {itemId: string}
+  const toast = useToast();
   const [reviewModal, setReviewModal] = useState(false);
   const inputRefs = useRef({});
 
@@ -77,6 +79,7 @@ export default function InventoryCountScreen({ navigation, route }) {
   const handleConfirm = () => {
     try {
       confirmInventoryAct(actId);
+      toast.show('Инвентаризация подтверждена ✓');
       setReviewModal(false);
       navigation.navigate('Inventory');
     } catch (e) { console.error(e); Alert.alert('Ошибка', 'Не удалось подтвердить акт'); }
@@ -194,7 +197,7 @@ export default function InventoryCountScreen({ navigation, route }) {
         </View>
       )}
 
-      <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
+      <ScrollView style={styles.screen} contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
         <View style={styles.headerRow}>
           <Text style={[styles.colHead, { flex: 1 }]}>Позиция / Учётный остаток</Text>
           <Text style={[styles.colHead, styles.colMiddle]}>Факт (введите)</Text>

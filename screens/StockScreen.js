@@ -191,7 +191,7 @@ export default function StockScreen({ navigation }) {
           ))}
         </ScrollView>
       )}
-      <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
+      <ScrollView style={styles.screen} contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
         <TextInput
           style={styles.searchInput}
           value={stockSearch}
@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
   modeBtnText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
   modeBtnTextPrimary: { color: colors.greenLight },
   modeHint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginBottom: 10 },
-  input: { padding: 13, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 16, marginBottom: 10, textAlign: 'center', fontFamily: fonts.family },
+  input: { padding: 14, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 15, fontFamily: fonts.family, marginBottom: 4 },
   calcHint: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight, textAlign: 'center', marginBottom: 4 },
   histRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.border },
   histDate: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, flex: 1 },

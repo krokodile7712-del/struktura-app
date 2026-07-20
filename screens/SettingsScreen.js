@@ -28,6 +28,7 @@ import Hint from '../components/Hint';
 import InfoTip from '../components/InfoTip';
 import EmptyState from '../components/EmptyState';
 import { colors, fonts, spacing } from '../constants/theme';
+import { useToast } from '../components/Toast';
 
 function SectionAccordion({ title, icon, sectionKey, openSections, toggleSection, children }) {
   const isOpen = openSections[sectionKey];
@@ -93,6 +94,7 @@ export default function SettingsScreen({ navigation }) {
   const [keyPromptOpen, setKeyPromptOpen] = useState(false);
   const [keyInput, setKeyInput]           = useState('');
   const [profileDraft, setProfileDraft]   = useState(null);
+  const toast = useToast();
   const [openSections, setOpenSections] = useState({ menu: true, employees: false, loyalty: false, payment: false, stock: false, business: false, system: false });
   const toggleSection = (key) => setOpenSections(s => ({ ...s, [key]: !s[key] })); // { businessName, modules, terms, units, unitInput }
 

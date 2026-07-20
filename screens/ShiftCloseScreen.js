@@ -6,10 +6,12 @@ import TopBar from '../components/TopBar';
 import InfoTip from '../components/InfoTip';
 import Hint from '../components/Hint';
 import { getOpenShift, getShiftSummary, closeShift, getTerms, pluralizeRu, getPayMethods } from '../db/queries';
+import { useToast } from '../components/Toast';
 import { clearSession, getHomeRoute } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
 
 export default function ShiftCloseScreen({ navigation }) {
+  const toast = useToast();
   const [summary, setSummary]     = useState(null);
   const [factCash, setFactCash]   = useState('');
   const [closed, setClosed]       = useState(false);
@@ -27,7 +29,7 @@ export default function ShiftCloseScreen({ navigation }) {
 
   const handleConfirm = () => {
     if (!summary) return;
-    try { closeShift(summary.shift.id); setClosed(true); } catch (e) { console.error(e); }
+    try { closeShift(summary.shift.id); setClosed(true); toast.show('Смена закрыта ✓', 'success'); } catch (e) { console.error(e); }
   };
 
   const handleFinish = () => { clearSession(); navigation.navigate('Login'); };

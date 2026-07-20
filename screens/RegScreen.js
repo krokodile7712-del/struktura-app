@@ -6,9 +6,11 @@ import TopBar from '../components/TopBar';
 import Hint from '../components/Hint';
 import BottomBar from '../components/BottomBar';
 import { insertClient, getClientByCode, getTerms } from '../db/queries';
+import { useToast } from '../components/Toast';
 import { colors, fonts, spacing } from '../constants/theme';
 
 export default function RegScreen({ navigation }) {
+  const toast = useToast();
   const [fio, setFio] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [phone, setPhone] = useState('');
@@ -33,6 +35,7 @@ export default function RegScreen({ navigation }) {
       setError('Не удалось создать карту. Попробуйте ещё раз.');
       return;
     }
+    toast.show(`${terms.client || 'Клиент'} зарегистрирован ✓`);
     navigation.navigate('RegResult', { fio: fio.trim(), code });
   };
 

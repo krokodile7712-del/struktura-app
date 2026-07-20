@@ -7,12 +7,14 @@ import BottomBar from '../components/BottomBar';
 import {
   getLocations, addLocation, updateLocation, deleteLocation, initDefaultLocation,
 } from '../db/queries';
+import { useToast } from '../components/Toast';
 import { getCurrentLocationId, setCurrentLocationId } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
 
 export default function LocationsScreen({ navigation }) {
   const [locations, setLocations]   = useState([]);
   const [modal, setModal]           = useState(null); // null | { id?, name, description }
+  const toast = useToast();
   const [currentLocId, setCurrentLocId] = useState(getCurrentLocationId());
 
   useEffect(() => { load(); }, []);
@@ -40,6 +42,7 @@ export default function LocationsScreen({ navigation }) {
       } else {
         addLocation(modal.name.trim(), modal.description.trim());
       }
+      toast.show(modal.id ? 'Локация обновлена ✓' : 'Локация добавлена ✓');
       load();
     } catch (e) { console.error(e); }
     closeModal();
@@ -58,6 +61,7 @@ export default function LocationsScreen({ navigation }) {
         setCurrentLocationId(next);
         setCurrentLocId(next);
       }
+      toast.show(modal.id ? 'Локация обновлена ✓' : 'Локация добавлена ✓');
       load();
     } catch (e) { console.error(e); }
     closeModal();
@@ -71,7 +75,7 @@ export default function LocationsScreen({ navigation }) {
   return (
     <View style={{ flex: 1 }}>
       <TopBar title="Локации" onBack={() => navigation.navigate('Admin')} />
-      <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
+      <ScrollView style={styles.screen} contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
         <MetalCard>
           <Text style={styles.hint}>
             Если у вас несколько мест хранения — например основной склад и барная стойка — добавьте их здесь. Выбранная точка хранения используется в кассе при списании ингредиентов и в разделе Склад при просмотре остатков.
@@ -179,11 +183,11 @@ const styles = StyleSheet.create({
   locDesc: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
   editBtn: { padding: 8 },
   editBtnText: { fontSize: 16, color: colors.muted },
-  modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center' },
+  modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   modalInner: { width: '55%', maxWidth: 480, backgroundColor: '#0e0f11', borderRadius: 20, padding: 24, borderWidth: 1, borderColor: colors.borderHi },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  modalTitle: { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text },
-  modalClose: { fontSize: 18, color: colors.muted, padding: 4 },
-  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 },
-  input: { padding: 13, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 15, marginBottom: 12, fontFamily: fonts.family },
+  modalTitle: { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text, flex: 1, marginRight: 12 },
+  modalClose: { fontSize: 18, color: colors.muted },
+  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 6, marginTop: 14 },
+  input: { padding: 14, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 15, fontFamily: fonts.family, marginBottom: 4 },
 });
