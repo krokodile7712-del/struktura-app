@@ -116,8 +116,7 @@ export default function SettingsScreen({ navigation }) {
   const [keyInput, setKeyInput]           = useState('');
   const [profileDraft, setProfileDraft]   = useState(null);
   const toast = useToast();
-  const [openSections, setOpenSections] = useState({ menu: true, employees: false, loyalty: false, payment: false, stock: false, business: false, system: false });
-  const toggleSection = (key) => {
+  const [openSections, setOpenSections] = useState({ menu: true, employees: false, loyalty: false, payment: false, stock: false, business: false, system: false });  const toggleSection = (key) => {
     LayoutAnimation.configureNext({
       duration: 260,
       create:  { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
@@ -919,6 +918,9 @@ export default function SettingsScreen({ navigation }) {
         </MetalCard>
 
         {/* Пороги остатка склада */}
+        </SectionAccordion>
+
+        <SectionAccordion title="Склад" icon="📦" sectionKey="stock" openSections={openSections} toggleSection={toggleSection}>
         {modules.stock !== false && (
           <MetalCard style={{ marginTop: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
@@ -947,14 +949,31 @@ export default function SettingsScreen({ navigation }) {
             ))}
           </MetalCard>
         )}
+        </SectionAccordion>
 
+        <SectionAccordion title="Профиль бизнеса" icon="⚙️" sectionKey="business" openSections={openSections} toggleSection={toggleSection}>
         {/* Резервное копирование */}
-        <MetalCard style={{ marginTop: 12, marginBottom: 20 }}>
+        <MetalCard style={{ marginTop: 12 }}>
           <Text style={styles.blockTitle}>💾 Резервное копирование</Text>
           <Text style={styles.hintText}>Открывает системное меню «Поделиться» с данными в виде текста.</Text>
           <MetalButton title={exporting ? 'Экспорт...' : '📤 Экспорт и поделиться'} variant="pay" onPress={handleExport} disabled={exporting} />
         </MetalCard>
+        </SectionAccordion>
 
+        <SectionAccordion title="Система" icon="🔧" sectionKey="system" openSections={openSections} toggleSection={toggleSection}>
+        <MetalCard style={{ marginTop: 12 }}>
+          <Text style={styles.blockTitle}>🚀 Мастер настройки</Text>
+          <Text style={styles.hintText}>Запустите пошаговый мастер настройки — он покажет как новый пользователь видит приложение в первый раз. Доступен в любое время.</Text>
+          <MetalButton
+            title="→ Запустить мастер настройки"
+            variant="default"
+            onPress={() => {
+              setSetting('onboarding_done', '');
+              navigation.navigate('Onboarding');
+            }}
+            style={{ marginTop: 8 }}
+          />
+        </MetalCard>
         </SectionAccordion>
       </ScrollView>
       <BottomBar navigation={navigation} activeTab="Kassa" />
