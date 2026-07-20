@@ -7,12 +7,12 @@ import DashboardWidget from '../components/DashboardWidget';
 import { colors, fonts, spacing } from '../constants/theme';
 
 const getMenuItems = (terms) => [
-  { icon: '☕', label: `Новый ${terms.order.toLowerCase()}`, screen: 'Kassa',       variant: 'action'  },
-  { icon: '👥', label: 'Лояльность',     screen: 'ClientsList', variant: 'pay',     module: 'clients' },
-  { icon: '📊', label: pluralizeRu(terms.order),   screen: 'Sales',       variant: 'success' },
-  { icon: '📦', label: 'Склад',          screen: 'Stock',       variant: 'default', module: 'stock' },
-  { icon: '🧾', label: 'Себестоимость',  screen: 'CostCards',   variant: 'default', module: 'stock' },
-  { icon: '💸', label: 'Расходы',        screen: 'Expenses',    variant: 'danger'  },
+  { icon: '☕', label: `Новый ${terms.order.toLowerCase()}`, sub: 'Открыть кассу', screen: 'Kassa',       variant: 'action'  },
+  { icon: '👥', label: 'Клиенты',        sub: 'Карты лояльности', screen: 'ClientsList', variant: 'pay',     module: 'clients' },
+  { icon: '📊', label: pluralizeRu(terms.order), sub: 'История продаж', screen: 'Sales',      variant: 'success' },
+  { icon: '📦', label: 'Склад',          sub: 'Остатки',         screen: 'Stock',       variant: 'default', module: 'stock' },
+  { icon: '🧾', label: 'Техкарты',       sub: 'Рецепты',         screen: 'CostCards',   variant: 'default', module: 'stock' },
+  { icon: '💸', label: 'Расходы',        sub: 'Затраты дня',     screen: 'Expenses',    variant: 'danger'  },
 ];
 
 const ACCENT = {
@@ -79,6 +79,7 @@ export default function DashboardScreen({ navigation }) {
               >
                 <Text style={styles.cardIcon}>{item.icon}</Text>
                 <Text style={styles.cardLabel}>{item.label}</Text>
+                {item.sub && <Text style={styles.cardSub}>{item.sub}</Text>}
               </Pressable>
             );
           })}
@@ -88,10 +89,11 @@ export default function DashboardScreen({ navigation }) {
         <View style={styles.shiftRow}>
           {!shift && (
             <Pressable
-              style={[styles.shiftBtn, { borderColor: 'rgba(122,158,82,0.5)', backgroundColor: 'rgba(122,158,82,0.10)' }]}
+              style={styles.noShiftBanner}
               onPress={() => navigation.navigate('Shift')}
             >
-              <Text style={[styles.shiftBtnText, { color: colors.greenLight }]}>📅 Открыть смену</Text>
+              <Text style={styles.noShiftTitle}>⚠️ Смена не открыта</Text>
+              <Text style={styles.noShiftSub}>Нажмите чтобы начать рабочий день и принимать заказы</Text>
             </Pressable>
           )}
           <Pressable
@@ -172,6 +174,10 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     textAlign: 'center',
   },
+  cardSub: { fontFamily: fonts.familyRegular, fontSize: 9, color: colors.muted, textAlign: 'center', lineHeight: 13 },
+  noShiftBanner: { padding: 18, borderRadius: 16, borderWidth: 1.5, borderColor: 'rgba(122,158,82,0.5)', backgroundColor: 'rgba(122,158,82,0.08)', alignItems: 'center', marginBottom: 10 },
+  noShiftTitle: { fontFamily: fonts.family, fontSize: 16, fontWeight: '700', color: colors.greenLight, marginBottom: 4 },
+  noShiftSub: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center' },
 
   // Смена
   shiftRow: {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Alert } from 'react-native';
 import MetalCard from '../components/MetalCard';
+import Hint from '../components/Hint';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import {
@@ -185,11 +186,18 @@ export default function InventoryCountScreen({ navigation, route }) {
           <Text style={styles.metaCount}>{counted.length} / {items.length} заполнено</Text>
         </View>
       )}
+      {isDraft && !readOnly && (
+        <View style={styles.instructionBar}>
+          <Text style={styles.instructionText}>
+            Пересчитайте физические остатки и введите фактическое количество в поле «факт». Учётный остаток — то что показывает система. После подтверждения склад обновится на введённые цифры.
+          </Text>
+        </View>
+      )}
 
       <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
         <View style={styles.headerRow}>
-          <Text style={[styles.colHead, { flex: 1 }]}>Позиция</Text>
-          <Text style={[styles.colHead, styles.colMiddle]}>Факт</Text>
+          <Text style={[styles.colHead, { flex: 1 }]}>Позиция / Учётный остаток</Text>
+          <Text style={[styles.colHead, styles.colMiddle]}>Факт (введите)</Text>
           <Text style={[styles.colHead, styles.colRight]}>Разница</Text>
         </View>
 
@@ -300,6 +308,8 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   inner: { padding: spacing.lg, paddingBottom: 100, maxWidth: 1100, width: '100%', alignSelf: 'center' },
   metaBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
+  instructionBar: { paddingHorizontal: spacing.lg, paddingVertical: 10, backgroundColor: 'rgba(61,95,168,0.06)', borderBottomWidth: 1, borderBottomColor: 'rgba(61,95,168,0.15)' },
+  instructionText: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, lineHeight: 18 },
   metaText: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
   metaCount: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.greenLight },
   headerRow: { flexDirection: 'row', paddingBottom: 6, marginBottom: 4 },

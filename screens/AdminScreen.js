@@ -7,24 +7,24 @@ import DashboardWidget from '../components/DashboardWidget';
 import { colors, fonts, spacing } from '../constants/theme';
 
 const getMenuItems = (terms) => [
-  { icon: '☕', label: `Новый ${terms.order.toLowerCase()}`, screen: 'Kassa',       variant: 'action'  },
-  { icon: '👥', label: 'Лояльность',     screen: 'ClientsList', variant: 'pay',     module: 'clients' },
-  { icon: '📊', label: pluralizeRu(terms.order),   screen: 'Sales',       variant: 'success' },
-  { icon: '📈', label: 'Отчётность',     screen: 'Reports',     variant: 'success' },
-  { icon: '⚙️', label: 'Оборудование',   screen: 'Equipment',   variant: 'default' },
-  { icon: '🏢', label: 'Накладные',      screen: 'Overheads',   variant: 'default' },
-  { icon: '💰', label: 'Инвестиции',     screen: 'Investments', variant: 'default' },
-  { icon: '📓', label: 'Журнал работ',   screen: 'WorkJournal', variant: 'default' },
-  { icon: '📦', label: 'Склад',          screen: 'Stock',       variant: 'default', module: 'stock' },
-  { icon: '🧾', label: 'Себестоимость',  screen: 'CostCards',   variant: 'default', module: 'stock' },
-  { icon: '💸', label: 'Расходы',        screen: 'Expenses',    variant: 'danger'  },
-  { icon: '📅', label: 'Открыть смену',  screen: 'Shift',       variant: 'success', module: 'shifts', hideWhenShiftOpen: true },
-  { icon: '👤', label: `Новый ${terms.client}`, screen: 'Reg',  variant: 'pay',     module: 'clients' },
-  { icon: '🗂️', label: 'Локации',         screen: 'Locations',   variant: 'default',  module: 'locations' },
-  { icon: '📋', label: 'Инвентаризация',  screen: 'Inventory',   variant: 'default',  module: 'inventory' },
-  { icon: '📥', label: 'Импорт Sheets',   screen: 'Migrate',     variant: 'success' },
-  { icon: '👥', label: 'Сотрудники',     screen: 'Employees',   variant: 'pay'     },
-  { icon: '⚙️', label: 'Настройки',      screen: 'Settings',    variant: 'pay'     },
+  { icon: '☕', label: `Новый ${terms.order.toLowerCase()}`, sub: 'Касса · добавить позиции', screen: 'Kassa',       variant: 'action'  },
+  { icon: '👥', label: 'Клиенты',        sub: 'Карты лояльности',     screen: 'ClientsList', variant: 'pay',     module: 'clients' },
+  { icon: '📊', label: pluralizeRu(terms.order), sub: 'История продаж', screen: 'Sales',      variant: 'success' },
+  { icon: '📈', label: 'Отчётность',     sub: 'P&L · графики',        screen: 'Reports',     variant: 'success' },
+  { icon: '⚙️', label: 'Оборудование',   sub: 'Амортизация · износ',  screen: 'Equipment',   variant: 'default' },
+  { icon: '🏢', label: 'Накладные',      sub: 'Аренда · коммунальные',screen: 'Overheads',   variant: 'default' },
+  { icon: '💰', label: 'Инвестиции',     sub: 'Окупаемость бизнеса',  screen: 'Investments', variant: 'default' },
+  { icon: '📓', label: 'Журнал работ',   sub: 'Заметки · история',    screen: 'WorkJournal', variant: 'default' },
+  { icon: '📦', label: 'Склад',          sub: 'Остатки · закупки',    screen: 'Stock',       variant: 'default', module: 'stock' },
+  { icon: '🧾', label: 'Техкарты',       sub: 'Рецепты · себестоимость', screen: 'CostCards', variant: 'default', module: 'stock' },
+  { icon: '💸', label: 'Расходы',        sub: 'Затраты за день',      screen: 'Expenses',    variant: 'danger'  },
+  { icon: '📅', label: 'Открыть смену',  sub: 'Начать рабочий день',  screen: 'Shift',       variant: 'success', module: 'shifts', hideWhenShiftOpen: true },
+  { icon: '👤', label: `Новый ${terms.client}`, sub: 'Регистрация карты', screen: 'Reg',     variant: 'pay',     module: 'clients' },
+  { icon: '🗂️', label: 'Локации',        sub: 'Точки хранения',       screen: 'Locations',   variant: 'default',  module: 'locations' },
+  { icon: '📋', label: 'Инвентаризация', sub: 'Сверка остатков',      screen: 'Inventory',   variant: 'default',  module: 'inventory' },
+  { icon: '📥', label: 'Импорт Sheets',  sub: 'Загрузить из таблицы', screen: 'Migrate',     variant: 'success' },
+  { icon: '👥', label: 'Сотрудники',     sub: 'PIN · роли · ставки',  screen: 'Employees',   variant: 'pay'     },
+  { icon: '⚙️', label: 'Настройки',      sub: 'Профиль · модули',     screen: 'Settings',    variant: 'pay'     },
 ];
 
 const ACCENT = {
@@ -91,6 +91,7 @@ export default function AdminScreen({ navigation }) {
               >
                 <Text style={styles.cardIcon}>{item.icon}</Text>
                 <Text style={styles.cardLabel}>{item.label}</Text>
+                {item.sub && <Text style={styles.cardSub}>{item.sub}</Text>}
               </Pressable>
             );
           })}
@@ -181,6 +182,13 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1.5,
     textAlign: 'center',
+  },
+  cardSub: {
+    fontFamily: fonts.familyRegular,
+    fontSize: 9,
+    color: colors.muted,
+    textAlign: 'center',
+    lineHeight: 13,
   },
   shiftRow: {
     gap: 10,

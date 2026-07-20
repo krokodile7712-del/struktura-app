@@ -74,8 +74,7 @@ export default function LocationsScreen({ navigation }) {
       <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
         <MetalCard>
           <Text style={styles.hint}>
-            Точки хранения товаров. Выбранная локация используется при работе со складом
-            и при списании ингредиентов в кассе.
+            Если у вас несколько мест хранения — например основной склад и барная стойка — добавьте их здесь. Выбранная точка хранения используется в кассе при списании ингредиентов и в разделе Склад при просмотре остатков.
           </Text>
 
           {locations.map(loc => {
@@ -107,8 +106,7 @@ export default function LocationsScreen({ navigation }) {
 
         <MetalCard style={{ marginTop: 12 }}>
           <Text style={styles.hint}>
-            Текущая локация сбрасывается при перезапуске приложения — выбери нужную
-            в начале смены прямо здесь или на экране склада.
+            💡 Совет: выбирайте нужную точку в начале смены — иконка 📍 рядом с названием покажет что выбрано. При перезапуске приложения выбор сбрасывается.
           </Text>
         </MetalCard>
       </ScrollView>
