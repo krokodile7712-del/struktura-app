@@ -52,6 +52,22 @@ export default function EmployeesScreen({ navigation }) {
   };
 
   const closeModal = () => { setModal(null); setError(''); };
+  const safeCloseModal = () => {
+    if (!modal) return closeModal();
+    const hasInput = modal.name?.trim() || (modal.pin && modal.pin.length > 0);
+    if (hasInput && !modal.id) {
+      Alert.alert(
+        'Отменить создание сотрудника?',
+        'Введённые данные будут потеряны.',
+        [
+          { text: 'Остаться', style: 'cancel' },
+          { text: 'Отменить', style: 'destructive', onPress: closeModal },
+        ]
+      );
+    } else {
+      closeModal();
+    }
+  };
 
   const save = () => {
     if (!modal) return;
