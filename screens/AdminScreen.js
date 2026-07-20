@@ -3,7 +3,7 @@ import { View, Text, Image, StyleSheet, ScrollView, Pressable } from 'react-nati
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import { getBusinessProfile, getOpenShift, getTerms, pluralizeRu, getRoleNames, getDashboardStats } from '../db/queries';
-import ShiftBadge from '../components/ShiftBadge';
+import StatsBar from '../components/StatsBar';
 import { colors, fonts, spacing } from '../constants/theme';
 
 const getMenuItems = (terms) => [
@@ -56,9 +56,8 @@ export default function AdminScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title={roleNames.admin} navigation={navigation} activeScreen="Admin"
-        rightElement={<ShiftBadge stats={stats} onShiftPress={() => navigation.navigate('ShiftClose')} onStockPress={() => navigation.navigate('Stock')} />}
-      />
+      <TopBar title={roleNames.admin} navigation={navigation} activeScreen="Admin" />
+      <StatsBar stats={stats} modules={modules} onShiftPress={() => navigation.navigate('ShiftClose')} onStockPress={() => navigation.navigate('Stock')} />
 
 
       <ScrollView contentContainerStyle={styles.inner}>
