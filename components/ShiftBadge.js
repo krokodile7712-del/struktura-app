@@ -3,52 +3,59 @@ import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { fonts, colors } from '../constants/theme';
 
 /**
- * ShiftBadge — компактный индикатор смены в TopBar.
- *
- * Использование в AdminScreen / DashboardScreen:
- * <TopBar
- *   title="..."
- *   navigation={navigation}
- *   rightElement={<ShiftBadge stats={stats} onPress={() => navigation.navigate('ShiftClose')} />}
- * />
+ * ShiftBadge — компактные индикаторы в TopBar (смена + склад).
+ * Не влияют на высоту TopBar и не смещают контент ниже.
  */
-export default function ShiftBadge({ stats, onPress }) {
+export default function ShiftBadge({ stats, onShiftPress, onStockPress }) {
   if (!stats) return null;
 
-  const { shift, shiftDuration, todayOrders, todayTotal } = stats;
+  const { shift, shiftDuration, todayOrders, todayTotal, lowStockCount, lowStockItems } = stats;
 
-  if (!shift) {
-    // Смена закрыта — маленький серый значок
-    return (
-      <View style={styles.badgeClosed}>
-        <View style={[styles.dot, styles.dotClosed]} />
-        <Text style={styles.textClosed}>нет смены</Text>
-      </View>
-    );
-  }
-
-  // Смена открыта — зелёный бейдж с временем и выручкой
   return (
-    <Pressable
-      style={styles.badgeOpen}
-      onPress={onPress}
-      hitSlop={8}
-      accessibilityLabel="Статус смены"
-    >
-      <View style={[styles.dot, styles.dotOpen]} />
-      <View style={styles.info}>
-        <Text style={styles.duration}>{shiftDuration || '—'}</Text>
-        {todayOrders > 0 && (
-          <Text style={styles.revenue}>
-            {todayOrders} зак. · {Math.round(todayTotal).toLocaleString('ru-RU')} ₽
+    <View style={styles.row}>
+      {/* Индикатор склада — только если есть проблемы */}
+      {lowStockCount > 0 && (
+        <Pressable
+          style={styles.stockBadge}
+          onPress={onStockPress}
+          hitSlop={8}
+          accessibilityLabel={`Мало на складе: ${lowStockCount} позиций`}
+        >
+          <Text style={styles.stockIcon}>⚠️</Text>
+          <Text style={styles.stockCount}>{lowStockCount}</Text>
+        </Pressable>
+      )}
+
+      {/* Индикатор смены */}
+      <Pressable
+        style={shift ? styles.badgeOpen : styles.badgeClosed}
+        onPress={onShiftPress}
+        hitSlop={8}
+        accessibilityLabel="Статус смены"
+      >
+        <View style={[styles.dot, shift ? styles.dotOpen : styles.dotClosed]} />
+        <View>
+          <Text style={shift ? styles.duration : styles.textClosed}>
+            {shift ? (shiftDuration || '—') : 'нет смены'}
           </Text>
-        )}
-      </View>
-    </Pressable>
+          {shift && todayOrders > 0 && (
+            <Text style={styles.revenue}>
+              {todayOrders} · {Math.round(todayTotal).toLocaleString('ru-RU')} ₽
+            </Text>
+          )}
+        </View>
+      </Pressable>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  // Смена открыта
   badgeOpen: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -60,6 +67,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(61,158,146,0.35)',
   },
+  // Смена закрыта
   badgeClosed: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -71,14 +79,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(74,77,84,0.25)',
   },
-  dot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-  },
+  dot: { width: 7, height: 7, borderRadius: 4 },
   dotOpen:   { backgroundColor: '#3d9e92' },
   dotClosed: { backgroundColor: '#4a4d54' },
-  info: { alignItems: 'flex-start' },
   duration: {
     fontFamily: fonts.familySemibold,
     fontSize: 12,
@@ -95,5 +98,24 @@ const styles = StyleSheet.create({
     fontFamily: fonts.familyRegular,
     fontSize: 11,
     color: colors.muted,
+  },
+  // Склад
+  stockBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    backgroundColor: 'rgba(160,16,32,0.12)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(160,16,32,0.35)',
+  },
+  stockIcon: { fontSize: 12, lineHeight: 15 },
+  stockCount: {
+    fontFamily: fonts.familySemibold,
+    fontSize: 12,
+    color: '#e05555',
+    lineHeight: 15,
   },
 });

@@ -42,21 +42,7 @@ export default function DashboardWidget({ stats, modules, onLowStockPress }) {
         )}
       </View>
 
-      {/* Склад — предупреждения */}
-      {modules?.stock !== false && lowStockCount > 0 && (
-        <Pressable style={styles.stockAlert} onPress={onLowStockPress}>
-          <Text style={styles.stockAlertIcon}>⚠️</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.stockAlertTitle}>
-              Мало на складе: {lowStockCount} {lowStockCount === 1 ? 'позиция' : lowStockCount < 5 ? 'позиции' : 'позиций'}
-            </Text>
-            <Text style={styles.stockAlertItems} numberOfLines={1}>
-              {lowStockItems.map(i => `${i.name} (${i['остаток']} ${i.unit})`).join(', ')}
-            </Text>
-          </View>
-          <Text style={styles.stockAlertArrow}>›</Text>
-        </Pressable>
-      )}
+      {/* Склад — предупреждения переехали в TopBar */}
     </View>
   );
 }

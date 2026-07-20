@@ -58,7 +58,7 @@ export default function AdminScreen({ navigation }) {
   return (
     <View style={{ flex: 1 }}>
       <TopBar title={roleNames.admin} navigation={navigation} activeScreen="Admin"
-        rightElement={<ShiftBadge stats={stats} onPress={() => navigation.navigate('ShiftClose')} />}
+        rightElement={<ShiftBadge stats={stats} onShiftPress={() => navigation.navigate('ShiftClose')} onStockPress={() => navigation.navigate('Stock')} />}
       />
       <DashboardWidget
         stats={stats}

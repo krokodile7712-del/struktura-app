@@ -50,7 +50,7 @@ export default function DashboardScreen({ navigation }) {
   return (
     <View style={{ flex: 1 }}>
       <TopBar title={roleNames.barista} navigation={navigation} activeScreen="Dashboard"
-        rightElement={<ShiftBadge stats={stats} onPress={() => navigation.navigate('ShiftClose')} />}
+        rightElement={<ShiftBadge stats={stats} onShiftPress={() => navigation.navigate('ShiftClose')} onStockPress={() => navigation.navigate('Stock')} />}
       />
       <DashboardWidget
         stats={stats}
