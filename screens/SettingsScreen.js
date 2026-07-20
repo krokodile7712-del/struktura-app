@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Share, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Share, Animated, LayoutAnimation, Platform, UIManager, Alert, BackHandler } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
@@ -33,12 +33,27 @@ import { useToast } from '../components/Toast';
 
 function SectionAccordion({ title, icon, sectionKey, openSections, toggleSection, children }) {
   const isOpen = openSections[sectionKey];
+  const arrowAnim = React.useRef(new Animated.Value(isOpen ? 1 : 0)).current;
+
+  React.useEffect(() => {
+    Animated.timing(arrowAnim, {
+      toValue: isOpen ? 1 : 0,
+      duration: 240,
+      useNativeDriver: true,
+    }).start();
+  }, [isOpen]);
+
+  const rotateDeg = arrowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '180deg'],
+  });
+
   return (
     <View style={accStyles.wrap}>
       <Pressable style={accStyles.header} onPress={() => toggleSection(sectionKey)}>
         <Text style={accStyles.icon}>{icon}</Text>
         <Text style={accStyles.title}>{title}</Text>
-        <Text style={accStyles.arrow}>{isOpen ? '▲' : '▼'}</Text>
+        <Animated.Text style={[accStyles.arrow, { transform: [{ rotate: rotateDeg }] }]}>▼</Animated.Text>
       </Pressable>
       {isOpen && <View style={accStyles.body}>{children}</View>}
     </View>
@@ -53,6 +68,11 @@ const accStyles = StyleSheet.create({
   body: { paddingTop: 4 },
 });
 
+
+// Включаем LayoutAnimation на Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 export default function SettingsScreen({ navigation }) {
   // ── Данные ──
@@ -97,7 +117,15 @@ export default function SettingsScreen({ navigation }) {
   const [profileDraft, setProfileDraft]   = useState(null);
   const toast = useToast();
   const [openSections, setOpenSections] = useState({ menu: true, employees: false, loyalty: false, payment: false, stock: false, business: false, system: false });
-  const toggleSection = (key) => setOpenSections(s => ({ ...s, [key]: !s[key] })); // { businessName, modules, terms, units, unitInput }
+  const toggleSection = (key) => {
+    LayoutAnimation.configureNext({
+      duration: 260,
+      create:  { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+      update:  { type: LayoutAnimation.Types.easeInEaseOut },
+      delete:  { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+    });
+    setOpenSections(s => ({ ...s, [key]: !s[key] }));
+  }; // { businessName, modules, terms, units, unitInput }
 
   useEffect(() => { loadAll(); }, []);
 

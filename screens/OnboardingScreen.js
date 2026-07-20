@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TextInput,
-  Pressable, KeyboardAvoidingView, Platform,
+  Pressable, KeyboardAvoidingView, Platform, Alert, BackHandler,
 } from 'react-native';
 import MetalButton from '../components/MetalButton';
 import { setSetting, updateBusinessProfile, getBusinessProfile, BUSINESS_PRESETS, addUser } from '../db/queries';
@@ -24,6 +24,19 @@ export default function OnboardingScreen({ navigation }) {
   const [empPin, setEmpPin]     = useState('');
   const [empPin2, setEmpPin2]   = useState('');
   const [errors, setErrors]     = useState({});
+
+  // Предупреждаем если пользователь уходит с онбординга не завершив
+  useEffect(() => {
+    if (step === 0) return; // на первом шаге не предупреждаем
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (step > 0 && step < 3) {
+        setStep(s => s - 1); // просто на предыдущий шаг
+        return true;
+      }
+      return false;
+    });
+    return () => sub.remove();
+  }, [step]);
 
   const progress = (step + 1) / STEPS.length;
 

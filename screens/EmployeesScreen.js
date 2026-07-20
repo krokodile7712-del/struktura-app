@@ -7,6 +7,7 @@ import BottomBar from '../components/BottomBar';
 import { getAllUsers, addUser, updateUser, toggleUserActive, getRoleNames } from '../db/queries';
 import Hint from '../components/Hint';
 import EmptyState from '../components/EmptyState';
+import SwipeableRow from '../components/SwipeableRow';
 import { useToast } from '../components/Toast';
 import { colors, fonts, spacing } from '../constants/theme';
 
@@ -140,7 +141,7 @@ export default function EmployeesScreen({ navigation }) {
       </ScrollView>
       <BottomBar navigation={navigation} activeTab="Kassa" />
 
-      <Modal visible={!!modal} transparent animationType="fade" onRequestClose={closeModal}>
+      <Modal visible={!!modal} transparent animationType="fade" onRequestClose={safeCloseModal}>
         <View style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={closeModal} />
           {modal && (

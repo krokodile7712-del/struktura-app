@@ -5,6 +5,7 @@ import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import EmptyState from '../components/EmptyState';
+import SwipeableRow from '../components/SwipeableRow';
 import { SkeletonList } from '../components/Skeleton';
 import { getRecentOrders, getOrderItems, deleteOrder, updateOrder, returnOrder, getTerms, pluralizeRu, genitivePluralRu, getPayMethods } from '../db/queries';
 import { useToast } from '../components/Toast';

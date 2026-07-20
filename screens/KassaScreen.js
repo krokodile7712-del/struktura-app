@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import SwipeableRow from '../components/SwipeableRow';
 import { useToast } from '../components/Toast';
 import { useFocusEffect } from '@react-navigation/native';
 import { getHomeRoute, getCurrentLocationId } from '../db/session';
@@ -687,7 +688,8 @@ export default function KassaScreen({ navigation, route }) {
               const isExpanded = expandedCartId === item.id;
               const hasMods = (item.modifiers || []).length > 0;
               return (
-                <View key={item.id} style={styles.orderItem}>
+                <SwipeableRow key={item.id} onAction={() => removeFromOrder(item.id)} label="Удалить">
+                <View style={styles.orderItem}>
                   <Pressable style={styles.orderItemMain} onPress={() => hasMods && setExpandedCartId(isExpanded ? null : item.id)} onLongPress={() => setItemNoteModal({ id: item.id, note: item.note || '' })}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.orderItemName}>
@@ -719,6 +721,7 @@ export default function KassaScreen({ navigation, route }) {
                     </Pressable>
                   </View>
                 </View>
+                </SwipeableRow>
               );
             })}
             {order.length === 0 && <Text style={styles.emptyOrder}>Корзина пуста</Text>}
