@@ -77,22 +77,28 @@ export default function App() {
 
   const [dbReady, setDbReady] = useState(false);
   const [dbError, setDbError] = useState(null);
-  const [initialRoute, setInitialRoute] = useState('Login');
+  const [initialRoute, setInitialRoute] = useState(null); // null = ещё не определён
 
   useEffect(() => {
     try {
       initDatabase();
       startAutoSync(30 * 1000);
+      // Показываем онбординг только если: флаг не установлен И нет ни одного пользователя
       const done = getSetting('onboarding_done');
-      setInitialRoute(done ? 'Login' : 'Onboarding');
+      const hasUsers = (() => {
+        try { const { getAllUsers } = require('./db/queries'); return getAllUsers().length > 0; }
+        catch { return false; }
+      })();
+      setInitialRoute(done || hasUsers ? 'Login' : 'Onboarding');
       setDbReady(true);
     } catch (e) {
       setDbError(e.message);
+      setInitialRoute('Login');
       setDbReady(true);
     }
   }, []);
 
-  if (!fontsLoaded || !dbReady) {
+  if (!fontsLoaded || !dbReady || !initialRoute) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', gap: 12 }}>
         <ActivityIndicator size="large" color={colors.olive} />

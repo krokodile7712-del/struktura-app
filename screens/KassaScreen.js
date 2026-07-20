@@ -695,8 +695,10 @@ export default function KassaScreen({ navigation, route }) {
                       <Text style={styles.orderItemName}>
                         {item.name}{item.size ? ` · ${item.size}` : ''}
                         {hasMods && <Text style={styles.modsToggle}> {isExpanded ? '▲' : '▼'}</Text>}
-                        {item.note ? <Text style={styles.itemNoteIndicator}> 💬</Text> : null}
                       </Text>
+                      {item.note ? (
+                        <Text style={styles.cartItemNote}>💬 {item.note}</Text>
+                      ) : null}
                       {isExpanded && (item.modifiers || []).map((m, mi) => (
                         <Text key={mi} style={styles.orderItemMod}>· {m.optionName}{m.priceDelta > 0 ? ` +${m.priceDelta}₽` : ''}</Text>
                       ))}
@@ -716,9 +718,6 @@ export default function KassaScreen({ navigation, route }) {
                         <Text style={styles.editModsBtnText}>✎</Text>
                       </Pressable>
                     )}
-                    <Pressable style={styles.removeBtn} onPress={() => removeFromOrder(item.id)} hitSlop={6}>
-                      <Text style={styles.removeBtnText}>✕</Text>
-                    </Pressable>
                   </View>
                 </View>
                 </SwipeableRow>
@@ -1094,6 +1093,7 @@ const styles = StyleSheet.create({
   removeBtn: { marginLeft: 2, paddingHorizontal: 10, height: 28, borderRadius: 8, backgroundColor: 'rgba(160,16,32,0.12)', borderWidth: 1, borderColor: 'rgba(160,16,32,0.3)', alignItems: 'center', justifyContent: 'center' },
   removeBtnText: { fontSize: 13, color: colors.redLight },
   modsToggle: { fontSize: 10, color: colors.muted },
+  cartItemNote: { fontFamily: fonts.familyRegular, fontSize: 11, color: '#7a9be8', marginTop: 2 },
   itemNoteIndicator: { fontSize: 10, color: '#7a9be8' },
   input: { padding: 13, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 15, fontFamily: fonts.family },
   orderPanel: { width: '33%', minWidth: 240, borderLeftWidth: 1, borderLeftColor: colors.border, backgroundColor: colors.surface },

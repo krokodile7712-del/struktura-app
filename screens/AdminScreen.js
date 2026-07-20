@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { View, Text, Image, StyleSheet, ScrollView, Pressable } from 'react-native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
@@ -7,24 +8,13 @@ import DashboardWidget from '../components/DashboardWidget';
 import { colors, fonts, spacing } from '../constants/theme';
 
 const getMenuItems = (terms) => [
-  { icon: '☕', label: `Новый ${terms.order.toLowerCase()}`, sub: 'Касса · добавить позиции', screen: 'Kassa',       variant: 'action'  },
-  { icon: '👥', label: 'Клиенты',        sub: 'Карты лояльности',     screen: 'ClientsList', variant: 'pay',     module: 'clients' },
-  { icon: '📊', label: pluralizeRu(terms.order), sub: 'История продаж', screen: 'Sales',      variant: 'success' },
-  { icon: '📈', label: 'Отчётность',     sub: 'P&L · графики',        screen: 'Reports',     variant: 'success' },
-  { icon: '⚙️', label: 'Оборудование',   sub: 'Амортизация · износ',  screen: 'Equipment',   variant: 'default' },
-  { icon: '🏢', label: 'Накладные',      sub: 'Аренда · коммунальные',screen: 'Overheads',   variant: 'default' },
-  { icon: '💰', label: 'Инвестиции',     sub: 'Окупаемость бизнеса',  screen: 'Investments', variant: 'default' },
-  { icon: '📓', label: 'Журнал работ',   sub: 'Заметки · история',    screen: 'WorkJournal', variant: 'default' },
-  { icon: '📦', label: 'Склад',          sub: 'Остатки · закупки',    screen: 'Stock',       variant: 'default', module: 'stock' },
-  { icon: '🧾', label: 'Техкарты',       sub: 'Рецепты · себестоимость', screen: 'CostCards', variant: 'default', module: 'stock' },
-  { icon: '💸', label: 'Расходы',        sub: 'Затраты за день',      screen: 'Expenses',    variant: 'danger'  },
-  { icon: '📅', label: 'Открыть смену',  sub: 'Начать рабочий день',  screen: 'Shift',       variant: 'success', module: 'shifts', hideWhenShiftOpen: true },
-  { icon: '👤', label: `Новый ${terms.client}`, sub: 'Регистрация карты', screen: 'Reg',     variant: 'pay',     module: 'clients' },
-  { icon: '🗂️', label: 'Локации',        sub: 'Точки хранения',       screen: 'Locations',   variant: 'default',  module: 'locations' },
-  { icon: '📋', label: 'Инвентаризация', sub: 'Сверка остатков',      screen: 'Inventory',   variant: 'default',  module: 'inventory' },
-  { icon: '📥', label: 'Импорт Sheets',  sub: 'Загрузить из таблицы', screen: 'Migrate',     variant: 'success' },
-  { icon: '👥', label: 'Сотрудники',     sub: 'PIN · роли · ставки',  screen: 'Employees',   variant: 'pay'     },
-  { icon: '⚙️', label: 'Настройки',      sub: 'Профиль · модули',     screen: 'Settings',    variant: 'pay'     },
+  { icon: '☕', label: `Новый ${terms.order.toLowerCase()}`, sub: 'Касса',      screen: 'Kassa',       variant: 'action'  },
+  { icon: '📊', label: pluralizeRu(terms.order), sub: 'История продаж',         screen: 'Sales',       variant: 'success' },
+  { icon: '📈', label: 'Отчётность',     sub: 'P&L · графики',                 screen: 'Reports',     variant: 'success' },
+  { icon: '📦', label: 'Склад',          sub: 'Остатки · закупки',             screen: 'Stock',       variant: 'default', module: 'stock' },
+  { icon: '💸', label: 'Расходы',        sub: 'Затраты за день',               screen: 'Expenses',    variant: 'danger'  },
+  { icon: '📅', label: 'Открыть смену',  sub: 'Начать рабочий день',           screen: 'Shift',       variant: 'success', module: 'shifts', hideWhenShiftOpen: true },
+  { icon: '⚙️', label: 'Настройки',      sub: 'Профиль · модули',              screen: 'Settings',    variant: 'pay'     },
 ];
 
 const ACCENT = {
@@ -42,7 +32,7 @@ export default function AdminScreen({ navigation }) {
   const [roleNames, setRoleNames] = useState({ barista: 'Сотрудник', admin: 'Администратор' });
   const [stats, setStats] = useState(null);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     try {
       const profile = getBusinessProfile();
       setModules(profile?.modules || {});
@@ -51,7 +41,7 @@ export default function AdminScreen({ navigation }) {
       setRoleNames(getRoleNames());
       setStats(getDashboardStats());
     } catch (e) { console.error(e); }
-  }, []);
+  }, []));
 
   const visibleItems = getMenuItems(terms).filter(item =>
     (!item.module || modules[item.module] !== false) &&

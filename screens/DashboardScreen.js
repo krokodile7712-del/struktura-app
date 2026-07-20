@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { View, Text, Image, StyleSheet, ScrollView, Pressable } from 'react-native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
@@ -7,12 +8,10 @@ import DashboardWidget from '../components/DashboardWidget';
 import { colors, fonts, spacing } from '../constants/theme';
 
 const getMenuItems = (terms) => [
-  { icon: '☕', label: `Новый ${terms.order.toLowerCase()}`, sub: 'Открыть кассу', screen: 'Kassa',       variant: 'action'  },
-  { icon: '👥', label: 'Клиенты',        sub: 'Карты лояльности', screen: 'ClientsList', variant: 'pay',     module: 'clients' },
-  { icon: '📊', label: pluralizeRu(terms.order), sub: 'История продаж', screen: 'Sales',      variant: 'success' },
-  { icon: '📦', label: 'Склад',          sub: 'Остатки',         screen: 'Stock',       variant: 'default', module: 'stock' },
-  { icon: '🧾', label: 'Техкарты',       sub: 'Рецепты',         screen: 'CostCards',   variant: 'default', module: 'stock' },
-  { icon: '💸', label: 'Расходы',        sub: 'Затраты дня',     screen: 'Expenses',    variant: 'danger'  },
+  { icon: '☕', label: `Новый ${terms.order.toLowerCase()}`, sub: 'Касса', screen: 'Kassa',       variant: 'action'  },
+  { icon: '💸', label: 'Расходы',        sub: 'Записать затрату', screen: 'Expenses',   variant: 'danger'  },
+  { icon: '📊', label: pluralizeRu(terms.order), sub: 'История',  screen: 'Sales',      variant: 'success' },
+  { icon: '👥', label: 'Клиенты',        sub: 'Поиск / новый',   screen: 'ClientsList', variant: 'pay',    module: 'clients' },
 ];
 
 const ACCENT = {
@@ -30,7 +29,7 @@ export default function DashboardScreen({ navigation }) {
   const [roleNames, setRoleNames] = useState({ barista: 'Сотрудник', admin: 'Администратор' });
   const [stats, setStats] = useState(null);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     try {
       setShift(getOpenShift());
       setModules(getBusinessProfile()?.modules || {});
@@ -38,7 +37,7 @@ export default function DashboardScreen({ navigation }) {
       setRoleNames(getRoleNames());
       setStats(getDashboardStats());
     } catch (e) { console.error(e); }
-  }, []);
+  }, []));
 
   const visibleItems = getMenuItems(terms).filter(item => !item.module || modules[item.module] !== false);
 
