@@ -47,7 +47,12 @@ export default function SwipeableRow({
   };
 
   const pan = PanResponder.create({
-    onStartShouldSetPanResponder: () => false,
+    onStartShouldSetPanResponder: () => {
+      // Если строка открыта — захватываем тач, закрываем,
+      // не передаём событие вложенным Pressable
+      if (isOpen.current) { close(); return true; }
+      return false;
+    },
     onMoveShouldSetPanResponder: (_, g) => {
       if (disabled) return false;
       return Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5;
@@ -97,14 +102,12 @@ export default function SwipeableRow({
         </Pressable>
       </Animated.View>
 
-      {/* Сама строка — едет влево */}
+      {/* Сама строка — едет влево, без лишней Pressable-обёртки */}
       <Animated.View
         style={{ transform: [{ translateX: x }] }}
         {...pan.panHandlers}
       >
-        <Pressable onPress={() => { if (isOpen.current) close(); }}>
-          {children}
-        </Pressable>
+        {children}
       </Animated.View>
     </View>
   );
