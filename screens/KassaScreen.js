@@ -690,15 +690,21 @@ export default function KassaScreen({ navigation, route }) {
               return (
                 <SwipeableRow key={item.id} onAction={() => removeFromOrder(item.id)} label="Удалить">
                 <View style={styles.orderItem}>
-                  <Pressable style={styles.orderItemMain} onPress={() => hasMods && setExpandedCartId(isExpanded ? null : item.id)} onLongPress={() => setItemNoteModal({ id: item.id, note: item.note || '' })}>
+                  <Pressable
+                    style={styles.orderItemMain}
+                    onPress={() => hasMods && setExpandedCartId(isExpanded ? null : item.id)}
+                    onLongPress={() => setItemNoteModal({ id: item.id, note: item.note || '' })}
+                    delayLongPress={280}
+                  >
                     <View style={{ flex: 1 }}>
                       <Text style={styles.orderItemName}>
                         {item.name}{item.size ? ` · ${item.size}` : ''}
                         {hasMods && <Text style={styles.modsToggle}> {isExpanded ? '▲' : '▼'}</Text>}
                       </Text>
-                      {item.note ? (
-                        <Text style={styles.cartItemNote}>💬 {item.note}</Text>
-                      ) : null}
+                      {item.note
+                        ? <Text style={styles.cartItemNote}>💬 {item.note}</Text>
+                        : <Text style={styles.cartItemNoteHint}>удержите для заметки</Text>
+                      }
                       {isExpanded && (item.modifiers || []).map((m, mi) => (
                         <Text key={mi} style={styles.orderItemMod}>· {m.optionName}{m.priceDelta > 0 ? ` +${m.priceDelta}₽` : ''}</Text>
                       ))}
@@ -1094,6 +1100,7 @@ const styles = StyleSheet.create({
   removeBtnText: { fontSize: 13, color: colors.redLight },
   modsToggle: { fontSize: 10, color: colors.muted },
   cartItemNote: { fontFamily: fonts.familyRegular, fontSize: 11, color: '#7a9be8', marginTop: 2 },
+  cartItemNoteHint: { fontFamily: fonts.familyRegular, fontSize: 9, color: 'rgba(74,77,84,0.5)', marginTop: 1, fontStyle: 'italic' },
   itemNoteIndicator: { fontSize: 10, color: '#7a9be8' },
   input: { padding: 13, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 15, fontFamily: fonts.family },
   orderPanel: { width: '33%', minWidth: 240, borderLeftWidth: 1, borderLeftColor: colors.border, backgroundColor: colors.surface },
