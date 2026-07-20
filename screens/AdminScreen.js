@@ -4,6 +4,7 @@ import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import { getBusinessProfile, getOpenShift, getTerms, pluralizeRu, getRoleNames, getDashboardStats } from '../db/queries';
 import DashboardWidget from '../components/DashboardWidget';
+import ShiftBadge from '../components/ShiftBadge';
 import { colors, fonts, spacing } from '../constants/theme';
 
 const getMenuItems = (terms) => [
@@ -56,7 +57,9 @@ export default function AdminScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title={roleNames.admin} navigation={navigation} activeScreen="Admin" />
+      <TopBar title={roleNames.admin} navigation={navigation} activeScreen="Admin"
+        rightElement={<ShiftBadge stats={stats} onPress={() => navigation.navigate('ShiftClose')} />}
+      />
       <DashboardWidget
         stats={stats}
         modules={modules}

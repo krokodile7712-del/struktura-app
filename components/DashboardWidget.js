@@ -18,18 +18,6 @@ export default function DashboardWidget({ stats, modules, onLowStockPress }) {
 
   return (
     <View style={styles.widget}>
-      {/* Смена */}
-      {modules?.shifts !== false && (
-        <View style={styles.row}>
-          <View style={[styles.dot, shift ? styles.dotOpen : styles.dotClosed]} />
-          <Text style={styles.shiftText}>
-            {shift
-              ? `Смена открыта${shift.employee_name ? ` · ${shift.employee_name}` : ''} · ${shiftDuration}`
-              : 'Смена не открыта'}
-          </Text>
-        </View>
-      )}
-
       {/* Выручка за сегодня */}
       <View style={styles.statsRow}>
         <View style={styles.statBox}>
