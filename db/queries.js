@@ -1605,10 +1605,25 @@ export function getDashboardStats() {
   const todayMixed = todayOrders.filter(o => resolveMethodType(o, payMethods) === 'mixed').reduce((s, o) => s + o.total, 0);
   const todayTotal = todayOrders.reduce((s, o) => s + o.total, 0);
 
-  // Позиции склада ниже порога (только если модуль склада включён)
-  const lowStockItems = db.getAllSync(
-    `SELECT name, остаток, порог, unit FROM stock WHERE остаток <= порог AND порог > 0 ORDER BY (остаток - порог) ASC LIMIT 5`
-  );
+  // Позиции склада ниже порога
+  // Если есть stock_by_location — берём суммарный остаток по всем локациям
+  let lowStockItems;
+  try {
+    lowStockItems = db.getAllSync(
+      `SELECT s.name, s.порог, s.unit,
+        COALESCE(SUM(sl.остаток), s.остаток) as остаток
+       FROM stock s
+       LEFT JOIN stock_by_location sl ON sl.stock_id = s.id
+       WHERE s.порог > 0
+       GROUP BY s.id
+       HAVING COALESCE(SUM(sl.остаток), s.остаток) <= s.порог
+       ORDER BY (COALESCE(SUM(sl.остаток), s.остаток) - s.порог) ASC LIMIT 5`
+    );
+  } catch (_) {
+    lowStockItems = db.getAllSync(
+      `SELECT name, остаток, порог, unit FROM stock WHERE остаток <= порог AND порог > 0 ORDER BY (остаток - порог) ASC LIMIT 5`
+    );
+  }
 
   // Продолжительность текущей смены
   let shiftDuration = null;

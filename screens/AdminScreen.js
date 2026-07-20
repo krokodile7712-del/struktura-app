@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Image, StyleSheet, ScrollView, Pressable } from 'react-native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
@@ -32,7 +31,7 @@ export default function AdminScreen({ navigation }) {
   const [roleNames, setRoleNames] = useState({ barista: 'Сотрудник', admin: 'Администратор' });
   const [stats, setStats] = useState(null);
 
-  useFocusEffect(useCallback(() => {
+  const loadStats = () => {
     try {
       const profile = getBusinessProfile();
       setModules(profile?.modules || {});
@@ -41,7 +40,14 @@ export default function AdminScreen({ navigation }) {
       setRoleNames(getRoleNames());
       setStats(getDashboardStats());
     } catch (e) { console.error(e); }
-  }, []));
+  };
+
+  useEffect(() => {
+    loadStats();
+    // Обновляем при каждом возврате на экран
+    const unsub = navigation.addListener('focus', loadStats);
+    return unsub;
+  }, [navigation]);
 
   const visibleItems = getMenuItems(terms).filter(item =>
     (!item.module || modules[item.module] !== false) &&
