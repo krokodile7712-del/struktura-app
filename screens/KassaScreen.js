@@ -666,7 +666,7 @@ export default function KassaScreen({ navigation, route }) {
                   <Text style={styles.orderHeaderBtnText}>⚡</Text>
                 </Pressable>
               )}
-              <Pressable onPress={() => setNoteModalOpen(true)} hitSlop={8} style={styles.orderHeaderBtn}>
+              <Pressable onPress={() => setNoteModalOpen(true)} hitSlop={8} style={styles.orderHeaderBtn} accessibilityLabel="Добавить заметку к заказу" accessibilityRole="button">
                 <Text style={[styles.orderHeaderBtnText, orderNote && { color: colors.greenLight }]}>📝</Text>
               </Pressable>
               {slots.length === 1 && (
@@ -675,7 +675,7 @@ export default function KassaScreen({ navigation, route }) {
                 </Pressable>
               )}
               {order.length > 0 && (
-                <Pressable onPress={() => { setOrder([]); setExpandedCartId(null); }} hitSlop={8} style={styles.orderHeaderBtn}>
+                <Pressable onPress={() => { setOrder([]); setExpandedCartId(null); }} hitSlop={8} style={styles.orderHeaderBtn} accessibilityLabel="Очистить корзину" accessibilityRole="button">
                   <Text style={styles.orderHeaderBtnText}>🗑</Text>
                 </Pressable>
               )}

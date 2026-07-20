@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, RefreshControl } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import EmptyState from '../components/EmptyState';
+import { SkeletonList } from '../components/Skeleton';
 import { getRecentOrders, getOrderItems, deleteOrder, updateOrder, returnOrder, getTerms, pluralizeRu, genitivePluralRu, getPayMethods } from '../db/queries';
 import { useToast } from '../components/Toast';
 import { getSession, getHomeRoute } from '../db/session';
@@ -53,6 +54,7 @@ export default function SalesScreen({ navigation }) {
   const [dateTo, setDateTo]     = useState(todayStr());
   const [orders, setOrders]     = useState([]);
   const [shown, setShown]       = useState(false);
+  const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(null);
   const [itemsMap, setItemsMap] = useState({});
 
@@ -77,7 +79,9 @@ export default function SalesScreen({ navigation }) {
     if (key === 'month') { setDateFrom(monthAgoStr()); setDateTo(todayStr()); }
   };
 
+  const onRefresh = () => { setRefreshing(true); handleShow(); setRefreshing(false); };
   const handleShow = () => {
+    setLoading(true);
     try {
       const all = getRecentOrders(500);
       const filtered = all.filter(o => {
@@ -173,6 +177,8 @@ export default function SalesScreen({ navigation }) {
           )}
 
           <MetalButton title="● Показать" variant="action" onPress={handleShow} />
+
+          {loading && <SkeletonList count={4} style={{ marginTop: 12 }} />}
 
           {shown && (
             <>

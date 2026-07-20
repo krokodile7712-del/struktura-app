@@ -135,7 +135,7 @@ export default function ExpensesScreen({ navigation }) {
               </View>
 
               {byCategory.map(c => (
-                <View key={c.cat} style={styles.row}>
+                <View key={c.cat} style={({ pressed }) => [styles.row, pressed && { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8 }]}>
                   <Text style={styles.rowSub}>{c.cat}</Text>
                   <Text style={styles.rowSub}>{c.sum.toLocaleString('ru-RU')} ₽</Text>
                 </View>
@@ -143,7 +143,7 @@ export default function ExpensesScreen({ navigation }) {
 
               {expenses.length > 0 && <Text style={[styles.sectionTitle, { marginTop: 12 }]}>Записи</Text>}
               {expenses.map(e => (
-                <View key={e.id} style={styles.row}>
+                <View key={e.id} style={({ pressed }) => [styles.row, pressed && { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8 }]}>
                   <View>
                     <Text style={styles.rowName}>{e.category}{e.comment ? ` — ${e.comment}` : ''}</Text>
                     <Text style={styles.rowSub}>{fmtDate(e.date?.slice(0,10))}</Text>

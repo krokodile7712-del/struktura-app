@@ -44,7 +44,7 @@ export default function DashboardScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title={roleNames.barista} onBack={() => navigation.navigate('Login')} />
+      <TopBar title={roleNames.barista} navigation={navigation} activeScreen="Dashboard" />
       <DashboardWidget
         stats={stats}
         modules={modules}

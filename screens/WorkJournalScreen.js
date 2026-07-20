@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal, RefreshControl } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
@@ -16,6 +16,7 @@ function fmtDate(iso) {
 
 export default function WorkJournalScreen({ navigation }) {
   const [entries, setEntries]   = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch]     = useState('');
   const [expanded, setExpanded] = useState(null);
   const [itemsMap, setItemsMap] = useState({});
@@ -59,7 +60,8 @@ export default function WorkJournalScreen({ navigation }) {
         placeholderTextColor={colors.muted}
       />
 
-      <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
+      <ScrollView style={styles.screen} contentContainerStyle={styles.inner}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); setRefreshing(false); }} tintColor={colors.greenLight} />}>
         {filtered.length === 0 ? (
           <EmptyState
             icon="📓"

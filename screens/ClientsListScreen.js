@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getHomeRoute } from '../db/session';
-import { View, Text, StyleSheet, ScrollView, TextInput, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, RefreshControl } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
@@ -11,6 +11,7 @@ import { colors, fonts, spacing } from '../constants/theme';
 export default function ClientsListScreen({ navigation }) {
   const [query, setQuery] = useState('');
   const [clients, setClients] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
   const [terms, setTerms] = useState({ item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' });
 
   useEffect(() => { loadClients(); setTerms(getTerms()); }, []);
@@ -24,7 +25,8 @@ export default function ClientsListScreen({ navigation }) {
   return (
     <View style={{ flex: 1 }}>
       <TopBar title={pluralizeRu(terms.client)} onBack={() => navigation.navigate(getHomeRoute())} />
-      <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
+      <ScrollView style={styles.screen} contentContainerStyle={styles.inner}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); try { setClients(getAllClients()); } catch(e){} setRefreshing(false); }} tintColor={colors.greenLight} />}>
         <MetalCard>
           <TextInput
             style={styles.input}
@@ -41,7 +43,7 @@ export default function ClientsListScreen({ navigation }) {
           {filtered.map((client) => (
             <Pressable
               key={client.id}
-              style={styles.row}
+              style={({ pressed }) => [styles.row, pressed && { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8 }]}
               onPress={() => navigation.navigate('ClientCard', { client })}
             >
               <View>

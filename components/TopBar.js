@@ -1,28 +1,46 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { colors, fonts } from '../constants/theme';
+import Drawer from './Drawer';
 
-export default function TopBar({ title, onBack, rightElement, syncPending }) {
+export default function TopBar({ title, onBack, rightElement, syncPending, navigation, activeScreen }) {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
   return (
-    <View style={styles.bar}>
-      <View style={styles.side}>
-        {onBack && (
-          <Pressable onPress={onBack} style={styles.backBtn} hitSlop={12}>
-            <Text style={styles.backArrow}>‹</Text>
-            <Text style={styles.backLabel}>Назад</Text>
-          </Pressable>
-        )}
+    <>
+      <View style={styles.bar}>
+        <View style={styles.side}>
+          {onBack ? (
+            <Pressable onPress={onBack} style={styles.backBtn} hitSlop={12} accessibilityLabel="Назад" accessibilityRole="button">
+              <Text style={styles.backArrow}>‹</Text>
+              <Text style={styles.backLabel}>Назад</Text>
+            </Pressable>
+          ) : navigation ? (
+            <Pressable onPress={() => setDrawerOpen(true)} style={styles.menuBtn} hitSlop={12} accessibilityLabel="Открыть меню" accessibilityRole="button">
+              <Text style={styles.menuIcon}>☰</Text>
+            </Pressable>
+          ) : null}
+        </View>
+
+        <Text style={styles.title} numberOfLines={1}>{title || ''}</Text>
+
+        <View style={[styles.side, { alignItems: 'flex-end' }]}>
+          {syncPending > 0
+            ? <Text style={styles.syncBadge}>↑{syncPending}</Text>
+            : null}
+          {rightElement || null}
+        </View>
       </View>
 
-      <Text style={styles.title} numberOfLines={1}>{title || ''}</Text>
-
-      <View style={[styles.side, { alignItems: 'flex-end' }]}>
-        {syncPending > 0
-          ? <Text style={styles.syncBadge}>↑{syncPending}</Text>
-          : null}
-        {rightElement || null}
-      </View>
-    </View>
+      {navigation && (
+        <Drawer
+          visible={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          navigation={navigation}
+          activeScreen={activeScreen}
+        />
+      )}
+    </>
   );
 }
 
@@ -48,6 +66,16 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 10,
     gap: 2,
+  },
+  menuBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  menuIcon: {
+    fontSize: 20,
+    color: colors.greenLight,
+    fontFamily: fonts.family,
   },
   backArrow: {
     fontSize: 26,

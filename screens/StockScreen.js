@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getHomeRoute } from '../db/session';
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, RefreshControl } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
@@ -191,7 +191,8 @@ export default function StockScreen({ navigation }) {
           ))}
         </ScrollView>
       )}
-      <ScrollView style={styles.screen} contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
+      <ScrollView style={styles.screen} contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled"
+        refreshControl={<RefreshControl refreshing={false} onRefresh={() => { try { setStock(getAllStock()); } catch(e){} }} tintColor='#4ec0b2' />}>
         <TextInput
           style={styles.searchInput}
           value={stockSearch}

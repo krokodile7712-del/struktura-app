@@ -79,6 +79,9 @@ export default function MetalButton({ title, onPress, variant = 'default', style
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         disabled={disabled}
+        accessibilityRole="button"
+        accessibilityLabel={title}
+        accessibilityState={{ disabled: !!disabled }}
         style={[styles.pressable, { borderColor: v.border, opacity: disabled ? 0.4 : 1 }]}
       >
         {/* Базовый металлический слой */}

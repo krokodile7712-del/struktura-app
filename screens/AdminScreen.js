@@ -60,7 +60,7 @@ export default function AdminScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title={roleNames.admin} onBack={() => navigation.navigate('Login')} />
+      <TopBar title={roleNames.admin} navigation={navigation} activeScreen="Admin" />
       <DashboardWidget
         stats={stats}
         modules={modules}

@@ -26,6 +26,7 @@ import {
 import { canConvert, conversionFactor } from '../constants/units';
 import Hint from '../components/Hint';
 import InfoTip from '../components/InfoTip';
+import Toggle from '../components/Toggle';
 import EmptyState from '../components/EmptyState';
 import { colors, fonts, spacing } from '../constants/theme';
 import { useToast } from '../components/Toast';
@@ -646,7 +647,7 @@ export default function SettingsScreen({ navigation }) {
               {products.filter(p => p.category === cat).map(p => {
                 const inactive = !p.active;
                 return (
-                  <Pressable key={p.id} style={styles.row} onPress={() => openProduct(p)}>
+                  <Pressable key={p.id} style={({ pressed }) => [styles.row, pressed && { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8 }]} onPress={() => openProduct(p)}>
                     <Text style={[styles.rowName, inactive && styles.rowNameInactive]}>
                       {inactive ? '🚫 ' : ''}{p.name}
                     </Text>
@@ -673,7 +674,7 @@ export default function SettingsScreen({ navigation }) {
             <Text style={styles.hintText}>Группы опций для {genitivePluralRu(terms.item).toLowerCase()} (напр. «Молоко», «Цвет», «Размер ленты») — единичный или множественный выбор.</Text>
             {modifierGroups.length === 0 && <Text style={styles.empty}>Групп пока нет.</Text>}
             {modifierGroups.map(g => (
-              <Pressable key={g.id} style={styles.row} onPress={() => openEditGroup(g)}>
+              <Pressable key={g.id} style={({ pressed }) => [styles.row, pressed && { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8 }]} onPress={() => openEditGroup(g)}>
                 <Text style={styles.rowName}>{g.name} <Text style={styles.rowSub}>({g.selection_type === 'multiple' ? 'неск.' : 'один'})</Text></Text>
                 <Text style={styles.rowPrice}>{g.options.length} опц. ›</Text>
               </Pressable>
@@ -750,7 +751,7 @@ export default function SettingsScreen({ navigation }) {
                 placeholderTextColor={colors.muted}
               />
               <Pressable
-                style={styles.row}
+                style={({ pressed }) => [styles.row, pressed && { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8 }]}
                 onPress={() => setLoyaltyConfig(c => ({ ...c, allow_spend: !c.allow_spend }))}
               >
                 <Text style={styles.rowName}>Разрешить оплату баллами</Text>
@@ -830,7 +831,7 @@ export default function SettingsScreen({ navigation }) {
           </View>
           <Text style={styles.hintText}>Тип: «нал» = наличные в отчётах, «безнал» = карта/QR, «смешанная» = UI разделения суммы.</Text>
           {payMethodsList.map((m, i) => (
-            <Pressable key={m.id || i} style={styles.row} onPress={() => openEditPayMethod(m, i)}>
+            <Pressable key={m.id || i} style={({ pressed }) => [styles.row, pressed && { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8 }]} onPress={() => openEditPayMethod(m, i)}>
               <Text style={[styles.rowName, m.active === false && { color: colors.muted }]}>
                 {m.icon} {m.name}
                 {m.active === false ? '  (откл)' : ''}
@@ -856,7 +857,7 @@ export default function SettingsScreen({ navigation }) {
             <Hint>Добавьте зоны под ваш бизнес. Например: Стол 1–10, Бар, Терраса, С собой.</Hint>
             {zones.length === 0 && <Text style={styles.empty}>Зон пока нет — без них заказ оформляется без указания места.</Text>}
             {zones.map((z) => (
-              <Pressable key={z.id} style={styles.row} onPress={() => setZoneModal({ id: z.id, name: z.name, tables: z.tables || [], newTableInput: '', bulkPrefix: 'Стол', bulkFrom: '', bulkTo: '' })}>
+              <Pressable key={z.id} style={({ pressed }) => [styles.row, pressed && { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8 }]} onPress={() => setZoneModal({ id: z.id, name: z.name, tables: z.tables || [], newTableInput: '', bulkPrefix: 'Стол', bulkFrom: '', bulkTo: '' })}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.rowName}>📍 {z.name}</Text>
                   {z.tables?.length > 0 && (
@@ -881,7 +882,7 @@ export default function SettingsScreen({ navigation }) {
           </View>
           {discounts.length === 0 && <Text style={styles.empty}>Скидки не настроены</Text>}
           {discounts.map((d, i) => (
-            <Pressable key={i} style={styles.row} onPress={() => openEditDiscount(i)}>
+            <Pressable key={i} style={({ pressed }) => [styles.row, pressed && { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8 }]} onPress={() => openEditDiscount(i)}>
               <Text style={styles.rowName}>{d.name}</Text>
               <Text style={styles.rowPrice}>−{d.pct}% ›</Text>
             </Pressable>
@@ -901,7 +902,7 @@ export default function SettingsScreen({ navigation }) {
           </View>
             {stock.length === 0 && <Text style={styles.empty}>Нет данных на складе.</Text>}
             {stock.map(s => (
-              <Pressable key={s.id} style={styles.row} onPress={() => openStockModal(s)}>
+              <Pressable key={s.id} style={({ pressed }) => [styles.row, pressed && { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8 }]} onPress={() => openStockModal(s)}>
                 <Text style={styles.rowName}>{s.name}</Text>
                 <Text style={styles.rowPrice}>порог: {s['порог']} {s.unit} ›</Text>
               </Pressable>
@@ -914,7 +915,7 @@ export default function SettingsScreen({ navigation }) {
             <Text style={styles.blockTitle}>⚠️ Несвязанные техкарты</Text>
             <Text style={styles.hintText}>Эти техкарты остались от старой модели и не привязаны к конкретному варианту {genitiveSingularRu(terms.item).toLowerCase()}. Пересоздайте их через карточку {genitiveSingularRu(terms.item).toLowerCase()} выше.</Text>
             {unlinkedCards.map(c => (
-              <View key={c.id} style={styles.row}><Text style={styles.rowName}>{c.name}</Text></View>
+              <View key={c.id} style={({ pressed }) => [styles.row, pressed && { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8 }]}><Text style={styles.rowName}>{c.name}</Text></View>
             ))}
           </MetalCard>
         )}
@@ -1204,7 +1205,7 @@ export default function SettingsScreen({ navigation }) {
                   .map(s => (
                     <Pressable
                       key={s.id}
-                      style={styles.row}
+                      style={({ pressed }) => [styles.row, pressed && { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8 }]}
                       onPress={() => { addIngredientRow(ingredientPicker.variantKey, s); setIngredientPicker(null); }}
                     >
                       <Text style={styles.rowName}>{s.name}</Text>
@@ -1485,7 +1486,7 @@ export default function SettingsScreen({ navigation }) {
                 <>
                   <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Опции</Text>
                   {(modifierGroups.find(g => g.id === groupModal.id)?.options || []).map(opt => (
-                    <Pressable key={opt.id} style={styles.row} onPress={() => openEditOption(groupModal.id, opt)}>
+                    <Pressable key={opt.id} style={({ pressed }) => [styles.row, pressed && { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8 }]} onPress={() => openEditOption(groupModal.id, opt)}>
                       <Text style={styles.rowName}>{opt.name}</Text>
                       <Text style={styles.rowPrice}>{opt.price_delta > 0 ? `+${opt.price_delta}₽ ` : ''}›</Text>
                     </Pressable>
@@ -1590,8 +1591,8 @@ export default function SettingsScreen({ navigation }) {
                   ['templates',  'Шаблоны заказов'],
                 ].map(([key, label]) => (
                   <Pressable key={key} style={styles.checkRow} onPress={() => toggleModuleDraft(key)}>
-                    <Text style={styles.checkBox}>{profileDraft.modules[key] ? '☑' : '☐'}</Text>
                     <Text style={styles.rowName}>{label}</Text>
+                    <Toggle value={!!profileDraft.modules[key]} onValueChange={() => toggleModuleDraft(key)} />
                   </Pressable>
                 ))}
 
