@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useToast } from '../components/Toast';
 import { useFocusEffect } from '@react-navigation/native';
 import { getHomeRoute, getCurrentLocationId } from '../db/session';
 import {
@@ -15,6 +16,7 @@ const CAT_ICONS = { 'Кофе': '☕', 'Лимонады': '🍹', 'Допы': '
 
 export default function KassaScreen({ navigation, route }) {
   const loading2 = false; // placeholder
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [groups, setGroups] = useState([]);
   const [allProducts, setAllProducts] = useState([]);
@@ -502,6 +504,7 @@ export default function KassaScreen({ navigation, route }) {
       setExpandedCartId(null);
       setPayModalOpen(false);
       closeSlot(activeSlotId);
+      toast.show(`Оплата ${total} ₽ принята ✓`);
       if (stockWarnings && stockWarnings.length > 0) {
         const lines = stockWarnings.map(w => `${w.name}: ${w.amount.toFixed(1)} ${w.unit || ''}`).join('\n');
         Alert.alert('⚠️ Склад ушёл в минус', lines);

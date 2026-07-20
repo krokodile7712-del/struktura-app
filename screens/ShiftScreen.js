@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
@@ -36,9 +36,9 @@ export default function ShiftScreen({ navigation }) {
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
       <TopBar title="Начало рабочего дня" />
-      <ScrollView contentContainerStyle={styles.inner}>
+      <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
         <Text style={styles.dateText}>📅 {dateStr}</Text>
         <Text style={styles.subtitle}>Прежде чем начать принимать заказы, откройте смену</Text>
 
@@ -69,7 +69,7 @@ export default function ShiftScreen({ navigation }) {
           </Text>
         </MetalCard>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Share } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Share, Animated } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
@@ -12,7 +12,7 @@ import {
   insertModifierOption, updateModifierOption, deleteModifierOption,
   getCostCardForVariant, saveCostCardForVariant,
   getUsers, updateUserPin,
-  getDiscounts, setSetting, getLoyaltyConfig, updateLoyaltyConfig,
+  getDiscounts, setSetting, getSetting, getLoyaltyConfig, updateLoyaltyConfig,
   getPayMethods, savePayMethods,
   getZones, addZone, updateZone, deleteZone,
   addZoneTable, updateZoneTable, deleteZoneTable, bulkAddZoneTables,
@@ -28,6 +28,29 @@ import Hint from '../components/Hint';
 import InfoTip from '../components/InfoTip';
 import EmptyState from '../components/EmptyState';
 import { colors, fonts, spacing } from '../constants/theme';
+
+function SectionAccordion({ title, icon, sectionKey, openSections, toggleSection, children }) {
+  const isOpen = openSections[sectionKey];
+  return (
+    <View style={accStyles.wrap}>
+      <Pressable style={accStyles.header} onPress={() => toggleSection(sectionKey)}>
+        <Text style={accStyles.icon}>{icon}</Text>
+        <Text style={accStyles.title}>{title}</Text>
+        <Text style={accStyles.arrow}>{isOpen ? '▲' : '▼'}</Text>
+      </Pressable>
+      {isOpen && <View style={accStyles.body}>{children}</View>}
+    </View>
+  );
+}
+const accStyles = StyleSheet.create({
+  wrap: { marginBottom: 8 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: '#0e0f11', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)' },
+  icon: { fontSize: 18 },
+  title: { flex: 1, fontFamily: 'AnekDevanagari_600SemiBold', fontSize: 14, color: '#ddd8d0' },
+  arrow: { fontSize: 10, color: '#4a4d54' },
+  body: { paddingTop: 4 },
+});
+
 
 export default function SettingsScreen({ navigation }) {
   // ── Данные ──
@@ -69,7 +92,9 @@ export default function SettingsScreen({ navigation }) {
   const [profileUnlocked, setProfileUnlocked] = useState(false);
   const [keyPromptOpen, setKeyPromptOpen] = useState(false);
   const [keyInput, setKeyInput]           = useState('');
-  const [profileDraft, setProfileDraft]   = useState(null); // { businessName, modules, terms, units, unitInput }
+  const [profileDraft, setProfileDraft]   = useState(null);
+  const [openSections, setOpenSections] = useState({ menu: true, employees: false, loyalty: false, payment: false, stock: false, business: false, system: false });
+  const toggleSection = (key) => setOpenSections(s => ({ ...s, [key]: !s[key] })); // { businessName, modules, terms, units, unitInput }
 
   useEffect(() => { loadAll(); }, []);
 
@@ -610,6 +635,7 @@ export default function SettingsScreen({ navigation }) {
         </Pressable>
 
         {/* Меню и цены */}
+        <SectionAccordion title="Меню и цены" icon="🍽" sectionKey="menu" openSections={openSections} toggleSection={toggleSection}>
         <MetalCard>
           <Text style={styles.blockTitle}>☕ {pluralizeRu(terms.item)} и цены</Text>
           {categories.map(cat => (
@@ -654,6 +680,9 @@ export default function SettingsScreen({ navigation }) {
           </MetalCard>
         )}
 
+        </SectionAccordion>
+
+        <SectionAccordion title="Сотрудники" icon="👥" sectionKey="employees" openSections={openSections} toggleSection={toggleSection}>
         {/* Сотрудники (заменяет старую секцию PIN-кодов) */}
         <MetalCard style={{ marginTop: 12 }}>
           <Text style={styles.blockTitle}>👥 Сотрудники</Text>
@@ -666,6 +695,9 @@ export default function SettingsScreen({ navigation }) {
           />
         </MetalCard>
 
+        </SectionAccordion>
+
+        <SectionAccordion title="Клиенты и лояльность" icon="⭐" sectionKey="loyalty" openSections={openSections} toggleSection={toggleSection}>
         {/* Программа лояльности */}
         {modules.loyalty !== false && (
           <MetalCard style={{ marginTop: 12 }}>
@@ -782,6 +814,9 @@ export default function SettingsScreen({ navigation }) {
           </MetalCard>
         )}
 
+        </SectionAccordion>
+
+        <SectionAccordion title="Оплата и скидки" icon="💳" sectionKey="payment" openSections={openSections} toggleSection={toggleSection}>
         {/* Способы оплаты */}
         <MetalCard style={{ marginTop: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
@@ -889,6 +924,7 @@ export default function SettingsScreen({ navigation }) {
           <MetalButton title={exporting ? 'Экспорт...' : '📤 Экспорт и поделиться'} variant="pay" onPress={handleExport} disabled={exporting} />
         </MetalCard>
 
+        </SectionAccordion>
       </ScrollView>
       <BottomBar navigation={navigation} activeTab="Kassa" />
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
@@ -37,7 +37,7 @@ export default function RegScreen({ navigation }) {
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
       <TopBar title={`Новый ${(terms.client || 'клиент').toLowerCase()}`} onBack={() => navigation.navigate('Loyalty')} />
       <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
         <MetalCard>
@@ -83,7 +83,7 @@ export default function RegScreen({ navigation }) {
         </MetalCard>
       </ScrollView>
       <BottomBar navigation={navigation} activeTab="Loyalty" />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

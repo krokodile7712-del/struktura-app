@@ -12,6 +12,9 @@ import {
 } from '@expo-google-fonts/anek-devanagari';
 
 import AppBackground from './components/AppBackground';
+import { ToastProvider } from './components/Toast';
+import OnboardingScreen from './screens/OnboardingScreen';
+import { getSetting } from './db/queries';
 import { initDatabase } from './db/database';
 import { startAutoSync } from './db/sync';
 
@@ -74,14 +77,18 @@ export default function App() {
 
   const [dbReady, setDbReady] = useState(false);
   const [dbError, setDbError] = useState(null);
+  const [initialRoute, setInitialRoute] = useState('Login');
 
   useEffect(() => {
     try {
       initDatabase();
-      startAutoSync(30 * 1000); // каждые 30 секунд
+      startAutoSync(30 * 1000);
+      const done = getSetting('onboarding_done');
+      setInitialRoute(done ? 'Login' : 'Onboarding');
       setDbReady(true);
     } catch (e) {
       setDbError(e.message);
+      setDbReady(true);
     }
   }, []);
 
@@ -97,16 +104,18 @@ export default function App() {
   return (
     <>
       <StatusBar style="light" backgroundColor={colors.bg} />
+      <ToastProvider>
       <NavigationContainer theme={navTheme}>
         <AppBackground>
           <Stack.Navigator
-            initialRouteName="Login"
+            initialRouteName={initialRoute}
             screenOptions={{
               headerShown: false,
               animation: 'fade',
               contentStyle: { backgroundColor: 'transparent' },
             }}
           >
+            <Stack.Screen name="Onboarding"  component={OnboardingScreen} />
             <Stack.Screen name="Loyalty"     component={LoyaltyScreen} />
             <Stack.Screen name="Login"       component={LoginScreen} />
             <Stack.Screen name="Dashboard"   component={DashboardScreen} />
@@ -137,6 +146,7 @@ export default function App() {
           </Stack.Navigator>
         </AppBackground>
       </NavigationContainer>
+      </ToastProvider>
     </>
   );
 }

@@ -7,6 +7,7 @@ import BottomBar from '../components/BottomBar';
 import { getAllUsers, addUser, updateUser, toggleUserActive, getRoleNames } from '../db/queries';
 import Hint from '../components/Hint';
 import EmptyState from '../components/EmptyState';
+import { useToast } from '../components/Toast';
 import { colors, fonts, spacing } from '../constants/theme';
 
 
@@ -29,6 +30,7 @@ export default function EmployeesScreen({ navigation }) {
 
   useEffect(() => { load(); }, []);
 
+  const toast = useToast();
   const load = () => {
     try {
       setUsers(getAllUsers());
@@ -65,6 +67,7 @@ export default function EmployeesScreen({ navigation }) {
       }
       if (!result.ok) { setError(result.error); return; }
       load();
+      toast.show(modal.id ? 'Сотрудник обновлён ✓' : 'Сотрудник добавлен ✓');
       closeModal();
     } catch (e) { setError(e.message || 'Ошибка сохранения'); }
   };
@@ -75,6 +78,7 @@ export default function EmployeesScreen({ navigation }) {
       const result = toggleUserActive(modal.id);
       if (!result.ok) { setError(result.error); return; }
       load();
+      toast.show(modal.id ? 'Сотрудник обновлён ✓' : 'Сотрудник добавлен ✓');
       closeModal();
     } catch (e) { setError(e.message || 'Ошибка'); }
   };
