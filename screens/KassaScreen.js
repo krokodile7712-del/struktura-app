@@ -689,12 +689,16 @@ export default function KassaScreen({ navigation, route }) {
               const hasMods = (item.modifiers || []).length > 0;
               return (
                 <SwipeableRow key={item.id} onAction={() => removeFromOrder(item.id)} label="Удалить">
-                <View style={styles.orderItem}>
+                {/* Вся строка реагирует на долгий тап — открывает заметку */}
+                <Pressable
+                  style={styles.orderItem}
+                  onLongPress={() => setItemNoteModal({ id: item.id, note: item.note || '' })}
+                  delayLongPress={280}
+                >
+                  {/* Верхняя часть: имя + цена + тап для раскрытия модификаторов */}
                   <Pressable
                     style={styles.orderItemMain}
                     onPress={() => hasMods && setExpandedCartId(isExpanded ? null : item.id)}
-                    onLongPress={() => setItemNoteModal({ id: item.id, note: item.note || '' })}
-                    delayLongPress={280}
                   >
                     <View style={{ flex: 1 }}>
                       <Text style={styles.orderItemName}>
@@ -711,21 +715,22 @@ export default function KassaScreen({ navigation, route }) {
                     </View>
                     <Text style={styles.orderItemPrice}>{(item.price * (item.quantity || 1)).toFixed(0)} ₽</Text>
                   </Pressable>
+                  {/* Нижняя часть: −qty+  Изменить */}
                   <View style={styles.orderItemControls}>
-                    <Pressable style={styles.qtyBtn} onPress={() => setItemQty(item.id, (item.quantity || 1) - 1)} hitSlop={6}>
+                    <Pressable style={styles.qtyBtn} onPress={() => setItemQty(item.id, (item.quantity || 1) - 1)} hitSlop={8}>
                       <Text style={styles.qtyBtnText}>−</Text>
                     </Pressable>
                     <Text style={styles.qtyVal}>{item.quantity || 1}</Text>
-                    <Pressable style={styles.qtyBtn} onPress={() => setItemQty(item.id, (item.quantity || 1) + 1)} hitSlop={6}>
+                    <Pressable style={styles.qtyBtn} onPress={() => setItemQty(item.id, (item.quantity || 1) + 1)} hitSlop={8}>
                       <Text style={styles.qtyBtnText}>+</Text>
                     </Pressable>
                     {((item.modifiers && item.modifiers.length > 0) || item.variant_id || item.size) && (
-                      <Pressable style={styles.editModsBtn} onPress={() => editCartItemMods(item)} hitSlop={6}>
-                        <Text style={styles.editModsBtnText}>✎</Text>
+                      <Pressable style={styles.editTextBtn} onPress={() => editCartItemMods(item)} hitSlop={8}>
+                        <Text style={styles.editTextBtnText}>Изменить</Text>
                       </Pressable>
                     )}
                   </View>
-                </View>
+                </Pressable>
                 </SwipeableRow>
               );
             })}
@@ -1094,8 +1099,8 @@ const styles = StyleSheet.create({
   qtyBtn: { width: 28, height: 28, borderRadius: 8, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   qtyBtnText: { fontFamily: fonts.family, fontSize: 16, color: colors.text, lineHeight: 20 },
   qtyVal: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, minWidth: 22, textAlign: 'center' },
-  editModsBtn: { marginLeft: 6, paddingHorizontal: 10, height: 28, borderRadius: 8, backgroundColor: 'rgba(61,95,168,0.15)', borderWidth: 1, borderColor: 'rgba(61,95,168,0.4)', alignItems: 'center', justifyContent: 'center' },
-  editModsBtnText: { fontSize: 14, color: '#7a9be8' },
+  editTextBtn: { marginLeft: 8, paddingHorizontal: 12, height: 28, borderRadius: 8, backgroundColor: 'rgba(61,95,168,0.12)', borderWidth: 1, borderColor: 'rgba(61,95,168,0.3)', alignItems: 'center', justifyContent: 'center' },
+  editTextBtnText: { fontFamily: fonts.familySemibold, fontSize: 11, color: '#7a9be8' },
   removeBtn: { marginLeft: 2, paddingHorizontal: 10, height: 28, borderRadius: 8, backgroundColor: 'rgba(160,16,32,0.12)', borderWidth: 1, borderColor: 'rgba(160,16,32,0.3)', alignItems: 'center', justifyContent: 'center' },
   removeBtnText: { fontSize: 13, color: colors.redLight },
   modsToggle: { fontSize: 10, color: colors.muted },
