@@ -24,7 +24,7 @@ export default function TopBar({ title, onBack, rightElement, syncPending, navig
 
         <Text style={styles.title} numberOfLines={1}>{title || ''}</Text>
 
-        <View style={[styles.side, { alignItems: 'flex-end' }]}>
+        <View style={[styles.side, { alignItems: 'flex-end', width: 'auto', maxWidth: 220 }]}>
           {syncPending > 0
             ? <Text style={styles.syncBadge}>↑{syncPending}</Text>
             : null}

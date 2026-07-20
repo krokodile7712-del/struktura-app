@@ -3,7 +3,6 @@ import { View, Text, Image, StyleSheet, ScrollView, Pressable } from 'react-nati
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import { getOpenShift, getBusinessProfile, getTerms, pluralizeRu, getRoleNames, getDashboardStats } from '../db/queries';
-import DashboardWidget from '../components/DashboardWidget';
 import ShiftBadge from '../components/ShiftBadge';
 import { colors, fonts, spacing } from '../constants/theme';
 
@@ -52,11 +51,7 @@ export default function DashboardScreen({ navigation }) {
       <TopBar title={roleNames.barista} navigation={navigation} activeScreen="Dashboard"
         rightElement={<ShiftBadge stats={stats} onShiftPress={() => navigation.navigate('ShiftClose')} onStockPress={() => navigation.navigate('Stock')} />}
       />
-      <DashboardWidget
-        stats={stats}
-        modules={modules}
-        onLowStockPress={() => navigation.navigate('Stock')}
-      />
+
 
       <ScrollView contentContainerStyle={styles.inner}>
         {/* Логотип */}
