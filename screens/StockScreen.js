@@ -7,35 +7,39 @@ import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import MetalButton from '../components/MetalButton';
 import EmptyState from '../components/EmptyState';
-import { getAllStock, addPurchase, setStockForLocation, adjustStockForLocation, getStockHistory, getLocations, getCurrentLocationId, setCurrentLocationId, getBusinessProfile } from '../db/queries';
+import { getAllStock, addPurchase, updateMaxOstatok, setStockForLocation, adjustStockForLocation, getStockHistory, getLocations, getCurrentLocationId, setCurrentLocationId, getBusinessProfile } from '../db/queries';
 import { getDb } from '../db/database';
 import { getHomeRoute } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
 import { useFocusEffect } from '@react-navigation/native';
 
-// ─── Полоска уровня запаса с маркером порога ─────────────────────────────────
-function StockBar({ current, threshold }) {
-  if (!threshold || threshold <= 0) return null;
-
-  // Масштаб: max = max(current, threshold) * 1.2 чтобы был запас справа
-  const maxVal = Math.max(current, threshold, 1) * 1.2;
-  const fillPct  = Math.max(0, Math.min(current / maxVal, 1));
-  const markPct  = Math.min(threshold / maxVal, 1);
-  const isLow    = current <= threshold;
-  const isEmpty  = current <= 0;
+// ─── Полоска уровня запаса ────────────────────────────────────────────────────
+// 100% = max_ostatok (пик после закупок)
+// Заполнение справа налево: полная = вся залита справа, пустеет слева
+// Маркер порога = фиксированная позиция от правого края
+function StockBar({ current, maxVal, threshold }) {
+  // maxVal = исторический максимум (max_ostatok из БД)
+  const max     = Math.max(maxVal || 0, current, threshold || 0, 1);
+  const fillPct = Math.max(0, Math.min(current / max, 1));
+  const isLow   = threshold > 0 && current <= threshold;
+  const isEmpty = current <= 0;
+  // Маркер порога: отступ от правого края = (1 - порог/max) * 100%
+  const markerRightPct = threshold > 0 ? (1 - Math.min(threshold / max, 1)) * 100 : null;
 
   return (
     <View style={barStyles.track}>
-      {/* Заполнение */}
+      {/* Заполнение справа налево */}
       {!isEmpty && (
         <View style={[
           barStyles.fill,
-          { width: `${fillPct * 100}%` },
+          { width: `${fillPct * 100}%`, right: 0 },
           isLow ? barStyles.fillLow : barStyles.fillOk,
         ]} />
       )}
-      {/* Маркер порога — вертикальная черта */}
-      <View style={[barStyles.marker, { left: `${markPct * 100}%` }]} />
+      {/* Маркер порога */}
+      {markerRightPct !== null && (
+        <View style={[barStyles.marker, { right: `${markerRightPct}%` }]} />
+      )}
     </View>
   );
 }
@@ -51,7 +55,7 @@ const barStyles = StyleSheet.create({
   },
   fill: {
     position: 'absolute',
-    left: 0, top: 0, bottom: 0,
+    top: 0, bottom: 0,
     borderRadius: 3,
   },
   fillOk:  { backgroundColor: 'rgba(61,158,146,0.45)' },
@@ -60,7 +64,7 @@ const barStyles = StyleSheet.create({
     position: 'absolute',
     top: -2, bottom: -2,
     width: 2,
-    backgroundColor: 'rgba(221,216,208,0.6)',
+    backgroundColor: 'rgba(221,216,208,0.7)',
     borderRadius: 1,
   },
 });
@@ -69,6 +73,8 @@ const barStyles = StyleSheet.create({
 function updateStockLocal(itemId, newValue) {
   const db = getDb();
   db.runSync('UPDATE stock SET остаток = ? WHERE id = ?', [newValue, itemId]);
+  // Обновляем исторический максимум если остаток вырос
+  db.runSync('UPDATE stock SET max_ostatok = MAX(max_ostatok, ?) WHERE id = ?', [newValue, itemId]);
 }
 
 // ─── Режимы изменения ─────────────────────────────────────────────────────────
@@ -128,8 +134,9 @@ export default function StockScreen({ navigation }) {
       const name = modalItem.name;
       const cur  = modalItem['остаток'] || 0;
       if (mode === 'purchase') {
-        // addPurchase принимает имя и добавляет к остатку
         addPurchase(name, n, parseFloat(price) || 0);
+        // Обновляем максимум после закупки
+        setTimeout(() => { try { updateMaxOstatok(id); } catch(_){} }, 100);
       } else if (locEnabled && selectedLocId) {
         if (mode === 'add') {
           adjustStockForLocation(id, selectedLocId, n);
@@ -282,7 +289,7 @@ export default function StockScreen({ navigation }) {
 
                     {/* Полоска с маркером порога */}
                     <View style={styles.colBarWrap}>
-                      <StockBar current={cur} threshold={thr} />
+                      <StockBar current={cur} threshold={thr} maxVal={item['max_ostatok'] || cur} />
                       {thr > 0 && (
                         <Text style={styles.thrLabel}>{thr}</Text>
                       )}
@@ -345,14 +352,14 @@ export default function StockScreen({ navigation }) {
                   {modalItem['порог'] > 0 && (
                     <View style={[barStyles.track, { width: '100%', height: 6, marginTop: 10 }]}>
                       {modalItem['остаток'] > 0 && (() => {
-                        const maxVal = Math.max(modalItem['остаток'], modalItem['порог'], 1) * 1.2;
+                        const maxVal = Math.max(modalItem['max_ostatok'] || 0, modalItem['остаток'], modalItem['порог'], 1);
                         const fillPct = Math.min(modalItem['остаток'] / maxVal, 1);
                         const markPct = Math.min(modalItem['порог'] / maxVal, 1);
                         const isLow = modalItem['остаток'] <= modalItem['порог'];
                         return (
                           <>
-                            <View style={[barStyles.fill, { width: `${fillPct * 100}%` }, isLow ? barStyles.fillLow : barStyles.fillOk]} />
-                            <View style={[barStyles.marker, { left: `${markPct * 100}%` }]} />
+                            <View style={[barStyles.fill, { width: `${fillPct * 100}%`, right: 0 }, isLow ? barStyles.fillLow : barStyles.fillOk]} />
+                <View style={[barStyles.marker, { right: `${(1 - markPct) * 100}%` }]} />
                           </>
                         );
                       })()}

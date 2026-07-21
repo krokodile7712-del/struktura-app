@@ -847,6 +847,7 @@ export function getAllStock() {
   return db.getAllSync(`SELECT * FROM stock ORDER BY category, name`);
 }
 
+// updateMaxOstatok вызывается после addPurchase автоматически внутри
 export function updateStockThreshold(id, threshold) {
   const db = getDb();
   db.runSync(`UPDATE stock SET порог = ? WHERE id = ?`, [threshold, id]);
@@ -1355,6 +1356,17 @@ export function reverseStockForOrder(orderId) {
 }
 
 // ─── Закупки (для расчёта средней цены) ──────────────────────────────────
+
+// Обновляет исторический максимум остатка
+export function updateMaxOstatok(stockId) {
+  const db = getDb();
+  try {
+    db.runSync(
+      `UPDATE stock SET max_ostatok = MAX(max_ostatok, остаток) WHERE id = ?`,
+      [stockId]
+    );
+  } catch (_) {}
+}
 
 export function addPurchase(stockName, qty, pricePerUnit) {
   initPurchasesTable();
