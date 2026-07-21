@@ -66,6 +66,7 @@ export default function KassaScreen({ navigation, route }) {
   // Заметка к позиции корзины
   const [itemNoteModal, setItemNoteModal] = useState(null); // {id, note}
   const [prePayOpen, setPrePayOpen]       = useState(false);
+  const [discountDropOpen, setDiscountDropOpen] = useState(false);
   const [clientSearch, setClientSearch]   = useState('');
   const [clientsList, setClientsList]     = useState([]);
 
@@ -246,7 +247,22 @@ export default function KassaScreen({ navigation, route }) {
 
   // Объединяет дубли (одинаковый товар + вариант + модификаторы) вместо новой строки
   const addToCart = (newItem) => {
-    setOrder(prev => [...prev, { ...newItem, id: Date.now() + Math.random(), quantity: 1 }]);
+    setOrder(prev => {
+      const dupIdx = prev.findIndex(it =>
+        it.product_id === newItem.product_id &&
+        it.variant_id === newItem.variant_id &&
+        JSON.stringify(it.modifiers) === JSON.stringify(newItem.modifiers)
+      );
+      if (dupIdx !== -1) {
+        return prev.map((it, i) => i === dupIdx ? { ...it, quantity: (it.quantity || 1) + 1 } : it);
+      }
+      return [...prev, { ...newItem, id: Date.now() + Math.random(), quantity: 1 }];
+    });
+  };
+
+  // + в корзине — новая строка с тем же товаром (для выбора другого размера)
+  const duplicateCartItem = (item) => {
+    setOrder(prev => [...prev, { ...item, id: Date.now() + Math.random(), quantity: 1, note: '' }]);
   };
 
   // Изменяет количество позиции в корзине (удаляет если <= 0)
@@ -711,47 +727,39 @@ export default function KassaScreen({ navigation, route }) {
               return (
                 <SwipeableRow key={item.id} onAction={() => removeFromOrder(item.id)} label="Удалить">
                 {/* Вся строка реагирует на долгий тап — открывает заметку */}
-                <Pressable
-                  style={styles.orderItem}
-                  onLongPress={() => setItemNoteModal({ id: item.id, note: item.note || '' })}
-                  delayLongPress={280}
-                >
-                  {/* Верхняя часть: имя + цена + тап для раскрытия модификаторов */}
+                <View style={styles.orderItem}>
+                  {/* Тап на верхнюю часть → редактировать (выбор размера/мод), долгий тап → заметка */}
                   <Pressable
                     style={styles.orderItemMain}
-                    onPress={() => hasMods && setExpandedCartId(isExpanded ? null : item.id)}
+                    onPress={() => editCartItemMods(item)}
+                    onLongPress={() => setItemNoteModal({ id: item.id, note: item.note || '' })}
+                    delayLongPress={280}
                   >
                     <View style={{ flex: 1 }}>
                       <Text style={styles.orderItemName}>
                         {item.name}{item.size ? ` · ${item.size}` : ''}
-                        {hasMods && <Text style={styles.modsToggle}> {isExpanded ? '▲' : '▼'}</Text>}
                       </Text>
+                      {(item.modifiers || []).length > 0 && (item.modifiers || []).map((m, mi) => (
+                        <Text key={mi} style={styles.orderItemMod}>· {m.optionName}{m.priceDelta > 0 ? ` +${m.priceDelta}₽` : ''}</Text>
+                      ))}
                       {item.note
                         ? <Text style={styles.cartItemNote}>💬 {item.note}</Text>
                         : <Text style={styles.cartItemNoteHint}>удержите для заметки</Text>
                       }
-                      {isExpanded && (item.modifiers || []).map((m, mi) => (
-                        <Text key={mi} style={styles.orderItemMod}>· {m.optionName}{m.priceDelta > 0 ? ` +${m.priceDelta}₽` : ''}</Text>
-                      ))}
                     </View>
                     <Text style={styles.orderItemPrice}>{(item.price * (item.quantity || 1)).toFixed(0)} ₽</Text>
                   </Pressable>
-                  {/* Нижняя часть: −qty+  Изменить */}
+                  {/* −qty+ | + новая строка */}
                   <View style={styles.orderItemControls}>
                     <Pressable style={styles.qtyBtn} onPress={() => setItemQty(item.id, (item.quantity || 1) - 1)} hitSlop={8}>
                       <Text style={styles.qtyBtnText}>−</Text>
                     </Pressable>
                     <Text style={styles.qtyVal}>{item.quantity || 1}</Text>
-                    <Pressable style={styles.qtyBtn} onPress={() => setItemQty(item.id, (item.quantity || 1) + 1)} hitSlop={8}>
+                    <Pressable style={styles.qtyBtn} onPress={() => duplicateCartItem(item)} hitSlop={8}>
                       <Text style={styles.qtyBtnText}>+</Text>
                     </Pressable>
-                    {((item.modifiers && item.modifiers.length > 0) || item.variant_id || item.size) && (
-                      <Pressable style={styles.editTextBtn} onPress={() => editCartItemMods(item)} hitSlop={8}>
-                        <Text style={styles.editTextBtnText}>Изменить</Text>
-                      </Pressable>
-                    )}
                   </View>
-                </Pressable>
+                  </View>
                 </SwipeableRow>
               );
             })}
@@ -855,7 +863,7 @@ export default function KassaScreen({ navigation, route }) {
                   />
                   {clientSearch.length > 0 && (
                     <View style={styles.clientDropdown}>
-                      <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+                      <ScrollView keyboardShouldPersistTaps="always" nestedScrollEnabled scrollEnabled showsVerticalScrollIndicator={false}>
                       {clientsList
                         .filter(cl =>
                           cl.fio?.toLowerCase().includes(clientSearch.toLowerCase()) ||
@@ -906,29 +914,45 @@ export default function KassaScreen({ navigation, route }) {
                       </Pressable>
                     </View>
                   ) : (
-                    <View style={styles.discountScrollBox}>
-                      <ScrollView scrollEnabled nestedScrollEnabled showsVerticalScrollIndicator={false}>
-                        <Pressable
-                          style={[styles.discountListRow, !appliedDiscount && styles.discountListRowActive]}
-                          onPress={() => setAppliedDiscount(null)}
-                        >
-                          <Text style={[styles.discountListName, !appliedDiscount && { color: colors.greenLight }]}>Без скидки</Text>
-                          {!appliedDiscount && <Text style={styles.discountListCheck}>✓</Text>}
-                        </Pressable>
-                        {discounts.map(d => (
-                          <Pressable
-                            key={d.id}
-                            style={[styles.discountListRow, appliedDiscount?.id === d.id && styles.discountListRowActive]}
-                            onPress={() => setAppliedDiscount(d)}
-                          >
-                            <View style={{ flex: 1 }}>
-                              <Text style={[styles.discountListName, appliedDiscount?.id === d.id && { color: colors.greenLight }]}>{d.name}</Text>
-                              <Text style={styles.discountListSub}>−{d.pct}%  ≈ −{Math.round(rawTotal * d.pct / 100)} ₽</Text>
-                            </View>
-                            {appliedDiscount?.id === d.id && <Text style={styles.discountListCheck}>✓</Text>}
-                          </Pressable>
-                        ))}
-                      </ScrollView>
+                    <View style={{ position: 'relative', zIndex: 100 }}>
+                      <Pressable
+                        style={[styles.discountListRow, { borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: '#07080a' }]}
+                        onPress={() => setDiscountDropOpen(v => !v)}
+                      >
+                        <Text style={{ flex: 1, fontFamily: fonts.familySemibold, fontSize: 13, color: appliedDiscount ? colors.greenLight : colors.text }}>
+                          {appliedDiscount ? `${appliedDiscount.name} −${appliedDiscount.pct}% (−${Math.round(rawTotal * appliedDiscount.pct / 100)} ₽)` : 'Без скидки'}
+                        </Text>
+                        <Text style={{ color: colors.muted, fontSize: 12 }}>{discountDropOpen ? '▲' : '▼'}</Text>
+                      </Pressable>
+                      {discountDropOpen && (
+                        <View style={styles.discountDropdown}>
+                          <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                            <Pressable
+                              style={[styles.discountListRow, !appliedDiscount && styles.discountListRowActive]}
+                              onPress={() => { setAppliedDiscount(null); setDiscountDropOpen(false); }}
+                            >
+                              <Text style={[styles.discountListName, !appliedDiscount && { color: colors.greenLight }]}>Без скидки</Text>
+                              {!appliedDiscount ? <Text style={styles.discountListCheck}>✓</Text> : null}
+                            </Pressable>
+                            {discounts.map(d => {
+                              const isActive = appliedDiscount?.id != null && appliedDiscount.id === d.id;
+                              return (
+                                <Pressable
+                                  key={d.id}
+                                  style={[styles.discountListRow, isActive && styles.discountListRowActive]}
+                                  onPress={() => { setAppliedDiscount(d); setDiscountDropOpen(false); }}
+                                >
+                                  <View style={{ flex: 1 }}>
+                                    <Text style={[styles.discountListName, isActive && { color: colors.greenLight }]}>{d.name}</Text>
+                                    <Text style={styles.discountListSub}>−{d.pct}%  ≈ −{Math.round(rawTotal * d.pct / 100)} ₽</Text>
+                                  </View>
+                                  {isActive ? <Text style={styles.discountListCheck}>✓</Text> : null}
+                                </Pressable>
+                              );
+                            })}
+                          </ScrollView>
+                        </View>
+                      )}
                     </View>
                   )}
                 </>
@@ -1388,6 +1412,7 @@ const styles = StyleSheet.create({
 
   // Список скидок
   discountScrollBox: { borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', maxHeight: 160 },
+  discountDropdown: { position: 'absolute', top: 42, left: 0, right: 0, zIndex: 200, backgroundColor: '#0b0c0f', borderRadius: 12, borderWidth: 1, borderColor: colors.border, maxHeight: 200, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 20 },
   discountListRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.15)' },
   discountListRowActive: { backgroundColor: 'rgba(61,158,146,0.07)' },
   discountListName: { flex: 1, fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
@@ -1462,6 +1487,7 @@ const styles = StyleSheet.create({
   input: { padding: 13, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 15, fontFamily: fonts.family },
   orderPanel: { width: '33%', minWidth: 240, borderLeftWidth: 1, borderLeftColor: colors.border, backgroundColor: colors.surface },
   orderHeader: { paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  orderHeaderBtns: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   orderHeaderText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 2 },
   orderItem: { borderBottomWidth: 1, borderBottomColor: colors.border },
   // Слоты парковки
