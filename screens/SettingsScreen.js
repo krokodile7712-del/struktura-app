@@ -82,6 +82,9 @@ export default function SettingsScreen({ navigation }) {
   const [keyInput, setKeyInput]           = useState('');
   const [profileDraft, setProfileDraft]   = useState(null);
   const toast = useToast();
+  const { width: SW } = useWindowDimensions();
+  const isPhone = SW < 600;
+  const [selectedSection, setSelectedSection] = useState('menu');
   const [stockCatModal, setStockCatModal] = useState(null); // {oldName, newName}
   const [stockCats, setStockCats] = useState([]);
   const [openSections, setOpenSections] = useState({ menu: true, employees: false, loyalty: false, payment: false, stock: false, business: false, system: false });  const renameStockCategory = (oldName, newName) => {
