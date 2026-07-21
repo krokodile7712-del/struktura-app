@@ -153,8 +153,12 @@ export function spendPoints(client_id, points) {
   return spend;
 }
 
-export function updateBusinessProfile({ businessName, modules, terms, roles, units, accessKey }) {
+export function updateBusinessProfile({ businessName, modules, terms, roles, units, accessKey, logoBase64, phone, address, city, workHoursFrom, workHoursTo, inn, preset }) {
   const db = getDb();
+  // Защитное создание колонок если они ещё не добавлены миграцией
+  for (const col of ['logo_base64', 'phone', 'address', 'city', 'work_hours_from', 'work_hours_to', 'inn', 'preset']) {
+    try { db.execSync(`ALTER TABLE business_profile ADD COLUMN ${col} TEXT DEFAULT ''`); } catch (_) {}
+  }
   const existing = db.getFirstSync(`SELECT id FROM business_profile ORDER BY id LIMIT 1`);
   const payload = [
     businessName ?? '',
@@ -162,16 +166,28 @@ export function updateBusinessProfile({ businessName, modules, terms, roles, uni
     JSON.stringify(terms  || {}),
     JSON.stringify(roles  || {}),
     JSON.stringify(units  || []),
-    accessKey ?? '',
+    accessKey    ?? '',
+    logoBase64   ?? '',
+    phone        ?? '',
+    address      ?? '',
+    city         ?? '',
+    workHoursFrom ?? '',
+    workHoursTo  ?? '',
+    inn          ?? '',
+    preset       ?? '',
   ];
   if (existing) {
     db.runSync(
-      `UPDATE business_profile SET business_name = ?, modules = ?, terms = ?, roles = ?, units = ?, access_key = ? WHERE id = ?`,
+      `UPDATE business_profile SET business_name=?, modules=?, terms=?, roles=?, units=?, access_key=?,
+       logo_base64=?, phone=?, address=?, city=?, work_hours_from=?, work_hours_to=?, inn=?, preset=?
+       WHERE id=?`,
       [...payload, existing.id]
     );
   } else {
     db.runSync(
-      `INSERT INTO business_profile (business_name, modules, terms, roles, units, access_key) VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO business_profile (business_name, modules, terms, roles, units, access_key,
+       logo_base64, phone, address, city, work_hours_from, work_hours_to, inn, preset)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       payload
     );
   }
