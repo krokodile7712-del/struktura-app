@@ -1,358 +1,439 @@
-import React, { useState, useEffect } from 'react';
-import { getHomeRoute } from '../db/session';
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, RefreshControl } from 'react-native';
-import MetalCard from '../components/MetalCard';
-import MetalButton from '../components/MetalButton';
+import React, { useState, useCallback } from 'react';
+import {
+  View, Text, StyleSheet, ScrollView, Pressable,
+  TextInput, Modal, FlatList,
+} from 'react-native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
+import MetalButton from '../components/MetalButton';
 import EmptyState from '../components/EmptyState';
-import Hint from '../components/Hint';
-import {
-  getAllStock, getAllStockWithLocationTotals, getStockForLocation,
-  adjustStockForLocation, setStockForLocation,
-  getLocations, initDefaultLocation,
-  addPurchase, getPurchaseHistory, initPurchasesTable,
-  getBusinessProfile,
-} from '../db/queries';
-import { getDb } from '../db/database';
-import { getCurrentLocationId, setCurrentLocationId } from '../db/session';
+import { getAllStock, addPurchase, adjustStock, setStockAmount, getStockHistory, getLocations, getCurrentLocationId, setCurrentLocationId, getBusinessProfile } from '../db/queries';
+import { getHomeRoute } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
+import { useFocusEffect } from '@react-navigation/native';
 
-function updateStockLocal(itemId, newValue) {
-  const db = getDb();
-  db.runSync(`UPDATE stock SET остаток = ? WHERE id = ?`, [newValue, itemId]);
+// ─── Полоска уровня запаса с маркером порога ─────────────────────────────────
+function StockBar({ current, threshold }) {
+  if (!threshold || threshold <= 0) return null;
+
+  // Масштаб: max = max(current, threshold) * 1.2 чтобы был запас справа
+  const maxVal = Math.max(current, threshold, 1) * 1.2;
+  const fillPct  = Math.max(0, Math.min(current / maxVal, 1));
+  const markPct  = Math.min(threshold / maxVal, 1);
+  const isLow    = current <= threshold;
+  const isEmpty  = current <= 0;
+
+  return (
+    <View style={barStyles.track}>
+      {/* Заполнение */}
+      {!isEmpty && (
+        <View style={[
+          barStyles.fill,
+          { width: `${fillPct * 100}%` },
+          isLow ? barStyles.fillLow : barStyles.fillOk,
+        ]} />
+      )}
+      {/* Маркер порога — вертикальная черта */}
+      <View style={[barStyles.marker, { left: `${markPct * 100}%` }]} />
+    </View>
+  );
 }
 
-function fmtDate(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
-}
+const barStyles = StyleSheet.create({
+  track: {
+    width: 110,
+    height: 5,
+    backgroundColor: 'rgba(74,77,84,0.2)',
+    borderRadius: 3,
+    overflow: 'visible',
+    position: 'relative',
+  },
+  fill: {
+    position: 'absolute',
+    left: 0, top: 0, bottom: 0,
+    borderRadius: 3,
+  },
+  fillOk:  { backgroundColor: 'rgba(61,158,146,0.45)' },
+  fillLow: { backgroundColor: 'rgba(160,16,32,0.5)' },
+  marker: {
+    position: 'absolute',
+    top: -2, bottom: -2,
+    width: 2,
+    backgroundColor: 'rgba(221,216,208,0.6)',
+    borderRadius: 1,
+  },
+});
 
-const MODES = ['Закупка', 'Добавить', 'Списать', 'Установить'];
+// ─── Режимы изменения ─────────────────────────────────────────────────────────
+const MODES = [
+  { key: 'purchase', label: 'Закупка',   icon: '📦', desc: 'Добавить с фиксацией цены закупки' },
+  { key: 'add',      label: 'Добавить',  icon: '+',   desc: 'Пополнить остаток без закупки' },
+  { key: 'subtract', label: 'Списать',   icon: '−',   desc: 'Уменьшить остаток (брак, расход)' },
+  { key: 'set',      label: 'Установить',icon: '=',   desc: 'Задать точное значение вручную' },
+];
 
+// ─── Экран ───────────────────────────────────────────────────────────────────
 export default function StockScreen({ navigation }) {
-  const [stock, setStock]               = useState([]);
-  const [modalItem, setModalItem]       = useState(null);
-  const [mode, setMode]                 = useState(null);
-  const [inputQty, setInputQty]         = useState('');
-  const [inputPrice, setInputPrice]     = useState('');
-  const [history, setHistory]           = useState([]);
-  const [locEnabled, setLocEnabled]     = useState(false);
-  const [locations, setLocations]       = useState([]);
-  const [selectedLocId, setSelectedLocId] = useState(getCurrentLocationId());
+  const [stock, setStock]       = useState([]);
+  const [search, setSearch]     = useState('');
+  const [modalItem, setModalItem] = useState(null);
+  const [mode, setMode]         = useState(null);
+  const [qty, setQty]           = useState('');
+  const [price, setPrice]       = useState('');
+  const [history, setHistory]   = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [locations, setLocations] = useState([]);
+  const [selectedLocId, setSelectedLocId] = useState(null);
+  const [locEnabled, setLocEnabled] = useState(false);
 
-  useEffect(() => {
-    initPurchasesTable();
-    loadProfile();
-  }, []);
-
-  const loadProfile = () => {
+  useFocusEffect(useCallback(() => {
     try {
       const profile = getBusinessProfile();
-      const enabled = profile?.modules?.locations === true;
-      setLocEnabled(enabled);
-      if (enabled) {
-        let locs = getLocations();
-        if (locs.length === 0) { initDefaultLocation(); locs = getLocations(); }
+      const locOn = profile?.modules?.locations === true;
+      setLocEnabled(locOn);
+      if (locOn) {
+        const locs = getLocations();
         setLocations(locs);
-        const curId = getCurrentLocationId();
-        const validId = curId && locs.find(l => l.id === curId) ? curId : (locs[0]?.id || null);
-        setSelectedLocId(validId);
-        setCurrentLocationId(validId);
-        loadStockData(enabled, validId);
-      } else {
-        loadStockData(false, null);
+        setSelectedLocId(getCurrentLocationId());
       }
+      setStock(getAllStock());
     } catch (e) { console.error(e); }
-  };
+  }, []));
 
-  const loadStockData = (enabled, locId) => {
-    try {
-      if (enabled && locId) {
-        setStock(getStockForLocation(locId));
-      } else if (enabled) {
-        setStock(getAllStockWithLocationTotals());
-      } else {
-        setStock(getAllStock());
-      }
-    } catch (e) { console.error(e); }
-  };
-
-  const selectLocation = (id) => {
-    setCurrentLocationId(id);
-    setSelectedLocId(id);
-    loadStockData(locEnabled, id);
-  };
+  const reload = () => { try { setStock(getAllStock()); } catch (e) {} };
 
   const openModal = (item) => {
     setModalItem(item);
     setMode(null);
-    setInputQty('');
-    setInputPrice('');
-    setHistory([]);
+    setQty('');
+    setPrice('');
+    setShowHistory(false);
+    try { setHistory(getStockHistory(item.id).slice(0, 10)); } catch (_) { setHistory([]); }
   };
+  const closeModal = () => { setModalItem(null); setMode(null); };
 
-  const closeModal = () => {
-    setModalItem(null);
-    setMode(null);
-  };
-
-  const selectMode = (m) => {
-    setMode(m);
-    setInputQty('');
-    setInputPrice('');
-    if (m === 'Закупка') {
-      try { setHistory(getPurchaseHistory(modalItem.name)); } catch (_) {}
-    }
-  };
-
-  const handleConfirm = () => {
-    if (!modalItem) return;
-    const qty = parseFloat(inputQty);
-    if (!qty || isNaN(qty)) return;
-
+  const confirm = () => {
+    if (!modalItem || !qty) return;
+    const n = parseFloat(qty);
+    if (isNaN(n) || n < 0) return;
     try {
-      if (locEnabled && selectedLocId) {
-        // Локации включены — работаем с stock_by_location
-        if (mode === 'Закупка') {
-          const price = parseFloat(inputPrice);
-          if (!price || isNaN(price)) return;
-          addPurchase(modalItem.name, qty, price); // обновляет avg_price
-          adjustStockForLocation(modalItem.id, selectedLocId, qty);
-        } else if (mode === 'Добавить') {
-          adjustStockForLocation(modalItem.id, selectedLocId, qty);
-        } else if (mode === 'Списать') {
-          adjustStockForLocation(modalItem.id, selectedLocId, -qty);
-        } else if (mode === 'Установить') {
-          setStockForLocation(modalItem.id, selectedLocId, qty);
-        }
-      } else {
-        // Обычный режим — работаем с stock.остаток напрямую
-        if (mode === 'Закупка') {
-          const price = parseFloat(inputPrice);
-          if (!price || isNaN(price)) return;
-          addPurchase(modalItem.name, qty, price);
-        } else if (mode === 'Добавить') {
-          updateStockLocal(modalItem.id, (modalItem['остаток'] || 0) + qty);
-        } else if (mode === 'Списать') {
-          updateStockLocal(modalItem.id, Math.max(0, (modalItem['остаток'] || 0) - qty));
-        } else if (mode === 'Установить') {
-          updateStockLocal(modalItem.id, qty);
-        }
+      const id = modalItem.id;
+      if (mode === 'purchase') {
+        addPurchase(id, n, parseFloat(price) || 0, selectedLocId);
+      } else if (mode === 'add') {
+        adjustStock(id, n, selectedLocId);
+      } else if (mode === 'subtract') {
+        adjustStock(id, -n, selectedLocId);
+      } else if (mode === 'set') {
+        setStockAmount(id, n, selectedLocId);
       }
-      loadStockData(locEnabled, selectedLocId);
+      reload();
+      closeModal();
     } catch (e) { console.error(e); }
-
-    closeModal();
   };
 
-  const categories = [...new Set(stock.map(i => i.category))];
-  const [stockSearch, setStockSearch] = useState('');
-  const filteredStock = stockSearch.trim()
-    ? stock.filter(i => i.name.toLowerCase().includes(stockSearch.toLowerCase()) || (i.category || '').toLowerCase().includes(stockSearch.toLowerCase()))
-    : null; // null = показываем по категориям
+  // Фильтрация и группировка
+  const filtered = stock.filter(i =>
+    !search.trim() || i.name?.toLowerCase().includes(search.toLowerCase())
+  );
+  const cats = [...new Set(filtered.map(i => i.category || 'Без категории'))].sort();
 
-  const modeLabel = {
-    'Закупка':   '💰 Закупка (обновит среднюю цену и себестоимость)',
-    'Добавить':  '+ Добавить к остатку',
-    'Списать':   '− Списать из остатка',
-    'Установить':'= Установить точное значение',
-  };
+  // Предпросмотр нового значения
+  const previewQty = (() => {
+    const n = parseFloat(qty) || 0;
+    const cur = modalItem?.['остаток'] || 0;
+    if (mode === 'add')      return cur + n;
+    if (mode === 'subtract') return Math.max(0, cur - n);
+    if (mode === 'set')      return n;
+    if (mode === 'purchase') return cur + n;
+    return cur;
+  })();
+
+  const actionLabel = (() => {
+    const n = parseFloat(qty);
+    if (!n || !mode) return 'Применить';
+    const u = modalItem?.unit || '';
+    if (mode === 'purchase') return `Принять ${n} ${u}`;
+    if (mode === 'add')      return `Добавить ${n} ${u}`;
+    if (mode === 'subtract') return `Списать ${n} ${u}`;
+    if (mode === 'set')      return `Установить ${n} ${u}`;
+    return 'Применить';
+  })();
 
   return (
     <View style={{ flex: 1 }}>
       <TopBar title="Склад" onBack={() => navigation.navigate(getHomeRoute())} />
 
-      {/* Пикер локации — показывается только когда модуль включён */}
+      {/* Локации */}
       {locEnabled && locations.length > 0 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.locBar}
-          contentContainerStyle={styles.locBarInner}
-        >
-          <Pressable
-            style={[styles.locChip, !selectedLocId && styles.locChipActive]}
-            onPress={() => selectLocation(null)}
-          >
-            <Text style={[styles.locChipText, !selectedLocId && styles.locChipTextActive]}>Все</Text>
-          </Pressable>
-          {locations.map(loc => (
-            <Pressable
-              key={loc.id}
-              style={[styles.locChip, selectedLocId === loc.id && styles.locChipActive]}
-              onPress={() => selectLocation(loc.id)}
-            >
-              <Text style={[styles.locChipText, selectedLocId === loc.id && styles.locChipTextActive]}>
-                {loc.name}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}
+          style={styles.locBar} contentContainerStyle={styles.locInner}>
+          {locations.map(l => (
+            <Pressable key={l.id}
+              style={[styles.locChip, selectedLocId === l.id && styles.locChipActive]}
+              onPress={() => { setCurrentLocationId(l.id); setSelectedLocId(l.id); reload(); }}>
+              <Text style={[styles.locChipText, selectedLocId === l.id && styles.locChipTextActive]}>
+                {selectedLocId === l.id ? '📍 ' : ''}{l.name}
               </Text>
             </Pressable>
           ))}
         </ScrollView>
       )}
-      <ScrollView style={styles.screen} contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={false} onRefresh={() => { try { setStock(getAllStock()); } catch(e){} }} tintColor='#4ec0b2' />}>
+
+      {/* Поиск */}
+      <View style={styles.searchWrap}>
         <TextInput
           style={styles.searchInput}
-          value={stockSearch}
-          onChangeText={setStockSearch}
-          placeholder="🔍 Поиск по названию или категории..."
+          value={search}
+          onChangeText={setSearch}
+          placeholder="🔍 Поиск по названию..."
           placeholderTextColor={colors.muted}
         />
-        {filteredStock ? (
-          <MetalCard>
-            {filteredStock.length === 0 && (
-              <EmptyState icon="🔍" title="Ничего не найдено" text="Попробуйте изменить запрос или проверьте написание." />
-            )}
-            {filteredStock.map(item => {
-              const isNegative = item['остаток'] < 0;
-              const isLow = item['остаток'] <= item['порог'];
-              return (
-                <Pressable key={item.id} style={styles.row} onPress={() => openModal(item)}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.itemName, isLow && styles.itemNameLow, isNegative && styles.itemNameNegative]}>
-                      {isNegative ? '🔴 ' : isLow ? '⚠️ ' : ''}{item.name}
-                    </Text>
-                    <Text style={styles.itemSub}>{item.category} · порог: {item['порог']}</Text>
-                  </View>
-                  <Text style={[styles.itemQty, isLow && styles.itemQtyLow, isNegative && styles.itemQtyNegative]}>
-                    {item['остаток']} {item.unit}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </MetalCard>
-        ) : (
-        <MetalCard>
-          {stock.length === 0 && (
-            <EmptyState
-              icon="📦"
-              title="Склад пока пуст"
-              text="Здесь будут отображаться все ваши запасы: ингредиенты, товары, расходники. Добавьте первую позицию, чтобы отслеживать остатки и получать предупреждения когда что-то заканчивается."
-            />
-          )}
-          {categories.map(cat => {
-            const items = stock.filter(i => i.category === cat);
-            const hasLow = items.some(i => i['остаток'] <= i['порог']);
-            return (
-              <View key={cat} style={{ marginBottom: 16 }}>
-                <Text style={[styles.catHeader, hasLow && styles.catHeaderLow]}>
-                  {hasLow ? '⚠️ ' : ''}{cat}
-                </Text>
-                {items.map(item => {
-                  const isNegative = item['остаток'] < 0;
-                  const isLow = item['остаток'] <= item['порог'];
-                  return (
-                    <Pressable key={item.id} style={styles.row} onPress={() => openModal(item)}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.itemName, isLow && styles.itemNameLow, isNegative && styles.itemNameNegative]}>
-                          {isNegative ? '🔴 ' : isLow ? '⚠️ ' : ''}{item.name}
-                        </Text>
-                        <Text style={styles.itemSub}>
-                          {item['остаток']} {item.unit} · порог: {item['порог']}
-                          {item.avg_price > 0 ? ` · ср. цена: ${item.avg_price} ₽` : ''}
-                        </Text>
-                      </View>
-                      <Text style={[styles.itemStatus, isLow && styles.itemStatusLow, isNegative && styles.itemStatusNegative]}>
-                        {isNegative ? 'Минус' : isLow ? 'Мало' : 'ОК'} ›
-                      </Text>
-                    </Pressable>
-                  );
-                })}
+      </View>
+
+      {/* Заголовки колонок */}
+      <View style={styles.colHeaders}>
+        <Text style={[styles.colHead, { flex: 1 }]}>Позиция</Text>
+        <Text style={[styles.colHead, styles.colQty]}>Остаток</Text>
+        <Text style={[styles.colHead, styles.colBar]}>Уровень</Text>
+        <Text style={[styles.colHead, styles.colStatus]}>Статус</Text>
+      </View>
+
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
+        {filtered.length === 0 ? (
+          <EmptyState icon="📦" title="Склад пуст"
+            text="Добавьте товары и ингредиенты в Настройках → Меню и цены → Техкарты. Они появятся здесь автоматически." />
+        ) : cats.map(cat => {
+          const items = filtered.filter(i => (i.category || 'Без категории') === cat);
+          const hasLow = items.some(i => i['порог'] > 0 && i['остаток'] <= i['порог']);
+          return (
+            <View key={cat} style={styles.catGroup}>
+              {/* Заголовок категории */}
+              <View style={styles.catHeaderRow}>
+                <View style={styles.catHeaderLine} />
+                <Text style={[styles.catHeader, hasLow && styles.catHeaderWarn]}>{cat}</Text>
+                {hasLow && <View style={styles.warnBadge}><Text style={styles.warnBadgeText}>мало</Text></View>}
+                <View style={styles.catHeaderLine} />
               </View>
-            );
-          })}
-        </MetalCard>
-        )}
+
+              {/* Строки */}
+              {items.map((item, idx) => {
+                const cur      = item['остаток'] ?? 0;
+                const thr      = item['порог']   ?? 0;
+                const isNeg    = cur < 0;
+                const isLow    = thr > 0 && cur <= thr;
+                const isOk     = !isNeg && !isLow;
+                const isLast   = idx === items.length - 1;
+                return (
+                  <Pressable
+                    key={item.id}
+                    style={({ pressed }) => [
+                      styles.row,
+                      isLast && styles.rowLast,
+                      pressed && styles.rowPressed,
+                    ]}
+                    onPress={() => openModal(item)}
+                  >
+                    {/* Название */}
+                    <View style={{ flex: 1, paddingRight: 8 }}>
+                      <Text style={[
+                        styles.itemName,
+                        isNeg && styles.itemNameNeg,
+                        isLow && !isNeg && styles.itemNameLow,
+                      ]} numberOfLines={1}>
+                        {item.name}
+                      </Text>
+                      {item.avg_price > 0 && (
+                        <Text style={styles.itemAvg}>{item.avg_price} ₽/ед.</Text>
+                      )}
+                    </View>
+
+                    {/* Остаток */}
+                    <View style={styles.colQtyWrap}>
+                      <Text style={[
+                        styles.itemQty,
+                        isNeg && styles.itemNameNeg,
+                        isLow && !isNeg && styles.itemNameLow,
+                      ]}>
+                        {cur}
+                      </Text>
+                      <Text style={styles.itemUnit}>{item.unit}</Text>
+                    </View>
+
+                    {/* Полоска с маркером порога */}
+                    <View style={styles.colBarWrap}>
+                      <StockBar current={cur} threshold={thr} />
+                      {thr > 0 && (
+                        <Text style={styles.thrLabel}>{thr}</Text>
+                      )}
+                    </View>
+
+                    {/* Статус */}
+                    <View style={styles.colStatusWrap}>
+                      <Text style={[
+                        styles.statusLabel,
+                        isNeg && { color: '#ff3b30' },
+                        isLow && !isNeg && { color: colors.redLight },
+                        isOk && { color: 'rgba(61,158,146,0.7)' },
+                      ]}>
+                        {isNeg ? 'минус' : isLow ? 'мало' : 'норма'}
+                      </Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+          );
+        })}
       </ScrollView>
+
       <BottomBar navigation={navigation} activeTab="Kassa" />
 
+      {/* ── Модалка изменения остатка — Apple стиль ── */}
       <Modal visible={!!modalItem} transparent animationType="fade" onRequestClose={closeModal}>
         <View style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={closeModal} />
           {modalItem && (
             <View style={styles.modalInner}>
+              {/* Заголовок */}
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>{modalItem.name}</Text>
-                <Pressable onPress={closeModal} hitSlop={12}>
-                  <Text style={styles.modalClose}>✕</Text>
+                <Text style={styles.modalTitle} numberOfLines={2}>{modalItem.name}</Text>
+                <Pressable onPress={closeModal} hitSlop={14} style={styles.modalCloseBtn}>
+                  <Text style={styles.modalCloseTxt}>✕</Text>
                 </Pressable>
               </View>
 
-              <Text style={styles.modalCurrent}>
-                Остаток: <Text style={styles.modalCurrentVal}>{modalItem['остаток']} {modalItem.unit}</Text>
-                {modalItem.avg_price > 0 && (
-                  <Text style={styles.modalAvgPrice}> · ср. цена: {modalItem.avg_price} ₽</Text>
-                )}
-              </Text>
-
-              {!mode ? (
-                <View style={styles.modeGrid}>
-                  {MODES.map(m => (
-                    <Pressable
-                      key={m}
-                      style={[styles.modeBtn, m === 'Закупка' && styles.modeBtnPrimary]}
-                      onPress={() => selectMode(m)}
-                    >
-                      <Text style={[styles.modeBtnText, m === 'Закупка' && styles.modeBtnTextPrimary]}>
-                        {m === 'Закупка' ? '💰' : m === 'Добавить' ? '+' : m === 'Списать' ? '−' : '='} {m}
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                {/* Текущий остаток */}
+                <View style={styles.curStockBox}>
+                  <View style={styles.curStockRow}>
+                    <View>
+                      <Text style={styles.curStockLabel}>Текущий остаток</Text>
+                      <Text style={[
+                        styles.curStockVal,
+                        modalItem['остаток'] < 0 && { color: '#ff3b30' },
+                        modalItem['порог'] > 0 && modalItem['остаток'] <= modalItem['порог'] && { color: colors.redLight },
+                      ]}>
+                        {modalItem['остаток']} {modalItem.unit}
                       </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              ) : (
-                <>
-                  <Text style={styles.modeHint}>{modeLabel[mode]}</Text>
-
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Количество"
-                    placeholderTextColor={colors.muted}
-                    keyboardType="numeric"
-                    value={inputQty}
-                    onChangeText={setInputQty}
-                    autoFocus
-                  />
-
-                  {mode === 'Закупка' && (
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Цена за единицу (₽)"
-                      placeholderTextColor={colors.muted}
-                      keyboardType="numeric"
-                      value={inputPrice}
-                      onChangeText={setInputPrice}
-                    />
-                  )}
-
-                  {mode === 'Закупка' && inputQty && inputPrice && (
-                    <Text style={styles.calcHint}>
-                      Итого: {(parseFloat(inputQty) * parseFloat(inputPrice)).toFixed(2)} ₽
-                    </Text>
-                  )}
-
-                  <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
-                    <MetalButton title="Подтвердить" variant="action" onPress={handleConfirm} style={{ flex: 1 }} />
-                    <MetalButton title="Назад"       variant="back"   onPress={() => setMode(null)} style={{ flex: 1 }} />
+                    </View>
+                    {modalItem['порог'] > 0 && (
+                      <Text style={styles.curThrLabel}>порог {modalItem['порог']} {modalItem.unit}</Text>
+                    )}
                   </View>
-
-                  {/* История закупок */}
-                  {mode === 'Закупка' && history.length > 0 && (
-                    <>
-                      <Text style={[styles.modeHint, { marginTop: 14 }]}>История закупок</Text>
-                      {history.map((h, i) => (
-                        <View key={i} style={styles.histRow}>
-                          <Text style={styles.histDate}>{fmtDate(h.created_at)}</Text>
-                          <Text style={styles.histQty}>{h.qty} {modalItem.unit}</Text>
-                          <Text style={styles.histPrice}>{h.price_per_unit} ₽/ед.</Text>
-                          <Text style={styles.histTotal}>{h.total.toFixed(0)} ₽</Text>
-                        </View>
-                      ))}
-                    </>
+                  {/* Полоска в модалке — шире */}
+                  {modalItem['порог'] > 0 && (
+                    <View style={[barStyles.track, { width: '100%', height: 6, marginTop: 10 }]}>
+                      {modalItem['остаток'] > 0 && (() => {
+                        const maxVal = Math.max(modalItem['остаток'], modalItem['порог'], 1) * 1.2;
+                        const fillPct = Math.min(modalItem['остаток'] / maxVal, 1);
+                        const markPct = Math.min(modalItem['порог'] / maxVal, 1);
+                        const isLow = modalItem['остаток'] <= modalItem['порог'];
+                        return (
+                          <>
+                            <View style={[barStyles.fill, { width: `${fillPct * 100}%` }, isLow ? barStyles.fillLow : barStyles.fillOk]} />
+                            <View style={[barStyles.marker, { left: `${markPct * 100}%` }]} />
+                          </>
+                        );
+                      })()}
+                    </View>
                   )}
-                </>
-              )}
+                  {modalItem.avg_price > 0 && (
+                    <Text style={styles.curAvgPrice}>Средняя цена закупки: {modalItem.avg_price} ₽/ед.</Text>
+                  )}
+                </View>
+
+                {/* Выбор режима */}
+                {!mode ? (
+                  <View style={styles.modeList}>
+                    {MODES.map(m => (
+                      <Pressable
+                        key={m.key}
+                        style={({ pressed }) => [styles.modeRow, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
+                        onPress={() => setMode(m.key)}
+                      >
+                        <View style={styles.modeIconBox}>
+                          <Text style={styles.modeIcon}>{m.icon}</Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.modeLabel}>{m.label}</Text>
+                          <Text style={styles.modeDesc}>{m.desc}</Text>
+                        </View>
+                        <Text style={styles.modeArrow}>›</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : (
+                  <View style={styles.inputSection}>
+                    <Pressable style={styles.backToModes} onPress={() => { setMode(null); setQty(''); setPrice(''); }}>
+                      <Text style={styles.backToModesText}>← {MODES.find(m2 => m2.key === mode)?.label}</Text>
+                    </Pressable>
+
+                    <Text style={styles.inputLabel}>
+                      Количество, {modalItem.unit}
+                    </Text>
+                    <TextInput
+                      style={styles.inputField}
+                      value={qty}
+                      onChangeText={setQty}
+                      keyboardType="numeric"
+                      placeholder="0"
+                      placeholderTextColor={colors.muted}
+                      autoFocus
+                    />
+
+                    {mode === 'purchase' && (
+                      <>
+                        <Text style={styles.inputLabel}>Цена закупки, ₽/ед. (необязательно)</Text>
+                        <TextInput
+                          style={styles.inputField}
+                          value={price}
+                          onChangeText={setPrice}
+                          keyboardType="numeric"
+                          placeholder="0"
+                          placeholderTextColor={colors.muted}
+                        />
+                      </>
+                    )}
+
+                    {/* Предпросмотр */}
+                    {qty !== '' && (
+                      <View style={styles.previewBox}>
+                        <Text style={styles.previewLabel}>Станет</Text>
+                        <Text style={[
+                          styles.previewVal,
+                          previewQty < 0 && { color: '#ff3b30' },
+                          modalItem['порог'] > 0 && previewQty <= modalItem['порог'] && previewQty >= 0 && { color: colors.redLight },
+                        ]}>
+                          {previewQty.toFixed(1)} {modalItem.unit}
+                        </Text>
+                      </View>
+                    )}
+
+                    <Pressable
+                      style={({ pressed }) => [styles.confirmBtn, !qty && styles.confirmBtnDisabled, pressed && qty && { opacity: 0.88 }]}
+                      onPress={confirm}
+                      disabled={!qty}
+                    >
+                      <Text style={styles.confirmBtnText}>{actionLabel}</Text>
+                    </Pressable>
+                  </View>
+                )}
+
+                {/* История */}
+                {history.length > 0 && (
+                  <Pressable style={styles.histToggle} onPress={() => setShowHistory(v => !v)}>
+                    <Text style={styles.histToggleText}>{showHistory ? '▲' : '▼'} История движения</Text>
+                  </Pressable>
+                )}
+                {showHistory && history.map((h, i) => (
+                  <View key={i} style={styles.histRow}>
+                    <Text style={styles.histDate}>{h.date?.slice(0, 10) || '—'}</Text>
+                    <Text style={styles.histQty}>{h.qty > 0 ? '+' : ''}{h.qty} {modalItem.unit}</Text>
+                    {h.price > 0 && <Text style={styles.histPrice}>{h.price} ₽/ед.</Text>}
+                  </View>
+                ))}
+              </ScrollView>
             </View>
           )}
         </View>
@@ -361,47 +442,120 @@ export default function StockScreen({ navigation }) {
   );
 }
 
+const COL_QTY    = 72;
+const COL_BAR    = 130;
+const COL_STATUS = 56;
+
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  inner: { padding: spacing.lg, paddingBottom: 20, maxWidth: 1100, width: '100%', alignSelf: 'center' },
-  searchInput: { padding: 11, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 14, color: colors.text, fontSize: 14, fontFamily: fonts.family, marginBottom: 12 },
-  empty: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', paddingVertical: 20 },
-  catHeader: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.textDim, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 },
-  catHeaderLow: { color: '#c47a5a' },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
-  itemName: { fontFamily: fonts.family, fontSize: 14, color: colors.text },
+  inner: { paddingBottom: 20 },
+  searchWrap: { paddingHorizontal: spacing.lg, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
+  searchInput: { padding: 10, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 14, fontFamily: fonts.family },
+
+  // Заголовки колонок
+  colHeaders: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(74,77,84,0.3)',
+    backgroundColor: '#07080a',
+  },
+  colHead: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
+  colQty:   { width: COL_QTY,    textAlign: 'right' },
+  colBar:   { width: COL_BAR,    textAlign: 'center', paddingHorizontal: 10 },
+  colStatus:{ width: COL_STATUS, textAlign: 'center' },
+
+  // Группы категорий
+  catGroup: { paddingHorizontal: spacing.lg, marginTop: 14 },
+  catHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  catHeaderLine: { flex: 1, height: 1, backgroundColor: 'rgba(74,77,84,0.25)' },
+  catHeader: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
+  catHeaderWarn: { color: '#c47a5a' },
+  warnBadge: { paddingVertical: 2, paddingHorizontal: 8, borderRadius: 8, backgroundColor: 'rgba(160,16,32,0.15)', borderWidth: 1, borderColor: 'rgba(160,16,32,0.3)' },
+  warnBadgeText: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.redLight },
+
+  // Строки
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(74,77,84,0.18)',
+  },
+  rowLast:    { borderBottomWidth: 0 },
+  rowPressed: { backgroundColor: 'rgba(255,255,255,0.025)' },
+
+  itemName:    { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
   itemNameLow: { color: colors.redLight },
-  itemNameNegative: { color: '#ff3b30', fontFamily: fonts.familySemibold },
-  itemSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
-  itemStatus: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.greenLight },
-  itemStatusLow: { color: colors.redLight },
-  itemStatusNegative: { color: '#ff3b30', fontFamily: fonts.familySemibold },
-  modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center' },
-  modalInner: { width: '60%', maxWidth: 560, backgroundColor: '#0e0f11', borderRadius: 20, padding: 24, borderWidth: 1, borderColor: colors.borderHi },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  modalTitle: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, flex: 1 },
-  modalClose: { fontSize: 18, color: colors.muted, padding: 4 },
-  modalCurrent: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginBottom: 16 },
-  modalCurrentVal: { fontFamily: fonts.family, fontWeight: '700', color: colors.text },
-  modalAvgPrice: { fontFamily: fonts.familyRegular, color: colors.greenLight },
-  modeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  modeBtn: { flex: 1, minWidth: '45%', paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e', alignItems: 'center' },
-  modeBtnPrimary: { borderColor: 'rgba(122,158,82,0.5)', backgroundColor: 'rgba(122,158,82,0.12)' },
-  modeBtnText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
-  modeBtnTextPrimary: { color: colors.greenLight },
-  modeHint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginBottom: 10 },
-  input: { padding: 14, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 15, fontFamily: fonts.family, marginBottom: 4 },
-  calcHint: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight, textAlign: 'center', marginBottom: 4 },
-  histRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.border },
-  histDate: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, flex: 1 },
-  histQty: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.text, flex: 1, textAlign: 'center' },
-  histPrice: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.text, flex: 1, textAlign: 'center' },
-  histTotal: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.greenLight, flex: 1, textAlign: 'right' },
-  // Пикер локации
-  locBar: { maxHeight: 52, borderBottomWidth: 1, borderBottomColor: colors.border },
-  locBarInner: { paddingHorizontal: spacing.lg, paddingVertical: 10, gap: 8, flexDirection: 'row', alignItems: 'center' },
-  locChip: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e' },
-  locChipActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.15)' },
-  locChipText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
+  itemNameNeg: { color: '#ff3b30' },
+  itemAvg:     { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, marginTop: 1 },
+
+  colQtyWrap:   { width: COL_QTY, alignItems: 'flex-end' },
+  itemQty:      { fontFamily: fonts.family, fontSize: 14, fontWeight: '700', color: colors.text },
+  itemUnit:     { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted },
+
+  colBarWrap:   { width: COL_BAR, paddingHorizontal: 10, gap: 3 },
+  thrLabel:     { fontFamily: fonts.familyRegular, fontSize: 9, color: 'rgba(74,77,84,0.6)', textAlign: 'right' },
+
+  colStatusWrap:{ width: COL_STATUS, alignItems: 'center' },
+  statusLabel:  { fontFamily: fonts.familySemibold, fontSize: 11 },
+
+  // Локации
+  locBar:       { maxHeight: 44, borderBottomWidth: 1, borderBottomColor: colors.border },
+  locInner:     { paddingHorizontal: spacing.lg, paddingVertical: 8, gap: 8, flexDirection: 'row', alignItems: 'center' },
+  locChip:      { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e' },
+  locChipActive:{ borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.1)' },
+  locChipText:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
   locChipTextActive: { color: colors.greenLight },
+
+  // Модалка
+  modalRoot:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modalInner: { width: '50%', maxWidth: 480, maxHeight: '88%', backgroundColor: '#0e0f11', borderRadius: 20, padding: 22, borderWidth: 1, borderColor: 'rgba(74,77,84,0.5)' },
+  modalHeader:{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 },
+  modalTitle: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, flex: 1, marginRight: 12, lineHeight: 24 },
+  modalCloseBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(74,77,84,0.25)', alignItems: 'center', justifyContent: 'center' },
+  modalCloseTxt: { fontSize: 13, color: colors.muted, fontFamily: fonts.familySemibold },
+
+  // Текущий остаток в модалке
+  curStockBox:  { padding: 14, backgroundColor: '#07080a', borderRadius: 14, borderWidth: 1, borderColor: colors.border, marginBottom: 16 },
+  curStockRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  curStockLabel:{ fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
+  curStockVal:  { fontFamily: fonts.family, fontSize: 28, fontWeight: '800', color: colors.text },
+  curThrLabel:  { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
+  curAvgPrice:  { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 8 },
+
+  // Режимы
+  modeList: { borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(74,77,84,0.25)' },
+  modeRow:  { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.15)', backgroundColor: '#07080a', gap: 12 },
+  modeIconBox: { width: 32, height: 32, borderRadius: 10, backgroundColor: 'rgba(74,77,84,0.2)', alignItems: 'center', justifyContent: 'center' },
+  modeIcon:    { fontSize: 14, color: colors.text, fontFamily: fonts.familySemibold },
+  modeLabel:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, marginBottom: 2 },
+  modeDesc:    { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
+  modeArrow:   { fontSize: 18, color: colors.muted },
+
+  // Ввод
+  inputSection: { gap: 0 },
+  backToModes:  { paddingVertical: 10, marginBottom: 10 },
+  backToModesText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.greenLight },
+  inputLabel:   { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, marginTop: 12 },
+  inputField:   { padding: 14, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 20, fontFamily: fonts.family, textAlign: 'center', marginBottom: 4 },
+
+  // Предпросмотр
+  previewBox:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 14, backgroundColor: 'rgba(61,95,168,0.08)', borderRadius: 10, marginVertical: 10, borderWidth: 1, borderColor: 'rgba(61,95,168,0.2)' },
+  previewLabel:{ fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
+  previewVal:  { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.text },
+
+  // Кнопка подтверждения
+  confirmBtn:         { paddingVertical: 15, borderRadius: 14, backgroundColor: 'rgba(61,158,146,0.85)', alignItems: 'center', marginTop: 8 },
+  confirmBtnDisabled: { backgroundColor: 'rgba(74,77,84,0.3)' },
+  confirmBtnText:     { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff' },
+
+  // История
+  histToggle: { paddingVertical: 12, alignItems: 'center', marginTop: 8 },
+  histToggleText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
+  histRow:    { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.15)' },
+  histDate:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, flex: 1 },
+  histQty:    { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.text, flex: 1, textAlign: 'center' },
+  histPrice:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.greenLight, flex: 1, textAlign: 'right' },
 });
