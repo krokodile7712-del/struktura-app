@@ -10,7 +10,7 @@ import {
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import { getAllProducts, getCategories, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, getAllVariantsWithSku, getZones, getOrderTemplates, saveOrderTemplate, deleteOrderTemplate, applyPendingPriceSchedules, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms, getLoyaltyConfig, spendPoints } from '../db/queries';
+import { getAllProducts, getAllClients, getCategories, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, getAllVariantsWithSku, getZones, getOrderTemplates, saveOrderTemplate, deleteOrderTemplate, applyPendingPriceSchedules, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms, getLoyaltyConfig, spendPoints } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
 const CAT_ICONS = { 'Кофе': '☕', 'Лимонады': '🍹', 'Допы': '🍬', 'Прочее': '🫙' };
@@ -65,6 +65,9 @@ export default function KassaScreen({ navigation, route }) {
   const [expandedCartId, setExpandedCartId] = useState(null);
   // Заметка к позиции корзины
   const [itemNoteModal, setItemNoteModal] = useState(null); // {id, note}
+  const [prePayOpen, setPrePayOpen]       = useState(false);
+  const [clientSearch, setClientSearch]   = useState('');
+  const [clientsList, setClientsList]     = useState([]);
 
   // ── Хелперы активного слота ─────────────────────────────────────────────────
   const activeSlot = slots.find(s => s.id === activeSlotId) || slots[0];
@@ -138,8 +141,8 @@ export default function KassaScreen({ navigation, route }) {
 
   const loadData = () => {
     try {
-      // Применяем плановые изменения цен (если дата наступила)
       try { applyPendingPriceSchedules(); } catch (_) {}
+      try { setClientsList(getAllClients()); } catch (_) {}
       const products = getAllProducts();
       const cats = getCategories();
       const shift = getOpenShift();
@@ -442,6 +445,12 @@ export default function KassaScreen({ navigation, route }) {
 
   const [noShiftWarning, setNoShiftWarning] = useState(false);
 
+  const openPrePay = () => {
+    if (order.length === 0) return;
+    setClientSearch('');
+    setPrePayOpen(true);
+  };
+
   const openPayModal = () => {
     if (order.length === 0) return;
     if (shiftsEnabled && !currentShift) {
@@ -591,12 +600,23 @@ export default function KassaScreen({ navigation, route }) {
               const { price, hasRange } = displayPrice(item);
               const cartQty = cartQtyByProduct[item.id] || 0;
               return (
-                <Pressable key={item.id} style={styles.menuItem} onPress={() => openModal(item)}>
+                <Pressable
+                  key={item.id}
+                  style={({ pressed }) => [
+                    styles.menuItem,
+                    pressed && { transform: [{ scale: 0.97 }], opacity: 0.85 },
+                    cartQty > 0 && styles.menuItemInCart,
+                  ]}
+                  onPress={() => openModal(item)}
+                >
                   {cartQty > 0 && (
                     <View style={styles.cartBadge}><Text style={styles.cartBadgeText}>{cartQty}</Text></View>
                   )}
                   <Text style={styles.menuItemName}>{item.name}</Text>
-                  <Text style={styles.menuItemPrice}>{hasRange ? `от ${price}` : price} ₽</Text>
+                  {price > 0
+                    ? <Text style={styles.menuItemPrice}>{hasRange ? `от ${price}` : `${price}`} ₽</Text>
+                    : <Text style={styles.menuItemPriceNone}>цена не назначена</Text>
+                  }
                 </Pressable>
               );
             })}
@@ -660,24 +680,35 @@ export default function KassaScreen({ navigation, route }) {
           )}
 
           <View style={styles.orderHeader}>
-            <Text style={styles.orderHeaderText}>🛒 {terms.order} ({order.reduce((s,i)=>s+(i.quantity||1),0)})</Text>
-            <View style={{ flexDirection: 'row', gap: 6 }}>
+            <View>
+              <Text style={styles.orderHeaderTitle}>
+                {terms.order}
+              </Text>
+              <Text style={styles.orderHeaderCount}>
+                {order.reduce((s,i)=>s+(i.quantity||1),0)} позиций
+              </Text>
+            </View>
+            <View style={styles.orderHeaderBtns}>
               {templatesEnabled && (
                 <Pressable onPress={() => setTemplatesListOpen(true)} hitSlop={8} style={styles.orderHeaderBtn}>
-                  <Text style={styles.orderHeaderBtnText}>⚡</Text>
+                  <Text style={styles.orderHeaderBtnIcon}>⚡</Text>
+                  <Text style={styles.orderHeaderBtnLabel}>Шаблон</Text>
                 </Pressable>
               )}
-              <Pressable onPress={() => setNoteModalOpen(true)} hitSlop={8} style={styles.orderHeaderBtn} accessibilityLabel="Добавить заметку к заказу" accessibilityRole="button">
-                <Text style={[styles.orderHeaderBtnText, orderNote && { color: colors.greenLight }]}>📝</Text>
+              <Pressable onPress={() => setNoteModalOpen(true)} hitSlop={8} style={[styles.orderHeaderBtn, orderNote && styles.orderHeaderBtnActive]}>
+                <Text style={styles.orderHeaderBtnIcon}>📝</Text>
+                <Text style={[styles.orderHeaderBtnLabel, orderNote && { color: colors.greenLight }]}>Заметка</Text>
               </Pressable>
               {slots.length === 1 && (
-                <Pressable onPress={parkAndNew} hitSlop={8} style={styles.orderHeaderBtn} title="Припарковать чек и открыть новый">
-                  <Text style={styles.orderHeaderBtnText}>⏸</Text>
+                <Pressable onPress={parkAndNew} hitSlop={8} style={styles.orderHeaderBtn}>
+                  <Text style={styles.orderHeaderBtnIcon}>⏸</Text>
+                  <Text style={styles.orderHeaderBtnLabel}>Парковать</Text>
                 </Pressable>
               )}
               {order.length > 0 && (
-                <Pressable onPress={() => { setOrder([]); setExpandedCartId(null); }} hitSlop={8} style={styles.orderHeaderBtn} accessibilityLabel="Очистить корзину" accessibilityRole="button">
-                  <Text style={styles.orderHeaderBtnText}>🗑</Text>
+                <Pressable onPress={() => { setOrder([]); setExpandedCartId(null); }} hitSlop={8} style={[styles.orderHeaderBtn, styles.orderHeaderBtnDanger]}>
+                  <Text style={styles.orderHeaderBtnIcon}>🗑</Text>
+                  <Text style={[styles.orderHeaderBtnLabel, { color: colors.redLight }]}>Очистить</Text>
                 </Pressable>
               )}
             </View>
@@ -738,47 +769,215 @@ export default function KassaScreen({ navigation, route }) {
           </ScrollView>
 
           <View style={styles.orderFooter}>
-            {effectiveDiscount && (
-              <View style={styles.discountRow}>
-                <Text style={styles.discountText}>🏷 {effectiveDiscount.name} −{effectiveDiscount.pct}%</Text>
-                {loyaltyModel !== 'discount' && (
-                  <Pressable onPress={() => setAppliedDiscount(null)}><Text style={styles.discountRemove}>✕</Text></Pressable>
+            {/* Краткая строка скидки если уже выбрана */}
+            {(effectiveDiscount || forClient || (pointsDiscount > 0)) && (
+              <View style={styles.footerSummary}>
+                {forClient && (
+                  <Text style={styles.footerSummaryLine}>👤 {forClient.fio}</Text>
+                )}
+                {effectiveDiscount && (
+                  <Text style={styles.footerSummaryLine}>🏷 {effectiveDiscount.name} −{effectiveDiscount.pct}%</Text>
+                )}
+                {pointsDiscount > 0 && (
+                  <Text style={styles.footerSummaryLine}>★ Баллы −{pointsDiscount} ₽</Text>
                 )}
               </View>
             )}
-            {loyaltyModel === 'points' && loyaltyConfig.allow_spend && forClient && (forClient.balance || 0) > 0 && (
-              <View style={styles.discountRow}>
-                <Text style={styles.discountText}>★ Баллов:</Text>
-                <TextInput
-                  style={styles.pointsInput}
-                  keyboardType="numeric"
-                  value={pointsToSpend}
-                  onChangeText={v => setPointsToSpend(v)}
-                  placeholder={`макс ${forClient.balance}`}
-                  placeholderTextColor={colors.muted}
-                />
-                <Text style={styles.discountText}>→ −{pointsDiscount} ₽{maxSpendRub < rawTotal ? ` (лимит ${loyaltyConfig.max_spend_pct}%)` : ''}</Text>
-              </View>
-            )}
-            {(discountAmount > 0 || pointsDiscount > 0) && (
-              <Text style={styles.rawTotal}>{rawTotal} ₽ → −{discountAmount + pointsDiscount} ₽</Text>
-            )}
-            <Text style={styles.orderTotal}>{total} ₽</Text>
 
-            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
-              {loyaltyModel !== 'discount' && (
-                <MetalButton title="🏷 Скидка" variant="default" onPress={() => setDiscountModalOpen(true)} style={{ flex: 1 }} />
+            {/* Итого */}
+            <View style={styles.footerTotalRow}>
+              {(discountAmount > 0 || pointsDiscount > 0) && (
+                <Text style={styles.footerRawTotal}>{rawTotal} ₽</Text>
               )}
+              <Text style={styles.footerTotal}>{total} ₽</Text>
             </View>
-            {templatesEnabled && order.length > 0 && (
-              <MetalButton title="⚡ Сохранить как шаблон" variant="default" onPress={() => { setTemplateNameInput(''); setTemplateModalOpen(true); }} style={{ marginBottom: 6 }} />
-            )}
-            <MetalButton title="💰 Оплатить" variant="action" onPress={openPayModal} />
+
+            {/* Одна кнопка Оплатить */}
+            <Pressable
+              style={({ pressed }) => [
+                styles.payBtn,
+                order.length === 0 && styles.payBtnDisabled,
+                pressed && order.length > 0 && { opacity: 0.88 },
+              ]}
+              onPress={() => order.length > 0 && openPrePay()}
+              disabled={order.length === 0}
+            >
+              <Text style={styles.payBtnIcon}>💰</Text>
+              <Text style={styles.payBtnText}>Оплатить</Text>
+              <Text style={styles.payBtnTotal}>{total} ₽</Text>
+            </Pressable>
           </View>
         </View>
       </View>
 
       <BottomBar navigation={navigation} activeTab="Kassa" />
+
+
+      {/* ── Предмодалка оплаты — клиент / скидка / баллы ── */}
+      <Modal visible={prePayOpen} transparent animationType="slide" onRequestClose={() => setPrePayOpen(false)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setPrePayOpen(false)} />
+          <View style={[styles.modalInner, { width: '52%', maxHeight: '88%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Оформление заказа</Text>
+              <Pressable onPress={() => setPrePayOpen(false)} hitSlop={14}>
+                <Text style={styles.modalCloseText}>✕</Text>
+              </Pressable>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              {/* Состав заказа */}
+              <View style={styles.prePaySummary}>
+                <Text style={styles.prePaySummaryTitle}>{order.length} поз. · {order.reduce((s,i)=>s+(i.quantity||1),0)} ед.</Text>
+                {order.slice(0, 4).map((item, i) => (
+                  <Text key={i} style={styles.prePaySummaryItem}>
+                    {item.name}{item.quantity > 1 ? ` ×${item.quantity}` : ''} — {(item.price*(item.quantity||1)).toFixed(0)} ₽
+                  </Text>
+                ))}
+                {order.length > 4 && (
+                  <Text style={styles.prePaySummaryMore}>и ещё {order.length - 4} поз.</Text>
+                )}
+              </View>
+
+              {/* ── Клиент ── */}
+              <Text style={styles.prePayLabel}>👤 Клиент</Text>
+              {forClient ? (
+                <View style={styles.prePayClientRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.prePayClientName}>{forClient.fio}</Text>
+                    <Text style={styles.prePayClientSub}>
+                      {forClient.phone ? `${forClient.phone} · ` : ''}{loyaltyModel === 'points' ? `★ ${forClient.balance || 0} балл.` : `скидка ${forClient.discount_pct || 0}%`}
+                    </Text>
+                  </View>
+                  <Pressable onPress={() => updateSlot({ forClient: null })} hitSlop={10} style={styles.prePayClientRemove}>
+                    <Text style={{ color: colors.muted, fontSize: 16 }}>✕</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <>
+                  <TextInput
+                    style={styles.input}
+                    value={clientSearch}
+                    onChangeText={setClientSearch}
+                    placeholder="Поиск по имени или телефону..."
+                    placeholderTextColor={colors.muted}
+                  />
+                  {clientSearch.length > 0 && (
+                    <View style={styles.clientDropdown}>
+                      {clientsList
+                        .filter(cl =>
+                          cl.fio?.toLowerCase().includes(clientSearch.toLowerCase()) ||
+                          cl.phone?.includes(clientSearch)
+                        )
+                        .slice(0, 5)
+                        .map(cl => (
+                          <Pressable
+                            key={cl.id}
+                            style={({ pressed }) => [styles.clientDropdownItem, pressed && { backgroundColor: 'rgba(255,255,255,0.04)' }]}
+                            onPress={() => {
+                              updateSlot({ forClient: cl });
+                              setClientSearch('');
+                            }}
+                          >
+                            <Text style={styles.clientDropdownName}>{cl.fio}</Text>
+                            <Text style={styles.clientDropdownSub}>
+                              {cl.phone || ''}{cl.phone && '  '}
+                              {loyaltyModel === 'points' ? `★ ${cl.balance || 0}` : `${cl.discount_pct || 0}%`}
+                            </Text>
+                          </Pressable>
+                        ))
+                      }
+                      {clientsList.filter(cl =>
+                        cl.fio?.toLowerCase().includes(clientSearch.toLowerCase()) ||
+                        cl.phone?.includes(clientSearch)
+                      ).length === 0 && (
+                        <Text style={styles.prePaySummaryMore}>Клиент не найден</Text>
+                      )}
+                    </View>
+                  )}
+                </>
+              )}
+
+              {/* ── Скидка ── */}
+              {loyaltyModel !== 'discount' && (
+                <>
+                  <Text style={styles.prePayLabel}>🏷 Скидка</Text>
+                  {effectiveDiscount ? (
+                    <View style={styles.prePayClientRow}>
+                      <Text style={{ flex: 1, color: colors.text, fontFamily: fonts.familySemibold, fontSize: 14 }}>
+                        {effectiveDiscount.name} −{effectiveDiscount.pct}% (−{discountAmount} ₽)
+                      </Text>
+                      <Pressable onPress={() => setAppliedDiscount(null)} hitSlop={10} style={styles.prePayClientRemove}>
+                        <Text style={{ color: colors.muted, fontSize: 16 }}>✕</Text>
+                      </Pressable>
+                    </View>
+                  ) : (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                      <Pressable style={styles.prePayDiscountChip} onPress={() => setAppliedDiscount(null)}>
+                        <Text style={styles.prePayDiscountChipText}>Нет скидки</Text>
+                      </Pressable>
+                      {discounts.map(d => (
+                        <Pressable key={d.id} style={styles.prePayDiscountChip} onPress={() => setAppliedDiscount(d)}>
+                          <Text style={styles.prePayDiscountChipText}>{d.name} −{d.pct}%</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+                </>
+              )}
+
+              {/* ── Баллы ── */}
+              {loyaltyModel === 'points' && loyaltyConfig.allow_spend && forClient && (forClient.balance || 0) > 0 && (
+                <>
+                  <Text style={styles.prePayLabel}>★ Списать баллы</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <TextInput
+                      style={[styles.input, { flex: 1 }]}
+                      keyboardType="numeric"
+                      value={pointsToSpend}
+                      onChangeText={v => setPointsToSpend(v)}
+                      placeholder={`макс ${forClient.balance}`}
+                      placeholderTextColor={colors.muted}
+                    />
+                    <Text style={{ color: colors.muted, fontFamily: fonts.familyRegular, fontSize: 13 }}>
+                      = −{pointsDiscount} ₽
+                    </Text>
+                  </View>
+                </>
+              )}
+
+              {/* ── Итого ── */}
+              <View style={styles.prePayTotalBox}>
+                {(discountAmount > 0 || pointsDiscount > 0) && (
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={styles.prePayTotalLabel}>Скидка</Text>
+                    <Text style={[styles.prePayTotalLabel, { color: colors.redLight }]}>−{discountAmount + pointsDiscount} ₽</Text>
+                  </View>
+                )}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={styles.prePayTotalTitle}>Итого к оплате</Text>
+                  <Text style={styles.prePayTotalValue}>{total} ₽</Text>
+                </View>
+              </View>
+            </ScrollView>
+
+            {/* Кнопки */}
+            <View style={{ gap: 8, marginTop: 16 }}>
+              <Pressable
+                style={({ pressed }) => [styles.payBtn, pressed && { opacity: 0.88 }]}
+                onPress={() => { setPrePayOpen(false); openPayModal(); }}
+              >
+                <Text style={styles.payBtnIcon}>💰</Text>
+                <Text style={styles.payBtnText}>К выбору способа оплаты</Text>
+                <Text style={styles.payBtnTotal}>{total} ₽</Text>
+              </Pressable>
+              <Pressable style={styles.prePayCancelBtn} onPress={() => setPrePayOpen(false)}>
+                <Text style={styles.prePayCancelText}>Вернуться к заказу</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Модалка сохранения шаблона */}
       <Modal visible={templateModalOpen} transparent animationType="fade" onRequestClose={() => setTemplateModalOpen(false)}>
@@ -1083,10 +1282,33 @@ const styles = StyleSheet.create({
   catIcon: { fontSize: 16 },
   catLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase' },
   catLabelActive: { color: colors.greenLight },
-  menuGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, padding: 10 },
-  menuItem: { width: '30%', minWidth: 110, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: colors.borderHi, backgroundColor: colors.surface2, alignItems: 'center', position: 'relative' },
-  menuItemName: { fontFamily: fonts.family, fontSize: 13, fontWeight: '600', color: colors.text, textAlign: 'center', textTransform: 'uppercase' },
-  menuItemPrice: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 6 },
+  menuGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 10 },
+  menuItem: { width: '30%', minWidth: 100, paddingVertical: 14, paddingHorizontal: 10, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', backgroundColor: '#0b0c0f', alignItems: 'center', position: 'relative', gap: 5 },
+  menuItemInCart: { borderColor: 'rgba(61,158,146,0.5)', backgroundColor: 'rgba(61,158,146,0.07)' },
+  menuItemName: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.text, textAlign: 'center', letterSpacing: 0.3 },
+  menuItemPrice: { fontFamily: fonts.family, fontSize: 13, fontWeight: '700', color: colors.greenLight, textAlign: 'center' },
+  menuItemPriceNone: { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, textAlign: 'center', fontStyle: 'italic' },
+  prePaySummary: { padding: 12, backgroundColor: '#07080a', borderRadius: 12, marginBottom: 16, borderWidth: 1, borderColor: colors.border },
+  prePaySummaryTitle: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, marginBottom: 6 },
+  prePaySummaryItem: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginBottom: 2 },
+  prePaySummaryMore: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 4, fontStyle: 'italic' },
+  prePayLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 16 },
+  prePayClientRow: { flexDirection: 'row', alignItems: 'center', padding: 12, backgroundColor: 'rgba(61,158,146,0.08)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(61,158,146,0.3)' },
+  prePayClientName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
+  prePayClientSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
+  prePayClientRemove: { padding: 6 },
+  prePayDiscountChip: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: '#07080a' },
+  prePayDiscountChipText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.text },
+  clientDropdown: { backgroundColor: '#0b0c0f', borderRadius: 12, borderWidth: 1, borderColor: colors.border, marginTop: -4, marginBottom: 8, overflow: 'hidden' },
+  clientDropdownItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.2)' },
+  clientDropdownName: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
+  clientDropdownSub: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
+  prePayTotalBox: { marginTop: 16, padding: 14, backgroundColor: '#07080a', borderRadius: 14, borderWidth: 1, borderColor: colors.border, gap: 6 },
+  prePayTotalLabel: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
+  prePayTotalTitle: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
+  prePayTotalValue: { fontFamily: fonts.family, fontSize: 24, fontWeight: '800', color: colors.greenLight },
+  prePayCancelBtn: { padding: 14, alignItems: 'center', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)' },
+  prePayCancelText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
   cartBadge: { position: 'absolute', top: -6, right: -6, minWidth: 20, height: 20, borderRadius: 10, backgroundColor: colors.greenLight, alignItems: 'center', justifyContent: 'center', zIndex: 1, paddingHorizontal: 4 },
   cartBadgeText: { fontFamily: fonts.familySemibold, fontSize: 11, color: '#000' },
   searchWrap: { paddingHorizontal: 10, paddingTop: 8, paddingBottom: 4 },
@@ -1134,7 +1356,17 @@ const styles = StyleSheet.create({
   emptyOrder: { textAlign: 'center', color: colors.muted, padding: 20, fontFamily: fonts.familyRegular },
   emptyTitle: { fontFamily: fonts.family, fontSize: 18, color: colors.text, marginBottom: 8 },
   emptyHint: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center', marginBottom: 24, lineHeight: 20 },
-  orderFooter: { padding: 14 },
+  orderFooter: { padding: 14, borderTopWidth: 1, borderTopColor: 'rgba(74,77,84,0.3)', backgroundColor: '#08090b' },
+  footerSummary: { marginBottom: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.2)' },
+  footerSummaryLine: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginBottom: 2 },
+  footerTotalRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'flex-end', gap: 8, marginBottom: 12 },
+  footerRawTotal: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textDecorationLine: 'line-through' },
+  footerTotal: { fontFamily: fonts.family, fontSize: 28, fontWeight: '800', color: colors.text },
+  payBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 16, paddingHorizontal: 18, borderRadius: 16, backgroundColor: 'rgba(122,158,82,0.85)', gap: 8 },
+  payBtnDisabled: { backgroundColor: 'rgba(74,77,84,0.3)' },
+  payBtnIcon: { fontSize: 18 },
+  payBtnText: { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff', flex: 1 },
+  payBtnTotal: { fontFamily: fonts.familySemibold, fontSize: 15, color: 'rgba(255,255,255,0.85)' },
   discountRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   pointsInput: { width: 70, paddingVertical: 4, paddingHorizontal: 8, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(122,158,82,0.5)', borderRadius: 8, color: colors.greenLight, fontSize: 13, fontFamily: fonts.family, textAlign: 'center' },
   discountText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.greenLight },
