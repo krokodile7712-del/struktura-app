@@ -658,49 +658,59 @@ export default function SettingsScreen({ navigation }) {
   });
 
   const rightPanel = (
+    <>
+    {/* Шапка поиска вынесена НАД ScrollView — всегда видна, touch работает */}
+    {selectedSection === 'menu' && (
+      <View style={styles.menuTopBarSticky}>
+        {menuSearchOpen ? (
+          <View style={styles.menuSearchRow}>
+            <TextInput
+              style={styles.menuSearchInput}
+              value={menuSearch}
+              onChangeText={setMenuSearch}
+              placeholder={`Поиск ${genitivePluralRu(terms.item).toLowerCase()}...`}
+              placeholderTextColor={colors.muted}
+              autoFocus
+            />
+            <Pressable
+              onPress={() => { setMenuSearchOpen(false); setMenuSearch(''); }}
+              hitSlop={14}
+              style={styles.menuBadge}
+            >
+              <Text style={styles.menuBadgeText}>✕</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <View style={styles.menuSearchRow}>
+            <Text style={styles.menuTopTitle}>{pluralizeRu(terms.item)}</Text>
+            <Pressable onPress={() => setMenuSearchOpen(true)} hitSlop={14} style={styles.menuBadge}>
+              <Text style={styles.menuBadgeText}>🔍</Text>
+            </Pressable>
+            <Pressable onPress={openNewProduct} hitSlop={14} style={[styles.menuBadge, styles.menuBadgeAdd]}>
+              <Text style={[styles.menuBadgeText, { color: colors.greenLight }]}>＋</Text>
+            </Pressable>
+          </View>
+        )}
+      </View>
+    )}
+
+    {/* Скролл закрывает поиск */}
+    <Pressable
+      style={{ flex: 1 }}
+      onPress={() => menuSearchOpen && (setMenuSearchOpen(false), setMenuSearch(''))}
+    >
     <ScrollView
       style={styles.rightPanel}
       contentContainerStyle={styles.rightInner}
       keyboardShouldPersistTaps="handled"
-      stickyHeaderIndices={selectedSection === 'menu' ? [1] : []}
+      onScrollBeginDrag={() => { if (menuSearchOpen) { setMenuSearchOpen(false); setMenuSearch(''); } }}
     >
-      {/* [0] Заголовок секции */}
+      {/* Заголовок секции */}
       <Text style={styles.sectionTitle}>
         {SECTIONS.find(s => s.key === selectedSection)?.label || ''}
       </Text>
 
-      {/* [1] Sticky шапка поиска — только для меню */}
-      {selectedSection === 'menu' && (
-        <View style={styles.menuTopBarSticky}>
-          {menuSearchOpen ? (
-            <View style={styles.menuSearchRow}>
-              <TextInput
-                style={styles.menuSearchInput}
-                value={menuSearch}
-                onChangeText={setMenuSearch}
-                placeholder={`Поиск ${genitivePluralRu(terms.item).toLowerCase()}...`}
-                placeholderTextColor={colors.muted}
-                autoFocus
-              />
-              <Pressable onPress={() => { setMenuSearchOpen(false); setMenuSearch(''); }} hitSlop={10} style={styles.menuBadge}>
-                <Text style={styles.menuBadgeText}>✕</Text>
-              </Pressable>
-            </View>
-          ) : (
-            <View style={styles.menuSearchRow}>
-              <Text style={styles.menuTopTitle}>{pluralizeRu(terms.item)}</Text>
-              <Pressable onPress={() => setMenuSearchOpen(true)} hitSlop={10} style={styles.menuBadge}>
-                <Text style={styles.menuBadgeText}>🔍</Text>
-              </Pressable>
-              <Pressable onPress={openNewProduct} hitSlop={10} style={[styles.menuBadge, styles.menuBadgeAdd]}>
-                <Text style={[styles.menuBadgeText, { color: colors.greenLight }]}>＋</Text>
-              </Pressable>
-            </View>
-          )}
-        </View>
-      )}
-
-        {/* [2+] Меню и цены */}
+        {/* Меню и цены */}
         <SectionAccordion sectionKey="menu" selectedSection={selectedSection}>
 
         {/* Список товаров по категориям */}
@@ -1079,6 +1089,8 @@ export default function SettingsScreen({ navigation }) {
         </MetalCard>
         </SectionAccordion>
       </ScrollView>
+    </Pressable>
+    </>
   );
 
   return (
@@ -1945,7 +1957,7 @@ const styles = StyleSheet.create({
   phoneBackText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight },
   // Меню и цены — шапка
   menuTopBar: { marginBottom: 12 },
-  menuTopBarSticky: { marginBottom: 12, backgroundColor: '#060608', paddingVertical: 4 },
+  menuTopBarSticky: { marginBottom: 0, backgroundColor: '#060608', paddingTop: 0, paddingBottom: 10, zIndex: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.2)' },
   menuSearchRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   menuTopTitle: { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text, flex: 1 },
   menuSearchInput: { flex: 1, padding: 10, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 14, fontFamily: fonts.family },
