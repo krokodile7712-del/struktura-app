@@ -855,6 +855,7 @@ export default function KassaScreen({ navigation, route }) {
                 </View>
               ) : (
                 <>
+                  <View style={{ position: 'relative', zIndex: 100 }}>
                   <TextInput
                     style={styles.input}
                     value={clientSearch}
@@ -864,12 +865,13 @@ export default function KassaScreen({ navigation, route }) {
                   />
                   {clientSearch.length > 0 && (
                     <View style={styles.clientDropdown}>
+                      <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled>
                       {clientsList
                         .filter(cl =>
                           cl.fio?.toLowerCase().includes(clientSearch.toLowerCase()) ||
                           cl.phone?.includes(clientSearch)
                         )
-                        .slice(0, 5)
+                        .slice(0, 6)
                         .map(cl => (
                           <Pressable
                             key={cl.id}
@@ -893,8 +895,10 @@ export default function KassaScreen({ navigation, route }) {
                       ).length === 0 && (
                         <Text style={styles.prePaySummaryMore}>Клиент не найден</Text>
                       )}
+                      </ScrollView>
                     </View>
                   )}
+                  </View>
                 </>
               )}
 
@@ -1358,9 +1362,9 @@ const styles = StyleSheet.create({
   layout: { flex: 1, flexDirection: 'row' },
   left: { flex: 1 },
   catList: { paddingHorizontal: 10, paddingVertical: 6 },
-  catBtn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', backgroundColor: 'transparent', flexDirection: 'row', alignItems: 'center', gap: 5, marginRight: 6, position: 'relative' },
+  catBtn: { height: 34, paddingHorizontal: 14, borderRadius: 17, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', backgroundColor: 'transparent', flexDirection: 'row', alignItems: 'center', gap: 5, marginRight: 6 },
   catBtnActive: { borderColor: 'rgba(61,158,146,0.7)', backgroundColor: 'rgba(61,158,146,0.12)' },
-  catActiveDot: { position: 'absolute', bottom: -2, left: '50%', width: 4, height: 4, borderRadius: 2, backgroundColor: colors.greenLight },
+  catActiveDot: { display: 'none' },
   catIcon: { fontSize: 13 },
   catLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, letterSpacing: 0.5 },
   catLabelActive: { color: colors.greenLight },
@@ -1381,7 +1385,7 @@ const styles = StyleSheet.create({
   prePayClientRemove: { padding: 6 },
   prePayDiscountChip: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: '#07080a' },
   prePayDiscountChipText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.text },
-  clientDropdown: { backgroundColor: '#0b0c0f', borderRadius: 12, borderWidth: 1, borderColor: colors.border, marginTop: -4, marginBottom: 8, overflow: 'hidden' },
+  clientDropdown: { position: 'absolute', top: 48, left: 0, right: 0, zIndex: 200, backgroundColor: '#0b0c0f', borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', maxHeight: 220, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 20 },
   clientDropdownItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.2)' },
   clientDropdownName: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
   clientDropdownSub: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
@@ -1446,8 +1450,12 @@ const styles = StyleSheet.create({
   searchWrap: { paddingHorizontal: 10, paddingTop: 8, paddingBottom: 4 },
   searchInput: { padding: 10, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 14, color: colors.text, fontSize: 14, fontFamily: fonts.family },
   orderNotePreview: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.greenLight, paddingHorizontal: 14, paddingBottom: 4, fontStyle: 'italic' },
-  orderHeaderBtn: { padding: 6 },
-  orderHeaderBtnText: { fontSize: 16, color: colors.muted },
+  orderHeaderBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 9, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(74,77,84,0.35)', backgroundColor: '#0e0f11' },
+  orderHeaderBtnActive: { borderColor: 'rgba(61,158,146,0.5)', backgroundColor: 'rgba(61,158,146,0.1)' },
+  orderHeaderBtnDanger: { borderColor: 'rgba(160,16,32,0.35)', backgroundColor: 'rgba(160,16,32,0.06)' },
+  orderHeaderBtnIcon: { fontSize: 12 },
+  orderHeaderBtnLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
+  orderHeaderBtnText: { fontSize: 11, color: colors.muted },
   orderItemMain: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 12, paddingTop: 10 },
   orderItemControls: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingBottom: 8, paddingTop: 4 },
   qtyBtn: { width: 28, height: 28, borderRadius: 8, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
