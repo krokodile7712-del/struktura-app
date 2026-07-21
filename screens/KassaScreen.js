@@ -698,21 +698,20 @@ export default function KassaScreen({ navigation, route }) {
             <View style={styles.orderHeaderBtns}>
               {templatesEnabled && (
                 <Pressable onPress={() => setTemplatesListOpen(true)} hitSlop={8} style={styles.orderHeaderBtn}>
-                  <Text style={styles.orderHeaderBtnIcon}>⚡</Text>
                   <Text style={styles.orderHeaderBtnLabel}>Шаблоны</Text>
                 </Pressable>
               )}
               <Pressable onPress={() => setNoteModalOpen(true)} hitSlop={8} style={[styles.orderHeaderBtn, orderNote && styles.orderHeaderBtnActive]}>
-                <Text style={[styles.orderHeaderBtnIcon, orderNote && { color: colors.greenLight }]}>📝</Text>
+                <Text style={[styles.orderHeaderBtnLabel, orderNote && { color: colors.greenLight }]}>Заметка</Text>
               </Pressable>
               {slots.length === 1 && (
                 <Pressable onPress={parkAndNew} hitSlop={8} style={styles.orderHeaderBtn}>
-                  <Text style={styles.orderHeaderBtnIcon}>⏸</Text>
+                  <Text style={styles.orderHeaderBtnLabel}>Парковать</Text>
                 </Pressable>
               )}
               {order.length > 0 && (
                 <Pressable onPress={() => { setOrder([]); setExpandedCartId(null); }} hitSlop={8} style={[styles.orderHeaderBtn, styles.orderHeaderBtnDanger]}>
-                  <Text style={[styles.orderHeaderBtnIcon, { color: colors.redLight }]}>🗑</Text>
+                  <Text style={[styles.orderHeaderBtnLabel, { color: colors.redLight }]}>Очистить</Text>
                 </Pressable>
               )}
             </View>
@@ -1491,11 +1490,11 @@ const styles = StyleSheet.create({
   searchWrap: { paddingHorizontal: 10, paddingTop: 8, paddingBottom: 4 },
   searchInput: { padding: 10, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 14, color: colors.text, fontSize: 14, fontFamily: fonts.family },
   orderNotePreview: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.greenLight, paddingHorizontal: 14, paddingBottom: 4, fontStyle: 'italic' },
-  orderHeaderBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 9, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(74,77,84,0.35)', backgroundColor: '#0e0f11' },
+  orderHeaderBtn: { paddingVertical: 8, paddingHorizontal: 13, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(74,77,84,0.35)', backgroundColor: '#0e0f11' },
   orderHeaderBtnActive: { borderColor: 'rgba(61,158,146,0.5)', backgroundColor: 'rgba(61,158,146,0.1)' },
   orderHeaderBtnDanger: { borderColor: 'rgba(160,16,32,0.35)', backgroundColor: 'rgba(160,16,32,0.06)' },
   orderHeaderBtnIcon: { fontSize: 12 },
-  orderHeaderBtnLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
+  orderHeaderBtnLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
   orderHeaderBtnText: { fontSize: 11, color: colors.muted },
   orderItemMain: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 12, paddingTop: 10 },
   orderItemControls: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingBottom: 8, paddingTop: 4 },
@@ -1513,7 +1512,7 @@ const styles = StyleSheet.create({
   input: { padding: 13, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 15, fontFamily: fonts.family },
   orderPanel: { width: '33%', minWidth: 240, borderLeftWidth: 1, borderLeftColor: colors.border, backgroundColor: colors.surface },
   orderHeader: { paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  orderHeaderBtns: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  orderHeaderBtns: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, flex: 1, justifyContent: 'flex-end' },
   orderHeaderText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 2 },
   orderItem: { borderBottomWidth: 1, borderBottomColor: colors.border },
   // Слоты парковки
