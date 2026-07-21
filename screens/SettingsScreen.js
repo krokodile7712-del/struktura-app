@@ -658,18 +658,20 @@ export default function SettingsScreen({ navigation }) {
   });
 
   const rightPanel = (
-    <ScrollView style={styles.rightPanel} contentContainerStyle={styles.rightInner}
-      keyboardShouldPersistTaps="handled">
-      {/* Заголовок секции */}
+    <ScrollView
+      style={styles.rightPanel}
+      contentContainerStyle={styles.rightInner}
+      keyboardShouldPersistTaps="handled"
+      stickyHeaderIndices={selectedSection === 'menu' ? [1] : []}
+    >
+      {/* [0] Заголовок секции */}
       <Text style={styles.sectionTitle}>
         {SECTIONS.find(s => s.key === selectedSection)?.label || ''}
       </Text>
 
-        {/* Меню и цены */}
-        <SectionAccordion sectionKey="menu" selectedSection={selectedSection}>
-
-        {/* Фиксированная шапка с поиском и кнопкой добавить */}
-        <View style={styles.menuTopBar}>
+      {/* [1] Sticky шапка поиска — только для меню */}
+      {selectedSection === 'menu' && (
+        <View style={styles.menuTopBarSticky}>
           {menuSearchOpen ? (
             <View style={styles.menuSearchRow}>
               <TextInput
@@ -696,6 +698,10 @@ export default function SettingsScreen({ navigation }) {
             </View>
           )}
         </View>
+      )}
+
+        {/* [2+] Меню и цены */}
+        <SectionAccordion sectionKey="menu" selectedSection={selectedSection}>
 
         {/* Список товаров по категориям */}
         {(() => {
@@ -1939,6 +1945,7 @@ const styles = StyleSheet.create({
   phoneBackText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight },
   // Меню и цены — шапка
   menuTopBar: { marginBottom: 12 },
+  menuTopBarSticky: { marginBottom: 12, backgroundColor: '#060608', paddingVertical: 4 },
   menuSearchRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   menuTopTitle: { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text, flex: 1 },
   menuSearchInput: { flex: 1, padding: 10, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 14, fontFamily: fonts.family },
