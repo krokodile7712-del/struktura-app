@@ -2,9 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TextInput,
   Pressable, KeyboardAvoidingView, Platform, Alert,
-  BackHandler, Image, ActivityIndicator,
+  BackHandler, Image,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import MetalButton from '../components/MetalButton';
 import { setSetting, updateBusinessProfile, getBusinessProfile, BUSINESS_PRESETS, addUser } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
@@ -98,9 +97,7 @@ export default function OnboardingScreen({ navigation }) {
   // Шаг 1
   const [bizName, setBizName]         = useState('');
   const [city, setCity]               = useState('');
-  const [logoUri, setLogoUri]         = useState(null);
-  const [logoBase64, setLogoBase64]   = useState('');
-  const [logoLoading, setLogoLoading] = useState(false);
+  const [logoUrl, setLogoUrl]         = useState('');
   // Шаг 2
   const [preset, setPreset]           = useState(null);
   // Шаг 3
@@ -150,33 +147,7 @@ export default function OnboardingScreen({ navigation }) {
   };
   const back = () => setStep(s => Math.max(0, s - 1));
 
-  // Выбор лого из галереи
-  const pickLogo = async () => {
-    try {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) {
-        Alert.alert('Нет доступа', 'Разрешите доступ к галерее в настройках устройства.');
-        return;
-      }
-      setLogoLoading(true);
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.7,
-        base64: true,
-      });
-      if (!result.canceled && result.assets?.[0]) {
-        const asset = result.assets[0];
-        setLogoUri(asset.uri);
-        setLogoBase64(asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : '');
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLogoLoading(false);
-    }
-  };
+
 
   // Финальное сохранение
   const finish = (navTo = null) => {
@@ -191,7 +162,7 @@ export default function OnboardingScreen({ navigation }) {
         workHoursTo: hoursTo,
         inn: inn.trim(),
         preset: preset || 'custom',
-        logoBase64: logoBase64,
+        logoBase64: logoUrl,
         modules: p?.modules || {},
         terms: {
           order:    terms.order,
@@ -256,27 +227,35 @@ export default function OnboardingScreen({ navigation }) {
             <Text style={styles.title}>Расскажите о вашем бизнесе</Text>
             <Text style={styles.subtitle}>Эта информация появится на главном экране и в отчётах</Text>
 
-            {/* Логотип */}
+            {/* Логотип — URL */}
             <View style={styles.logoSection}>
-              <Pressable style={styles.logoPicker} onPress={pickLogo} disabled={logoLoading}>
-                {logoLoading ? (
-                  <ActivityIndicator color={colors.greenLight} />
-                ) : logoUri ? (
-                  <Image source={{ uri: logoUri }} style={styles.logoPreview} resizeMode="cover" />
-                ) : (
-                  <View style={styles.logoPlaceholder}>
-                    <Text style={styles.logoPlaceholderIcon}>🖼</Text>
-                    <Text style={styles.logoPlaceholderText}>Добавить логотип</Text>
-                    <Text style={styles.logoPlaceholderSub}>JPEG · PNG · квадратный</Text>
-                  </View>
-                )}
-              </Pressable>
-              {logoUri && (
-                <Pressable onPress={() => { setLogoUri(null); setLogoBase64(''); }} style={styles.logoRemove}>
-                  <Text style={styles.logoRemoveText}>Удалить</Text>
-                </Pressable>
+              {logoUrl ? (
+                <View style={styles.logoPreviewWrap}>
+                  <Image source={{ uri: logoUrl }} style={styles.logoPreview} resizeMode="contain"
+                    onError={() => setLogoUrl('')} />
+                  <Pressable onPress={() => setLogoUrl('')} style={styles.logoRemove}>
+                    <Text style={styles.logoRemoveText}>Удалить</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <View style={styles.logoPlaceholder}>
+                  <Text style={styles.logoPlaceholderIcon}>🖼</Text>
+                  <Text style={styles.logoPlaceholderText}>Логотип</Text>
+                  <Text style={styles.logoPlaceholderSub}>Вставьте ссылку на изображение ниже</Text>
+                </View>
               )}
             </View>
+            <FieldLabel>Ссылка на логотип (URL)</FieldLabel>
+            <TextInput
+              style={styles.input}
+              value={logoUrl}
+              onChangeText={setLogoUrl}
+              placeholder="https://example.com/logo.png"
+              placeholderTextColor={colors.muted}
+              autoCapitalize="none"
+              keyboardType="url"
+            />
+            <Text style={styles.hint}>Необязательно. Разместите логотип на любом хостинге (imgbb.com, imgur.com) и вставьте прямую ссылку.</Text>
 
             <FieldLabel>Название бизнеса *</FieldLabel>
             <TextInput
@@ -456,8 +435,8 @@ export default function OnboardingScreen({ navigation }) {
         {step === 5 && (
           <View style={styles.content}>
             <View style={styles.doneHeader}>
-              {logoUri ? (
-                <Image source={{ uri: logoUri }} style={styles.doneLogo} resizeMode="contain" />
+              {logoUrl ? (
+                <Image source={{ uri: logoUrl }} style={styles.doneLogo} resizeMode="contain" />
               ) : (
                 <View style={styles.doneLogoPlaceholder}>
                   <Text style={{ fontSize: 36 }}>{PRESET_LIST.find(p => p.key === preset)?.icon || '🏢'}</Text>
@@ -565,19 +544,14 @@ const styles = StyleSheet.create({
   subtitle: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', lineHeight: 21, marginBottom: 24 },
 
   // Лого
-  logoSection: { alignItems: 'center', marginBottom: 20 },
-  logoPicker: {
-    width: 120, height: 120, borderRadius: 20, borderWidth: 1.5,
-    borderColor: 'rgba(61,158,146,0.4)', borderStyle: 'dashed',
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'rgba(61,158,146,0.05)',
-  },
-  logoPreview: { width: 120, height: 120, borderRadius: 20 },
-  logoPlaceholder: { alignItems: 'center', gap: 6 },
-  logoPlaceholderIcon: { fontSize: 28 },
-  logoPlaceholderText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.greenLight },
-  logoPlaceholderSub: { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted },
-  logoRemove: { marginTop: 8 },
+  logoSection: { alignItems: 'center', marginBottom: 8 },
+  logoPreviewWrap: { alignItems: 'center', gap: 6 },
+  logoPreview: { width: 100, height: 100, borderRadius: 16 },
+  logoPlaceholder: { width: 100, height: 100, borderRadius: 16, borderWidth: 1.5, borderColor: 'rgba(61,158,146,0.3)', borderStyle: 'dashed', backgroundColor: 'rgba(61,158,146,0.04)', alignItems: 'center', justifyContent: 'center', gap: 4 },
+  logoPlaceholderIcon: { fontSize: 24 },
+  logoPlaceholderText: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
+  logoPlaceholderSub: { fontFamily: fonts.familyRegular, fontSize: 9, color: colors.muted, textAlign: 'center', paddingHorizontal: 8 },
+  logoRemove: { marginTop: 4 },
   logoRemoveText: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.redLight },
 
   // Поля
