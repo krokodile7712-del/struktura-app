@@ -246,17 +246,7 @@ export default function KassaScreen({ navigation, route }) {
 
   // Объединяет дубли (одинаковый товар + вариант + модификаторы) вместо новой строки
   const addToCart = (newItem) => {
-    setOrder(prev => {
-      const dupIdx = prev.findIndex(it =>
-        it.product_id === newItem.product_id &&
-        it.variant_id === newItem.variant_id &&
-        JSON.stringify(it.modifiers) === JSON.stringify(newItem.modifiers)
-      );
-      if (dupIdx !== -1) {
-        return prev.map((it, i) => i === dupIdx ? { ...it, quantity: (it.quantity || 1) + 1 } : it);
-      }
-      return [...prev, { ...newItem, quantity: 1 }];
-    });
+    setOrder(prev => [...prev, { ...newItem, id: Date.now() + Math.random(), quantity: 1 }]);
   };
 
   // Изменяет количество позиции в корзине (удаляет если <= 0)
@@ -1368,7 +1358,7 @@ const styles = StyleSheet.create({
   catIcon: { fontSize: 13 },
   catLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, letterSpacing: 0.5 },
   catLabelActive: { color: colors.greenLight },
-  menuGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 10 },
+  menuGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 10, alignContent: 'flex-start' },
   menuItem: { width: '30%', minWidth: 100, paddingVertical: 14, paddingHorizontal: 10, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', backgroundColor: '#0b0c0f', alignItems: 'center', position: 'relative', gap: 5 },
   menuItemInCart: { borderColor: 'rgba(61,158,146,0.5)', backgroundColor: 'rgba(61,158,146,0.07)' },
   menuItemName: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.text, textAlign: 'center', letterSpacing: 0.3 },
