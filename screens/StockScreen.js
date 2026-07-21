@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
-  TextInput, Modal, FlatList,
+  TextInput, Modal, useWindowDimensions,
 } from 'react-native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
@@ -87,6 +87,8 @@ const MODES = [
 
 // ─── Экран ───────────────────────────────────────────────────────────────────
 export default function StockScreen({ navigation }) {
+  const { width: W } = useWindowDimensions();
+  const isPhone = W < 480;
   const [stock, setStock]       = useState([]);
   const [search, setSearch]     = useState('');
   const [modalItem, setModalItem] = useState(null);
@@ -221,9 +223,9 @@ export default function StockScreen({ navigation }) {
       {/* Заголовки колонок */}
       <View style={styles.colHeaders}>
         <Text style={[styles.colHead, { flex: 1 }]}>Позиция</Text>
-        <Text style={[styles.colHead, styles.colQty]}>Остаток</Text>
-        <Text style={[styles.colHead, styles.colBar]}>Уровень</Text>
-        <Text style={[styles.colHead, styles.colStatus]}>Статус</Text>
+        <Text style={[styles.colHead, { width: isPhone ? 64 : 88, textAlign: 'right' }]}>Остаток</Text>
+        {!isPhone && <Text style={[styles.colHead, { width: 130, textAlign: 'center' }]}>Уровень</Text>}
+        <Text style={[styles.colHead, { width: isPhone ? 52 : 68, textAlign: 'center' }]}>Статус</Text>
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
@@ -469,9 +471,7 @@ export default function StockScreen({ navigation }) {
   );
 }
 
-const COL_QTY    = 72;
-const COL_BAR    = 130;
-const COL_STATUS = 56;
+// Колонки адаптируются через переменные в компоненте (см. ниже)
 
 const styles = StyleSheet.create({
   inner: { paddingBottom: 20 },
@@ -488,7 +488,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(74,77,84,0.3)',
     backgroundColor: '#07080a',
   },
-  colHead: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
+  colHead: { fontFamily: fonts.familySemibold, fontSize: 10, color: 'rgba(74,77,84,0.8)', textTransform: 'uppercase', letterSpacing: 1 },
   colQty:   { width: COL_QTY,    textAlign: 'right' },
   colBar:   { width: COL_BAR,    textAlign: 'center', paddingHorizontal: 10 },
   colStatus:{ width: COL_STATUS, textAlign: 'center' },
@@ -497,7 +497,7 @@ const styles = StyleSheet.create({
   catGroup: { paddingHorizontal: spacing.lg, marginTop: 14 },
   catHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   catHeaderLine: { flex: 1, height: 1, backgroundColor: 'rgba(74,77,84,0.25)' },
-  catHeader: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
+  catHeader: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.textDim, textTransform: 'uppercase', letterSpacing: 1.5 },
   catHeaderWarn: { color: '#c47a5a' },
   warnBadge: { paddingVertical: 2, paddingHorizontal: 8, borderRadius: 8, backgroundColor: 'rgba(160,16,32,0.15)', borderWidth: 1, borderColor: 'rgba(160,16,32,0.3)' },
   warnBadgeText: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.redLight },
@@ -506,27 +506,27 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 9,
+    paddingVertical: 13,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(74,77,84,0.18)',
+    borderBottomColor: 'rgba(74,77,84,0.2)',
   },
   rowLast:    { borderBottomWidth: 0 },
-  rowPressed: { backgroundColor: 'rgba(255,255,255,0.025)' },
+  rowPressed: { backgroundColor: 'rgba(255,255,255,0.03)' },
 
-  itemName:    { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
+  itemName:    { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
   itemNameLow: { color: colors.redLight },
   itemNameNeg: { color: '#ff3b30' },
-  itemAvg:     { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, marginTop: 1 },
+  itemAvg:     { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
 
-  colQtyWrap:   { width: COL_QTY, alignItems: 'flex-end' },
-  itemQty:      { fontFamily: fonts.family, fontSize: 14, fontWeight: '700', color: colors.text },
-  itemUnit:     { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted },
+  itemQty:  { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.text },
+  itemUnit: { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, marginTop: 1 },
+  thrLabel: { fontFamily: fonts.familyRegular, fontSize: 9, color: 'rgba(74,77,84,0.6)', textAlign: 'right' },
 
-  colBarWrap:   { width: COL_BAR, paddingHorizontal: 10, gap: 3 },
-  thrLabel:     { fontFamily: fonts.familyRegular, fontSize: 9, color: 'rgba(74,77,84,0.6)', textAlign: 'right' },
-
-  colStatusWrap:{ width: COL_STATUS, alignItems: 'center' },
-  statusLabel:  { fontFamily: fonts.familySemibold, fontSize: 11 },
+  statusChip:    { paddingVertical: 3, paddingHorizontal: 8, borderRadius: 8, borderWidth: 1, borderColor: 'transparent' },
+  statusChipOk:  { backgroundColor: 'rgba(61,158,146,0.08)', borderColor: 'rgba(61,158,146,0.25)' },
+  statusChipLow: { backgroundColor: 'rgba(160,16,32,0.08)', borderColor: 'rgba(160,16,32,0.25)' },
+  statusChipNeg: { backgroundColor: 'rgba(255,59,48,0.08)',  borderColor: 'rgba(255,59,48,0.25)'  },
+  statusLabel:   { fontFamily: fonts.familySemibold, fontSize: 11 },
 
   // Локации
   locBar:       { maxHeight: 44, borderBottomWidth: 1, borderBottomColor: colors.border },
