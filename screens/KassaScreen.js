@@ -1015,11 +1015,11 @@ export default function KassaScreen({ navigation, route }) {
                 <Text style={[styles.discountListName, !appliedDiscount && { color: colors.greenLight }]}>Без скидки</Text>
                 {!appliedDiscount ? <Text style={styles.discountListCheck}>✓</Text> : null}
               </Pressable>
-              {discounts.map(d => {
-                const isActive = appliedDiscount != null && appliedDiscount.id === d.id;
+              {discounts.map((d, i) => {
+                const isActive = appliedDiscount != null && appliedDiscount.id != null && appliedDiscount.id === d.id;
                 return (
                   <Pressable
-                    key={`dpick-${d.id}`}
+                    key={`dpick-${d.id ?? i}`}
                     style={[styles.discountListRow, isActive && styles.discountListRowActive]}
                     onPress={() => { setAppliedDiscount(d); setDiscountDropOpen(false); }}
                   >
