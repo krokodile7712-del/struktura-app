@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, Pressable,
-  Animated, Dimensions, ScrollView,
+  Animated, Dimensions, ScrollView, Modal,
 } from 'react-native';
 import { colors, fonts } from '../constants/theme';
 import { getSession } from '../db/session';
@@ -98,16 +98,13 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
   const modules = profile?.modules || {};
 
   return (
-    <>
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
       {/* Backdrop */}
-      {visible && (
-        <Animated.View
-          style={[styles.backdrop, { opacity: backdropOpacity }]}
-          pointerEvents={visible ? 'auto' : 'none'}
-        >
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
-        </Animated.View>
-      )}
+      <Animated.View
+        style={[styles.backdrop, { opacity: backdropOpacity }]}
+      >
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+      </Animated.View>
 
       {/* Drawer */}
       <Animated.View style={[styles.drawer, { transform: [{ translateX }] }]}>
@@ -188,7 +185,7 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
           </View>
         </ScrollView>
       </Animated.View>
-    </>
+    </Modal>
   );
 }
 

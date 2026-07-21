@@ -113,7 +113,22 @@ export default function SettingsScreen({ navigation }) {
   const [keyInput, setKeyInput]           = useState('');
   const [profileDraft, setProfileDraft]   = useState(null);
   const toast = useToast();
-  const [openSections, setOpenSections] = useState({ menu: true, employees: false, loyalty: false, payment: false, stock: false, business: false, system: false });  const toggleSection = (key) => {
+  const [stockCatModal, setStockCatModal] = useState(null); // {oldName, newName}
+  const [stockCats, setStockCats] = useState([]);
+  const [openSections, setOpenSections] = useState({ menu: true, employees: false, loyalty: false, payment: false, stock: false, business: false, system: false });  const renameStockCategory = (oldName, newName) => {
+    if (!newName.trim() || newName === oldName) return;
+    try {
+      const db = require('../db/database').getDb();
+      db.runSync('UPDATE stock SET category = ? WHERE category = ?', [newName.trim(), oldName]);
+      const s = getAllStock();
+      const cats = [...new Set(s.map(i => i.category || 'Без категории'))].filter(Boolean).sort();
+      setStockCats(cats);
+      loadAll();
+    } catch (e) { console.error(e); }
+    setStockCatModal(null);
+  };
+
+  const toggleSection = (key) => {
     LayoutAnimation.configureNext({
       duration: 260,
       create:  { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
@@ -914,6 +929,22 @@ export default function SettingsScreen({ navigation }) {
           <MetalButton title="+ Добавить скидку" variant="default" onPress={openNewDiscount} />
         </MetalCard>
 
+        {/* Категории склада */}
+        {stockCats.length > 0 && (
+          <MetalCard style={{ marginTop: 12 }}>
+            <Text style={styles.blockTitle}>🗂 Категории склада</Text>
+            <Text style={styles.hintText}>Нажмите на категорию чтобы переименовать её — изменится у всех позиций.</Text>
+            {stockCats.map(cat => (
+              <Pressable key={cat}
+                style={({ pressed }) => [styles.row, pressed && { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8 }]}
+                onPress={() => setStockCatModal({ oldName: cat, newName: cat })}>
+                <Text style={styles.rowName}>{cat}</Text>
+                <Text style={styles.rowPrice}>Переименовать ›</Text>
+              </Pressable>
+            ))}
+          </MetalCard>
+        )}
+
         {/* Пороги остатка склада */}
         </SectionAccordion>
 
@@ -1595,6 +1626,37 @@ export default function SettingsScreen({ navigation }) {
             <TextInput style={styles.input} secureTextEntry value={keyInput} onChangeText={setKeyInput} placeholderTextColor={colors.muted} />
             <MetalButton title="Войти" variant="success" onPress={checkKey} style={{ marginTop: 10 }} />
           </View>
+        </View>
+      </Modal>
+
+      {/* Модалка переименования категории склада */}
+      <Modal visible={!!stockCatModal} transparent animationType="fade" onRequestClose={() => setStockCatModal(null)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setStockCatModal(null)} />
+          {stockCatModal && (
+            <View style={[styles.modalInner, { maxWidth: 380 }]}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Переименовать категорию</Text>
+                <Pressable onPress={() => setStockCatModal(null)} hitSlop={14}><Text style={styles.modalClose}>✕</Text></Pressable>
+              </View>
+              <Text style={styles.fieldLabel}>Новое название</Text>
+              <TextInput
+                style={styles.input}
+                value={stockCatModal.newName}
+                onChangeText={v => setStockCatModal(m => ({ ...m, newName: v }))}
+                placeholder={stockCatModal.oldName}
+                placeholderTextColor={colors.muted}
+                autoFocus
+              />
+              <Text style={styles.hintText}>Будет применено ко всем позициям категории «{stockCatModal.oldName}»</Text>
+              <MetalButton
+                title="Переименовать"
+                variant="success"
+                onPress={() => renameStockCategory(stockCatModal.oldName, stockCatModal.newName)}
+                style={{ marginTop: 12 }}
+              />
+            </View>
+          )}
         </View>
       </Modal>
 
