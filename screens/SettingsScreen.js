@@ -662,35 +662,40 @@ export default function SettingsScreen({ navigation }) {
     {/* Шапка поиска вынесена НАД ScrollView — всегда видна, touch работает */}
     {selectedSection === 'menu' && (
       <View style={styles.menuTopBarSticky}>
-        {menuSearchOpen ? (
-          <View style={styles.menuSearchRow}>
-            <TextInput
-              style={styles.menuSearchInput}
-              value={menuSearch}
-              onChangeText={setMenuSearch}
-              placeholder={`Поиск ${genitivePluralRu(terms.item).toLowerCase()}...`}
-              placeholderTextColor={colors.muted}
-              autoFocus
-            />
-            <Pressable
-              onPress={() => { setMenuSearchOpen(false); setMenuSearch(''); }}
-              hitSlop={14}
-              style={styles.menuBadge}
-            >
-              <Text style={styles.menuBadgeText}>✕</Text>
-            </Pressable>
-          </View>
-        ) : (
-          <View style={styles.menuSearchRow}>
-            <Text style={styles.menuTopTitle}>{pluralizeRu(terms.item)}</Text>
-            <Pressable onPress={() => setMenuSearchOpen(true)} hitSlop={14} style={styles.menuBadge}>
-              <Text style={styles.menuBadgeText}>🔍</Text>
-            </Pressable>
-            <Pressable onPress={openNewProduct} hitSlop={14} style={[styles.menuBadge, styles.menuBadgeAdd]}>
-              <Text style={[styles.menuBadgeText, { color: colors.greenLight }]}>＋</Text>
-            </Pressable>
-          </View>
-        )}
+        {/* Заголовок — на всю ширину */}
+        <Text style={styles.menuTopTitle}>{pluralizeRu(terms.item)}</Text>
+
+        {/* Плавающие кнопки — поверх через position:absolute */}
+        <View style={styles.menuFloatBtns} pointerEvents="box-none">
+          {menuSearchOpen ? (
+            <View style={styles.menuSearchExpanded}>
+              <TextInput
+                style={styles.menuSearchInput}
+                value={menuSearch}
+                onChangeText={setMenuSearch}
+                placeholder="Поиск..."
+                placeholderTextColor={colors.muted}
+                autoFocus
+              />
+              <Pressable
+                onPress={() => { setMenuSearchOpen(false); setMenuSearch(''); }}
+                hitSlop={14}
+                style={styles.menuBadge}
+              >
+                <Text style={styles.menuBadgeText}>✕</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={styles.menuFloatRow}>
+              <Pressable onPress={() => setMenuSearchOpen(true)} hitSlop={14} style={styles.menuBadge}>
+                <Text style={styles.menuBadgeText}>🔍</Text>
+              </Pressable>
+              <Pressable onPress={openNewProduct} hitSlop={14} style={[styles.menuBadge, styles.menuBadgeAdd]}>
+                <Text style={[styles.menuBadgeText, { color: colors.greenLight }]}>＋</Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
       </View>
     )}
 
@@ -771,12 +776,14 @@ export default function SettingsScreen({ navigation }) {
         {/* Модификаторы */}
         {modules.modifiers !== false && (
           <View style={{ marginTop: 24 }}>
-            <View style={styles.menuTopBar}>
-              <View style={styles.menuSearchRow}>
-                <Text style={styles.menuTopTitle}>Модификаторы</Text>
-                <Pressable onPress={openNewGroup} hitSlop={10} style={[styles.menuBadge, styles.menuBadgeAdd]}>
-                  <Text style={[styles.menuBadgeText, { color: colors.greenLight }]}>＋</Text>
-                </Pressable>
+            <View style={styles.menuTopBarSticky}>
+              <Text style={styles.menuTopTitle}>Модификаторы</Text>
+              <View style={styles.menuFloatBtns} pointerEvents="box-none">
+                <View style={styles.menuFloatRow}>
+                  <Pressable onPress={openNewGroup} hitSlop={14} style={[styles.menuBadge, styles.menuBadgeAdd]}>
+                    <Text style={[styles.menuBadgeText, { color: colors.greenLight }]}>＋</Text>
+                  </Pressable>
+                </View>
               </View>
             </View>
             {modifierGroups.length === 0 ? (
@@ -1957,10 +1964,37 @@ const styles = StyleSheet.create({
   phoneBackText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight },
   // Меню и цены — шапка
   menuTopBar: { marginBottom: 12 },
-  menuTopBarSticky: { marginBottom: 0, backgroundColor: '#060608', paddingTop: 0, paddingBottom: 10, zIndex: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.2)' },
+  menuTopBarSticky: {
+    backgroundColor: '#060608',
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(74,77,84,0.2)',
+    position: 'relative',
+    justifyContent: 'center',
+  },
+  menuTopTitle: {
+    fontFamily: fonts.family,
+    fontSize: 17,
+    fontWeight: '800',
+    color: colors.text,
+    paddingRight: 90,  /* место для плавающих кнопок */
+  },
+  menuFloatBtns: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+  },
+  menuFloatRow: { flexDirection: 'row', gap: 6 },
+  menuSearchExpanded: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    width: 240,
+  },
   menuSearchRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  menuTopTitle: { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text, flex: 1 },
-  menuSearchInput: { flex: 1, padding: 10, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 14, fontFamily: fonts.family },
+  menuSearchInput: { flex: 1, padding: 9, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 14, fontFamily: fonts.family },
   menuBadge: { width: 36, height: 36, borderRadius: 12, backgroundColor: '#0e0f11', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', alignItems: 'center', justifyContent: 'center' },
   menuBadgeAdd: { borderColor: 'rgba(61,158,146,0.4)', backgroundColor: 'rgba(61,158,146,0.06)' },
   menuBadgeText: { fontSize: 16, color: colors.muted },
