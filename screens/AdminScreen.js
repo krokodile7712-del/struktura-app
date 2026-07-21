@@ -1,40 +1,63 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, Text, Image, StyleSheet, ScrollView, Pressable, Dimensions } from 'react-native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import { getBusinessProfile, getOpenShift, getTerms, pluralizeRu, getRoleNames, getDashboardStats } from '../db/queries';
 import StatsBar from '../components/StatsBar';
+import { getBusinessProfile, getOpenShift, getTerms, pluralizeRu, getRoleNames, getDashboardStats } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
-const getMenuItems = (terms) => [
-  { icon: '☕', label: `Новый ${terms.order.toLowerCase()}`, sub: 'Касса',      screen: 'Kassa',       variant: 'action'  },
-  { icon: '📊', label: pluralizeRu(terms.order), sub: 'История продаж',         screen: 'Sales',       variant: 'success' },
-  { icon: '📈', label: 'Отчётность',     sub: 'P&L · графики',                 screen: 'Reports',     variant: 'success' },
-  { icon: '📦', label: 'Склад',          sub: 'Остатки · закупки',             screen: 'Stock',       variant: 'default', module: 'stock' },
-  { icon: '💸', label: 'Расходы',        sub: 'Затраты за день',               screen: 'Expenses',    variant: 'danger'  },
-  { icon: '📅', label: 'Открыть смену',  sub: 'Начать рабочий день',           screen: 'Shift',       variant: 'success', module: 'shifts', hideWhenShiftOpen: true },
-  { icon: '⚙️', label: 'Настройки',      sub: 'Профиль · модули',              screen: 'Settings',    variant: 'pay'     },
-];
+// Адаптивное количество колонок
+function useColumns() {
+  const [cols, setCols] = useState(() => {
+    const w = Dimensions.get('window').width;
+    if (w < 480) return 2;
+    if (w < 700) return 3;
+    if (w < 960) return 4;
+    return 5;
+  });
+  useEffect(() => {
+    const sub = Dimensions.addEventListener('change', ({ window }) => {
+      if (window.width < 480)      setCols(2);
+      else if (window.width < 700) setCols(3);
+      else if (window.width < 960) setCols(4);
+      else                         setCols(5);
+    });
+    return () => sub?.remove();
+  }, []);
+  return cols;
+}
 
 const ACCENT = {
-  action:  { border: 'rgba(122,158,82,0.45)',  bg: 'rgba(122,158,82,0.10)'  },
-  pay:     { border: 'rgba(61,95,168,0.45)',   bg: 'rgba(61,95,168,0.10)'   },
-  success: { border: 'rgba(61,158,146,0.45)',  bg: 'rgba(61,158,146,0.10)'  },
-  default: { border: 'rgba(74,77,84,0.6)',     bg: 'rgba(14,15,17,0.8)'     },
-  danger:  { border: 'rgba(160,16,32,0.45)',   bg: 'rgba(160,16,32,0.10)'   },
+  action:  { border: 'rgba(122,158,82,0.5)',  bg: 'rgba(122,158,82,0.10)', icon: '#a8c878' },
+  pay:     { border: 'rgba(61,95,168,0.5)',   bg: 'rgba(61,95,168,0.10)',  icon: '#7a9be8' },
+  success: { border: 'rgba(61,158,146,0.5)',  bg: 'rgba(61,158,146,0.10)', icon: '#4ec0b2' },
+  default: { border: 'rgba(74,77,84,0.5)',    bg: 'rgba(20,22,24,0.9)',    icon: '#8a8d94' },
+  danger:  { border: 'rgba(160,16,32,0.5)',   bg: 'rgba(160,16,32,0.10)', icon: '#e05555' },
 };
 
+const getMenuItems = (terms) => [
+  { icon: '📊', label: pluralizeRu(terms.order), sub: 'История продаж',    screen: 'Sales',    variant: 'success' },
+  { icon: '📈', label: 'Отчётность',  sub: 'P&L · графики',               screen: 'Reports',  variant: 'success' },
+  { icon: '📦', label: 'Склад',       sub: 'Остатки · закупки',            screen: 'Stock',    variant: 'default', module: 'stock' },
+  { icon: '💸', label: 'Расходы',     sub: 'Затраты за день',              screen: 'Expenses', variant: 'danger'  },
+  { icon: '📅', label: 'Открыть смену', sub: 'Начать рабочий день',        screen: 'Shift',    variant: 'success', module: 'shifts', hideWhenShiftOpen: true },
+  { icon: '⚙️', label: 'Настройки',   sub: 'Профиль · модули',             screen: 'Settings', variant: 'pay'     },
+];
+
 export default function AdminScreen({ navigation }) {
-  const [modules, setModules] = useState({});
+  const [modules, setModules]     = useState({});
   const [shiftOpen, setShiftOpen] = useState(false);
-  const [terms, setTerms] = useState({ item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' });
+  const [terms, setTerms]         = useState({ item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' });
   const [roleNames, setRoleNames] = useState({ barista: 'Сотрудник', admin: 'Администратор' });
-  const [stats, setStats] = useState(null);
+  const [stats, setStats]         = useState(null);
+  const [profile, setProfile]     = useState(null);
+  const cols = useColumns();
 
   const loadStats = () => {
     try {
-      const profile = getBusinessProfile();
-      setModules(profile?.modules || {});
+      const p = getBusinessProfile();
+      setProfile(p);
+      setModules(p?.modules || {});
       setShiftOpen(!!getOpenShift());
       setTerms(getTerms());
       setRoleNames(getRoleNames());
@@ -44,7 +67,6 @@ export default function AdminScreen({ navigation }) {
 
   useEffect(() => {
     loadStats();
-    // Обновляем при каждом возврате на экран
     const unsub = navigation.addListener('focus', loadStats);
     return unsub;
   }, [navigation]);
@@ -54,68 +76,85 @@ export default function AdminScreen({ navigation }) {
     !(item.hideWhenShiftOpen && shiftOpen)
   );
 
+  const logoUri = profile?.logo_url || 'https://i.ibb.co/hRZxPz8b/19-20260514150523.png';
+
+  // Ширина плитки с учётом отступов
+  const screenW   = Dimensions.get('window').width;
+  const gridPad   = spacing.lg * 2;
+  const gap       = 10;
+  const tileWidth = Math.floor((Math.min(screenW, 1100) - gridPad - gap * (cols - 1)) / cols);
+
   return (
     <View style={{ flex: 1 }}>
       <TopBar title={roleNames.admin} navigation={navigation} activeScreen="Admin" />
-      <StatsBar stats={stats} modules={modules} onShiftPress={() => navigation.navigate('ShiftClose')} onStockPress={() => navigation.navigate('Stock')} />
-
+      <StatsBar
+        stats={stats}
+        modules={modules}
+        onShiftPress={() => navigation.navigate('ShiftClose')}
+        onStockPress={() => navigation.navigate('Stock')}
+      />
 
       <ScrollView contentContainerStyle={styles.inner}>
-        <View style={styles.brandHeader}>
+
+        {/* Логотип */}
+        <View style={styles.logoWrap}>
           <Image
-            source={{ uri: 'https://i.ibb.co/hRZxPz8b/19-20260514150523.png' }}
+            source={{ uri: logoUri }}
             style={styles.logo}
             resizeMode="contain"
           />
-          <Text style={styles.roleText}>👑 {roleNames.admin}</Text>
+          {profile?.business_name ? (
+            <Text style={styles.bizName}>{profile.business_name}</Text>
+          ) : null}
         </View>
 
-        <View style={styles.grid}>
+        {/* Hero — Новый заказ */}
+        <Pressable
+          style={({ pressed }) => [
+            styles.hero,
+            pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] },
+          ]}
+          onPress={() => navigation.navigate('Kassa')}
+          accessibilityLabel={`Новый ${terms.order.toLowerCase()}`}
+        >
+          <Text style={styles.heroIcon}>☕</Text>
+          <View>
+            <Text style={styles.heroLabel}>Новый {terms.order.toLowerCase()}</Text>
+            <Text style={styles.heroSub}>Касса · добавить позиции и оплатить</Text>
+          </View>
+          <Text style={styles.heroArrow}>›</Text>
+        </Pressable>
+
+        {/* Сетка действий */}
+        <View style={[styles.grid, { gap }]}>
           {visibleItems.map((item) => {
             const ac = ACCENT[item.variant] || ACCENT.default;
             return (
               <Pressable
                 key={item.screen}
                 style={({ pressed }) => [
-                  styles.card,
-                  { borderColor: ac.border, backgroundColor: pressed ? ac.border : ac.bg },
+                  styles.tile,
+                  {
+                    width: tileWidth,
+                    borderColor: ac.border,
+                    backgroundColor: pressed ? ac.border : ac.bg,
+                  },
                 ]}
                 onPress={() => navigation.navigate(item.screen)}
               >
-                <Text style={styles.cardIcon}>{item.icon}</Text>
-                <Text style={styles.cardLabel}>{item.label}</Text>
-                {item.sub && <Text style={styles.cardSub}>{item.sub}</Text>}
+                <Text style={styles.tileIcon}>{item.icon}</Text>
+                <Text style={styles.tileLabel}>{item.label}</Text>
+                {item.sub ? <Text style={styles.tileSub}>{item.sub}</Text> : null}
               </Pressable>
             );
           })}
         </View>
 
-        {modules.shifts !== false && (
-          <View style={styles.shiftRow}>
-            <Pressable
-              style={[styles.shiftBtn, { borderColor: 'rgba(160,16,32,0.5)', backgroundColor: 'rgba(160,16,32,0.10)' }]}
-              onPress={() => navigation.navigate('ShiftClose')}
-            >
-              <Text style={[styles.shiftBtnText, { color: colors.redLight }]}>🚪 Закрыть смену</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.shiftBtn, { borderColor: 'rgba(74,77,84,0.5)' }]}
-              onPress={() => navigation.navigate('Login')}
-            >
-              <Text style={styles.shiftBtnText}>🔄 Сменить аккаунт</Text>
-            </Pressable>
-          </View>
-        )}
-        {modules.shifts === false && (
-          <View style={styles.shiftRow}>
-            <Pressable
-              style={[styles.shiftBtn, { borderColor: 'rgba(74,77,84,0.5)' }]}
-              onPress={() => navigation.navigate('Login')}
-            >
-              <Text style={styles.shiftBtnText}>🔄 Сменить аккаунт</Text>
-            </Pressable>
-          </View>
-        )}
+        {/* Сменить аккаунт */}
+        <Pressable style={styles.switchBtn} onPress={() => navigation.navigate('Login')}>
+          <Text style={styles.switchBtnText}>🔄 Сменить аккаунт</Text>
+        </Pressable>
+
       </ScrollView>
 
       <BottomBar navigation={navigation} activeTab="Kassa" />
@@ -131,74 +170,109 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'center',
   },
-  brandHeader: {
+
+  // Логотип
+  logoWrap: {
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: 16,
   },
   logo: {
-    width: 260,
-    height: 140,
-    borderRadius: 14,
-    marginBottom: 10,
+    width: 160,
+    height: 80,
+    marginBottom: 6,
   },
-  roleText: {
+  bizName: {
     fontFamily: fonts.familySemibold,
     fontSize: 13,
-    letterSpacing: 2,
     color: colors.muted,
+    letterSpacing: 3,
     textTransform: 'uppercase',
   },
+
+  // Hero кнопка
+  hero: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 22,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: 'rgba(122,158,82,0.6)',
+    backgroundColor: 'rgba(122,158,82,0.12)',
+    marginBottom: 14,
+  },
+  heroIcon: {
+    fontSize: 32,
+  },
+  heroLabel: {
+    fontFamily: fonts.family,
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#c8e890',
+    textTransform: 'capitalize',
+  },
+  heroSub: {
+    fontFamily: fonts.familyRegular,
+    fontSize: 12,
+    color: 'rgba(200,232,144,0.6)',
+    marginTop: 2,
+  },
+  heroArrow: {
+    fontFamily: fonts.family,
+    fontSize: 28,
+    color: 'rgba(200,232,144,0.5)',
+    marginLeft: 'auto',
+  },
+
+  // Сетка плиток
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 14,
-    marginBottom: 16,
+    marginBottom: 14,
   },
-  card: {
-    width: '23%',
-    minWidth: 130,
+  tile: {
     aspectRatio: 1,
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
     padding: 10,
+    gap: 6,
+    marginBottom: 10,
   },
-  cardIcon: {
-    fontSize: 36,
+  tileIcon: {
+    fontSize: 26,
   },
-  cardLabel: {
+  tileLabel: {
     fontFamily: fonts.familySemibold,
-    fontSize: 11,
+    fontSize: 10,
     color: colors.text,
     textTransform: 'uppercase',
-    letterSpacing: 1.5,
+    letterSpacing: 1,
     textAlign: 'center',
   },
-  cardSub: {
+  tileSub: {
     fontFamily: fonts.familyRegular,
-    fontSize: 9,
+    fontSize: 8,
     color: colors.muted,
     textAlign: 'center',
-    lineHeight: 13,
+    lineHeight: 11,
   },
-  shiftRow: {
-    gap: 10,
-  },
-  shiftBtn: {
-    padding: 16,
-    borderRadius: 14,
+
+  // Кнопка смены аккаунта
+  switchBtn: {
+    padding: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(74,77,84,0.4)',
-    backgroundColor: 'rgba(14,15,17,0.6)',
+    borderColor: 'rgba(74,77,84,0.35)',
     alignItems: 'center',
+    marginTop: 4,
   },
-  shiftBtnText: {
+  switchBtnText: {
     fontFamily: fonts.familySemibold,
-    fontSize: 13,
+    fontSize: 12,
     color: colors.muted,
-    textTransform: 'uppercase',
-    letterSpacing: 1.5,
+    letterSpacing: 1,
   },
 });
