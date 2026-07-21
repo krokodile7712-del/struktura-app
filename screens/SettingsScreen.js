@@ -1966,7 +1966,8 @@ const styles = StyleSheet.create({
   menuTopBar: { marginBottom: 12 },
   menuTopBarSticky: {
     backgroundColor: '#060608',
-    paddingBottom: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(74,77,84,0.2)',
     position: 'relative',
@@ -1977,11 +1978,11 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '800',
     color: colors.text,
-    paddingRight: 90,  /* место для плавающих кнопок */
+    paddingRight: 100,
   },
   menuFloatBtns: {
     position: 'absolute',
-    right: 0,
+    right: 20,
     top: 0,
     bottom: 0,
     justifyContent: 'center',
