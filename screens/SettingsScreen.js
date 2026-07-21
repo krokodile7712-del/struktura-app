@@ -85,6 +85,8 @@ export default function SettingsScreen({ navigation }) {
   const { width: SW } = useWindowDimensions();
   const isPhone = SW < 600;
   const [selectedSection, setSelectedSection] = useState('menu');
+  const [menuSearch, setMenuSearch]   = useState('');
+  const [menuSearchOpen, setMenuSearchOpen] = useState(false);
   const [stockCatModal, setStockCatModal] = useState(null); // {oldName, newName}
   const [stockCats, setStockCats] = useState([]);
   const [openSections, setOpenSections] = useState({ menu: true, employees: false, loyalty: false, payment: false, stock: false, business: false, system: false });  const renameStockCategory = (oldName, newName) => {
@@ -665,48 +667,128 @@ export default function SettingsScreen({ navigation }) {
 
         {/* Меню и цены */}
         <SectionAccordion sectionKey="menu" selectedSection={selectedSection}>
-        <MetalCard>
-          <Text style={styles.blockTitle}>☕ {pluralizeRu(terms.item)} и цены</Text>
-          {categories.map(cat => (
-            <View key={cat} style={{ marginBottom: 12 }}>
-              <Text style={styles.catHeader}>{cat}</Text>
-              {products.filter(p => p.category === cat).map(p => {
-                const inactive = !p.active;
-                return (
-                  <Pressable key={p.id} style={({ pressed }) => [styles.row, pressed && { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8 }]} onPress={() => openProduct(p)}>
-                    <Text style={[styles.rowName, inactive && styles.rowNameInactive]}>
-                      {inactive ? '🚫 ' : ''}{p.name}
-                    </Text>
-                    <Text style={styles.rowPrice}>›</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ))}
-          {products.length === 0 && <Text style={styles.empty}>Пока нет {genitivePluralRu(terms.item).toLowerCase()}.</Text>}
-          <MetalButton title={`+ Добавить ${terms.item.toLowerCase()}`} variant="default" onPress={openNewProduct} />
-        </MetalCard>
 
-        {/* Группы модификаторов */}
-        {modules.modifiers !== false && (
-          <MetalCard style={{ marginTop: 12 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-              <Text style={styles.blockTitle}>🧩 Модификаторы</Text>
-              <InfoTip
-                title="Что такое модификаторы?"
-                text="Модификаторы — это дополнения к товару, которые клиент выбирает при заказе. Например для кофе: выбор молока (коровье, овсяное, миндальное) или добавка сиропа. Каждый модификатор может менять цену и списывать ингредиент со склада. Группа = категория (напр. «Молоко»), внутри — варианты выбора."
+        {/* Фиксированная шапка с поиском и кнопкой добавить */}
+        <View style={styles.menuTopBar}>
+          {menuSearchOpen ? (
+            <View style={styles.menuSearchRow}>
+              <TextInput
+                style={styles.menuSearchInput}
+                value={menuSearch}
+                onChangeText={setMenuSearch}
+                placeholder={`Поиск ${genitivePluralRu(terms.item).toLowerCase()}...`}
+                placeholderTextColor={colors.muted}
+                autoFocus
               />
-            </View>
-            <Text style={styles.hintText}>Группы опций для {genitivePluralRu(terms.item).toLowerCase()} (напр. «Молоко», «Цвет», «Размер ленты») — единичный или множественный выбор.</Text>
-            {modifierGroups.length === 0 && <Text style={styles.empty}>Групп пока нет.</Text>}
-            {modifierGroups.map(g => (
-              <Pressable key={g.id} style={({ pressed }) => [styles.row, pressed && { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8 }]} onPress={() => openEditGroup(g)}>
-                <Text style={styles.rowName}>{g.name} <Text style={styles.rowSub}>({g.selection_type === 'multiple' ? 'неск.' : 'один'})</Text></Text>
-                <Text style={styles.rowPrice}>{g.options.length} опц. ›</Text>
+              <Pressable onPress={() => { setMenuSearchOpen(false); setMenuSearch(''); }} hitSlop={10} style={styles.menuBadge}>
+                <Text style={styles.menuBadgeText}>✕</Text>
               </Pressable>
-            ))}
-            <MetalButton title="+ Добавить группу" variant="default" onPress={openNewGroup} />
-          </MetalCard>
+            </View>
+          ) : (
+            <View style={styles.menuSearchRow}>
+              <Text style={styles.menuTopTitle}>{pluralizeRu(terms.item)}</Text>
+              <Pressable onPress={() => setMenuSearchOpen(true)} hitSlop={10} style={styles.menuBadge}>
+                <Text style={styles.menuBadgeText}>🔍</Text>
+              </Pressable>
+              <Pressable onPress={openNewProduct} hitSlop={10} style={[styles.menuBadge, styles.menuBadgeAdd]}>
+                <Text style={[styles.menuBadgeText, { color: colors.greenLight }]}>＋</Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
+
+        {/* Список товаров по категориям */}
+        {(() => {
+          const filtered = products.filter(p =>
+            !menuSearch.trim() ||
+            p.name?.toLowerCase().includes(menuSearch.toLowerCase())
+          );
+          const cats = [...new Set(filtered.map(p => p.category || 'Без категории'))];
+          if (filtered.length === 0) {
+            return <Text style={[styles.empty, { paddingVertical: 24 }]}>Нет {genitivePluralRu(terms.item).toLowerCase()}{menuSearch ? ` по запросу «${menuSearch}»` : ''}.</Text>;
+          }
+          return cats.map(cat => {
+            const catProducts = filtered.filter(p => (p.category || 'Без категории') === cat);
+            return (
+              <View key={cat} style={styles.menuCatGroup}>
+                {/* Заголовок категории */}
+                <View style={styles.menuCatRow}>
+                  <View style={styles.menuCatLine} />
+                  <Text style={styles.menuCatName}>{cat}</Text>
+                  <View style={styles.menuCatLine} />
+                </View>
+                {/* Карточка с товарами */}
+                <View style={styles.menuCard}>
+                  {catProducts.map((p, idx) => {
+                    const inactive = !p.active;
+                    const hasVariants = p.variants && p.variants.length > 1;
+                    const price = p.price > 0
+                      ? (hasVariants ? `от ${p.price} ₽` : `${p.price} ₽`)
+                      : null;
+                    return (
+                      <Pressable
+                        key={p.id}
+                        style={({ pressed }) => [
+                          styles.menuRow,
+                          idx < catProducts.length - 1 && styles.menuRowDiv,
+                          pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
+                          inactive && { opacity: 0.45 },
+                        ]}
+                        onPress={() => openProduct(p)}
+                      >
+                        <Text style={styles.menuItemName} numberOfLines={1}>
+                          {inactive ? '🚫 ' : ''}{p.name}
+                        </Text>
+                        <Text style={[styles.menuItemPrice, !price && styles.menuItemPriceNone]}>
+                          {price || 'цена не задана'}
+                        </Text>
+                        <Text style={styles.menuItemArrow}>›</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            );
+          });
+        })()}
+
+        {/* Модификаторы */}
+        {modules.modifiers !== false && (
+          <View style={{ marginTop: 24 }}>
+            <View style={styles.menuTopBar}>
+              <View style={styles.menuSearchRow}>
+                <Text style={styles.menuTopTitle}>Модификаторы</Text>
+                <Pressable onPress={openNewGroup} hitSlop={10} style={[styles.menuBadge, styles.menuBadgeAdd]}>
+                  <Text style={[styles.menuBadgeText, { color: colors.greenLight }]}>＋</Text>
+                </Pressable>
+              </View>
+            </View>
+            {modifierGroups.length === 0 ? (
+              <Text style={[styles.empty, { paddingVertical: 16 }]}>Групп пока нет.</Text>
+            ) : (
+              <View style={styles.menuCard}>
+                {modifierGroups.map((g, idx) => (
+                  <Pressable
+                    key={g.id}
+                    style={({ pressed }) => [
+                      styles.menuRow,
+                      idx < modifierGroups.length - 1 && styles.menuRowDiv,
+                      pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
+                    ]}
+                    onPress={() => openEditGroup(g)}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.menuItemName}>{g.name}</Text>
+                      <Text style={styles.menuItemSub}>
+                        {g.selection_type === 'multiple' ? 'Несколько вариантов' : 'Один вариант'} · {g.options.length} опц.
+                      </Text>
+                    </View>
+                    <Text style={styles.menuItemArrow}>›</Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </View>
         )}
 
         </SectionAccordion>
@@ -1855,6 +1937,29 @@ const styles = StyleSheet.create({
   sectionTitle: { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.text, marginBottom: 18, letterSpacing: -0.3 },
   phoneback: { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
   phoneBackText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight },
+  // Меню и цены — шапка
+  menuTopBar: { marginBottom: 12 },
+  menuSearchRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  menuTopTitle: { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text, flex: 1 },
+  menuSearchInput: { flex: 1, padding: 10, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 14, fontFamily: fonts.family },
+  menuBadge: { width: 36, height: 36, borderRadius: 12, backgroundColor: '#0e0f11', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', alignItems: 'center', justifyContent: 'center' },
+  menuBadgeAdd: { borderColor: 'rgba(61,158,146,0.4)', backgroundColor: 'rgba(61,158,146,0.06)' },
+  menuBadgeText: { fontSize: 16, color: colors.muted },
+  // Категории меню
+  menuCatGroup: { marginBottom: 16 },
+  menuCatRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  menuCatLine: { flex: 1, height: 1, backgroundColor: 'rgba(74,77,84,0.25)' },
+  menuCatName: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
+  // Карточка товаров
+  menuCard: { backgroundColor: '#0b0c0f', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', overflow: 'hidden' },
+  menuRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 16 },
+  menuRowDiv: { borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.2)' },
+  menuItemName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, flex: 1, marginRight: 8 },
+  menuItemSub: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
+  menuItemPrice: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, marginRight: 8 },
+  menuItemPriceNone: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, fontStyle: 'italic' },
+  menuItemArrow: { fontSize: 18, color: 'rgba(74,77,84,0.5)', fontFamily: fonts.family },
+
   screen: { flex: 1 },
   inner: { padding: spacing.lg, paddingBottom: 20, maxWidth: 1100, width: '100%', alignSelf: 'center' },
   hiddenHint: { textAlign: 'center', fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginBottom: 10 },
