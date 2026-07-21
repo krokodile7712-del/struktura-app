@@ -278,7 +278,7 @@ export default function StockScreen({ navigation }) {
                     </View>
 
                     {/* Остаток */}
-                    <View style={styles.colQtyWrap}>
+                    <View style={{ alignItems: 'flex-end' }}>
                       <Text style={[
                         styles.itemQty,
                         isNeg && styles.itemNameNeg,
@@ -290,7 +290,7 @@ export default function StockScreen({ navigation }) {
                     </View>
 
                     {/* Полоска с маркером порога */}
-                    <View style={styles.colBarWrap}>
+                    <View style={{ paddingHorizontal: 10, gap: 3 }}>
                       <StockBar current={cur} threshold={thr} maxVal={item['max_ostatok'] || cur} />
                       {thr > 0 && (
                         <Text style={styles.thrLabel}>{thr}</Text>
@@ -298,7 +298,7 @@ export default function StockScreen({ navigation }) {
                     </View>
 
                     {/* Статус */}
-                    <View style={styles.colStatusWrap}>
+                    <View style={{ alignItems: 'center' }}>
                       <Text style={[
                         styles.statusLabel,
                         isNeg && { color: '#ff3b30' },
@@ -489,9 +489,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#07080a',
   },
   colHead: { fontFamily: fonts.familySemibold, fontSize: 10, color: 'rgba(74,77,84,0.8)', textTransform: 'uppercase', letterSpacing: 1 },
-  colQty:   { width: COL_QTY,    textAlign: 'right' },
-  colBar:   { width: COL_BAR,    textAlign: 'center', paddingHorizontal: 10 },
-  colStatus:{ width: COL_STATUS, textAlign: 'center' },
+  colQty:   { textAlign: 'right' },
+  colBar:   { textAlign: 'center', paddingHorizontal: 10 },
+  colStatus:{ textAlign: 'center' },
 
   // Группы категорий
   catGroup: { paddingHorizontal: spacing.lg, marginTop: 14 },
