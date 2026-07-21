@@ -7,7 +7,8 @@ import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import MetalButton from '../components/MetalButton';
 import EmptyState from '../components/EmptyState';
-import { getAllStock, addPurchase, adjustStock, setStockAmount, getStockHistory, getLocations, getCurrentLocationId, setCurrentLocationId, getBusinessProfile } from '../db/queries';
+import { getAllStock, addPurchase, setStockForLocation, adjustStockForLocation, getStockHistory, getLocations, getCurrentLocationId, setCurrentLocationId, getBusinessProfile } from '../db/queries';
+import { getDb } from '../db/database';
 import { getHomeRoute } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
 import { useFocusEffect } from '@react-navigation/native';
@@ -64,6 +65,12 @@ const barStyles = StyleSheet.create({
   },
 });
 
+// ─── Локальные функции склада ────────────────────────────────────────────────
+function updateStockLocal(itemId, newValue) {
+  const db = getDb();
+  db.runSync('UPDATE stock SET остаток = ? WHERE id = ?', [newValue, itemId]);
+}
+
 // ─── Режимы изменения ─────────────────────────────────────────────────────────
 const MODES = [
   { key: 'purchase', label: 'Закупка',   icon: '📦', desc: 'Добавить с фиксацией цены закупки' },
@@ -117,15 +124,28 @@ export default function StockScreen({ navigation }) {
     const n = parseFloat(qty);
     if (isNaN(n) || n < 0) return;
     try {
-      const id = modalItem.id;
+      const id   = modalItem.id;
+      const name = modalItem.name;
+      const cur  = modalItem['остаток'] || 0;
       if (mode === 'purchase') {
-        addPurchase(id, n, parseFloat(price) || 0, selectedLocId);
-      } else if (mode === 'add') {
-        adjustStock(id, n, selectedLocId);
-      } else if (mode === 'subtract') {
-        adjustStock(id, -n, selectedLocId);
-      } else if (mode === 'set') {
-        setStockAmount(id, n, selectedLocId);
+        // addPurchase принимает имя и добавляет к остатку
+        addPurchase(name, n, parseFloat(price) || 0);
+      } else if (locEnabled && selectedLocId) {
+        if (mode === 'add') {
+          adjustStockForLocation(id, selectedLocId, n);
+        } else if (mode === 'subtract') {
+          adjustStockForLocation(id, selectedLocId, -n);
+        } else if (mode === 'set') {
+          setStockForLocation(id, selectedLocId, n);
+        }
+      } else {
+        if (mode === 'add') {
+          updateStockLocal(id, cur + n);
+        } else if (mode === 'subtract') {
+          updateStockLocal(id, Math.max(0, cur - n));
+        } else if (mode === 'set') {
+          updateStockLocal(id, n);
+        }
       }
       reload();
       closeModal();
