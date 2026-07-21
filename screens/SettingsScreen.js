@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Share, Animated, LayoutAnimation, Platform, Alert, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Share, Animated, LayoutAnimation, Platform, Alert, BackHandler, useWindowDimensions } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
@@ -31,42 +31,11 @@ import EmptyState from '../components/EmptyState';
 import { colors, fonts, spacing } from '../constants/theme';
 import { useToast } from '../components/Toast';
 
-function SectionAccordion({ title, icon, sectionKey, openSections, toggleSection, children }) {
-  const isOpen = openSections[sectionKey];
-  const arrowAnim = React.useRef(new Animated.Value(isOpen ? 1 : 0)).current;
-
-  React.useEffect(() => {
-    Animated.timing(arrowAnim, {
-      toValue: isOpen ? 1 : 0,
-      duration: 240,
-      useNativeDriver: true,
-    }).start();
-  }, [isOpen]);
-
-  const rotateDeg = arrowAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '180deg'],
-  });
-
-  return (
-    <View style={accStyles.wrap}>
-      <Pressable style={accStyles.header} onPress={() => toggleSection(sectionKey)}>
-        <Text style={accStyles.icon}>{icon}</Text>
-        <Text style={accStyles.title}>{title}</Text>
-        <Animated.Text style={[accStyles.arrow, { transform: [{ rotate: rotateDeg }] }]}>▼</Animated.Text>
-      </Pressable>
-      {isOpen && <View style={accStyles.body}>{children}</View>}
-    </View>
-  );
+// SectionAccordion — в 2-колоночном layout просто передаёт children
+function SectionAccordion({ sectionKey, selectedSection, children }) {
+  if (selectedSection !== sectionKey) return null;
+  return <View style={{ flex: 1 }}>{children}</View>;
 }
-const accStyles = StyleSheet.create({
-  wrap: { marginBottom: 8 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: '#0e0f11', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)' },
-  icon: { fontSize: 18 },
-  title: { flex: 1, fontFamily: 'AnekDevanagari_600SemiBold', fontSize: 14, color: '#ddd8d0' },
-  arrow: { fontSize: 10, color: '#4a4d54' },
-  body: { paddingTop: 4 },
-});
 
 
 // LayoutAnimation работает автоматически в New Architecture
@@ -667,17 +636,32 @@ export default function SettingsScreen({ navigation }) {
   const modules = profile?.modules || {};
   const terms = getTerms();
 
-  return (
-    <View style={{ flex: 1 }}>
-      <TopBar title="Настройки" onBack={() => navigation.navigate('Admin')} />
-      <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
+  const SECTIONS = [
+    { key: 'menu',      icon: '🍽',  label: 'Меню и цены' },
+    { key: 'employees', icon: '👥',  label: 'Сотрудники' },
+    { key: 'loyalty',   icon: '⭐',  label: 'Лояльность' },
+    { key: 'payment',   icon: '💳',  label: 'Оплата и скидки' },
+    { key: 'stock',     icon: '📦',  label: 'Склад' },
+    { key: 'business',  icon: '⚙️',  label: 'Профиль бизнеса' },
+    { key: 'system',    icon: '🔧',  label: 'Система' },
+  ];
 
-        <Pressable onPress={handleTitleTap}>
-          <Text style={styles.hiddenHint}>{terms.item} · {profile?.preset ? BUSINESS_PRESETS[profile.preset]?.label || profile.preset : ''}</Text>
-        </Pressable>
+  const visibleSections = SECTIONS.filter(s => {
+    if (s.key === 'stock' && modules.stock === false) return false;
+    if (s.key === 'loyalty' && modules.loyalty === false) return false;
+    return true;
+  });
+
+  const rightPanel = (
+    <ScrollView style={styles.rightPanel} contentContainerStyle={styles.rightInner}
+      keyboardShouldPersistTaps="handled">
+      {/* Заголовок секции */}
+      <Text style={styles.sectionTitle}>
+        {SECTIONS.find(s => s.key === selectedSection)?.label || ''}
+      </Text>
 
         {/* Меню и цены */}
-        <SectionAccordion title="Меню и цены" icon="🍽" sectionKey="menu" openSections={openSections} toggleSection={toggleSection}>
+        <SectionAccordion sectionKey="menu" selectedSection={selectedSection}>
         <MetalCard>
           <Text style={styles.blockTitle}>☕ {pluralizeRu(terms.item)} и цены</Text>
           {categories.map(cat => (
@@ -724,7 +708,7 @@ export default function SettingsScreen({ navigation }) {
 
         </SectionAccordion>
 
-        <SectionAccordion title="Сотрудники" icon="👥" sectionKey="employees" openSections={openSections} toggleSection={toggleSection}>
+        <SectionAccordion sectionKey="employees" selectedSection={selectedSection}>
         {/* Сотрудники (заменяет старую секцию PIN-кодов) */}
         <MetalCard style={{ marginTop: 12 }}>
           <Text style={styles.blockTitle}>👥 Сотрудники</Text>
@@ -739,7 +723,7 @@ export default function SettingsScreen({ navigation }) {
 
         </SectionAccordion>
 
-        <SectionAccordion title="Клиенты и лояльность" icon="⭐" sectionKey="loyalty" openSections={openSections} toggleSection={toggleSection}>
+        <SectionAccordion sectionKey="loyalty" selectedSection={selectedSection}>
         {/* Программа лояльности */}
         {modules.loyalty !== false && (
           <MetalCard style={{ marginTop: 12 }}>
@@ -858,7 +842,7 @@ export default function SettingsScreen({ navigation }) {
 
         </SectionAccordion>
 
-        <SectionAccordion title="Оплата и скидки" icon="💳" sectionKey="payment" openSections={openSections} toggleSection={toggleSection}>
+        <SectionAccordion sectionKey="payment" selectedSection={selectedSection}>
         {/* Способы оплаты */}
         <MetalCard style={{ marginTop: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
@@ -948,7 +932,7 @@ export default function SettingsScreen({ navigation }) {
         {/* Пороги остатка склада */}
         </SectionAccordion>
 
-        <SectionAccordion title="Склад" icon="📦" sectionKey="stock" openSections={openSections} toggleSection={toggleSection}>
+        <SectionAccordion sectionKey="stock" selectedSection={selectedSection}>
         {modules.stock !== false && (
           <MetalCard style={{ marginTop: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
@@ -979,7 +963,7 @@ export default function SettingsScreen({ navigation }) {
         )}
         </SectionAccordion>
 
-        <SectionAccordion title="Профиль бизнеса" icon="⚙️" sectionKey="business" openSections={openSections} toggleSection={toggleSection}>
+        <SectionAccordion sectionKey="business" selectedSection={selectedSection}>
         {/* Резервное копирование */}
         <MetalCard style={{ marginTop: 12 }}>
           <Text style={styles.blockTitle}>💾 Резервное копирование</Text>
@@ -988,7 +972,7 @@ export default function SettingsScreen({ navigation }) {
         </MetalCard>
         </SectionAccordion>
 
-        <SectionAccordion title="Система" icon="🔧" sectionKey="system" openSections={openSections} toggleSection={toggleSection}>
+        <SectionAccordion sectionKey="system" selectedSection={selectedSection}>
         <MetalCard style={{ marginTop: 12 }}>
           <Text style={styles.blockTitle}>🚀 Мастер настройки</Text>
           <Text style={styles.hintText}>Запустите пошаговый мастер настройки — он покажет как новый пользователь видит приложение в первый раз. Доступен в любое время.</Text>
@@ -1004,6 +988,54 @@ export default function SettingsScreen({ navigation }) {
         </MetalCard>
         </SectionAccordion>
       </ScrollView>
+  );
+
+  return (
+    <View style={{ flex: 1 }}>
+      <TopBar title="Настройки" onBack={() => navigation.navigate('Admin')} />
+      <View style={styles.twoCol}>
+
+        {/* Левая панель навигации */}
+        {(!isPhone || !selectedSection) && (
+          <View style={styles.leftPanel}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {visibleSections.map(s => (
+                <Pressable
+                  key={s.key}
+                  style={({ pressed }) => [
+                    styles.navItem,
+                    selectedSection === s.key && styles.navItemActive,
+                    pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
+                  ]}
+                  onPress={() => setSelectedSection(s.key)}
+                >
+                  <Text style={styles.navIcon}>{s.icon}</Text>
+                  <Text style={[styles.navLabel, selectedSection === s.key && styles.navLabelActive]}>
+                    {s.label}
+                  </Text>
+                  {selectedSection === s.key && !isPhone && <View style={styles.navActiveBar} />}
+                  {isPhone && <Text style={styles.navArrow}>›</Text>}
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Правая панель */}
+        {(!isPhone || selectedSection) && (
+          <View style={{ flex: 1 }}>
+            {isPhone && (
+              <Pressable style={styles.phoneback} onPress={() => setSelectedSection(null)}>
+                <Text style={styles.phoneBackText}>
+                  ← {SECTIONS.find(s => s.key === selectedSection)?.label}
+                </Text>
+              </Pressable>
+            )}
+            {rightPanel}
+          </View>
+        )}
+
+      </View>
       <BottomBar navigation={navigation} activeTab="Kassa" />
 
       {/* Модалка товара */}
@@ -1751,11 +1783,76 @@ export default function SettingsScreen({ navigation }) {
           )}
         </View>
       </Modal>
+      <BottomBar navigation={navigation} activeTab="Kassa" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  // Двухколоночный layout
+  twoCol: { flex: 1, flexDirection: 'row' },
+
+  // Левая панель навигации
+  leftPanel: {
+    width: 220,
+    backgroundColor: '#07080a',
+    borderRightWidth: 1,
+    borderRightColor: 'rgba(74,77,84,0.3)',
+    paddingVertical: 12,
+  },
+  navItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 13,
+    paddingHorizontal: 18,
+    position: 'relative',
+  },
+  navItemActive: {
+    backgroundColor: 'rgba(61,158,146,0.08)',
+  },
+  navIcon:  { fontSize: 17, width: 24, textAlign: 'center' },
+  navLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, flex: 1 },
+  navLabelActive: { color: colors.greenLight },
+  navActiveBar: {
+    position: 'absolute',
+    left: 0, top: '15%', bottom: '15%',
+    width: 3, borderRadius: 2,
+    backgroundColor: colors.greenLight,
+  },
+  navArrow: { fontSize: 16, color: colors.muted },
+
+  // Правая панель
+  rightPanel: { flex: 1 },
+  rightInner: { padding: 20, paddingBottom: 40 },
+  sectionTitle: {
+    fontFamily: fonts.family,
+    fontSize: 22,
+    fontWeight: '800',
+    color: colors.text,
+    marginBottom: 18,
+    letterSpacing: -0.3,
+  },
+
+  // Телефон
+  phoneback: { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
+  phoneBackText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight },
+
+  // Двухколоночный layout
+  twoCol: { flex: 1, flexDirection: 'row' },
+  leftPanel: { width: 220, backgroundColor: '#07080a', borderRightWidth: 1, borderRightColor: 'rgba(74,77,84,0.3)', paddingVertical: 12 },
+  navItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, paddingHorizontal: 18, position: 'relative' },
+  navItemActive: { backgroundColor: 'rgba(61,158,146,0.08)' },
+  navIcon: { fontSize: 17, width: 24, textAlign: 'center' },
+  navLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, flex: 1 },
+  navLabelActive: { color: colors.greenLight },
+  navActiveBar: { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.greenLight },
+  navArrow: { fontSize: 16, color: colors.muted },
+  rightPanel: { flex: 1 },
+  rightInner: { padding: 20, paddingBottom: 40 },
+  sectionTitle: { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.text, marginBottom: 18, letterSpacing: -0.3 },
+  phoneback: { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
+  phoneBackText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight },
   screen: { flex: 1 },
   inner: { padding: spacing.lg, paddingBottom: 20, maxWidth: 1100, width: '100%', alignSelf: 'center' },
   hiddenHint: { textAlign: 'center', fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginBottom: 10 },
