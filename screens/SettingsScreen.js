@@ -1786,7 +1786,6 @@ export default function SettingsScreen({ navigation }) {
           )}
         </View>
       </Modal>
-      <BottomBar navigation={navigation} activeTab="Kassa" />
     </View>
   );
 }
