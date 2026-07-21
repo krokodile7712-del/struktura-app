@@ -67,6 +67,7 @@ export default function KassaScreen({ navigation, route }) {
   const [itemNoteModal, setItemNoteModal] = useState(null); // {id, note}
   const [prePayOpen, setPrePayOpen]       = useState(false);
   const [discountDropOpen, setDiscountDropOpen] = useState(false);
+  const [clientPickerOpen, setClientPickerOpen]   = useState(false);
   const [clientSearch, setClientSearch]   = useState('');
   const [clientsList, setClientsList]     = useState([]);
 
@@ -698,23 +699,20 @@ export default function KassaScreen({ navigation, route }) {
               {templatesEnabled && (
                 <Pressable onPress={() => setTemplatesListOpen(true)} hitSlop={8} style={styles.orderHeaderBtn}>
                   <Text style={styles.orderHeaderBtnIcon}>⚡</Text>
-                  <Text style={styles.orderHeaderBtnLabel}>Шаблон</Text>
+                  <Text style={styles.orderHeaderBtnLabel}>Шаблоны</Text>
                 </Pressable>
               )}
               <Pressable onPress={() => setNoteModalOpen(true)} hitSlop={8} style={[styles.orderHeaderBtn, orderNote && styles.orderHeaderBtnActive]}>
-                <Text style={styles.orderHeaderBtnIcon}>📝</Text>
-                <Text style={[styles.orderHeaderBtnLabel, orderNote && { color: colors.greenLight }]}>Заметка</Text>
+                <Text style={[styles.orderHeaderBtnIcon, orderNote && { color: colors.greenLight }]}>📝</Text>
               </Pressable>
               {slots.length === 1 && (
                 <Pressable onPress={parkAndNew} hitSlop={8} style={styles.orderHeaderBtn}>
                   <Text style={styles.orderHeaderBtnIcon}>⏸</Text>
-                  <Text style={styles.orderHeaderBtnLabel}>Парковать</Text>
                 </Pressable>
               )}
               {order.length > 0 && (
                 <Pressable onPress={() => { setOrder([]); setExpandedCartId(null); }} hitSlop={8} style={[styles.orderHeaderBtn, styles.orderHeaderBtnDanger]}>
-                  <Text style={styles.orderHeaderBtnIcon}>🗑</Text>
-                  <Text style={[styles.orderHeaderBtnLabel, { color: colors.redLight }]}>Очистить</Text>
+                  <Text style={[styles.orderHeaderBtnIcon, { color: colors.redLight }]}>🗑</Text>
                 </Pressable>
               )}
             </View>
@@ -853,50 +851,16 @@ export default function KassaScreen({ navigation, route }) {
                 </View>
               ) : (
                 <>
-                  <View style={{ position: 'relative', zIndex: 100 }}>
-                  <TextInput
-                    style={styles.input}
-                    value={clientSearch}
-                    onChangeText={setClientSearch}
-                    placeholder="Поиск по имени или телефону..."
-                    placeholderTextColor={colors.muted}
-                  />
-                  {clientSearch.length > 0 && (
-                    <View style={styles.clientDropdown}>
-                      <ScrollView keyboardShouldPersistTaps="always" nestedScrollEnabled scrollEnabled showsVerticalScrollIndicator={false}>
-                      {clientsList
-                        .filter(cl =>
-                          cl.fio?.toLowerCase().includes(clientSearch.toLowerCase()) ||
-                          cl.phone?.includes(clientSearch)
-                        )
-                        .slice(0, 6)
-                        .map(cl => (
-                          <Pressable
-                            key={cl.id}
-                            style={({ pressed }) => [styles.clientDropdownItem, pressed && { backgroundColor: 'rgba(255,255,255,0.04)' }]}
-                            onPress={() => {
-                              updateSlot({ forClient: cl });
-                              setClientSearch('');
-                            }}
-                          >
-                            <Text style={styles.clientDropdownName}>{cl.fio}</Text>
-                            <Text style={styles.clientDropdownSub}>
-                              {cl.phone || ''}{cl.phone && '  '}
-                              {loyaltyModel === 'points' ? `★ ${cl.balance || 0}` : `${cl.discount_pct || 0}%`}
-                            </Text>
-                          </Pressable>
-                        ))
-                      }
-                      {clientsList.filter(cl =>
-                        cl.fio?.toLowerCase().includes(clientSearch.toLowerCase()) ||
-                        cl.phone?.includes(clientSearch)
-                      ).length === 0 && (
-                        <Text style={styles.prePaySummaryMore}>Клиент не найден</Text>
-                      )}
-                      </ScrollView>
-                    </View>
-                  )}
-                  </View>
+                  {/* Кнопка-триггер пикера клиентов */}
+                  <Pressable
+                    style={[styles.discountListRow, { borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: '#07080a' }]}
+                    onPress={() => { setClientSearch(''); setClientPickerOpen(true); }}
+                  >
+                    <Text style={{ flex: 1, fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted }}>
+                      Выбрать из списка...
+                    </Text>
+                    <Text style={{ color: colors.muted, fontSize: 12 }}>▼</Text>
+                  </Pressable>
                 </>
               )}
 
@@ -914,46 +878,15 @@ export default function KassaScreen({ navigation, route }) {
                       </Pressable>
                     </View>
                   ) : (
-                    <View style={{ position: 'relative', zIndex: 100 }}>
-                      <Pressable
-                        style={[styles.discountListRow, { borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: '#07080a' }]}
-                        onPress={() => setDiscountDropOpen(v => !v)}
-                      >
-                        <Text style={{ flex: 1, fontFamily: fonts.familySemibold, fontSize: 13, color: appliedDiscount ? colors.greenLight : colors.text }}>
-                          {appliedDiscount ? `${appliedDiscount.name} −${appliedDiscount.pct}% (−${Math.round(rawTotal * appliedDiscount.pct / 100)} ₽)` : 'Без скидки'}
-                        </Text>
-                        <Text style={{ color: colors.muted, fontSize: 12 }}>{discountDropOpen ? '▲' : '▼'}</Text>
-                      </Pressable>
-                      {discountDropOpen && (
-                        <View style={styles.discountDropdown}>
-                          <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false}>
-                            <Pressable
-                              style={[styles.discountListRow, !appliedDiscount && styles.discountListRowActive]}
-                              onPress={() => { setAppliedDiscount(null); setDiscountDropOpen(false); }}
-                            >
-                              <Text style={[styles.discountListName, !appliedDiscount && { color: colors.greenLight }]}>Без скидки</Text>
-                              {!appliedDiscount ? <Text style={styles.discountListCheck}>✓</Text> : null}
-                            </Pressable>
-                            {discounts.map(d => {
-                              const isActive = appliedDiscount?.id != null && appliedDiscount.id === d.id;
-                              return (
-                                <Pressable
-                                  key={d.id}
-                                  style={[styles.discountListRow, isActive && styles.discountListRowActive]}
-                                  onPress={() => { setAppliedDiscount(d); setDiscountDropOpen(false); }}
-                                >
-                                  <View style={{ flex: 1 }}>
-                                    <Text style={[styles.discountListName, isActive && { color: colors.greenLight }]}>{d.name}</Text>
-                                    <Text style={styles.discountListSub}>−{d.pct}%  ≈ −{Math.round(rawTotal * d.pct / 100)} ₽</Text>
-                                  </View>
-                                  {isActive ? <Text style={styles.discountListCheck}>✓</Text> : null}
-                                </Pressable>
-                              );
-                            })}
-                          </ScrollView>
-                        </View>
-                      )}
-                    </View>
+                    <Pressable
+                      style={[styles.discountListRow, { borderRadius: 12, borderWidth: 1, borderColor: appliedDiscount ? 'rgba(61,158,146,0.4)' : colors.border, backgroundColor: '#07080a' }]}
+                      onPress={() => setDiscountDropOpen(true)}
+                    >
+                      <Text style={{ flex: 1, fontFamily: fonts.familySemibold, fontSize: 13, color: appliedDiscount ? colors.greenLight : colors.muted }}>
+                        {appliedDiscount ? `${appliedDiscount.name} −${appliedDiscount.pct}% (−${Math.round(rawTotal * appliedDiscount.pct / 100)} ₽)` : 'Выбрать скидку...'}
+                      </Text>
+                      <Text style={{ color: colors.muted, fontSize: 12 }}>▼</Text>
+                    </Pressable>
                   )}
                 </>
               )}
@@ -1007,6 +940,99 @@ export default function KassaScreen({ navigation, route }) {
                 <Text style={styles.prePayCancelText}>Вернуться к заказу</Text>
               </Pressable>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Modal пикер клиентов (поверх модалки оплаты) ── */}
+      <Modal visible={clientPickerOpen} transparent animationType="fade" onRequestClose={() => setClientPickerOpen(false)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setClientPickerOpen(false)} />
+          <View style={[styles.modalInner, { width: '46%', maxHeight: '72%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Выбор клиента</Text>
+              <Pressable onPress={() => setClientPickerOpen(false)} hitSlop={14} style={styles.itemModalClose}>
+                <Text style={styles.itemModalCloseText}>✕</Text>
+              </Pressable>
+            </View>
+            <TextInput
+              style={styles.input}
+              value={clientSearch}
+              onChangeText={setClientSearch}
+              placeholder="Поиск по имени или телефону..."
+              placeholderTextColor={colors.muted}
+              autoFocus
+            />
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="always" style={{ marginTop: 8 }}>
+              {clientsList
+                .filter(cl =>
+                  !clientSearch.trim() ||
+                  cl.fio?.toLowerCase().includes(clientSearch.toLowerCase()) ||
+                  (cl.phone || '').includes(clientSearch)
+                )
+                .slice(0, 30)
+                .map(cl => (
+                  <Pressable
+                    key={`cpick-${cl.id}`}
+                    style={({ pressed }) => [styles.clientDropdownItem, pressed && { backgroundColor: 'rgba(255,255,255,0.04)' }]}
+                    onPress={() => { updateSlot({ forClient: cl }); setClientPickerOpen(false); setClientSearch(''); }}
+                  >
+                    <Text style={styles.clientDropdownName}>{cl.fio}</Text>
+                    <Text style={styles.clientDropdownSub}>
+                      {cl.phone ? `${cl.phone}  ` : ''}
+                      {loyaltyModel === 'points' ? `★ ${cl.balance || 0} балл.` : `${cl.discount_pct || 0}%`}
+                    </Text>
+                  </Pressable>
+                ))
+              }
+              {clientsList.filter(cl =>
+                !clientSearch.trim() ||
+                cl.fio?.toLowerCase().includes(clientSearch.toLowerCase()) ||
+                (cl.phone || '').includes(clientSearch)
+              ).length === 0 && (
+                <Text style={[styles.prePaySummaryMore, { padding: 14 }]}>Клиенты не найдены</Text>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Modal пикер скидок (поверх модалки оплаты) ── */}
+      <Modal visible={discountDropOpen} transparent animationType="fade" onRequestClose={() => setDiscountDropOpen(false)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setDiscountDropOpen(false)} />
+          <View style={[styles.modalInner, { width: '42%', maxHeight: '60%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Скидка</Text>
+              <Pressable onPress={() => setDiscountDropOpen(false)} hitSlop={14} style={styles.itemModalClose}>
+                <Text style={styles.itemModalCloseText}>✕</Text>
+              </Pressable>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Pressable
+                style={[styles.discountListRow, !appliedDiscount && styles.discountListRowActive]}
+                onPress={() => { setAppliedDiscount(null); setDiscountDropOpen(false); }}
+              >
+                <Text style={[styles.discountListName, !appliedDiscount && { color: colors.greenLight }]}>Без скидки</Text>
+                {!appliedDiscount ? <Text style={styles.discountListCheck}>✓</Text> : null}
+              </Pressable>
+              {discounts.map(d => {
+                const isActive = appliedDiscount != null && appliedDiscount.id === d.id;
+                return (
+                  <Pressable
+                    key={`dpick-${d.id}`}
+                    style={[styles.discountListRow, isActive && styles.discountListRowActive]}
+                    onPress={() => { setAppliedDiscount(d); setDiscountDropOpen(false); }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.discountListName, isActive && { color: colors.greenLight }]}>{d.name}</Text>
+                      <Text style={styles.discountListSub}>−{d.pct}%  ≈ −{Math.round(rawTotal * d.pct / 100)} ₽</Text>
+                    </View>
+                    {isActive ? <Text style={styles.discountListCheck}>✓</Text> : null}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
           </View>
         </View>
       </Modal>
