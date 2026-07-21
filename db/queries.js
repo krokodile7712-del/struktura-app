@@ -2148,3 +2148,194 @@ function calcSingleSalary(user, revenue, hours) {
     default:            return amt;
   }
 }
+
+// ─── Фаза 7: Полный управленческий P&L ──────────────────────────────────────
+
+// Количество смен за период
+function getShiftsInPeriod(dateFrom, dateTo) {
+  const db = getDb();
+  try {
+    return db.getAllSync(
+      `SELECT * FROM shifts WHERE opened_at >= ? AND opened_at <= ?`,
+      [dateFrom + 'T00:00:00', dateTo + 'T23:59:59']
+    );
+  } catch (_) { return []; }
+}
+
+// Полный P&L с накладными, зарплатой и амортизацией
+export function getPnLFull(dateFrom, dateTo) {
+  // Базовый P&L (выручка, COGS, расходы)
+  const base = getPnL(dateFrom, dateTo);
+  const days = Math.max(1, Math.round(
+    (new Date(dateTo) - new Date(dateFrom)) / 86400000
+  ) + 1);
+
+  // ── Накладные расходы за период ──
+  let overheadTotal = 0;
+  try {
+    const overheads = getOverheadItems();
+    for (const oh of overheads) {
+      const monthly = oh.period === 'year'  ? oh.amount / 12
+                    : oh.period === 'week'  ? oh.amount * 4.33
+                    : oh.amount;
+      overheadTotal += monthly * (days / 30);
+    }
+  } catch (_) {}
+  overheadTotal = Math.round(overheadTotal);
+
+  // ── Зарплата за период ──
+  let salaryTotal = 0;
+  try {
+    const shifts = getShiftsInPeriod(dateFrom, dateTo);
+    const db = getDb();
+    for (const shift of shifts) {
+      const user = shift.employee_name
+        ? db.getFirstSync(`SELECT * FROM users WHERE name = ?`, [shift.employee_name])
+        : null;
+      if (user && user.salary_amount > 0) {
+        const hours = shift.closed_at
+          ? Math.round((new Date(shift.closed_at) - new Date(shift.opened_at)) / 3600000)
+          : 8;
+        switch (user.salary_type) {
+          case 'shift':       salaryTotal += user.salary_amount; break;
+          case 'hourly':      salaryTotal += user.salary_amount * hours; break;
+          case 'monthly':     salaryTotal += user.salary_amount / 22; break;
+          case 'revenue_pct': salaryTotal += (base.revenue * user.salary_amount / 100) / Math.max(1, shifts.length); break;
+          default:            salaryTotal += user.salary_amount;
+        }
+      } else if (!user) {
+        // Среднее по всем сотрудникам
+        salaryTotal += calcShiftSalaryCost({ revenueInShift: base.revenue / Math.max(1, shifts.length) });
+      }
+    }
+  } catch (_) {}
+  salaryTotal = Math.round(salaryTotal);
+
+  // ── Амортизация оборудования за период ──
+  let deprTotal = 0;
+  try {
+    const equipment = getEquipment();
+    for (const eq of equipment) {
+      if (!eq.cost || eq.cost === 0) continue;
+      if (eq.amort_type === 'linear' && eq.amort_period > 0) {
+        deprTotal += (eq.cost / eq.amort_period) * (days / 30);
+      } else if (eq.amort_type === 'production' && eq.amort_cycles > 0) {
+        // Циклы за период = заказы за период * cycles_per_use
+        deprTotal += (eq.cost / eq.amort_cycles) * base.orderCount * (eq.cycles_per_use || 1);
+      } else if (eq.amort_type === 'mixed' && eq.amort_period > 0) {
+        deprTotal += (eq.cost / eq.amort_period) * (days / 30);
+      }
+    }
+  } catch (_) {}
+  deprTotal = Math.round(deprTotal);
+
+  // ── Итоговые показатели ──
+  const totalCosts    = base.cogs + base.expenses + overheadTotal + salaryTotal + deprTotal;
+  const fullNetProfit = base.revenue - totalCosts;
+  const fullNetMarginPct = base.revenue > 0
+    ? Math.round(fullNetProfit / base.revenue * 1000) / 10
+    : 0;
+
+  return {
+    ...base,
+    overheadTotal,
+    salaryTotal,
+    deprTotal,
+    totalCosts,
+    fullNetProfit,
+    fullNetMarginPct,
+    // Метрики для типа бизнеса
+    foodCostPct:  base.revenue > 0 ? Math.round(base.cogs / base.revenue * 1000) / 10 : 0,
+    primeCostPct: base.revenue > 0 ? Math.round((base.cogs + salaryTotal) / base.revenue * 1000) / 10 : 0,
+    grossMarginPct: base.grossMarginPct,
+    laborCostPct: base.revenue > 0 ? Math.round(salaryTotal / base.revenue * 1000) / 10 : 0,
+    breakEvenMonthly: (overheadTotal + salaryTotal + deprTotal + base.expenses) > 0 && base.grossMarginPct > 0
+      ? Math.round((overheadTotal + salaryTotal + deprTotal + base.expenses) / (base.grossMarginPct / 100))
+      : 0,
+    shiftsCount: (() => { try { return getShiftsInPeriod(dateFrom, dateTo).length; } catch(_) { return 0; } })(),
+    avgCheckPerShift: (() => {
+      const sc = (() => { try { return getShiftsInPeriod(dateFrom, dateTo).length; } catch(_) { return 0; } })();
+      return sc > 0 ? Math.round(base.revenue / sc) : 0;
+    })(),
+  };
+}
+
+// ─── Метрики по типу бизнеса ─────────────────────────────────────────────────
+export function getBusinessMetrics(pnlFull, businessPreset) {
+  const metrics = [];
+  const { revenue, foodCostPct, primeCostPct, grossMarginPct, laborCostPct,
+          orderCount, avgCheck, shiftsCount, avgCheckPerShift, breakEvenMonthly } = pnlFull;
+
+  if (businessPreset === 'coffee' || businessPreset === 'services' || !businessPreset) {
+    metrics.push({
+      key: 'foodCost',
+      label: 'Food Cost %',
+      value: `${foodCostPct}%`,
+      benchmark: '< 30%',
+      ok: foodCostPct > 0 && foodCostPct < 30,
+      warn: foodCostPct >= 30,
+      tip: 'Доля себестоимости в выручке. Норма для кофейни: 25–30%. Выше 35% — пора пересматривать рецептуру или поставщиков.',
+    });
+    metrics.push({
+      key: 'primeCost',
+      label: 'Prime Cost %',
+      value: `${primeCostPct}%`,
+      benchmark: '< 60%',
+      ok: primeCostPct > 0 && primeCostPct < 60,
+      warn: primeCostPct >= 60,
+      tip: 'Себестоимость + Зарплата / Выручка. Главный показатель эффективности F&B. Норма: 55–60%.',
+    });
+  }
+
+  if (businessPreset === 'retail' || !businessPreset) {
+    metrics.push({
+      key: 'grossMargin',
+      label: 'Валовая маржа',
+      value: `${grossMarginPct}%`,
+      benchmark: '> 40%',
+      ok: grossMarginPct > 40,
+      warn: grossMarginPct <= 40,
+      tip: 'Процент валовой прибыли от выручки. Для розницы норма зависит от категории: продукты 20–35%, одежда 50–70%.',
+    });
+  }
+
+  metrics.push({
+    key: 'laborCost',
+    label: 'Зарплатный фонд %',
+    value: `${laborCostPct}%`,
+    benchmark: '< 35%',
+    ok: laborCostPct > 0 && laborCostPct < 35,
+    warn: laborCostPct >= 35,
+    tip: 'Доля зарплат в выручке. Норма для большинства бизнесов: 25–35%.',
+  });
+
+  metrics.push({
+    key: 'avgCheck',
+    label: 'Средний чек',
+    value: `${avgCheck.toLocaleString('ru-RU')} ₽`,
+    benchmark: null,
+    tip: 'Средняя сумма одного заказа за период.',
+  });
+
+  if (shiftsCount > 0) {
+    metrics.push({
+      key: 'revenuePerShift',
+      label: 'Выручка за смену',
+      value: `${avgCheckPerShift.toLocaleString('ru-RU')} ₽`,
+      benchmark: null,
+      tip: 'Средняя выручка за одну рабочую смену.',
+    });
+  }
+
+  if (breakEvenMonthly > 0) {
+    metrics.push({
+      key: 'breakEven',
+      label: 'Точка безубыточности',
+      value: `${breakEvenMonthly.toLocaleString('ru-RU')} ₽/мес`,
+      benchmark: null,
+      tip: 'Сколько нужно выручки в месяц чтобы покрыть все постоянные расходы (накладные + зарплата + амортизация).',
+    });
+  }
+
+  return metrics;
+}

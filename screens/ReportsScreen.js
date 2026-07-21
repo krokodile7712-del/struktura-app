@@ -6,7 +6,7 @@ import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import InfoTip from '../components/InfoTip';
 import Toggle from '../components/Toggle';
-import { getPnL, getRevenueByDay, getTopProducts } from '../db/queries';
+import { getPnL, getPnLFull, getBusinessMetrics, getRevenueByDay, getTopProducts, getBusinessProfile } from '../db/queries';
 import { getHomeRoute } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
 import { useFocusEffect } from '@react-navigation/native';
@@ -118,11 +118,14 @@ export default function ReportsScreen({ navigation }) {
   const [customTo, setCustomTo]   = useState(todayStr());
   const [showPresets, setShowPresets] = useState(false);
   const [showCustom, setShowCustom]   = useState(false);
-  const [tab, setTab]             = useState('pnl');
+  const [tab, setTab]             = useState('pnl'); // 'pnl' | 'full' | 'metrics' | 'charts'
   const [compare, setCompare]     = useState(false);
   const [exporting, setExporting] = useState(false);
 
   const [pnl, setPnl]             = useState(null);
+  const [pnlFull, setPnlFull]     = useState(null);
+  const [metrics, setMetrics]     = useState([]);
+  const [businessPreset, setBusinessPreset] = useState('custom');
   const [pnlPrev, setPnlPrev]     = useState(null);
   const [revenueByDay, setRevenueByDay] = useState([]);
   const [topProducts, setTopProducts]   = useState([]);
@@ -142,6 +145,9 @@ export default function ReportsScreen({ navigation }) {
   const load = useCallback(() => {
     const { from, to } = getRange();
     try {
+      const profile = getBusinessProfile();
+      const bPreset = profile?.preset || 'custom';
+      setBusinessPreset(bPreset);
       const cur = getPnL(from, to);
       setPnl(cur);
       setRevenueByDay(getRevenueByDay(from, to).map(r => ({
@@ -151,6 +157,9 @@ export default function ReportsScreen({ navigation }) {
       setTopProducts(getTopProducts(from, to, 8).map(r => ({
         label: r.name, total: r.qty,
       })));
+      const full = getPnLFull(from, to);
+      setPnlFull(full);
+      setMetrics(getBusinessMetrics(full, bPreset));
       if (compare) {
         const prev = prevPeriod(from, to);
         setPnlPrev(getPnL(prev.from, prev.to));
@@ -249,6 +258,12 @@ export default function ReportsScreen({ navigation }) {
           <Pressable style={[styles.tabBtn, tab === 'pnl' && styles.tabBtnActive]} onPress={() => setTab('pnl')}>
             <Text style={[styles.tabBtnText, tab === 'pnl' && styles.tabBtnTextActive]}>📊 P&L</Text>
           </Pressable>
+          <Pressable style={[styles.tabBtn, tab === 'full' && styles.tabBtnActive]} onPress={() => setTab('full')}>
+            <Text style={[styles.tabBtnText, tab === 'full' && styles.tabBtnTextActive]}>📋 Полный</Text>
+          </Pressable>
+          <Pressable style={[styles.tabBtn, tab === 'metrics' && styles.tabBtnActive]} onPress={() => setTab('metrics')}>
+            <Text style={[styles.tabBtnText, tab === 'metrics' && styles.tabBtnTextActive]}>🎯 KPI</Text>
+          </Pressable>
           <Pressable style={[styles.tabBtn, tab === 'charts' && styles.tabBtnActive]} onPress={() => setTab('charts')}>
             <Text style={[styles.tabBtnText, tab === 'charts' && styles.tabBtnTextActive]}>📈 Графики</Text>
           </Pressable>
@@ -345,6 +360,68 @@ export default function ReportsScreen({ navigation }) {
             </MetalCard>
           )}
         </>)}
+
+
+        {tab === 'full' && pnlFull && (
+          <MetalCard>
+            <Text style={styles.netLabel}>Полный управленческий P&L</Text>
+            {[
+              { label: 'Выручка',                  val: pnlFull.revenue,        color: colors.greenLight },
+              { label: '− Себестоимость (COGS)',    val: -pnlFull.cogs,          color: colors.redLight },
+              { label: '= Валовая прибыль',         val: pnlFull.grossProfit,    color: pnlFull.grossProfit >= 0 ? colors.greenLight : colors.redLight, bold: true },
+              { label: '− Прямые расходы',          val: -pnlFull.expenses,      color: '#e0a040' },
+              { label: '− Накладные расходы',       val: -pnlFull.overheadTotal, color: '#e0a040' },
+              { label: '− Зарплата',                val: -pnlFull.salaryTotal,   color: '#e0a040' },
+              { label: '− Амортизация',             val: -pnlFull.deprTotal,     color: '#e0a040' },
+              { label: '= Чистая прибыль (полная)', val: pnlFull.fullNetProfit,  color: pnlFull.fullNetProfit >= 0 ? colors.greenLight : colors.redLight, bold: true },
+            ].map((row, i) => (
+              <View key={i} style={[styles.waterfallRow, { paddingVertical: 8 }]}>
+                <Text style={[styles.waterfallLabel, row.bold && { fontFamily: fonts.familySemibold, color: colors.text }]}>{row.label}</Text>
+                <Text style={[styles.waterfallVal, { color: row.color }, row.bold && { fontFamily: fonts.familySemibold, fontSize: 15 }]}>
+                  {row.val >= 0 ? '+' : ''}{fmt(Math.round(row.val))} ₽
+                </Text>
+              </View>
+            ))}
+            <View style={{ marginTop: 14, padding: 12, backgroundColor: 'rgba(61,158,146,0.06)', borderRadius: 12 }}>
+              <Text style={[styles.netValue, { fontSize: 26, color: pnlFull.fullNetProfit >= 0 ? colors.greenLight : colors.redLight }]}>
+                {pnlFull.fullNetProfit >= 0 ? '+' : ''}{fmt(pnlFull.fullNetProfit)} ₽
+              </Text>
+              <Text style={styles.netSub}>Полная чистая маржа: {pnlFull.fullNetMarginPct}%</Text>
+            </View>
+            {(pnlFull.overheadTotal === 0 && pnlFull.salaryTotal === 0 && pnlFull.deprTotal === 0) && (
+              <Text style={[styles.hintCard, { marginTop: 12 }]}>
+                💡 Накладные, зарплата и амортизация = 0. Заполните разделы Накладные расходы, Сотрудники (ставки) и Оборудование для полного расчёта.
+              </Text>
+            )}
+          </MetalCard>
+        )}
+
+        {tab === 'metrics' && (
+          <>
+            {metrics.length > 0 ? metrics.map(m => (
+              <MetalCard key={m.key} style={{ marginBottom: 10 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={styles.metricLabel}>{m.label}</Text>
+                    {m.tip && <InfoTip title={m.label} text={m.tip} />}
+                  </View>
+                  {m.benchmark && <Text style={styles.benchmarkLabel}>норма: {m.benchmark}</Text>}
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 }}>
+                  <Text style={[styles.metricValue, { color: m.ok ? colors.greenLight : m.warn ? colors.redLight : colors.text }]}>{m.value}</Text>
+                  {m.ok && <Text style={styles.statusOk}>✓ норма</Text>}
+                  {m.warn && <Text style={styles.statusWarn}>⚠️ выше нормы</Text>}
+                </View>
+              </MetalCard>
+            )) : (
+              <MetalCard>
+                <Text style={styles.hintCard}>
+                  {'🎯 Метрики появятся когда будут данные о продажах за выбранный период.\n\nДля расширенных KPI заполните техкарты, ставки сотрудников и накладные расходы.'}
+                </Text>
+              </MetalCard>
+            )}
+          </>
+        )}
 
         {tab === 'charts' && (<>
           <MetalCard>
@@ -454,6 +531,10 @@ const styles = StyleSheet.create({
   waterfallLabel: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
   waterfallVal: { fontFamily: fonts.familyRegular, fontSize: 13 },
   hintCard: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, lineHeight: 20 },
+
+  benchmarkLabel: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
+  statusOk: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.greenLight },
+  statusWarn: { fontFamily: fonts.familySemibold, fontSize: 12, color: '#e0a040' },
 
   // Графики
   chartTitle: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, marginBottom: 14 },
