@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Share, Animated, LayoutAnimation, Platform, Alert, BackHandler, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Share, Animated, LayoutAnimation, Platform, Alert, BackHandler, useWindowDimensions, Dimensions } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
@@ -1170,7 +1170,7 @@ export default function SettingsScreen({ navigation }) {
         <View style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setProductModal(null)} />
           {productModal && (
-            <View style={[styles.modalInner, { maxHeight: '90%', width: '52%' }]}>
+            <View style={[styles.modalInner, { height: Dimensions.get('window').height * 0.85, width: '52%', justifyContent: 'flex-start' }]}>
 
               {/* Заголовок с крестиком */}
               <View style={styles.modalHeader}>
@@ -1182,7 +1182,7 @@ export default function SettingsScreen({ navigation }) {
                 </Pressable>
               </View>
 
-              <ScrollView style={{ maxHeight: 480 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={true} keyboardShouldPersistTaps="handled">
                 {/* Название */}
                 <Text style={styles.productFieldLabel}>Название</Text>
                 <TextInput
