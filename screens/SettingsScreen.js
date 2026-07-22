@@ -1614,7 +1614,7 @@ export default function SettingsScreen({ navigation }) {
 
         <SectionAccordion sectionKey="system" selectedSection={selectedSection}>
 
-          {/* Онбординг */}
+          {/* Настройка */}
           <Text style={styles.bizGroupLabel}>Настройка</Text>
           <View style={styles.menuCard}>
             <Pressable
@@ -1624,13 +1624,13 @@ export default function SettingsScreen({ navigation }) {
               <Text style={{ fontSize: 20, marginRight: 12 }}>🚀</Text>
               <View style={{ flex: 1 }}>
                 <Text style={styles.menuItemName}>Мастер настройки</Text>
-                <Text style={styles.menuItemSub}>Пройти первоначальную настройку заново</Text>
+                <Text style={styles.menuItemSub}>Перезапустить первоначальную настройку</Text>
               </View>
               <Text style={styles.menuItemArrow}>›</Text>
             </Pressable>
           </View>
 
-          {/* Резервное копирование */}
+          {/* Данные */}
           <Text style={styles.bizGroupLabel}>Данные</Text>
           <View style={styles.menuCard}>
             <Pressable
@@ -1644,34 +1644,79 @@ export default function SettingsScreen({ navigation }) {
             >
               <Text style={{ fontSize: 20, marginRight: 12 }}>💾</Text>
               <View style={{ flex: 1 }}>
-                <Text style={styles.menuItemName}>Экспорт и резервная копия</Text>
-                <Text style={styles.menuItemSub}>Открывает системное меню «Поделиться» с данными</Text>
+                <Text style={styles.menuItemName}>Сохранить резервную копию</Text>
+                <Text style={styles.menuItemSub}>Товары, клиенты, продажи, настройки — всё в одном файле</Text>
               </View>
               <Text style={styles.menuItemArrow}>›</Text>
             </Pressable>
-            <View style={[styles.menuRow, { opacity: 0.5 }]}>
-              <Text style={{ fontSize: 20, marginRight: 12 }}>📥</Text>
+            <Pressable
+              style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: 'rgba(255,59,48,0.04)' }]}
+              onPress={() => {
+                Alert.alert(
+                  'Сбросить все данные?',
+                  'Удалятся все продажи, клиенты, товары и настройки. Это действие невозможно отменить.',
+                  [
+                    { text: 'Отмена', style: 'cancel' },
+                    { text: 'Сбросить', style: 'destructive', onPress: () => {
+                      try {
+                        const db = require('../db/database').getDb();
+                        ['orders','order_items','clients','products','product_variants',
+                         'stock','stock_movements','shifts','expenses'].forEach(t => {
+                          try { db.runSync(`DELETE FROM ${t}`); } catch (_) {}
+                        });
+                        loadAll();
+                      } catch (e) { console.error(e); }
+                    }},
+                  ]
+                );
+              }}
+            >
+              <Text style={{ fontSize: 20, marginRight: 12 }}>🗑</Text>
               <View style={{ flex: 1 }}>
-                <Text style={styles.menuItemName}>Импорт данных</Text>
-                <Text style={styles.menuItemSub}>Скоро — восстановление из резервной копии</Text>
+                <Text style={[styles.menuItemName, { color: colors.redLight }]}>Сбросить все данные</Text>
+                <Text style={styles.menuItemSub}>Удалить продажи, клиентов, товары. Настройки сохранятся</Text>
               </View>
-            </View>
+              <Text style={styles.menuItemArrow}>›</Text>
+            </Pressable>
+          </View>
+
+          {/* Уведомления */}
+          <Text style={styles.bizGroupLabel}>Уведомления</Text>
+          <View style={styles.menuCard}>
+            <Pressable
+              style={[styles.menuRow]}
+              onPress={() => setSetting('notify_low_stock', getSetting('notify_low_stock') === '1' ? '0' : '1')}
+            >
+              <Text style={{ fontSize: 20, marginRight: 12 }}>📦</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.menuItemName}>Низкий остаток на складе</Text>
+                <Text style={styles.menuItemSub}>Предупреждение ⚠️ когда товар заканчивается</Text>
+              </View>
+              <Toggle
+                value={getSetting('notify_low_stock') !== '0'}
+                onValueChange={v => setSetting('notify_low_stock', v ? '1' : '0')}
+                size="sm"
+              />
+            </Pressable>
           </View>
 
           {/* О приложении */}
           <Text style={styles.bizGroupLabel}>О приложении</Text>
           <View style={styles.menuCard}>
             <View style={[styles.menuRow, styles.menuRowDiv]}>
+              <Text style={{ fontSize: 20, marginRight: 12 }}>📱</Text>
               <View style={{ flex: 1 }}>
                 <Text style={styles.menuItemName}>СТРУКТУРА</Text>
-                <Text style={styles.menuItemSub}>Версия 1.0.0 · React Native / Expo SDK 56</Text>
+                <Text style={styles.menuItemSub}>Версия 1.0.0 · POS/CRM для малого бизнеса</Text>
               </View>
             </View>
             <View style={styles.menuRow}>
+              <Text style={{ fontSize: 20, marginRight: 12 }}>🆘</Text>
               <View style={{ flex: 1 }}>
-                <Text style={styles.menuItemName}>Разработка</Text>
-                <Text style={styles.menuItemSub}>Создано с ❤️ в Termux + Claude</Text>
+                <Text style={styles.menuItemName}>Поддержка</Text>
+                <Text style={styles.menuItemSub}>По вопросам: написать в Telegram</Text>
               </View>
+              <Text style={styles.menuItemArrow}>›</Text>
             </View>
           </View>
 
