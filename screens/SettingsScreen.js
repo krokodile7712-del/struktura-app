@@ -1299,14 +1299,17 @@ export default function SettingsScreen({ navigation }) {
                   <Toggle value={!!productModal.product.active} onValueChange={() => toggleProductActive()} />
                 </View>
 
-                {/* Сохранить */}
+              </ScrollView>
+
+              {/* Кнопка — фиксированный footer, всегда видна */}
+              <View style={styles.prodModalFooter}>
                 <Pressable
-                  style={({ pressed }) => [styles.confirmBtn, { marginTop: 20, marginBottom: 4 }, pressed && { opacity: 0.88 }]}
+                  style={({ pressed }) => [styles.confirmBtn, pressed && { opacity: 0.88 }]}
                   onPress={saveProduct}
                 >
                   <Text style={styles.confirmBtnText}>Сохранить</Text>
                 </Pressable>
-              </ScrollView>
+              </View>
             </View>
           )}
         </View>
@@ -1980,11 +1983,10 @@ const styles = StyleSheet.create({
   phoneback: { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
   phoneBackText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight },
   // Модалка товара — position:absolute для надёжного scroll
-  prodModalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)' },
+  prodModalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center' },
   prodModalBox: {
-    position: 'absolute',
-    top: '4%', bottom: '4%',
-    left: '24%', right: '4%',
+    width: '50%',
+    maxHeight: '85%',
     backgroundColor: '#0e0f11',
     borderRadius: 20,
     borderWidth: 1,
@@ -1996,6 +1998,9 @@ const styles = StyleSheet.create({
     padding: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.3)',
   },
   prodModalTitle: { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text },
+  prodModalFooter: { padding: 16, borderTopWidth: 1, borderTopColor: 'rgba(74,77,84,0.3)', backgroundColor: '#0e0f11' },
+  confirmBtn: { paddingVertical: 15, borderRadius: 14, backgroundColor: 'rgba(61,158,146,0.85)', alignItems: 'center' },
+  confirmBtnText: { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff' },
   prodInput: {
     padding: 13, backgroundColor: '#07080a', borderWidth: 1,
     borderColor: 'rgba(74,77,84,0.5)', borderRadius: 12,
