@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Pressable, Modal, ScrollView } from 'react-native';
 import { fonts, colors } from '../constants/theme';
 
 /**
@@ -7,6 +7,7 @@ import { fonts, colors } from '../constants/theme';
  * Не сдвигает контент сильно — занимает ~56px по высоте.
  */
 export default function StatsBar({ stats, modules, onShiftPress, onStockPress }) {
+  const [stockOpen, setStockOpen] = useState(false);
   if (!stats) return null;
 
   const { shift, shiftDuration, todayOrders, todayTotal, todayCash, todayCard, todayMixed, lowStockCount, lowStockItems } = stats;
@@ -50,7 +51,7 @@ export default function StatsBar({ stats, modules, onShiftPress, onStockPress })
       {modules?.stock !== false && lowStockCount > 0 && (
         <>
           <View style={styles.divider} />
-          <Pressable style={styles.stockItem} onPress={onStockPress} hitSlop={6}>
+          <Pressable style={styles.stockItem} onPress={() => setStockOpen(true)} hitSlop={6}>
             <Text style={styles.stockIcon}>⚠️</Text>
             <View>
               <Text style={styles.stockVal}>{lowStockCount} поз.</Text>
@@ -60,10 +61,48 @@ export default function StatsBar({ stats, modules, onShiftPress, onStockPress })
         </>
       )}
     </View>
+
+      {/* Выпадающий список низкого остатка */}
+      <Modal visible={stockOpen} transparent animationType="fade" onRequestClose={() => setStockOpen(false)}>
+        <Pressable style={styles.backdrop} onPress={() => setStockOpen(false)}>
+          <View style={styles.dropdown}>
+            <View style={styles.dropHeader}>
+              <Text style={styles.dropTitle}>⚠️ Заканчивается</Text>
+              <Pressable onPress={() => setStockOpen(false)} hitSlop={12}>
+                <Text style={styles.dropClose}>✕</Text>
+              </Pressable>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+              {(lowStockItems || []).map((item, i) => (
+                <View key={i} style={[styles.dropRow, i < (lowStockItems.length - 1) && styles.dropRowDiv]}>
+                  <Text style={styles.dropName} numberOfLines={1}>{item.name}</Text>
+                  <Text style={[styles.dropQty, { color: item['остаток'] < 0 ? '#ff3b30' : colors.redLight }]}>
+                    {item['остаток']} {item.unit}
+                  </Text>
+                </View>
+              ))}
+            </ScrollView>
+            <Pressable style={styles.dropGoBtn} onPress={() => { setStockOpen(false); onStockPress?.(); }}>
+              <Text style={styles.dropGoBtnText}>Открыть склад →</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-start', alignItems: 'flex-end', paddingTop: 56, paddingRight: 12 },
+  dropdown: { width: 280, backgroundColor: '#0e0f11', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(74,77,84,0.5)', overflow: 'hidden', maxHeight: 320, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 16 },
+  dropHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.3)' },
+  dropTitle:  { fontFamily: fonts.familySemibold, fontSize: 13, color: '#ddd8d0' },
+  dropClose:  { fontSize: 16, color: '#4a4d54', padding: 2 },
+  dropRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 14 },
+  dropRowDiv: { borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.15)' },
+  dropName:   { fontFamily: fonts.familySemibold, fontSize: 13, color: '#ddd8d0', flex: 1, marginRight: 8 },
+  dropQty:    { fontFamily: fonts.familySemibold, fontSize: 13 },
+  dropGoBtn:  { padding: 14, borderTopWidth: 1, borderTopColor: 'rgba(74,77,84,0.3)', alignItems: 'center' },
+  dropGoBtnText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.greenLight },
   bar: {
     flexDirection: 'row',
     alignItems: 'center',
