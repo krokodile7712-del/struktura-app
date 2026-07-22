@@ -263,6 +263,13 @@ const styles = StyleSheet.create({
   },
 
   // Кнопка смены аккаунта
+  list:        { backgroundColor: '#0b0c0f', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', overflow: 'hidden', marginBottom: 14 },
+  listItem:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, gap: 12 },
+  listItemDiv: { borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.2)' },
+  listIcon:    { fontSize: 18, width: 24, textAlign: 'center', opacity: 0.7 },
+  listLabel:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
+  listSub:     { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 1 },
+  listArrow:   { fontSize: 18, color: 'rgba(74,77,84,0.4)' },
   switchBtn: {
     padding: 14,
     borderRadius: 12,
