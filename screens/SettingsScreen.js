@@ -1965,7 +1965,7 @@ const styles = StyleSheet.create({
   phoneback: { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
   phoneBackText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight },
   // Модалка товара
-  productNameInput: { fontSize: 16, fontFamily: fonts.familySemibold },
+  productNameInput: { fontSize: 16, fontFamily: fonts.familySemibold, color: colors.text },
   productFieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 16 },
   productSectionHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, marginBottom: 8 },
   productCatRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -1974,7 +1974,7 @@ const styles = StyleSheet.create({
   productCatChipText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
   productCatChipTextActive: { color: colors.greenLight },
   productVariantRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, gap: 10 },
-  productVariantName: { flex: 1, fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, padding: 8, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', borderRadius: 10, marginRight: 8 },
+  productVariantName: { flex: 1, fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, padding: 10, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', borderRadius: 10, marginRight: 8 },
   productVariantPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
   productVariantPrice: { fontFamily: fonts.family, fontSize: 16, fontWeight: '700', color: colors.text, width: 72, textAlign: 'right', padding: 8, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', borderRadius: 10 },
   productVariantUnit: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
