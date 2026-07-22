@@ -88,6 +88,9 @@ export default function SettingsScreen({ navigation }) {
   const isPhone = SW < 600;
   const [selectedSection, setSelectedSection] = useState('menu');
   const [menuSearch, setMenuSearch]   = useState('');
+  const [stockSearch, setStockSearch]   = useState('');
+  const [stockSearchOpen, setStockSearchOpen] = useState(false);
+  const [openStockCats, setOpenStockCats] = useState({});
   const [empModal, setEmpModal]         = useState(null);
   const [roleNames, setRoleNames]       = useState({ admin: 'Администратор', barista: 'Сотрудник' });
 
@@ -1247,49 +1250,95 @@ export default function SettingsScreen({ navigation }) {
         <SectionAccordion sectionKey="stock" selectedSection={selectedSection}>
         {modules.stock !== false ? (<>
 
-          {/* Пороги остатков */}
-          <View style={styles.menuTopBarSticky}>
-            <Text style={styles.menuTopTitle}>Пороги остатков</Text>
-            <View style={styles.menuFloatBtns} pointerEvents="box-none">
-              <InfoTip
-                title="Пороговый остаток"
-                text="Минимальный остаток при котором появится предупреждение ⚠️ на главном экране. Помогает вовремя делать закупки — вы увидите сигнал до того как товар закончится."
-              />
+          {/* Поиск — sticky как в Меню и ценах */}
+          {selectedSection === 'stock' && (
+            <View style={styles.menuTopBarSticky}>
+              {stockSearchOpen ? (
+                <View style={styles.menuSearchRow}>
+                  <TextInput
+                    color={colors.text}
+                    style={styles.menuSearchInput}
+                    value={stockSearch}
+                    onChangeText={setStockSearch}
+                    placeholder="Поиск позиции..."
+                    placeholderTextColor={colors.muted}
+                    autoFocus
+                  />
+                  <Pressable onPress={() => { setStockSearchOpen(false); setStockSearch(''); }} hitSlop={10} style={styles.menuBadge}>
+                    <Text style={styles.menuBadgeText}>✕</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <View style={styles.menuSearchRow}>
+                  <Text style={styles.menuTopTitle}>Пороги остатков</Text>
+                  <Pressable onPress={() => setStockSearchOpen(true)} hitSlop={14} style={styles.menuBadge}>
+                    <Text style={styles.menuBadgeText}>🔍</Text>
+                  </Pressable>
+                </View>
+              )}
             </View>
-          </View>
+          )}
 
           {stock.length === 0 ? (
             <View style={[styles.menuCard, { padding: 16 }]}>
               <Text style={styles.menuItemSub}>Позиции склада появятся здесь после заполнения техкарт в разделе Меню и цены.</Text>
             </View>
-          ) : (
-            <View style={styles.menuCard}>
-              {stock.map((s, idx) => (
-                <View
-                  key={s.id}
-                  style={[styles.menuRow, idx < stock.length - 1 && styles.menuRowDiv]}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.menuItemName}>{s.name}</Text>
-                    <Text style={styles.menuItemSub}>Предупреждать при остатке меньше порога</Text>
-                  </View>
-                  <TextInput
-                    color={colors.text}
-                    style={styles.loyaltyInput}
-                    keyboardType="numeric"
-                    value={String(s['порог'] || '')}
-                    placeholder="0"
-                    placeholderTextColor={colors.muted}
-                    onChangeText={v => {
-                      const val = parseFloat(v) || 0;
-                      try { updateStockThreshold(s.id, val); loadAll(); } catch (_) {}
-                    }}
-                  />
-                  <Text style={[styles.loyaltyUnit, { width: 40 }]}>{s.unit}</Text>
+          ) : (() => {
+            const filtered = stock.filter(s =>
+              !stockSearch.trim() || s.name?.toLowerCase().includes(stockSearch.toLowerCase())
+            );
+            const cats = [...new Set(filtered.map(s => s.category || 'Без категории'))].sort();
+            if (filtered.length === 0) return (
+              <Text style={[styles.empty, { paddingVertical: 16 }]}>Ничего не найдено</Text>
+            );
+            return cats.map(cat => {
+              const items = filtered.filter(s => (s.category || 'Без категории') === cat);
+              const isOpen = openStockCats[cat] !== false; // открыто по умолчанию
+              return (
+                <View key={cat} style={{ marginBottom: 12 }}>
+                  {/* Заголовок категории — тап раскрывает/скрывает */}
+                  <Pressable
+                    style={({ pressed }) => [styles.stockAccHead, pressed && { backgroundColor: 'rgba(255,255,255,0.02)' }]}
+                    onPress={() => setOpenStockCats(prev => ({ ...prev, [cat]: !isOpen }))}
+                  >
+                    <View style={styles.menuCatLine} />
+                    <Text style={styles.menuCatName}>{cat}</Text>
+                    <Text style={styles.stockAccArrow}>{isOpen ? '▲' : '▼'}</Text>
+                    <View style={styles.menuCatLine} />
+                  </Pressable>
+
+                  {/* Список позиций */}
+                  {isOpen && (
+                    <View style={styles.menuCard}>
+                      {items.map((s, idx) => (
+                        <View
+                          key={s.id}
+                          style={[styles.menuRow, idx < items.length - 1 && styles.menuRowDiv]}
+                        >
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.menuItemName}>{s.name}</Text>
+                          </View>
+                          <TextInput
+                            color={colors.text}
+                            style={styles.loyaltyInput}
+                            keyboardType="numeric"
+                            value={String(s['порог'] || '')}
+                            placeholder="0"
+                            placeholderTextColor={colors.muted}
+                            onChangeText={v => {
+                              const val = parseFloat(v) || 0;
+                              try { updateStockThreshold(s.id, val); loadAll(); } catch (_) {}
+                            }}
+                          />
+                          <Text style={[styles.loyaltyUnit, { width: 40 }]}>{s.unit}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
                 </View>
-              ))}
-            </View>
-          )}
+              );
+            });
+          })()}
 
           {/* Категории склада */}
           {stockCats.length > 0 && (<>
@@ -2500,6 +2549,8 @@ const styles = StyleSheet.create({
     padding: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.3)',
   },
   prodModalTitle: { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text },
+  stockAccHead: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
+  stockAccArrow: { fontFamily: fonts.familyRegular, fontSize: 10, color: 'rgba(74,77,84,0.6)' },
   loyaltyInput: { width: 60, padding: 8, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', borderRadius: 10, color: colors.text, fontFamily: fonts.family, fontSize: 16, fontWeight: '700', textAlign: 'center' },
   loyaltyUnit: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, width: 36 },
   loyaltyExample: { marginTop: 10, padding: 14, backgroundColor: 'rgba(61,95,168,0.08)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(61,95,168,0.2)', gap: 4 },
