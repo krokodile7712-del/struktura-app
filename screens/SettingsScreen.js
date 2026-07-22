@@ -522,11 +522,11 @@ export default function SettingsScreen({ navigation }) {
   const saveDiscounts = (list) => {
     try { setSetting('discounts', JSON.stringify(list)); setDiscounts(list); } catch (e) { console.error(e); }
   };
-  const openNewDiscount = () => setDiscountModal({ index: -1, name: '', pct: '' });
-  const openEditDiscount = (i) => setDiscountModal({ index: i, name: discounts[i].name, pct: String(discounts[i].pct) });
+  const openNewDiscount = () => setDiscountModal({ index: -1, name: '', pct: '', desc: '' });
+  const openEditDiscount = (i) => setDiscountModal({ index: i, name: discounts[i].name, pct: String(discounts[i].pct), desc: discounts[i].desc || '' });
   const saveDiscountModal = () => {
     if (!discountModal || !discountModal.name.trim() || !discountModal.pct) return;
-    const entry = { name: discountModal.name.trim(), pct: parseFloat(discountModal.pct) || 0 };
+    const entry = { name: discountModal.name.trim(), pct: parseFloat(discountModal.pct) || 0, desc: (discountModal.desc || '').trim() };
     const list = [...discounts];
     if (discountModal.index === -1) list.push(entry); else list[discountModal.index] = entry;
     saveDiscounts(list);
@@ -1120,93 +1120,128 @@ export default function SettingsScreen({ navigation }) {
         </SectionAccordion>
 
         <SectionAccordion sectionKey="payment" selectedSection={selectedSection}>
-        {/* Способы оплаты */}
-        <MetalCard style={{ marginTop: 12 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-            <Text style={styles.blockTitle}>💳 Способы оплаты</Text>
-            <InfoTip
-              title="Способы оплаты"
-              text="Настройте какими способами клиенты могут платить — наличные, карта, QR-код, перевод. Тип (нал / безнал) влияет на итоги в отчётах и при закрытии смены. Смешанная оплата позволяет разделить сумму между наличными и картой."
-            />
-          </View>
-          <Text style={styles.hintText}>Тип: «нал» = наличные в отчётах, «безнал» = карта/QR, «смешанная» = UI разделения суммы.</Text>
-          {payMethodsList.map((m, i) => (
-            <Pressable key={m.id || i} style={({ pressed }) => [styles.row, pressed && { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8 }]} onPress={() => openEditPayMethod(m, i)}>
-              <Text style={[styles.rowName, m.active === false && { color: colors.muted }]}>
-                {m.icon} {m.name}
-                {m.active === false ? '  (откл)' : ''}
-              </Text>
-              <Text style={styles.rowPrice}>
-                {m.type === 'cash' ? 'нал' : m.type === 'mixed' ? 'смешанная' : 'безнал'} ›
-              </Text>
-            </Pressable>
-          ))}
-          <MetalButton title="+ Добавить способ оплаты" variant="default" onPress={openNewPayMethod} style={{ marginTop: 8 }} />
-        </MetalCard>
 
-        {/* Зоны / столы */}
-        {modules.zones === true && (
-          <MetalCard style={{ marginTop: 12 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-              <Text style={styles.blockTitle}>📍 Зоны и столы</Text>
-              <InfoTip
-                title="Зачем нужны зоны?"
-                text="Зоны помогают разделить заказы по месту обслуживания: Стол 1, Бар, С собой, Доставка. Сотрудник выбирает зону в кассе при оформлении. Зона сохраняется в истории заказов для отчётности."
-              />
+        {/* ── Способы оплаты ── */}
+        <View style={styles.menuTopBarSticky}>
+          <Text style={styles.menuTopTitle}>Способы оплаты</Text>
+          <View style={styles.menuFloatBtns} pointerEvents="box-none">
+            <View style={styles.menuFloatRow}>
+              <Pressable onPress={openNewPayMethod} hitSlop={14} style={[styles.menuBadge, styles.menuBadgeAdd]}>
+                <Text style={[styles.menuBadgeText, { color: colors.greenLight }]}>＋</Text>
+              </Pressable>
             </View>
-            <Hint>Добавьте зоны под ваш бизнес. Например: Стол 1–10, Бар, Терраса, С собой.</Hint>
-            {zones.length === 0 && <Text style={styles.empty}>Зон пока нет — без них заказ оформляется без указания места.</Text>}
-            {zones.map((z) => (
-              <Pressable key={z.id} style={({ pressed }) => [styles.row, pressed && { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8 }]} onPress={() => setZoneModal({ id: z.id, name: z.name, tables: z.tables || [], newTableInput: '', bulkPrefix: 'Стол', bulkFrom: '', bulkTo: '' })}>
+          </View>
+        </View>
+
+        {payMethodsList.length === 0 ? (
+          <Text style={[styles.empty, { paddingVertical: 16 }]}>Нет способов оплаты</Text>
+        ) : (
+          <View style={styles.menuCard}>
+            {payMethodsList.map((m, i) => {
+              const typeLabel = m.type === 'cash' ? 'Наличный расчёт · фиксируется как нал в отчётах'
+                : m.type === 'mixed' ? 'Разделить чек на наличные и карту'
+                : 'Безналичный расчёт · карта, QR, СБП';
+              return (
+                <Pressable
+                  key={m.id || i}
+                  style={({ pressed }) => [
+                    styles.menuRow,
+                    i < payMethodsList.length - 1 && styles.menuRowDiv,
+                    pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
+                    m.active === false && { opacity: 0.45 },
+                  ]}
+                  onPress={() => openEditPayMethod(m, i)}
+                >
+                  <Text style={{ fontSize: 20, marginRight: 12 }}>{m.icon || '💳'}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.menuItemName}>{m.name}</Text>
+                    <Text style={styles.menuItemSub}>{typeLabel}</Text>
+                  </View>
+                  <Text style={styles.menuItemArrow}>›</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
+
+        {/* ── Скидки ── */}
+        <View style={[styles.menuTopBarSticky, { marginTop: 24 }]}>
+          <Text style={styles.menuTopTitle}>Скидки</Text>
+          <View style={styles.menuFloatBtns} pointerEvents="box-none">
+            <View style={styles.menuFloatRow}>
+              <Pressable onPress={openNewDiscount} hitSlop={14} style={[styles.menuBadge, styles.menuBadgeAdd]}>
+                <Text style={[styles.menuBadgeText, { color: colors.greenLight }]}>＋</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+
+        <Text style={[styles.menuItemSub, { marginBottom: 10 }]}>
+          Сотрудник применяет вручную в кассе при оформлении заказа
+        </Text>
+
+        {discounts.length === 0 ? (
+          <Text style={[styles.empty, { paddingVertical: 16 }]}>Скидки не настроены</Text>
+        ) : (
+          <View style={styles.menuCard}>
+            {discounts.map((d, i) => (
+              <Pressable
+                key={i}
+                style={({ pressed }) => [
+                  styles.menuRow,
+                  i < discounts.length - 1 && styles.menuRowDiv,
+                  pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
+                ]}
+                onPress={() => openEditDiscount(i)}
+              >
+                <Text style={{ fontSize: 18, marginRight: 12 }}>🏷</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.rowName}>📍 {z.name}</Text>
-                  {z.tables?.length > 0 && (
-                    <Text style={styles.rowSub}>{z.tables.length} {z.tables.length === 1 ? 'стол' : z.tables.length < 5 ? 'стола' : 'столов'}: {z.tables.slice(0,4).map(t=>t.name).join(', ')}{z.tables.length > 4 ? '...' : ''}</Text>
+                  <Text style={styles.menuItemName}>{d.name}</Text>
+                  {d.desc ? (
+                    <Text style={styles.menuItemSub}>{d.desc}</Text>
+                  ) : (
+                    <Text style={styles.menuItemSub}>Нажмите чтобы добавить описание</Text>
                   )}
                 </View>
-                <Text style={styles.rowPrice}>✎</Text>
+                <Text style={[styles.menuItemPrice, { color: colors.redLight, marginRight: 8 }]}>−{d.pct}%</Text>
+                <Text style={styles.menuItemArrow}>›</Text>
               </Pressable>
             ))}
-            <MetalButton title="+ Добавить зону" variant="default" onPress={() => setZoneModal({ name: '', tables: [], newTableInput: '', bulkPrefix: 'Стол', bulkFrom: '', bulkTo: '' })} style={{ marginTop: 8 }} />
-          </MetalCard>
-        )}
-
-        {/* Скидки */}
-        <MetalCard style={{ marginTop: 12 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-            <Text style={styles.blockTitle}>🏷 Скидки</Text>
-            <InfoTip
-              title="Ручные скидки"
-              text="Скидки которые сотрудник может применить вручную в кассе — например 'скидка дня' или 'скидка для друзей'. Задайте название и процент. Автоматические скидки для клиентов настраиваются в программе лояльности."
-            />
           </View>
-          {discounts.length === 0 && <Text style={styles.empty}>Скидки не настроены</Text>}
-          {discounts.map((d, i) => (
-            <Pressable key={i} style={({ pressed }) => [styles.row, pressed && { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8 }]} onPress={() => openEditDiscount(i)}>
-              <Text style={styles.rowName}>{d.name}</Text>
-              <Text style={styles.rowPrice}>−{d.pct}% ›</Text>
-            </Pressable>
-          ))}
-          <MetalButton title="+ Добавить скидку" variant="default" onPress={openNewDiscount} />
-        </MetalCard>
-
-        {/* Категории склада */}
-        {stockCats.length > 0 && (
-          <MetalCard style={{ marginTop: 12 }}>
-            <Text style={styles.blockTitle}>🗂 Категории склада</Text>
-            <Text style={styles.hintText}>Нажмите на категорию чтобы переименовать её — изменится у всех позиций.</Text>
-            {stockCats.map(cat => (
-              <Pressable key={cat}
-                style={({ pressed }) => [styles.row, pressed && { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8 }]}
-                onPress={() => setStockCatModal({ oldName: cat, newName: cat })}>
-                <Text style={styles.rowName}>{cat}</Text>
-                <Text style={styles.rowPrice}>Переименовать ›</Text>
-              </Pressable>
-            ))}
-          </MetalCard>
         )}
 
-        {/* Пороги остатка склада */}
+        {/* Зоны (если включены) */}
+        {modules.zones === true && zones.length > 0 && (
+          <>
+            <View style={[styles.menuTopBarSticky, { marginTop: 24 }]}>
+              <Text style={styles.menuTopTitle}>Зоны и столы</Text>
+              <View style={styles.menuFloatBtns} pointerEvents="box-none">
+                <View style={styles.menuFloatRow}>
+                  <Pressable onPress={() => setZoneModal({ name: '', tables: [], newTableInput: '', bulkPrefix: 'Стол', bulkFrom: '', bulkTo: '' })} hitSlop={14} style={[styles.menuBadge, styles.menuBadgeAdd]}>
+                    <Text style={[styles.menuBadgeText, { color: colors.greenLight }]}>＋</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+            <View style={styles.menuCard}>
+              {zones.map((z, i) => (
+                <Pressable
+                  key={z.id}
+                  style={({ pressed }) => [styles.menuRow, i < zones.length - 1 && styles.menuRowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
+                  onPress={() => setZoneModal({ id: z.id, name: z.name, tables: z.tables || [], newTableInput: '', bulkPrefix: 'Стол', bulkFrom: '', bulkTo: '' })}
+                >
+                  <Text style={{ fontSize: 18, marginRight: 12 }}>📍</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.menuItemName}>{z.name}</Text>
+                    {z.tables?.length > 0 && <Text style={styles.menuItemSub}>{z.tables.length} {z.tables.length < 5 ? 'стола' : 'столов'}: {z.tables.slice(0,3).map(t=>t.name).join(', ')}{z.tables.length > 3 ? '...' : ''}</Text>}
+                  </View>
+                  <Text style={styles.menuItemArrow}>›</Text>
+                </Pressable>
+              ))}
+            </View>
+          </>
+        )}
+
         </SectionAccordion>
 
         <SectionAccordion sectionKey="stock" selectedSection={selectedSection}>
