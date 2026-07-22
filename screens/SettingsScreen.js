@@ -1384,6 +1384,13 @@ export default function SettingsScreen({ navigation }) {
                     </Text>
                   )}
                 </ScrollView>
+
+                <Pressable
+                  style={({ pressed }) => [styles.confirmBtn, pressed && { opacity: 0.88 }, { marginTop: 12 }]}
+                  onPress={() => setTechCardModal(null)}
+                >
+                  <Text style={styles.confirmBtnText}>Сохранить</Text>
+                </Pressable>
               </View>
             );
           })()}
