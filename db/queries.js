@@ -2431,3 +2431,42 @@ export function saveUserPermissions(userId, permissions) {
     db.runSync(`UPDATE users SET permissions = ? WHERE id = ?`, [JSON.stringify(permissions), userId]);
   } catch (e) { console.error(e); }
 }
+
+// ─── Аналитика для отчётности ─────────────────────────────────────────────────
+
+export function getOrdersByHour(from, to) {
+  const db = getDb();
+  try {
+    return db.getAllSync(
+      `SELECT strftime('%H', created_at) as hour, COUNT(*) as count, SUM(total) as total
+       FROM orders WHERE date(created_at) BETWEEN ? AND ? AND status != 'cancelled'
+       GROUP BY hour ORDER BY hour`,
+      [from, to]
+    );
+  } catch (_) { return []; }
+}
+
+export function getRevenueByEmployee(from, to) {
+  const db = getDb();
+  try {
+    return db.getAllSync(
+      `SELECT u.name, COUNT(o.id) as orders, SUM(o.total) as revenue
+       FROM orders o JOIN users u ON o.cashier_id = u.id
+       WHERE date(o.created_at) BETWEEN ? AND ? AND o.status != 'cancelled'
+       GROUP BY u.id ORDER BY revenue DESC`,
+      [from, to]
+    );
+  } catch (_) { return []; }
+}
+
+export function getPaymentBreakdown(from, to) {
+  const db = getDb();
+  try {
+    return db.getAllSync(
+      `SELECT pay_method, COUNT(*) as count, SUM(total) as total
+       FROM orders WHERE date(created_at) BETWEEN ? AND ? AND status != 'cancelled'
+       GROUP BY pay_method ORDER BY total DESC`,
+      [from, to]
+    );
+  } catch (_) { return []; }
+}

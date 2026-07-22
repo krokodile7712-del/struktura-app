@@ -1,79 +1,135 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Dimensions, Modal, TextInput, Share } from 'react-native';
-import MetalCard from '../components/MetalCard';
-import MetalButton from '../components/MetalButton';
+import {
+  View, Text, StyleSheet, ScrollView, Pressable,
+  Modal, TextInput, Share, useWindowDimensions,
+} from 'react-native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import InfoTip from '../components/InfoTip';
 import Toggle from '../components/Toggle';
-import { getPnL, getPnLFull, getBusinessMetrics, getRevenueByDay, getTopProducts, getBusinessProfile } from '../db/queries';
+import InfoTip from '../components/InfoTip';
+import { useFocusEffect } from '@react-navigation/native';
+import {
+  getPnL, getPnLFull, getTopProducts, getRevenueByDay,
+  getBusinessMetrics, getBusinessProfile,
+  getOrdersByHour, getRevenueByEmployee, getPaymentBreakdown,
+  exportAllData,
+} from '../db/queries';
 import { getHomeRoute, can } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
-import { useFocusEffect } from '@react-navigation/native';
 
-// ─── Утилиты дат ────────────────────────────────────────────────────────────
-function todayStr() { return new Date().toISOString().slice(0, 10); }
-function nDaysAgo(n) {
-  const d = new Date(); d.setDate(d.getDate() - n);
-  return d.toISOString().slice(0, 10);
-}
-function startOfMonth() {
-  const d = new Date(); d.setDate(1);
-  return d.toISOString().slice(0, 10);
-}
-function startOfLastMonth() {
-  const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1);
-  return d.toISOString().slice(0, 10);
-}
-function endOfLastMonth() {
-  const d = new Date(); d.setDate(0);
-  return d.toISOString().slice(0, 10);
-}
-function startOfQuarter() {
-  const d = new Date();
-  const q = Math.floor(d.getMonth() / 3);
-  return new Date(d.getFullYear(), q * 3, 1).toISOString().slice(0, 10);
-}
-function startOfYear() {
-  return `${new Date().getFullYear()}-01-01`;
-}
-// Предыдущий период той же длины
-function prevPeriod(from, to) {
-  const f = new Date(from), t = new Date(to);
-  const days = Math.round((t - f) / 86400000) + 1;
-  const pTo = new Date(f); pTo.setDate(pTo.getDate() - 1);
-  const pFrom = new Date(pTo); pFrom.setDate(pFrom.getDate() - days + 1);
-  return { from: pFrom.toISOString().slice(0, 10), to: pTo.toISOString().slice(0, 10) };
-}
-function fmt(n) {
-  return (n || 0).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-}
-function fmtDelta(cur, prev) {
+// ─── Утилиты дат ─────────────────────────────────────────────────────────────
+const todayStr  = () => new Date().toISOString().slice(0, 10);
+const nDaysAgo  = n => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
+const startOfWeek = () => { const d = new Date(); d.setDate(d.getDate() - d.getDay() + 1); return d.toISOString().slice(0, 10); };
+const startOfMonth = () => `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-01`;
+const startOfYear = () => `${new Date().getFullYear()}-01-01`;
+const fmt = n => (n || 0).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+const fmtDelta = (cur, prev) => {
   if (!prev || prev === 0) return null;
-  const d = Math.round((cur - prev) / prev * 100);
+  const d = Math.round((cur - prev) / Math.abs(prev) * 100);
   return { value: d, label: `${d >= 0 ? '+' : ''}${d}%` };
-}
+};
+const prevPeriod = (from, to) => {
+  const f = new Date(from), t = new Date(to);
+  const diff = t - f;
+  const pTo = new Date(f - 1);
+  const pFrom = new Date(pTo - diff);
+  return { from: pFrom.toISOString().slice(0,10), to: pTo.toISOString().slice(0,10) };
+};
 
-// ─── Пресеты периодов ────────────────────────────────────────────────────────
 const PRESETS = [
-  { key: 'day',       label: 'Сегодня',       from: () => todayStr(),       to: () => todayStr() },
-  { key: 'week',      label: '7 дней',         from: () => nDaysAgo(6),      to: () => todayStr() },
-  { key: 'month',     label: '30 дней',        from: () => nDaysAgo(29),     to: () => todayStr() },
-  { key: 'thisMonth', label: 'Этот месяц',     from: () => startOfMonth(),   to: () => todayStr() },
-  { key: 'lastMonth', label: 'Прошлый месяц',  from: () => startOfLastMonth(), to: () => endOfLastMonth() },
-  { key: 'quarter',   label: 'Квартал',        from: () => startOfQuarter(), to: () => todayStr() },
-  { key: 'year',      label: 'Год',            from: () => startOfYear(),    to: () => todayStr() },
-  { key: 'custom',    label: 'Свой период',    from: null, to: null },
+  { key: 'today',     label: 'Сегодня',   from: todayStr,     to: todayStr },
+  { key: 'week',      label: 'Неделя',    from: startOfWeek,  to: todayStr },
+  { key: 'month',     label: 'Месяц',     from: startOfMonth, to: todayStr },
+  { key: 'month30',   label: '30 дней',   from: () => nDaysAgo(29), to: todayStr },
+  { key: 'quarter',   label: 'Квартал',   from: () => nDaysAgo(89), to: todayStr },
+  { key: 'year',      label: 'Год',       from: startOfYear,  to: todayStr },
+  { key: 'custom',    label: 'Свой',      from: () => nDaysAgo(29), to: todayStr },
 ];
 
-// ─── Бар-чарт ────────────────────────────────────────────────────────────────
-function BarChart({ data, valueKey = 'total', labelKey = 'label', color = colors.greenLight, unit = '₽' }) {
+const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+
+// ─── Компоненты ──────────────────────────────────────────────────────────────
+function SummaryBar({ pnl }) {
+  if (!pnl) return null;
+  return (
+    <View style={styles.summaryBar}>
+      <View style={styles.summaryItem}>
+        <Text style={styles.summaryVal}>{fmt(pnl.revenue)} ₽</Text>
+        <Text style={styles.summaryLbl}>Выручка</Text>
+      </View>
+      <View style={styles.summarySep} />
+      <View style={styles.summaryItem}>
+        <Text style={styles.summaryVal}>{pnl.orderCount}</Text>
+        <Text style={styles.summaryLbl}>Заказов</Text>
+      </View>
+      <View style={styles.summarySep} />
+      <View style={styles.summaryItem}>
+        <Text style={styles.summaryVal}>{fmt(pnl.avgCheck)} ₽</Text>
+        <Text style={styles.summaryLbl}>Ср. чек</Text>
+      </View>
+      <View style={styles.summarySep} />
+      <View style={styles.summaryItem}>
+        <Text style={[styles.summaryVal, { color: pnl.netProfit >= 0 ? colors.greenLight : colors.redLight }]}>
+          {pnl.netProfit >= 0 ? '+' : ''}{fmt(pnl.netProfit)} ₽
+        </Text>
+        <Text style={styles.summaryLbl}>Прибыль</Text>
+      </View>
+    </View>
+  );
+}
+
+function MetricRow({ label, value, sub, color, delta, tip, isLast }) {
+  return (
+    <View style={[styles.metricRow, !isLast && styles.menuRowDiv]}>
+      <View style={{ flex: 1 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text style={styles.metricLabel}>{label}</Text>
+          {tip && <InfoTip title={label} text={tip} />}
+        </View>
+        {sub ? <Text style={styles.metricSub}>{sub}</Text> : null}
+      </View>
+      <View style={{ alignItems: 'flex-end' }}>
+        <Text style={[styles.metricValue, color && { color }]}>{value}</Text>
+        {delta && (
+          <Text style={[styles.deltaText, { color: delta.value >= 0 ? colors.greenLight : colors.redLight }]}>
+            {delta.label}
+          </Text>
+        )}
+      </View>
+    </View>
+  );
+}
+
+function HeatMap({ data }) {
   if (!data || data.length === 0) {
-    return <Text style={{ color: colors.muted, textAlign: 'center', paddingVertical: 20 }}>Нет данных</Text>;
+    return <Text style={styles.emptyHint}>Нет данных за выбранный период</Text>;
   }
+  const maxCount = Math.max(...data.map(d => d.count || 0), 1);
+  const byHour = {};
+  data.forEach(d => { byHour[d.hour] = d; });
+  return (
+    <View style={styles.heatMapWrap}>
+      {HOURS.map(h => {
+        const d = byHour[h];
+        const pct = d ? (d.count / maxCount) : 0;
+        const opacity = 0.1 + pct * 0.85;
+        return (
+          <View key={h} style={styles.heatCell}>
+            <View style={[styles.heatBar, { opacity, backgroundColor: colors.greenLight }]} />
+            {parseInt(h) % 3 === 0 && <Text style={styles.heatLabel}>{h}</Text>}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+function BarChart({ data, valueKey = 'total', labelKey = 'label', color = colors.greenLight, unit = '₽' }) {
+  if (!data || data.length === 0) return <Text style={styles.emptyHint}>Нет данных</Text>;
   const max = Math.max(...data.map(d => d[valueKey] || 0), 1);
   return (
-    <View>
+    <View style={{ gap: 8 }}>
       {data.map((item, i) => {
         const val = item[valueKey] || 0;
         return (
@@ -90,47 +146,25 @@ function BarChart({ data, valueKey = 'total', labelKey = 'label', color = colors
   );
 }
 
-// ─── Метрика с дельтой ───────────────────────────────────────────────────────
-function MetricCard({ label, value, sub, color: col, tip, delta }) {
-  return (
-    <View style={styles.metricCard}>
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <Text style={styles.metricLabel}>{label}</Text>
-        {tip && <InfoTip title={tip.title} text={tip.text} />}
-      </View>
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
-        <Text style={[styles.metricValue, col && { color: col }]}>{value}</Text>
-        {delta && (
-          <Text style={[styles.deltaText, { color: delta.value >= 0 ? colors.greenLight : colors.redLight }]}>
-            {delta.label}
-          </Text>
-        )}
-      </View>
-      {sub ? <Text style={styles.metricSub}>{sub}</Text> : null}
-    </View>
-  );
-}
-
 // ─── Экран ───────────────────────────────────────────────────────────────────
 export default function ReportsScreen({ navigation }) {
-  const [preset, setPreset]       = useState('week');
+  const [preset, setPreset]         = useState('week');
   const [customFrom, setCustomFrom] = useState(nDaysAgo(29));
-  const [customTo, setCustomTo]   = useState(todayStr());
-  const [showPresets, setShowPresets] = useState(false);
-  const [showCustom, setShowCustom]   = useState(false);
-  const [tab, setTab]             = useState('pnl'); // 'pnl' | 'full' | 'metrics' | 'charts'
-  const [compare, setCompare]     = useState(false);
-  const [exporting, setExporting] = useState(false);
+  const [customTo, setCustomTo]     = useState(todayStr());
+  const [showCustom, setShowCustom] = useState(false);
+  const [tab, setTab]               = useState('pnl');
+  const [compare, setCompare]       = useState(false);
 
-  const [pnl, setPnl]             = useState(null);
-  const [pnlFull, setPnlFull]     = useState(null);
-  const [metrics, setMetrics]     = useState([]);
-  const [businessPreset, setBusinessPreset] = useState('custom');
-  const [pnlPrev, setPnlPrev]     = useState(null);
-  const [revenueByDay, setRevenueByDay] = useState([]);
-  const [topProducts, setTopProducts]   = useState([]);
+  const [pnl, setPnl]               = useState(null);
+  const [pnlFull, setPnlFull]       = useState(null);
+  const [metrics, setMetrics]       = useState([]);
+  const [pnlPrev, setPnlPrev]       = useState(null);
+  const [revenueByDay, setRevenueByDay]   = useState([]);
+  const [topProducts, setTopProducts]     = useState([]);
+  const [ordersByHour, setOrdersByHour]   = useState([]);
+  const [byEmployee, setByEmployee]       = useState([]);
+  const [payBreakdown, setPayBreakdown]   = useState([]);
 
-  // Текущий диапазон дат
   const getRange = useCallback(() => {
     if (preset === 'custom') return { from: customFrom, to: customTo };
     const p = PRESETS.find(p => p.key === preset);
@@ -147,67 +181,36 @@ export default function ReportsScreen({ navigation }) {
     try {
       const profile = getBusinessProfile();
       const bPreset = profile?.preset || 'custom';
-      setBusinessPreset(bPreset);
       const cur = getPnL(from, to);
       setPnl(cur);
-      setRevenueByDay(getRevenueByDay(from, to).map(r => ({
-        label: r.day.slice(5).replace('-', '.'),
-        total: Math.round(r.total),
-      })));
-      setTopProducts(getTopProducts(from, to, 8).map(r => ({
-        label: r.name, total: r.qty,
-      })));
-      const full = getPnLFull(from, to);
-      setPnlFull(full);
-      setMetrics(getBusinessMetrics(full, bPreset));
+      setRevenueByDay(getRevenueByDay(from, to).map(r => ({ label: r.day.slice(5).replace('-', '.'), total: Math.round(r.total) })));
+      setTopProducts(getTopProducts(from, to, 8).map(r => ({ label: r.name, total: r.qty })));
+      setPnlFull(getPnLFull(from, to));
+      setMetrics(getBusinessMetrics(getPnLFull(from, to), bPreset));
+      setOrdersByHour(getOrdersByHour(from, to));
+      setByEmployee(getRevenueByEmployee(from, to));
+      setPayBreakdown(getPaymentBreakdown(from, to));
       if (compare) {
         const prev = prevPeriod(from, to);
         setPnlPrev(getPnL(prev.from, prev.to));
-      } else {
-        setPnlPrev(null);
-      }
+      } else { setPnlPrev(null); }
     } catch (e) { console.error(e); }
   }, [getRange, compare]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
-
-  // Экспорт
-  const handleExport = async () => {
-    if (!pnl) return;
-    setExporting(true);
-    const { from, to } = getRange();
-    const prev = pnlPrev;
-    const lines = [
-      `СТРУКТУРА — Отчёт P&L`,
-      `Период: ${from} — ${to}`,
-      ``,
-      `Выручка:          ${fmt(pnl.revenue)} ₽${prev ? `  (пред.: ${fmt(prev.revenue)} ₽)` : ''}`,
-      `Себестоимость:    ${fmt(pnl.cogs)} ₽`,
-      `Валовая прибыль:  ${fmt(pnl.grossProfit)} ₽  (маржа ${pnl.grossMarginPct}%)`,
-      `Расходы:          ${fmt(pnl.expenses)} ₽`,
-      `Чистая прибыль:   ${fmt(pnl.netProfit)} ₽  (маржа ${pnl.netMarginPct}%)`,
-      ``,
-      `Заказов: ${pnl.orderCount}  ·  Средний чек: ${fmt(pnl.avgCheck)} ₽`,
-      ``,
-      `Топ товаров:`,
-      ...topProducts.map((p, i) => `  ${i + 1}. ${p.label} — ${p.total} шт.`),
-    ];
-    try {
-      await Share.share({ message: lines.join('\n'), title: 'Отчёт СТРУКТУРА' });
-    } catch (_) {}
-    setExporting(false);
-  };
 
   if (!can('view_reports')) return (
     <View style={{ flex: 1 }}>
       <TopBar title="Отчётность" onBack={() => navigation.navigate(getHomeRoute())} />
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
         <Text style={{ fontSize: 32, marginBottom: 16 }}>🔒</Text>
-        <Text style={{ fontFamily: 'AnekDevanagari_700Bold', fontSize: 18, color: '#ddd8d0', textAlign: 'center' }}>Нет доступа</Text>
-        <Text style={{ fontFamily: 'AnekDevanagari_400Regular', fontSize: 14, color: '#4a4d54', textAlign: 'center', marginTop: 8 }}>Обратитесь к администратору для получения доступа к отчётности.</Text>
+        <Text style={{ fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, textAlign: 'center' }}>Нет доступа</Text>
+        <Text style={{ fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', marginTop: 8 }}>Обратитесь к администратору.</Text>
       </View>
     </View>
   );
+
+  const totalPayBreakdown = payBreakdown.reduce((s, p) => s + (p.total || 0), 0);
 
   return (
     <View style={{ flex: 1 }}>
@@ -215,270 +218,250 @@ export default function ReportsScreen({ navigation }) {
         title="Отчётность"
         onBack={() => navigation.navigate(getHomeRoute())}
         rightElement={
-          <Pressable onPress={handleExport} hitSlop={8} style={styles.exportBtn} disabled={exporting}>
-            <Text style={styles.exportBtnText}>{exporting ? '...' : '↑ Экспорт'}</Text>
+          <Pressable
+            style={styles.exportBtn}
+            onPress={async () => {
+              try { const d = exportAllData(); await Share.share({ message: d, title: 'Отчёт СТРУКТУРА' }); }
+              catch (_) {}
+            }}
+          >
+            <Text style={styles.exportBtnText}>↑ Экспорт</Text>
           </Pressable>
         }
       />
 
-      {/* ── Период ── */}
-      <View style={styles.periodBar}>
-        {/* Быстрые пресеты — первые 3 */}
-        {PRESETS.slice(0, 3).map(p => (
+      {/* Сводка */}
+      <SummaryBar pnl={pnl} />
+
+      {/* Периоды */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}
+        style={styles.periodBar} contentContainerStyle={styles.periodInner}>
+        {PRESETS.map(p => (
           <Pressable
             key={p.key}
-            style={[styles.periodBtn, preset === p.key && styles.periodBtnActive]}
-            onPress={() => { setPreset(p.key); setShowPresets(false); }}
+            style={[styles.periodChip, preset === p.key && styles.periodChipActive]}
+            onPress={() => {
+              if (p.key === 'custom') setShowCustom(true);
+              else setPreset(p.key);
+            }}
           >
-            <Text style={[styles.periodBtnText, preset === p.key && styles.periodBtnTextActive]}>{p.label}</Text>
+            <Text style={[styles.periodChipText, preset === p.key && styles.periodChipTextActive]}>
+              {p.key === 'custom' && preset === 'custom' ? rangeLabel : p.label}
+            </Text>
           </Pressable>
         ))}
-        {/* Кнопка "Период ▼" */}
-        <Pressable
-          style={[styles.periodBtn, ['thisMonth','lastMonth','quarter','year','custom'].includes(preset) && styles.periodBtnActive]}
-          onPress={() => setShowPresets(v => !v)}
-        >
-          <Text style={[styles.periodBtnText, ['thisMonth','lastMonth','quarter','year','custom'].includes(preset) && styles.periodBtnTextActive]}>
-            {['thisMonth','lastMonth','quarter','year','custom'].includes(preset) ? rangeLabel : 'Период ▼'}
-          </Text>
-        </Pressable>
-      </View>
+      </ScrollView>
 
-      {/* ── Выпадающий список пресетов ── */}
-      {showPresets && (
-        <View style={styles.presetsDropdown}>
-          {PRESETS.slice(3).map(p => (
-            <Pressable
-              key={p.key}
-              style={[styles.presetItem, preset === p.key && styles.presetItemActive]}
-              onPress={() => {
-                if (p.key === 'custom') { setShowCustom(true); }
-                else { setPreset(p.key); }
-                setShowPresets(false);
-              }}
-            >
-              <Text style={[styles.presetItemText, preset === p.key && styles.presetItemTextActive]}>{p.label}</Text>
+      {/* Табы */}
+      <View style={styles.tabSection}>
+        <View style={styles.tabBar}>
+          {[
+            { key: 'pnl',     label: 'P&L'      },
+            { key: 'full',    label: 'Полный'    },
+            { key: 'metrics', label: 'KPI'       },
+            { key: 'charts',  label: 'Графики'   },
+          ].map(t => (
+            <Pressable key={t.key} style={[styles.tabBtn, tab === t.key && styles.tabBtnActive]}
+              onPress={() => setTab(t.key)}>
+              <Text style={[styles.tabBtnText, tab === t.key && styles.tabBtnTextActive]}>{t.label}</Text>
             </Pressable>
           ))}
         </View>
-      )}
-
-      {/* ── Вкладки + сравнение ── */}
-      <View style={styles.tabRow}>
-        <View style={styles.tabBar}>
-          <Pressable style={[styles.tabBtn, tab === 'pnl' && styles.tabBtnActive]} onPress={() => setTab('pnl')}>
-            <Text style={[styles.tabBtnText, tab === 'pnl' && styles.tabBtnTextActive]}>📊 P&L</Text>
-          </Pressable>
-          <Pressable style={[styles.tabBtn, tab === 'full' && styles.tabBtnActive]} onPress={() => setTab('full')}>
-            <Text style={[styles.tabBtnText, tab === 'full' && styles.tabBtnTextActive]}>📋 Полный</Text>
-          </Pressable>
-          <Pressable style={[styles.tabBtn, tab === 'metrics' && styles.tabBtnActive]} onPress={() => setTab('metrics')}>
-            <Text style={[styles.tabBtnText, tab === 'metrics' && styles.tabBtnTextActive]}>🎯 KPI</Text>
-          </Pressable>
-          <Pressable style={[styles.tabBtn, tab === 'charts' && styles.tabBtnActive]} onPress={() => setTab('charts')}>
-            <Text style={[styles.tabBtnText, tab === 'charts' && styles.tabBtnTextActive]}>📈 Графики</Text>
-          </Pressable>
-        </View>
-        <View style={styles.compareWrap}>
-          <Text style={styles.compareLabel}>Сравнить</Text>
-          <Toggle value={compare} onValueChange={v => { setCompare(v); }} size="sm" />
+        <View style={styles.compareRow}>
+          <Text style={styles.compareLabel}>Сравнить с предыдущим периодом</Text>
+          <Toggle value={compare} onValueChange={v => setCompare(v)} size="sm" />
         </View>
       </View>
 
-      <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
 
+        {/* ── P&L ── */}
         {tab === 'pnl' && pnl && (<>
-          {/* Если сравнение — показываем подзаголовки */}
-          {compare && pnlPrev && (
-            <View style={styles.compareHeader}>
-              <Text style={styles.compareHeaderText}>Текущий период</Text>
-              <Text style={styles.compareHeaderText}>Пред. период</Text>
-            </View>
-          )}
-
-          <View style={styles.metricsGrid}>
-            <MetricCard label="Выручка" value={`${fmt(pnl.revenue)} ₽`}
-              sub={`${pnl.orderCount} зак. · ср. чек ${fmt(pnl.avgCheck)} ₽`}
+          {/* Основные метрики */}
+          <View style={styles.card}>
+            <MetricRow label="Выручка" value={`${fmt(pnl.revenue)} ₽`}
+              sub={`${pnl.orderCount} заказов · ср. чек ${fmt(pnl.avgCheck)} ₽`}
               color={colors.greenLight}
               delta={compare && pnlPrev ? fmtDelta(pnl.revenue, pnlPrev.revenue) : null}
-              tip={{ title: 'Выручка', text: 'Сумма всех оплаченных заказов за период (без возвратов).' }} />
-            <MetricCard label="Себестоимость (COGS)" value={`${fmt(pnl.cogs)} ₽`}
+              tip="Сумма всех оплаченных заказов за период." />
+            <MetricRow label="Себестоимость" value={`${fmt(pnl.cogs)} ₽`}
               sub={pnl.revenue > 0 ? `${Math.round(pnl.cogs / pnl.revenue * 100)}% от выручки` : ''}
               delta={compare && pnlPrev ? fmtDelta(pnl.cogs, pnlPrev.cogs) : null}
-              tip={{ title: 'Себестоимость', text: 'Затраты на ингредиенты по техкартам.' }} />
-            <MetricCard label="Валовая прибыль" value={`${fmt(pnl.grossProfit)} ₽`}
+              tip="Затраты на ингредиенты по техкартам." />
+            <MetricRow label="Валовая прибыль" value={`${fmt(pnl.grossProfit)} ₽`}
               sub={`Маржа ${pnl.grossMarginPct}%`}
               color={pnl.grossProfit >= 0 ? colors.greenLight : colors.redLight}
               delta={compare && pnlPrev ? fmtDelta(pnl.grossProfit, pnlPrev.grossProfit) : null}
-              tip={{ title: 'Валовая прибыль', text: 'Выручка − Себестоимость. До учёта расходов.' }} />
-            <MetricCard label="Расходы" value={`${fmt(pnl.expenses)} ₽`}
-              sub="из раздела Расходы"
+              tip="Выручка − Себестоимость. До учёта расходов." />
+            <MetricRow label="Расходы" value={`${fmt(pnl.expenses)} ₽`}
+              sub="Из раздела Расходы"
               delta={compare && pnlPrev ? fmtDelta(pnl.expenses, pnlPrev.expenses) : null}
-              tip={{ title: 'Расходы', text: 'Аренда, зарплата и другие записи из раздела Расходы.' }} />
+              tip="Аренда, зарплата и другие записи из Расходов."
+              isLast />
           </View>
 
           {/* Чистая прибыль */}
-          <MetalCard style={{ marginTop: 12 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={[styles.card, { marginTop: 10 }]}>
+            <View style={styles.netRow}>
               <Text style={styles.netLabel}>Чистая прибыль</Text>
               <InfoTip title="Чистая прибыль" text="Выручка − Себестоимость − Расходы." />
-              {compare && pnlPrev && (() => {
-                const d = fmtDelta(pnl.netProfit, pnlPrev.netProfit);
-                return d ? (
-                  <Text style={[styles.deltaText, { color: d.value >= 0 ? colors.greenLight : colors.redLight, marginLeft: 10 }]}>
-                    {d.label}
-                  </Text>
-                ) : null;
-              })()}
             </View>
             <Text style={[styles.netValue, { color: pnl.netProfit >= 0 ? colors.greenLight : colors.redLight }]}>
               {pnl.netProfit >= 0 ? '+' : ''}{fmt(pnl.netProfit)} ₽
             </Text>
             <Text style={styles.netSub}>Чистая маржа: {pnl.netMarginPct}%</Text>
-
             {compare && pnlPrev && (
-              <View style={styles.prevRow}>
-                <Text style={styles.prevLabel}>Предыдущий период:</Text>
-                <Text style={[styles.prevValue, { color: pnlPrev.netProfit >= 0 ? colors.greenLight : colors.redLight }]}>
+              <View style={[styles.menuRowDiv, { marginTop: 12, paddingTop: 12, flexDirection: 'row', justifyContent: 'space-between' }]}>
+                <Text style={styles.compareLabel}>Предыдущий период</Text>
+                <Text style={[styles.metricValue, { color: pnlPrev.netProfit >= 0 ? colors.greenLight : colors.redLight }]}>
                   {pnlPrev.netProfit >= 0 ? '+' : ''}{fmt(pnlPrev.netProfit)} ₽
                 </Text>
               </View>
             )}
+          </View>
 
-            {/* Водопад */}
-            {pnl.revenue > 0 && (
-              <View style={{ marginTop: 14, gap: 6 }}>
-                {[
-                  { label: 'Выручка',      val: pnl.revenue,     color: colors.greenLight },
-                  { label: '− Себест.',    val: -pnl.cogs,       color: colors.redLight },
-                  { label: '− Расходы',   val: -pnl.expenses,   color: '#e0a040' },
-                  { label: '= Прибыль',   val: pnl.netProfit,   color: pnl.netProfit >= 0 ? colors.greenLight : colors.redLight, bold: true },
-                ].map((row, i) => (
-                  <View key={i} style={styles.waterfallRow}>
-                    <Text style={[styles.waterfallLabel, row.bold && { fontFamily: fonts.familySemibold }]}>{row.label}</Text>
-                    <Text style={[styles.waterfallVal, { color: row.color }, row.bold && { fontFamily: fonts.familySemibold }]}>
-                      {row.val >= 0 ? '+' : ''}{fmt(row.val)} ₽
-                    </Text>
+          {/* Способы оплаты */}
+          {payBreakdown.length > 0 && (
+            <View style={[styles.card, { marginTop: 10 }]}>
+              <Text style={styles.cardTitle}>Способы оплаты</Text>
+              {payBreakdown.map((p, idx) => {
+                const pct = totalPayBreakdown > 0 ? Math.round(p.total / totalPayBreakdown * 100) : 0;
+                return (
+                  <View key={idx} style={[styles.metricRow, idx < payBreakdown.length - 1 && styles.menuRowDiv]}>
+                    <Text style={styles.metricLabel}>{p.pay_method || 'Другое'}</Text>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={styles.metricValue}>{fmt(p.total)} ₽</Text>
+                      <Text style={styles.deltaText}>{pct}% · {p.count} зак.</Text>
+                    </View>
                   </View>
-                ))}
-              </View>
-            )}
-          </MetalCard>
+                );
+              })}
+            </View>
+          )}
 
           {pnl.cogs === 0 && (
-            <MetalCard style={{ marginTop: 12 }}>
-              <Text style={styles.hintCard}>💡 Себестоимость = 0. Заполните техкарты в Настройках → Меню и цены чтобы видеть реальную маржу.</Text>
-            </MetalCard>
+            <View style={[styles.card, { marginTop: 10 }]}>
+              <Text style={styles.hintText}>💡 Себестоимость = 0. Заполните техкарты в Настройках → Меню и цены чтобы видеть реальную маржу.</Text>
+            </View>
           )}
         </>)}
 
-
+        {/* ── Полный P&L ── */}
         {tab === 'full' && pnlFull && (
-          <MetalCard>
-            <Text style={styles.netLabel}>Полный управленческий P&L</Text>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Управленческий P&L</Text>
             {[
-              { label: 'Выручка',                  val: pnlFull.revenue,        color: colors.greenLight },
-              { label: '− Себестоимость (COGS)',    val: -pnlFull.cogs,          color: colors.redLight },
-              { label: '= Валовая прибыль',         val: pnlFull.grossProfit,    color: pnlFull.grossProfit >= 0 ? colors.greenLight : colors.redLight, bold: true },
-              { label: '− Прямые расходы',          val: -pnlFull.expenses,      color: '#e0a040' },
-              { label: '− Накладные расходы',       val: -pnlFull.overheadTotal, color: '#e0a040' },
-              { label: '− Зарплата',                val: -pnlFull.salaryTotal,   color: '#e0a040' },
-              { label: '− Амортизация',             val: -pnlFull.deprTotal,     color: '#e0a040' },
-              { label: '= Чистая прибыль (полная)', val: pnlFull.fullNetProfit,  color: pnlFull.fullNetProfit >= 0 ? colors.greenLight : colors.redLight, bold: true },
-            ].map((row, i) => (
-              <View key={i} style={[styles.waterfallRow, { paddingVertical: 8 }]}>
-                <Text style={[styles.waterfallLabel, row.bold && { fontFamily: fonts.familySemibold, color: colors.text }]}>{row.label}</Text>
-                <Text style={[styles.waterfallVal, { color: row.color }, row.bold && { fontFamily: fonts.familySemibold, fontSize: 15 }]}>
+              { label: 'Выручка',               val: pnlFull.revenue,          color: colors.greenLight },
+              { label: '− Себестоимость',        val: -pnlFull.cogs,            color: colors.redLight },
+              { label: '= Валовая прибыль',      val: pnlFull.grossProfit,      bold: true, color: pnlFull.grossProfit >= 0 ? colors.greenLight : colors.redLight },
+              { label: '− Прямые расходы',       val: -pnlFull.expenses,        color: '#e0a040' },
+              { label: '− Накладные расходы',    val: -pnlFull.overheadTotal,   color: '#e0a040' },
+              { label: '− Зарплата',             val: -pnlFull.salaryTotal,     color: '#e0a040' },
+              { label: '− Амортизация',          val: -pnlFull.deprTotal,       color: '#e0a040' },
+              { label: '= Чистая прибыль',       val: pnlFull.fullNetProfit,    bold: true, color: pnlFull.fullNetProfit >= 0 ? colors.greenLight : colors.redLight },
+            ].map((row, i, arr) => (
+              <View key={i} style={[styles.metricRow, i < arr.length - 1 && styles.menuRowDiv]}>
+                <Text style={[styles.metricLabel, row.bold && { fontFamily: fonts.familySemibold, color: colors.text }]}>{row.label}</Text>
+                <Text style={[styles.metricValue, { color: row.color }, row.bold && { fontSize: 17 }]}>
                   {row.val >= 0 ? '+' : ''}{fmt(Math.round(row.val))} ₽
                 </Text>
               </View>
             ))}
-            <View style={{ marginTop: 14, padding: 12, backgroundColor: 'rgba(61,158,146,0.06)', borderRadius: 12 }}>
-              <Text style={[styles.netValue, { fontSize: 26, color: pnlFull.fullNetProfit >= 0 ? colors.greenLight : colors.redLight }]}>
+            <View style={[styles.netSummaryBox, { backgroundColor: pnlFull.fullNetProfit >= 0 ? 'rgba(61,158,146,0.08)' : 'rgba(160,16,32,0.08)' }]}>
+              <Text style={[styles.netValue, { color: pnlFull.fullNetProfit >= 0 ? colors.greenLight : colors.redLight }]}>
                 {pnlFull.fullNetProfit >= 0 ? '+' : ''}{fmt(pnlFull.fullNetProfit)} ₽
               </Text>
               <Text style={styles.netSub}>Полная чистая маржа: {pnlFull.fullNetMarginPct}%</Text>
             </View>
-            {(pnlFull.overheadTotal === 0 && pnlFull.salaryTotal === 0 && pnlFull.deprTotal === 0) && (
-              <Text style={[styles.hintCard, { marginTop: 12 }]}>
-                💡 Накладные, зарплата и амортизация = 0. Заполните разделы Накладные расходы, Сотрудники (ставки) и Оборудование для полного расчёта.
-              </Text>
-            )}
-          </MetalCard>
+          </View>
         )}
 
-        {tab === 'metrics' && (
-          <>
-            {metrics.length > 0 ? metrics.map(m => (
-              <MetalCard key={m.key} style={{ marginBottom: 10 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={styles.metricLabel}>{m.label}</Text>
-                    {m.tip && <InfoTip title={m.label} text={m.tip} />}
+        {/* ── KPI ── */}
+        {tab === 'metrics' && (<>
+          {metrics.length > 0 ? (
+            <View style={styles.card}>
+              {metrics.map((m, idx) => (
+                <View key={m.key} style={[styles.metricRow, idx < metrics.length - 1 && styles.menuRowDiv]}>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={styles.metricLabel}>{m.label}</Text>
+                      {m.tip && <InfoTip title={m.label} text={m.tip} />}
+                    </View>
+                    {m.benchmark && <Text style={styles.metricSub}>Норма: {m.benchmark}</Text>}
                   </View>
-                  {m.benchmark && <Text style={styles.benchmarkLabel}>норма: {m.benchmark}</Text>}
+                  <View style={{ alignItems: 'flex-end', flexDirection: 'row', gap: 8 }}>
+                    <Text style={[styles.metricValue, { color: m.ok ? colors.greenLight : m.warn ? colors.redLight : colors.text }]}>{m.value}</Text>
+                    {m.ok   && <Text style={{ fontFamily: fonts.familySemibold, fontSize: 11, color: colors.greenLight }}>✓</Text>}
+                    {m.warn && <Text style={{ fontFamily: fonts.familySemibold, fontSize: 11, color: colors.redLight }}>⚠️</Text>}
+                  </View>
                 </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 }}>
-                  <Text style={[styles.metricValue, { color: m.ok ? colors.greenLight : m.warn ? colors.redLight : colors.text }]}>{m.value}</Text>
-                  {m.ok && <Text style={styles.statusOk}>✓ норма</Text>}
-                  {m.warn && <Text style={styles.statusWarn}>⚠️ выше нормы</Text>}
-                </View>
-              </MetalCard>
-            )) : (
-              <MetalCard>
-                <Text style={styles.hintCard}>
-                  {'🎯 Метрики появятся когда будут данные о продажах за выбранный период.\n\nДля расширенных KPI заполните техкарты, ставки сотрудников и накладные расходы.'}
-                </Text>
-              </MetalCard>
-            )}
-          </>
-        )}
+              ))}
+            </View>
+          ) : (
+            <View style={styles.card}>
+              <Text style={styles.hintText}>🎯 Метрики появятся когда будут данные за выбранный период. Для расширенных KPI заполните техкарты, ставки сотрудников и накладные расходы.</Text>
+            </View>
+          )}
 
-        {tab === 'charts' && (<>
-          <MetalCard>
-            <Text style={styles.chartTitle}>Выручка по дням</Text>
-            <BarChart data={revenueByDay} valueKey="total" labelKey="label" color={colors.greenLight} unit="₽" />
-          </MetalCard>
-          <MetalCard style={{ marginTop: 12 }}>
-            <Text style={styles.chartTitle}>Топ товаров по количеству</Text>
-            <BarChart data={topProducts} valueKey="total" labelKey="label" color="#7a9be8" unit="шт" />
-          </MetalCard>
+          {/* Эффективность сотрудников */}
+          {byEmployee.length > 0 && (
+            <View style={[styles.card, { marginTop: 10 }]}>
+              <Text style={styles.cardTitle}>Сотрудники</Text>
+              {byEmployee.map((e, idx) => (
+                <View key={idx} style={[styles.metricRow, idx < byEmployee.length - 1 && styles.menuRowDiv]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.metricLabel}>{e.name}</Text>
+                    <Text style={styles.metricSub}>{e.orders} заказов</Text>
+                  </View>
+                  <Text style={styles.metricValue}>{fmt(e.revenue)} ₽</Text>
+                </View>
+              ))}
+            </View>
+          )}
         </>)}
+
+        {/* ── Графики ── */}
+        {tab === 'charts' && (<>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Выручка по дням</Text>
+            <BarChart data={revenueByDay} valueKey="total" labelKey="label" color={colors.greenLight} unit="₽" />
+          </View>
+
+          <View style={[styles.card, { marginTop: 10 }]}>
+            <Text style={styles.cardTitle}>Пиковые часы</Text>
+            <Text style={styles.hintText}>Количество заказов по часам — видно когда наплыв</Text>
+            <HeatMap data={ordersByHour} />
+          </View>
+
+          <View style={[styles.card, { marginTop: 10 }]}>
+            <Text style={styles.cardTitle}>Топ товаров</Text>
+            <BarChart data={topProducts} valueKey="total" labelKey="label" color="#7a9be8" unit="шт" />
+          </View>
+        </>)}
+
       </ScrollView>
 
       <BottomBar navigation={navigation} activeTab="Kassa" />
 
-      {/* ── Модалка кастомного периода ── */}
+      {/* Модалка своего периода */}
       <Modal visible={showCustom} transparent animationType="fade" onRequestClose={() => setShowCustom(false)}>
         <View style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setShowCustom(false)} />
           <View style={styles.modalInner}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Свой период</Text>
-              <Pressable onPress={() => setShowCustom(false)} hitSlop={14}><Text style={styles.modalClose}>✕</Text></Pressable>
+              <Pressable onPress={() => setShowCustom(false)} hitSlop={14} style={styles.modalCloseBtn}>
+                <Text style={styles.modalCloseTxt}>✕</Text>
+              </Pressable>
             </View>
             <Text style={styles.fieldLabel}>С (ГГГГ-ММ-ДД)</Text>
-            <TextInput
-              style={styles.input}
-              value={customFrom}
-              onChangeText={setCustomFrom}
-              placeholder="2024-01-01"
-              placeholderTextColor={colors.muted}
-              keyboardType="numbers-and-punctuation"
-            />
+            <TextInput color={colors.text} style={styles.input} value={customFrom} onChangeText={setCustomFrom} placeholder="2024-01-01" placeholderTextColor={colors.muted} keyboardType="numbers-and-punctuation" />
             <Text style={styles.fieldLabel}>По (ГГГГ-ММ-ДД)</Text>
-            <TextInput
-              style={styles.input}
-              value={customTo}
-              onChangeText={setCustomTo}
-              placeholder="2024-01-31"
-              placeholderTextColor={colors.muted}
-              keyboardType="numbers-and-punctuation"
-            />
-            <MetalButton title="Применить" variant="success" onPress={() => {
-              setPreset('custom');
-              setShowCustom(false);
-            }} style={{ marginTop: 12 }} />
+            <TextInput color={colors.text} style={styles.input} value={customTo} onChangeText={setCustomTo} placeholder="2024-01-31" placeholderTextColor={colors.muted} keyboardType="numbers-and-punctuation" />
+            <Pressable style={({ pressed }) => [styles.confirmBtn, { marginTop: 16 }, pressed && { opacity: 0.88 }]}
+              onPress={() => { setPreset('custom'); setShowCustom(false); }}>
+              <Text style={styles.confirmBtnText}>Применить</Text>
+            </Pressable>
           </View>
         </View>
       </Modal>
@@ -487,84 +470,81 @@ export default function ReportsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  inner: { padding: spacing.lg, paddingBottom: 20, maxWidth: 1100, width: '100%', alignSelf: 'center' },
+  inner: { padding: 16, paddingBottom: 24 },
+
+  // Сводка
+  summaryBar: { flexDirection: 'row', paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: '#07080a' },
+  summaryItem: { flex: 1, alignItems: 'center' },
+  summaryVal:  { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: colors.text },
+  summaryLbl:  { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.8 },
+  summarySep:  { width: 1, backgroundColor: 'rgba(74,77,84,0.3)', marginVertical: 4 },
 
   // Период
-  periodBar: { flexDirection: 'row', paddingHorizontal: spacing.lg, paddingVertical: 8, gap: 8, borderBottomWidth: 1, borderBottomColor: colors.border, flexWrap: 'wrap' },
-  periodBtn: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border },
-  periodBtnActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.15)' },
-  periodBtnText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
-  periodBtnTextActive: { color: colors.greenLight },
+  periodBar:   { maxHeight: 48, borderBottomWidth: 1, borderBottomColor: colors.border },
+  periodInner: { paddingHorizontal: 16, paddingVertical: 8, gap: 8, alignItems: 'center' },
+  periodChip:  { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', backgroundColor: '#07080a' },
+  periodChipActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.12)' },
+  periodChipText:   { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
+  periodChipTextActive: { color: colors.greenLight },
 
-  // Дропдаун пресетов
-  presetsDropdown: {
-    position: 'absolute', top: 120, right: 16, zIndex: 100,
-    backgroundColor: '#0e0f11', borderRadius: 14, borderWidth: 1, borderColor: colors.border,
-    padding: 8, minWidth: 180,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 10,
-  },
-  presetItem: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10 },
-  presetItemActive: { backgroundColor: 'rgba(61,158,146,0.1)' },
-  presetItemText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
-  presetItemTextActive: { color: colors.greenLight },
-
-  // Вкладки + сравнение
-  tabRow: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: colors.border },
-  tabBar: { flex: 1, flexDirection: 'row' },
-  tabBtn: { flex: 1, paddingVertical: 12, alignItems: 'center' },
+  // Табы
+  tabSection: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  tabBar:     { flexDirection: 'row' },
+  tabBtn:     { flex: 1, paddingVertical: 13, alignItems: 'center' },
   tabBtnActive: { borderBottomWidth: 2, borderBottomColor: colors.greenLight },
-  tabBtnText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  tabBtnText:   { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
   tabBtnTextActive: { color: colors.greenLight },
-  compareWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16 },
+  compareRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 8 },
   compareLabel: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
 
-  // Метрики
-  metricsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  metricCard: { flex: 1, minWidth: 180, padding: 14, backgroundColor: '#0b0c0f', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(74,77,84,0.35)' },
-  metricLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
-  metricValue: { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.text, marginTop: 6 },
-  metricSub: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 4 },
-  deltaText: { fontFamily: fonts.familySemibold, fontSize: 13 },
+  // Карточки
+  card:        { backgroundColor: '#0b0c0f', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', overflow: 'hidden' },
+  cardTitle:   { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, padding: 14, paddingBottom: 10 },
+  menuRowDiv:  { borderTopWidth: 1, borderTopColor: 'rgba(74,77,84,0.2)' },
 
-  // Сравнение
-  compareHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  compareHeaderText: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
-  prevRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border },
-  prevLabel: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
-  prevValue: { fontFamily: fonts.familySemibold, fontSize: 13 },
+  // Метрики
+  metricRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14 },
+  metricLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
+  metricValue: { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: colors.text },
+  metricSub:   { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
+  deltaText:   { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
 
   // Чистая прибыль
-  netLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, flex: 1 },
-  netValue: { fontFamily: fonts.family, fontSize: 32, fontWeight: '800', marginTop: 6 },
-  netSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 4 },
-  waterfallRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.2)' },
-  waterfallLabel: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
-  waterfallVal: { fontFamily: fonts.familyRegular, fontSize: 13 },
-  hintCard: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, lineHeight: 20 },
+  netRow:      { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 14, paddingBottom: 4 },
+  netLabel:    { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
+  netValue:    { fontFamily: fonts.family, fontSize: 32, fontWeight: '800', paddingHorizontal: 14 },
+  netSub:      { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, paddingHorizontal: 14, paddingBottom: 14 },
+  netSummaryBox: { margin: 14, marginTop: 4, padding: 14, borderRadius: 12 },
 
-  benchmarkLabel: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
-  statusOk: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.greenLight },
-  statusWarn: { fontFamily: fonts.familySemibold, fontSize: 12, color: '#e0a040' },
+  // Тепловая карта
+  heatMapWrap: { flexDirection: 'row', gap: 3, paddingHorizontal: 14, paddingBottom: 14, paddingTop: 8 },
+  heatCell:    { flex: 1, alignItems: 'center', gap: 4 },
+  heatBar:     { width: '100%', height: 32, borderRadius: 4 },
+  heatLabel:   { fontFamily: fonts.familyRegular, fontSize: 8, color: colors.muted },
 
-  // Графики
-  chartTitle: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, marginBottom: 14 },
-  barRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
-  barLabel: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, width: 64, textAlign: 'right' },
-  barTrack: { flex: 1, height: 18, backgroundColor: '#07080a', borderRadius: 9, overflow: 'hidden' },
-  barFill: { height: '100%', borderRadius: 9 },
-  barValue: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.text, width: 70, textAlign: 'right' },
+  // Бар-чарт
+  barRow:   { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, gap: 8, marginBottom: 6 },
+  barLabel: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, width: 70, textAlign: 'right' },
+  barTrack: { flex: 1, height: 16, backgroundColor: '#07080a', borderRadius: 8, overflow: 'hidden' },
+  barFill:  { height: '100%', borderRadius: 8 },
+  barValue: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.text, width: 65, textAlign: 'right' },
+
+  hintText: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, lineHeight: 20, padding: 14 },
+  emptyHint:{ fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center', padding: 20 },
 
   // Экспорт
-  exportBtn: { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(61,158,146,0.4)', backgroundColor: 'rgba(61,158,146,0.08)' },
+  exportBtn:     { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(61,158,146,0.4)', backgroundColor: 'rgba(61,158,146,0.08)' },
   exportBtnText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.greenLight },
 
-  // Модалка кастомного периода
-  modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center' },
-  modalInner: { width: '44%', maxWidth: 400, backgroundColor: '#0e0f11', borderRadius: 20, padding: 24, borderWidth: 1, borderColor: 'rgba(74,77,84,0.5)' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  modalTitle: { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text },
-  modalClose: { fontSize: 18, color: colors.muted },
-  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 6, marginTop: 12 },
-  input: { padding: 13, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 15, fontFamily: fonts.family, marginBottom: 4 },
+  // Модалка
+  modalRoot:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center' },
+  modalInner:    { width: '42%', maxWidth: 380, backgroundColor: '#0e0f11', borderRadius: 20, padding: 24, borderWidth: 1, borderColor: 'rgba(74,77,84,0.5)' },
+  modalHeader:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  modalTitle:    { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text },
+  modalCloseBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(74,77,84,0.25)', alignItems: 'center', justifyContent: 'center' },
+  modalCloseTxt: { fontSize: 13, color: colors.text, fontFamily: fonts.familySemibold },
+  fieldLabel:    { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 6, marginTop: 12 },
+  input:         { padding: 13, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 15, fontFamily: fonts.family },
+  confirmBtn:    { paddingVertical: 15, borderRadius: 14, backgroundColor: 'rgba(61,158,146,0.85)', alignItems: 'center' },
+  confirmBtnText:{ fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff' },
 });
