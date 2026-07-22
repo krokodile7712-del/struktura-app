@@ -60,34 +60,7 @@ export default function StatsBar({ stats, modules, onShiftPress, onStockPress })
           </Pressable>
         </>
       )}
-    </View>
 
-      {/* Выпадающий список низкого остатка */}
-      <Modal visible={stockOpen} transparent animationType="fade" onRequestClose={() => setStockOpen(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setStockOpen(false)}>
-          <View style={styles.dropdown}>
-            <View style={styles.dropHeader}>
-              <Text style={styles.dropTitle}>⚠️ Заканчивается</Text>
-              <Pressable onPress={() => setStockOpen(false)} hitSlop={12}>
-                <Text style={styles.dropClose}>✕</Text>
-              </Pressable>
-            </View>
-            <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
-              {(lowStockItems || []).map((item, i) => (
-                <View key={i} style={[styles.dropRow, i < (lowStockItems.length - 1) && styles.dropRowDiv]}>
-                  <Text style={styles.dropName} numberOfLines={1}>{item.name}</Text>
-                  <Text style={[styles.dropQty, { color: item['остаток'] < 0 ? '#ff3b30' : colors.redLight }]}>
-                    {item['остаток']} {item.unit}
-                  </Text>
-                </View>
-              ))}
-            </ScrollView>
-            <Pressable style={styles.dropGoBtn} onPress={() => { setStockOpen(false); onStockPress?.(); }}>
-              <Text style={styles.dropGoBtnText}>Открыть склад →</Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Modal>
   );
 }
 
