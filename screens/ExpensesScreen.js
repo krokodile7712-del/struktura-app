@@ -94,13 +94,7 @@ export default function ExpensesScreen({ navigation }) {
       <TopBar
         title="Расходы"
         onBack={() => navigation.navigate(getHomeRoute())}
-        rightElement={
-          can('add_expenses') ? (
-            <Pressable style={styles.addBtn} onPress={() => setAddModal(true)} hitSlop={8}>
-              <Text style={styles.addBtnText}>＋</Text>
-            </Pressable>
-          ) : null
-        }
+
       />
 
       {/* Периоды */}
@@ -164,6 +158,11 @@ export default function ExpensesScreen({ navigation }) {
         )}
       </ScrollView>
 
+      {can('add_expenses') && (
+        <Pressable style={styles.fab} onPress={() => setAddModal(true)}>
+          <Text style={styles.fabText}>＋ Добавить расход</Text>
+        </Pressable>
+      )}
       <BottomBar navigation={navigation} activeTab="Kassa" />
 
       {/* Модалка добавления */}
@@ -300,6 +299,22 @@ const styles = StyleSheet.create({
   inner: { padding: 16, paddingBottom: 24 },
 
   // Шапка
+  fab: {
+    position: 'absolute',
+    bottom: 72,
+    left: 20,
+    right: 20,
+    paddingVertical: 15,
+    borderRadius: 16,
+    backgroundColor: 'rgba(61,158,146,0.9)',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  fabText: { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff' },
   addBtn:     { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(61,158,146,0.15)', borderWidth: 1, borderColor: 'rgba(61,158,146,0.4)', alignItems: 'center', justifyContent: 'center' },
   addBtnText: { fontSize: 20, color: colors.greenLight, lineHeight: 26 },
 
