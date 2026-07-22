@@ -28,6 +28,7 @@ import { canConvert, conversionFactor } from '../constants/units';
 import Hint from '../components/Hint';
 import InfoTip from '../components/InfoTip';
 import Toggle from '../components/Toggle';
+import { can } from '../db/session';
 import EmptyState from '../components/EmptyState';
 import { colors, fonts, spacing } from '../constants/theme';
 import { useToast } from '../components/Toast';
@@ -1155,6 +1156,17 @@ export default function SettingsScreen({ navigation }) {
       </ScrollView>
     </Pressable>
     </>
+  );
+
+  if (!can('access_settings')) return (
+    <View style={{ flex: 1 }}>
+      <TopBar title="Настройки" onBack={() => navigation.navigate(getHomeRoute())} />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
+        <Text style={{ fontSize: 32, marginBottom: 16 }}>🔒</Text>
+        <Text style={{ fontFamily: 'AnekDevanagari_700Bold', fontSize: 18, color: '#ddd8d0', textAlign: 'center' }}>Нет доступа</Text>
+        <Text style={{ fontFamily: 'AnekDevanagari_400Regular', fontSize: 14, color: '#4a4d54', textAlign: 'center', marginTop: 8 }}>Настройки доступны только администратору.</Text>
+      </View>
+    </View>
   );
 
   return (

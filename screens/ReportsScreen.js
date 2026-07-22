@@ -7,7 +7,7 @@ import BottomBar from '../components/BottomBar';
 import InfoTip from '../components/InfoTip';
 import Toggle from '../components/Toggle';
 import { getPnL, getPnLFull, getBusinessMetrics, getRevenueByDay, getTopProducts, getBusinessProfile } from '../db/queries';
-import { getHomeRoute } from '../db/session';
+import { getHomeRoute, can } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -197,6 +197,17 @@ export default function ReportsScreen({ navigation }) {
     } catch (_) {}
     setExporting(false);
   };
+
+  if (!can('view_reports')) return (
+    <View style={{ flex: 1 }}>
+      <TopBar title="Отчётность" onBack={() => navigation.navigate(getHomeRoute())} />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
+        <Text style={{ fontSize: 32, marginBottom: 16 }}>🔒</Text>
+        <Text style={{ fontFamily: 'AnekDevanagari_700Bold', fontSize: 18, color: '#ddd8d0', textAlign: 'center' }}>Нет доступа</Text>
+        <Text style={{ fontFamily: 'AnekDevanagari_400Regular', fontSize: 14, color: '#4a4d54', textAlign: 'center', marginTop: 8 }}>Обратитесь к администратору для получения доступа к отчётности.</Text>
+      </View>
+    </View>
+  );
 
   return (
     <View style={{ flex: 1 }}>

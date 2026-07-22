@@ -4,6 +4,7 @@ import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import StatsBar from '../components/StatsBar';
 import { getBusinessProfile, getOpenShift, getTerms, pluralizeRu, getRoleNames, getDashboardStats } from '../db/queries';
+import { can } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
 
 function useColumns() {

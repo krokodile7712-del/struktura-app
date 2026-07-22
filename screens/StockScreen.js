@@ -14,7 +14,7 @@ import {
   getBusinessProfile,
 } from '../db/queries';
 import { getDb } from '../db/database';
-import { getHomeRoute } from '../db/session';
+import { getHomeRoute, can } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -188,7 +188,7 @@ export default function StockScreen({ navigation }) {
                         !isLast && styles.rowDivider,
                         pressed && styles.rowPressed,
                       ]}
-                      onPress={() => openModal(item)}
+                      onPress={() => can('view_stock') && openModal(item)}
                     >
                       {/* Левая часть: название + порог */}
                       <View style={{ flex: 1 }}>
@@ -271,7 +271,7 @@ export default function StockScreen({ navigation }) {
                 </View>
 
                 {/* Режимы */}
-                {!mode ? (
+                {!mode && can('edit_stock') ? (
                   <View style={styles.modeList}>
                     {MODES.map((m, i) => (
                       <Pressable

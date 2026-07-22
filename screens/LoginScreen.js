@@ -4,8 +4,8 @@ import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import Hint from '../components/Hint';
-import { getUserByPin, getOpenShift, getBusinessProfile } from '../db/queries';
-import { setSession } from '../db/session';
+import { getUserByPin, getOpenShift, getBusinessProfile, getUserPermissions } from '../db/queries';
+import { setSession, setPermissions } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
 
 export default function LoginScreen({ navigation }) {
@@ -26,6 +26,7 @@ export default function LoginScreen({ navigation }) {
     }
     setError('');
     setSession(user);
+    setPermissions(user.role === 'admin' ? null : getUserPermissions(user.id));
     const shiftsEnabled = getBusinessProfile()?.modules?.shifts !== false;
     const openShift = shiftsEnabled ? getOpenShift() : true;
     if (shiftsEnabled && !openShift) {

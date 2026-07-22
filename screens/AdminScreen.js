@@ -4,6 +4,7 @@ import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import StatsBar from '../components/StatsBar';
 import { getBusinessProfile, getOpenShift, getTerms, pluralizeRu, getRoleNames, getDashboardStats } from '../db/queries';
+import { can } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
 
 // Адаптивное количество колонок
@@ -71,10 +72,11 @@ export default function AdminScreen({ navigation }) {
     return unsub;
   }, [navigation]);
 
-  const visibleItems = getMenuItems(terms).filter(item =>
-    (!item.module || modules[item.module] !== false) &&
-    !(item.hideWhenShiftOpen && shiftOpen)
-  );
+  const visibleItems = getMenuItems(terms).filter(item => {
+    if (item.module && modules[item.module] === false) return false;
+    if (item.hideWhenShiftOpen && shiftOpen) return false;
+    return true;
+  });
 
   const logoUri = profile?.logo_url || 'https://i.ibb.co/hRZxPz8b/19-20260514150523.png';
 

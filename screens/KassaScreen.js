@@ -864,7 +864,7 @@ export default function KassaScreen({ navigation, route }) {
               )}
 
               {/* ── Скидка ── */}
-              {loyaltyModel !== 'discount' && (
+              {loyaltyModel !== 'discount' && can('apply_discounts') && (
                 <>
                   <Text style={styles.prePayLabel}>🏷 Скидка</Text>
                   {effectiveDiscount ? (
