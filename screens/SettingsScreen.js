@@ -1298,13 +1298,11 @@ export default function SettingsScreen({ navigation }) {
                 <View key={cat} style={{ marginBottom: 12 }}>
                   {/* Заголовок категории — тап раскрывает/скрывает */}
                   <Pressable
-                    style={({ pressed }) => [styles.stockAccHead, pressed && { backgroundColor: 'rgba(255,255,255,0.02)' }]}
+                    style={({ pressed }) => [styles.stockAccHead, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
                     onPress={() => setOpenStockCats(prev => ({ ...prev, [cat]: !isOpen }))}
                   >
-                    <View style={styles.menuCatLine} />
-                    <Text style={styles.menuCatName}>{cat}</Text>
-                    <Text style={styles.stockAccArrow}>{isOpen ? '▲' : '▼'}</Text>
-                    <View style={styles.menuCatLine} />
+                    <Text style={styles.stockAccTitle}>{cat}</Text>
+                    <Text style={[styles.stockAccArrow, isOpen && { transform: [{ rotate: '180deg' }] }]}>▼</Text>
                   </Pressable>
 
                   {/* Список позиций */}
