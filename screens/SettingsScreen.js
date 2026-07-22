@@ -1165,36 +1165,41 @@ export default function SettingsScreen({ navigation }) {
       </View>
       <BottomBar navigation={navigation} activeTab="Kassa" />
 
-      {/* Модалка товара — упрощённая Apple стиль */}
-      <Modal visible={!!productModal} transparent animationType="fade" onRequestClose={() => setProductModal(null)}>
-        <View style={styles.modalRoot}>
+      {/* Модалка товара */}
+      <Modal visible={!!productModal} transparent animationType="slide" onRequestClose={() => setProductModal(null)}>
+        <View style={styles.prodModalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setProductModal(null)} />
           {productModal && (
-            <View style={[styles.modalInner, { maxHeight: Dimensions.get('window').height * 0.85, width: '52%' }]}>
-
-              {/* Заголовок с крестиком */}
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>
-                  {productModal.product.id ? 'Редактировать' : 'Новый товар'}
+            <View style={styles.prodModalBox}>
+              {/* Заголовок */}
+              <View style={styles.prodModalHeader}>
+                <Text style={styles.prodModalTitle}>
+                  {productModal.product.id ? 'Редактировать' : `Новый ${terms.item.toLowerCase()}`}
                 </Text>
                 <Pressable onPress={() => setProductModal(null)} hitSlop={14} style={styles.itemModalClose}>
                   <Text style={styles.itemModalCloseText}>✕</Text>
                 </Pressable>
               </View>
 
-              <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              {/* Контент — скроллируется */}
+              <ScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={{ padding: 20, paddingTop: 0 }}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
                 {/* Название */}
                 <Text style={styles.productFieldLabel}>Название</Text>
                 <TextInput
                   color={colors.text}
-                  style={[styles.input, styles.productNameInput]}
+                  style={styles.prodInput}
                   value={productModal.product.name}
                   onChangeText={v => setProductModal(m => ({ ...m, product: { ...m.product, name: v } }))}
                   placeholder="Название товара"
                   placeholderTextColor={colors.muted}
                 />
 
-                {/* ── Категория ── */}
+                {/* Категория */}
                 <Text style={styles.productFieldLabel}>Категория</Text>
                 <View style={styles.productCatRow}>
                   {categories.map(cat => (
@@ -1208,15 +1213,12 @@ export default function SettingsScreen({ navigation }) {
                   ))}
                 </View>
 
-                {/* ── Варианты / Цена ── */}
+                {/* Цена / Варианты */}
                 <View style={styles.productSectionHead}>
                   <Text style={styles.productFieldLabel}>
                     {productModal.variants.length > 1 ? 'Варианты и цены' : 'Цена'}
                   </Text>
-                  <InfoTip
-                    title="Варианты"
-                    text="Если товар продаётся в нескольких размерах или видах — добавьте вариант для каждого. Если один вариант — оставьте название пустым, только цену."
-                  />
+                  <InfoTip title="Варианты" text="Если товар продаётся в нескольких размерах или видах — добавьте вариант для каждого. Если один вариант — оставьте название пустым, только цену." />
                 </View>
 
                 <View style={styles.menuCard}>
@@ -1243,10 +1245,9 @@ export default function SettingsScreen({ navigation }) {
                           onChangeText={val => setVariantField(idx, 'price', val)}
                         />
                         <Text style={styles.productVariantUnit}>₽</Text>
-                        {/* Техкарта — открывает отдельную модалку */}
                         <Pressable
                           style={styles.techCardBtn}
-                          onPress={() => setTechCardModal({ variantKey: variantKey(v, idx), variantLabel: v.label || (productModal.product.name) })}
+                          onPress={() => setTechCardModal({ variantKey: variantKey(v, idx), variantLabel: v.label || productModal.product.name })}
                         >
                           <Text style={styles.techCardBtnText}>
                             🧾 {(productModal.techCards[variantKey(v, idx)] || []).length > 0
@@ -1267,11 +1268,9 @@ export default function SettingsScreen({ navigation }) {
                 <Pressable style={styles.productAddVariant} onPress={addVariantRow}>
                   <Text style={styles.productAddVariantText}>+ Добавить вариант</Text>
                 </Pressable>
-                <Text style={styles.productHint}>
-                  💡 Несколько вариантов — например Латте S и Латте L с разными ценами
-                </Text>
+                <Text style={styles.productHint}>💡 Несколько вариантов — например Латте S и Латте L с разными ценами</Text>
 
-                {/* ── Модификаторы ── */}
+                {/* Модификаторы */}
                 {modifierGroups.length > 0 && (
                   <>
                     <Text style={[styles.productFieldLabel, { marginTop: 16 }]}>Модификаторы</Text>
@@ -1279,8 +1278,7 @@ export default function SettingsScreen({ navigation }) {
                       {modifierGroups.map((g, idx) => {
                         const checked = productModal.groupIds.includes(g.id);
                         return (
-                          <Pressable
-                            key={g.id}
+                          <Pressable key={g.id}
                             style={[styles.productVariantRow, idx < modifierGroups.length - 1 && styles.menuRowDiv]}
                             onPress={() => toggleGroupForProduct(g.id)}
                           >
@@ -1292,31 +1290,23 @@ export default function SettingsScreen({ navigation }) {
                         );
                       })}
                     </View>
-                    <Text style={styles.productHint}>
-                      💡 Модификаторы — дополнения к товару: молоко, сироп, размер стакана
-                    </Text>
                   </>
                 )}
 
-                {/* ── Статус ── */}
+                {/* Статус */}
                 <View style={[styles.productVariantRow, { marginTop: 16, backgroundColor: '#0b0c0f', borderRadius: 14, paddingHorizontal: 16, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)' }]}>
-                  <Text style={styles.productVariantName}>Активен</Text>
-                  <Toggle
-                    value={!!productModal.product.active}
-                    onValueChange={() => toggleProductActive()}
-                  />
+                  <Text style={{ flex: 1, fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text }}>Активен</Text>
+                  <Toggle value={!!productModal.product.active} onValueChange={() => toggleProductActive()} />
                 </View>
 
-                {/* Кнопка — внутри ScrollView, всегда достижима */}
+                {/* Сохранить */}
                 <Pressable
-                  style={({ pressed }) => [styles.confirmBtn, { marginTop: 20, marginBottom: 8 }, pressed && { opacity: 0.88 }]}
+                  style={({ pressed }) => [styles.confirmBtn, { marginTop: 20, marginBottom: 4 }, pressed && { opacity: 0.88 }]}
                   onPress={saveProduct}
                 >
                   <Text style={styles.confirmBtnText}>Сохранить</Text>
                 </Pressable>
-
               </ScrollView>
-
             </View>
           )}
         </View>
@@ -1989,6 +1979,29 @@ const styles = StyleSheet.create({
   sectionTitle: { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.text, marginBottom: 18, letterSpacing: -0.3 },
   phoneback: { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
   phoneBackText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight },
+  // Модалка товара — position:absolute для надёжного scroll
+  prodModalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)' },
+  prodModalBox: {
+    position: 'absolute',
+    top: '4%', bottom: '4%',
+    left: '24%', right: '4%',
+    backgroundColor: '#0e0f11',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(74,77,84,0.5)',
+    overflow: 'hidden',
+  },
+  prodModalHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    padding: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.3)',
+  },
+  prodModalTitle: { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text },
+  prodInput: {
+    padding: 13, backgroundColor: '#07080a', borderWidth: 1,
+    borderColor: 'rgba(74,77,84,0.5)', borderRadius: 12,
+    fontSize: 15, fontFamily: fonts.familySemibold, color: colors.text, marginBottom: 4,
+  },
+
   // Модалка товара
   productNameInput: { fontSize: 16, fontFamily: fonts.familySemibold, color: colors.text },
   productFieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 16 },
