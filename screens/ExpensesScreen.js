@@ -1,245 +1,351 @@
-import React, { useState } from 'react';
-import EmptyState from '../components/EmptyState';
-import Hint from '../components/Hint';
-import InfoTip from '../components/InfoTip';
-import { getHomeRoute } from '../db/session';
-import { View, Text, StyleSheet, ScrollView, TextInput, Pressable } from 'react-native';
-import MetalCard from '../components/MetalCard';
-import MetalButton from '../components/MetalButton';
+import React, { useState, useCallback } from 'react';
+import {
+  View, Text, StyleSheet, ScrollView, Pressable,
+  TextInput, Modal, useWindowDimensions,
+} from 'react-native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
+import EmptyState from '../components/EmptyState';
+import InfoTip from '../components/InfoTip';
+import { useFocusEffect } from '@react-navigation/native';
 import { getAllExpenses, insertExpense } from '../db/queries';
+import { getHomeRoute, can } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
 
+const CATEGORIES = ['Аренда', 'Зарплата', 'Закупка', 'Коммуналка', 'Расходники', 'Реклама', 'Прочее'];
+
+const todayStr    = () => new Date().toISOString().slice(0, 10);
+const weekAgoStr  = () => { const d = new Date(); d.setDate(d.getDate()-6); return d.toISOString().slice(0,10); };
+const monthAgoStr = () => { const d = new Date(); d.setDate(d.getDate()-29); return d.toISOString().slice(0,10); };
+const fmtDate     = s => { if (!s) return ''; const [y,m,d] = s.split('-'); return `${d}.${m}`; };
+const fmt         = n => (n || 0).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
 const PERIODS = [
-  { key: 'day',    label: 'День' },
-  { key: 'week',   label: 'Неделя' },
-  { key: 'month',  label: 'Месяц' },
-  { key: 'custom', label: 'Свой' },
+  { key: 'today', label: 'Сегодня', from: todayStr,    to: todayStr },
+  { key: 'week',  label: 'Неделя',  from: weekAgoStr,  to: todayStr },
+  { key: 'month', label: 'Месяц',   from: monthAgoStr, to: todayStr },
+  { key: 'custom',label: 'Свой',    from: monthAgoStr, to: todayStr },
 ];
 
-const CATEGORIES = ['Аренда', 'Зарплата', 'Закупка', 'Коммуналка', 'Расходники', 'Прочее'];
-
-function todayStr() { return new Date().toISOString().slice(0, 10); }
-function weekAgoStr() { const d = new Date(); d.setDate(d.getDate()-7); return d.toISOString().slice(0,10); }
-function monthAgoStr() { const d = new Date(); d.setMonth(d.getMonth()-1); return d.toISOString().slice(0,10); }
-function fmtDate(s) {
-  if (!s) return '';
-  const [y,m,d] = s.split('-');
-  return `${d}.${m}.${y}`;
-}
-
 export default function ExpensesScreen({ navigation }) {
-  // Блок просмотра
-  const [period, setPeriod] = useState('day');
-  const [dateFrom, setDateFrom] = useState(todayStr());
-  const [dateTo, setDateTo]   = useState(todayStr());
-  const [shown, setShown]     = useState(false);
-  const [expenses, setExpenses] = useState([]);
+  const { width: W } = useWindowDimensions();
+  const [period, setPeriod]       = useState('week');
+  const [customFrom, setCustomFrom] = useState(monthAgoStr());
+  const [customTo, setCustomTo]   = useState(todayStr());
+  const [showCustom, setShowCustom] = useState(false);
+  const [expenses, setExpenses]   = useState([]);
+  const [addModal, setAddModal]   = useState(false);
 
-  // Блок добавления
-  const [category, setCategory]  = useState(CATEGORIES[0]);
+  // Форма добавления
+  const [category, setCategory]   = useState(CATEGORIES[0]);
   const [amount, setAmount]       = useState('');
   const [comment, setComment]     = useState('');
-  const [newDate, setNewDate]     = useState(todayStr());
-  const [dateMode, setDateMode]   = useState('today'); // today | yesterday | custom
-  const [saving, setSaving]       = useState(false);
+  const [dateMode, setDateMode]   = useState('today');
+  const [customDate, setCustomDate] = useState(todayStr());
 
-  const handleDateMode = (mode) => {
-    setDateMode(mode);
-    if (mode === 'today') setNewDate(todayStr());
-    if (mode === 'yesterday') { const d = new Date(); d.setDate(d.getDate()-1); setNewDate(d.toISOString().slice(0,10)); }
+  const getRange = () => {
+    if (period === 'custom') return { from: customFrom, to: customTo };
+    const p = PERIODS.find(p => p.key === period);
+    return { from: p.from(), to: p.to() };
   };
 
-  const handlePeriodChange = (key) => {
-    setPeriod(key); setShown(false);
-    if (key === 'day')   { setDateFrom(todayStr());   setDateTo(todayStr()); }
-    if (key === 'week')  { setDateFrom(weekAgoStr());  setDateTo(todayStr()); }
-    if (key === 'month') { setDateFrom(monthAgoStr()); setDateTo(todayStr()); }
-  };
-
-  const handleShow = () => {
+  const load = useCallback(() => {
     try {
+      const { from, to } = getRange();
       const all = getAllExpenses();
-      const filtered = all.filter(e => {
+      setExpenses(all.filter(e => {
         const d = e.date?.slice(0,10) || '';
-        return d >= dateFrom && d <= dateTo;
-      });
-      setExpenses(filtered);
-      setShown(true);
-    } catch (e) { console.error(e); }
+        return d >= from && d <= to;
+      }));
+    } catch(e) { console.error(e); }
+  }, [period, customFrom, customTo]);
+
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const getNewDate = () => {
+    if (dateMode === 'today') return todayStr();
+    if (dateMode === 'yesterday') { const d = new Date(); d.setDate(d.getDate()-1); return d.toISOString().slice(0,10); }
+    return customDate;
   };
 
   const handleAdd = () => {
     if (!amount || isNaN(parseFloat(amount))) return;
-    setSaving(true);
     try {
-      insertExpense({ date: newDate, category, amount: parseFloat(amount), comment: comment.trim() });
-      setAmount(''); setComment('');
-      setDateMode('today'); setNewDate(todayStr());
-      if (shown) handleShow(); // обновляем список если уже показан
-    } catch (e) { console.error(e); }
-    setSaving(false);
+      insertExpense({ date: getNewDate(), category, amount: parseFloat(amount), comment: comment.trim() });
+      setAmount(''); setComment(''); setDateMode('today');
+      setAddModal(false);
+      load();
+    } catch(e) { console.error(e); }
   };
 
-  const total = expenses.reduce((s, e) => s + e.amount, 0);
-  const byCategory = CATEGORIES.map(cat => ({
-    cat, sum: expenses.filter(e => e.category === cat).reduce((s, e) => s + e.amount, 0),
-  })).filter(c => c.sum > 0);
+  // Группировка по категориям
+  const total = expenses.reduce((s,e) => s + e.amount, 0);
+  const grouped = CATEGORIES
+    .map(cat => ({ cat, items: expenses.filter(e => e.category === cat) }))
+    .filter(g => g.items.length > 0);
+
+  const { from, to } = getRange();
+  const rangeLabel = period === 'today' ? 'Сегодня'
+    : period === 'custom' ? `${fmtDate(from)} — ${fmtDate(to)}`
+    : PERIODS.find(p => p.key === period)?.label || '';
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title="Расходы" onBack={() => navigation.navigate(getHomeRoute())} />
-      <ScrollView style={styles.screen} contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
+      <TopBar
+        title="Расходы"
+        onBack={() => navigation.navigate(getHomeRoute())}
+        rightElement={
+          can('add_expenses') ? (
+            <Pressable style={styles.addBtn} onPress={() => setAddModal(true)} hitSlop={8}>
+              <Text style={styles.addBtnText}>＋</Text>
+            </Pressable>
+          ) : null
+        }
+      />
 
-        {/* Блок просмотра */}
-        <MetalCard>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
-              <Text style={[styles.blockTitle, { marginBottom: 0 }]}>📊 Расходы за период</Text>
-              <InfoTip
-                title="Зачем записывать расходы?"
-                text="Расходы — это всё что вы тратите на бизнес помимо закупки товаров: аренда, коммунальные, зарплата, реклама, канцелярия. Фиксируйте их здесь чтобы видеть реальную прибыль, а не просто выручку."
-              />
-            </View>
-          <View style={styles.periodRow}>
-            {PERIODS.map(p => (
-              <Pressable
-                key={p.key}
-                style={[styles.periodBtn, period === p.key && styles.periodBtnActive]}
-                onPress={() => handlePeriodChange(p.key)}
-              >
-                <Text style={[styles.periodLabel, period === p.key && styles.periodLabelActive]}>{p.label}</Text>
-              </Pressable>
-            ))}
-          </View>
-
-          {period === 'custom' ? (
-            <View style={styles.datesRow}>
-              <TextInput style={[styles.dateInput, { flex: 1 }]} placeholder="С (ГГГГ-ММ-ДД)" placeholderTextColor={colors.muted} value={dateFrom} onChangeText={v => { setDateFrom(v); setShown(false); }} />
-              <Text style={styles.dateSep}>—</Text>
-              <TextInput style={[styles.dateInput, { flex: 1 }]} placeholder="По (ГГГГ-ММ-ДД)" placeholderTextColor={colors.muted} value={dateTo} onChangeText={v => { setDateTo(v); setShown(false); }} />
-            </View>
-          ) : (
-            <Text style={styles.dateRange}>
-              {period === 'day' ? fmtDate(todayStr()) : `${fmtDate(dateFrom)} — ${fmtDate(dateTo)}`}
+      {/* Периоды */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}
+        style={styles.periodBar} contentContainerStyle={styles.periodInner}>
+        {PERIODS.map(p => (
+          <Pressable
+            key={p.key}
+            style={[styles.periodChip, period === p.key && styles.periodChipActive]}
+            onPress={() => {
+              if (p.key === 'custom') { setPeriod('custom'); setShowCustom(true); }
+              else { setPeriod(p.key); }
+            }}
+          >
+            <Text style={[styles.periodChipText, period === p.key && styles.periodChipTextActive]}>
+              {p.key === 'custom' && period === 'custom' ? `${fmtDate(customFrom)}—${fmtDate(customTo)}` : p.label}
             </Text>
-          )}
+          </Pressable>
+        ))}
+      </ScrollView>
 
-          <MetalButton title="● Показать" variant="action" onPress={handleShow} />
+      {/* Итого */}
+      {expenses.length > 0 && (
+        <View style={styles.totalBar}>
+          <Text style={styles.totalLabel}>{rangeLabel}</Text>
+          <Text style={styles.totalValue}>{fmt(total)} ₽</Text>
+        </View>
+      )}
 
-          {shown && (
-            <>
-              <View style={[styles.row, styles.totalRow]}>
-                <Text style={styles.totalLabel}>ИТОГО</Text>
-                <Text style={styles.totalValue}>{total.toLocaleString('ru-RU')} ₽</Text>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
+        {expenses.length === 0 ? (
+          <EmptyState icon="💸" title="Нет расходов"
+            text={`За ${rangeLabel.toLowerCase()} расходов не найдено. Нажмите ＋ чтобы добавить.`} />
+        ) : (
+          grouped.map(g => {
+            const catTotal = g.items.reduce((s,e) => s + e.amount, 0);
+            return (
+              <View key={g.cat} style={styles.catGroup}>
+                {/* Заголовок категории */}
+                <View style={styles.catHeadRow}>
+                  <Text style={styles.catName}>{g.cat}</Text>
+                  <Text style={styles.catTotal}>{fmt(catTotal)} ₽</Text>
+                </View>
+                {/* Записи */}
+                <View style={styles.card}>
+                  {g.items.map((e, idx) => (
+                    <View key={e.id} style={[styles.expRow, idx < g.items.length - 1 && styles.rowDiv]}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.expComment} numberOfLines={1}>
+                          {e.comment || g.cat}
+                        </Text>
+                        <Text style={styles.expDate}>{fmtDate(e.date?.slice(0,10))}</Text>
+                      </View>
+                      <Text style={styles.expAmount}>{fmt(e.amount)} ₽</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            );
+          })
+        )}
+      </ScrollView>
+
+      <BottomBar navigation={navigation} activeTab="Kassa" />
+
+      {/* Модалка добавления */}
+      <Modal visible={addModal} transparent animationType="fade" onRequestClose={() => setAddModal(false)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setAddModal(false)} />
+          <View style={styles.modalBox}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Новый расход</Text>
+              <Pressable onPress={() => setAddModal(false)} hitSlop={14} style={styles.modalCloseBtn}>
+                <Text style={styles.modalCloseTxt}>✕</Text>
+              </Pressable>
+            </View>
+
+            <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 8 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+
+              {/* Категория */}
+              <Text style={styles.fieldLabel}>Категория</Text>
+              <View style={styles.card}>
+                {CATEGORIES.map((cat, idx) => (
+                  <Pressable
+                    key={cat}
+                    style={[styles.expRow, idx < CATEGORIES.length - 1 && styles.rowDiv]}
+                    onPress={() => setCategory(cat)}
+                  >
+                    <Text style={[styles.expComment, { flex: 1 }]}>{cat}</Text>
+                    <View style={[styles.checkbox, category === cat && styles.checkboxOn]}>
+                      {category === cat && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
+                    </View>
+                  </Pressable>
+                ))}
               </View>
 
-              {byCategory.map(c => (
-                <View key={c.cat} style={({ pressed }) => [styles.row, pressed && { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8 }]}>
-                  <Text style={styles.rowSub}>{c.cat}</Text>
-                  <Text style={styles.rowSub}>{c.sum.toLocaleString('ru-RU')} ₽</Text>
-                </View>
-              ))}
+              {/* Сумма */}
+              <Text style={styles.fieldLabel}>Сумма, ₽</Text>
+              <TextInput
+                color={colors.text}
+                style={styles.amountInput}
+                value={amount}
+                onChangeText={setAmount}
+                keyboardType="numeric"
+                placeholder="0"
+                placeholderTextColor={colors.muted}
+                autoFocus
+              />
 
-              {expenses.length > 0 && <Text style={[styles.sectionTitle, { marginTop: 12 }]}>Записи</Text>}
-              {expenses.map(e => (
-                <View key={e.id} style={({ pressed }) => [styles.row, pressed && { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8 }]}>
-                  <View>
-                    <Text style={styles.rowName}>{e.category}{e.comment ? ` — ${e.comment}` : ''}</Text>
-                    <Text style={styles.rowSub}>{fmtDate(e.date?.slice(0,10))}</Text>
-                  </View>
-                  <Text style={styles.rowPrice}>{e.amount.toLocaleString('ru-RU')} ₽</Text>
-                </View>
-              ))}
+              {/* Комментарий */}
+              <Text style={styles.fieldLabel}>Комментарий</Text>
+              <TextInput
+                color={colors.text}
+                style={styles.input}
+                value={comment}
+                onChangeText={setComment}
+                placeholder="Необязательно"
+                placeholderTextColor={colors.muted}
+              />
 
-              {shown && expenses.length === 0 && (
-                <Text style={styles.empty}>Нет расходов за этот период</Text>
+              {/* Дата */}
+              <Text style={styles.fieldLabel}>Дата</Text>
+              <View style={styles.card}>
+                {[
+                  { key: 'today',     label: 'Сегодня'  },
+                  { key: 'yesterday', label: 'Вчера'    },
+                  { key: 'custom',    label: 'Другая'   },
+                ].map((d, idx) => (
+                  <Pressable
+                    key={d.key}
+                    style={[styles.expRow, idx < 2 && styles.rowDiv]}
+                    onPress={() => setDateMode(d.key)}
+                  >
+                    <Text style={[styles.expComment, { flex: 1 }]}>{d.label}</Text>
+                    <View style={[styles.checkbox, dateMode === d.key && styles.checkboxOn]}>
+                      {dateMode === d.key && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
+              {dateMode === 'custom' && (
+                <TextInput
+                  color={colors.text}
+                  style={[styles.input, { marginTop: 8 }]}
+                  value={customDate}
+                  onChangeText={setCustomDate}
+                  placeholder="ГГГГ-ММ-ДД"
+                  placeholderTextColor={colors.muted}
+                  keyboardType="numbers-and-punctuation"
+                />
               )}
-            </>
-          )}
-        </MetalCard>
 
-        {/* Блок добавления */}
-        <MetalCard style={{ marginTop: 12 }}>
-          <Text style={styles.blockTitle}>+ Новый расход</Text>
-
-          <Text style={styles.fieldLabel}>Категория</Text>
-          <View style={styles.dropdown}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-              {CATEGORIES.map(cat => (
-                <Pressable key={cat} style={[styles.chip, category === cat && styles.chipActive]} onPress={() => setCategory(cat)}>
-                  <Text style={[styles.chipLabel, category === cat && styles.chipLabelActive]}>{cat}</Text>
-                </Pressable>
-              ))}
+              {/* Сохранить */}
+              <Pressable
+                style={({ pressed }) => [styles.confirmBtn, !amount && styles.confirmBtnOff, { marginTop: 20 }, pressed && amount && { opacity: 0.88 }]}
+                onPress={handleAdd}
+                disabled={!amount}
+              >
+                <Text style={styles.confirmBtnText}>
+                  {amount ? `Добавить ${fmt(parseFloat(amount) || 0)} ₽` : 'Введите сумму'}
+                </Text>
+              </Pressable>
             </ScrollView>
           </View>
+        </View>
+      </Modal>
 
-          <Text style={styles.fieldLabel}>Сумма</Text>
-          <TextInput style={styles.input} placeholder="0" placeholderTextColor={colors.muted} keyboardType="numeric" value={amount} onChangeText={setAmount} />
-
-          <Text style={styles.fieldLabel}>Комментарий</Text>
-          <TextInput style={styles.input} placeholder="Необязательно" placeholderTextColor={colors.muted} value={comment} onChangeText={setComment} />
-
-          <Text style={styles.fieldLabel}>Дата</Text>
-          <View style={styles.dateChipsRow}>
-            <Pressable style={[styles.dateChip, dateMode === 'today' && styles.dateChipActive]} onPress={() => handleDateMode('today')}>
-              <Text style={[styles.dateChipLabel, dateMode === 'today' && styles.dateChipLabelActive]}>Сегодня</Text>
-            </Pressable>
-            <Pressable style={[styles.dateChip, dateMode === 'yesterday' && styles.dateChipActive]} onPress={() => handleDateMode('yesterday')}>
-              <Text style={[styles.dateChipLabel, dateMode === 'yesterday' && styles.dateChipLabelActive]}>Вчера</Text>
-            </Pressable>
-            <Pressable style={[styles.dateChip, dateMode === 'custom' && styles.dateChipActive]} onPress={() => setDateMode('custom')}>
-              <Text style={[styles.dateChipLabel, dateMode === 'custom' && styles.dateChipLabelActive]}>Другая дата</Text>
-            </Pressable>
+      {/* Модалка своего периода */}
+      <Modal visible={showCustom} transparent animationType="fade" onRequestClose={() => setShowCustom(false)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setShowCustom(false)} />
+          <View style={[styles.modalBox, { maxHeight: 320 }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Свой период</Text>
+              <Pressable onPress={() => setShowCustom(false)} hitSlop={14} style={styles.modalCloseBtn}>
+                <Text style={styles.modalCloseTxt}>✕</Text>
+              </Pressable>
+            </View>
+            <View style={{ padding: 20, paddingTop: 8 }}>
+              <Text style={styles.fieldLabel}>С (ГГГГ-ММ-ДД)</Text>
+              <TextInput color={colors.text} style={styles.input} value={customFrom} onChangeText={setCustomFrom} placeholder="2024-01-01" placeholderTextColor={colors.muted} keyboardType="numbers-and-punctuation" />
+              <Text style={styles.fieldLabel}>По (ГГГГ-ММ-ДД)</Text>
+              <TextInput color={colors.text} style={styles.input} value={customTo} onChangeText={setCustomTo} placeholder="2024-01-31" placeholderTextColor={colors.muted} keyboardType="numbers-and-punctuation" />
+              <Pressable style={({ pressed }) => [styles.confirmBtn, { marginTop: 16 }, pressed && { opacity: 0.88 }]}
+                onPress={() => { setShowCustom(false); load(); }}>
+                <Text style={styles.confirmBtnText}>Применить</Text>
+              </Pressable>
+            </View>
           </View>
-          {dateMode === 'custom' && (
-            <TextInput style={styles.input} placeholder="ГГГГ-ММ-ДД" placeholderTextColor={colors.muted} value={newDate} onChangeText={setNewDate} />
-          )}
-          {dateMode !== 'custom' && (
-            <Text style={styles.dateRange}>{fmtDate(newDate)}</Text>
-          )}
-
-          <MetalButton title="💾 Добавить расход" variant="success" onPress={handleAdd} />
-        </MetalCard>
-
-      </ScrollView>
-      <BottomBar navigation={navigation} activeTab="Kassa" />
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  inner: { padding: spacing.lg, paddingBottom: 20, maxWidth: 1100, width: '100%', alignSelf: 'center' },
-  blockTitle: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.textDim, textTransform: 'uppercase', letterSpacing: 2, marginBottom: 10 },
-  periodRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  periodBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e', alignItems: 'center' },
-  periodBtnActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.18)' },
-  periodLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
-  periodLabelActive: { color: colors.greenLight },
-  datesRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  dateInput: { padding: 12, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 13, fontFamily: fonts.familyRegular },
-  dateSep: { color: colors.muted, fontFamily: fonts.familyRegular },
-  dateRange: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center', marginBottom: 12 },
-  sectionTitle: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, marginBottom: 8, marginTop: 4 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
-  totalRow: { borderTopWidth: 1, borderTopColor: colors.borderHi, marginTop: 8 },
-  totalLabel: { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.text },
-  totalValue: { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.greenLight },
-  rowName: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.text },
-  rowSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
-  rowPrice: { fontFamily: fonts.family, fontSize: 14, fontWeight: '700', color: colors.text },
-  empty: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', paddingVertical: 16 },
-  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, marginTop: 10 },
-  dropdown: { marginBottom: 4 },
-  chip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e' },
-  chipActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.18)' },
-  chipLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
-  chipLabelActive: { color: colors.greenLight },
-  dateChipsRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
-  dateChip: { flex: 1, paddingVertical: 9, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e', alignItems: 'center' },
-  dateChipActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.18)' },
-  dateChipLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
-  dateChipLabelActive: { color: colors.greenLight },
-  input: { padding: 14, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 15, fontFamily: fonts.family, marginBottom: 4 },
+  inner: { padding: 16, paddingBottom: 24 },
+
+  // Шапка
+  addBtn:     { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(61,158,146,0.15)', borderWidth: 1, borderColor: 'rgba(61,158,146,0.4)', alignItems: 'center', justifyContent: 'center' },
+  addBtnText: { fontSize: 20, color: colors.greenLight, lineHeight: 26 },
+
+  // Периоды
+  periodBar:   { maxHeight: 48, borderBottomWidth: 1, borderBottomColor: colors.border },
+  periodInner: { paddingHorizontal: 16, paddingVertical: 8, gap: 8, alignItems: 'center' },
+  periodChip:  { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', backgroundColor: '#07080a' },
+  periodChipActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.12)' },
+  periodChipText:   { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
+  periodChipTextActive: { color: colors.greenLight },
+
+  // Итого
+  totalBar:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: '#07080a' },
+  totalLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  totalValue: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text },
+
+  // Группы
+  catGroup:   { marginBottom: 16 },
+  catHeadRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, paddingHorizontal: 2 },
+  catName:    { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text },
+  catTotal:   { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted },
+
+  // Карточка
+  card:   { backgroundColor: '#0b0c0f', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', overflow: 'hidden' },
+  expRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 14 },
+  rowDiv: { borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.2)' },
+  expComment: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, marginBottom: 2 },
+  expDate:    { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
+  expAmount:  { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: colors.text },
+
+  // Чекбокс
+  checkbox:   { width: 24, height: 24, borderRadius: 8, borderWidth: 1.5, borderColor: 'rgba(74,77,84,0.5)', alignItems: 'center', justifyContent: 'center' },
+  checkboxOn: { backgroundColor: colors.greenLight, borderColor: colors.greenLight },
+
+  // Модалка
+  modalRoot:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modalBox:      { width: '46%', maxHeight: '88%', backgroundColor: '#0e0f11', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(74,77,84,0.5)', overflow: 'hidden' },
+  modalHeader:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.3)' },
+  modalTitle:    { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text },
+  modalCloseBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(74,77,84,0.25)', alignItems: 'center', justifyContent: 'center' },
+  modalCloseTxt: { fontSize: 13, color: colors.text, fontFamily: fonts.familySemibold },
+
+  fieldLabel:  { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 16 },
+  amountInput: { padding: 14, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', borderRadius: 12, color: colors.text, fontSize: 28, fontFamily: fonts.family, fontWeight: '800', textAlign: 'center', marginBottom: 4 },
+  input:       { padding: 13, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', borderRadius: 12, color: colors.text, fontSize: 14, fontFamily: fonts.family },
+  confirmBtn:    { paddingVertical: 15, borderRadius: 14, backgroundColor: 'rgba(61,158,146,0.85)', alignItems: 'center' },
+  confirmBtnOff: { backgroundColor: 'rgba(74,77,84,0.3)' },
+  confirmBtnText:{ fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff' },
 });
