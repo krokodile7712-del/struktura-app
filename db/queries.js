@@ -2372,3 +2372,48 @@ export function deleteUser(id) {
   const db = getDb();
   db.runSync(`UPDATE users SET active = 0 WHERE id = ?`, [id]);
 }
+
+// ─── Права доступа сотрудников ───────────────────────────────────────────────
+
+export const DEFAULT_PERMISSIONS = {
+  // Касса
+  apply_discounts:    true,
+  view_order_history: true,
+  cancel_orders:      false,
+  // Клиенты
+  view_clients:       true,
+  edit_clients:       false,
+  manage_loyalty:     false,
+  // Склад
+  view_stock:         true,
+  edit_stock:         false,
+  edit_thresholds:    false,
+  // Меню
+  edit_cost_cards:    false,
+  edit_products:      false,
+  // Финансы
+  view_reports:       false,
+  add_expenses:       true,
+  view_revenue:       true,
+  // Смена
+  open_shift:         true,
+  close_shift:        true,
+  // Настройки
+  access_settings:    false,
+};
+
+export function getUserPermissions(userId) {
+  const db = getDb();
+  try {
+    const user = db.getFirstSync(`SELECT permissions FROM users WHERE id = ?`, [userId]);
+    if (!user?.permissions) return { ...DEFAULT_PERMISSIONS };
+    return { ...DEFAULT_PERMISSIONS, ...JSON.parse(user.permissions) };
+  } catch (_) { return { ...DEFAULT_PERMISSIONS }; }
+}
+
+export function saveUserPermissions(userId, permissions) {
+  const db = getDb();
+  try {
+    db.runSync(`UPDATE users SET permissions = ? WHERE id = ?`, [JSON.stringify(permissions), userId]);
+  } catch (e) { console.error(e); }
+}

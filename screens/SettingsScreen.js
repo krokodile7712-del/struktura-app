@@ -12,6 +12,7 @@ import {
   insertModifierOption, updateModifierOption, deleteModifierOption,
   getCostCardForVariant, saveCostCardForVariant,
   getUsers, updateUserPin, addUser, updateUser, deleteUser,
+  getUserPermissions, saveUserPermissions, DEFAULT_PERMISSIONS,
   getDiscounts, setSetting, getSetting, getLoyaltyConfig, updateLoyaltyConfig,
   getPayMethods, savePayMethods,
   getZones, addZone, updateZone, deleteZone,
@@ -847,7 +848,7 @@ export default function SettingsScreen({ navigation }) {
           <View style={styles.menuFloatBtns} pointerEvents="box-none">
             <View style={styles.menuFloatRow}>
               <Pressable
-                onPress={() => setEmpModal({ id: null, name: '', pin: '', pin2: '', role: 'barista', salaryType: 'shift', salaryAmount: '' })}
+                onPress={() => setEmpModal({ id: null, name: '', pin: '', pin2: '', role: 'barista', salaryType: 'shift', salaryAmount: '', permissions: { ...DEFAULT_PERMISSIONS } })}
                 hitSlop={14}
                 style={[styles.menuBadge, styles.menuBadgeAdd]}
               >
@@ -870,7 +871,7 @@ export default function SettingsScreen({ navigation }) {
                   idx < users.length - 1 && styles.menuRowDiv,
                   pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
                 ]}
-                onPress={() => setEmpModal({ id: u.id, name: u.name, pin: u.pin, pin2: u.pin, role: u.role, salaryType: u.salary_type || 'shift', salaryAmount: String(u.salary_amount || '') })}
+                onPress={() => setEmpModal({ id: u.id, name: u.name, pin: u.pin, pin2: u.pin, role: u.role, salaryType: u.salary_type || 'shift', salaryAmount: String(u.salary_amount || ''), permissions: getUserPermissions(u.id) })}
               >
                 <View style={{ flex: 1 }}>
                   <Text style={styles.menuItemName}>{u.name}</Text>
@@ -1459,6 +1460,99 @@ export default function SettingsScreen({ navigation }) {
                   ))}
                 </View>
 
+
+                {/* Права доступа — только для сотрудника */}
+                {empModal.role !== 'admin' && empModal.permissions && (
+                  <>
+                    {[
+                      {
+                        group: 'Касса',
+                        items: [
+                          { key: 'apply_discounts',    label: 'Применять скидки' },
+                          { key: 'view_order_history', label: 'История заказов' },
+                          { key: 'cancel_orders',      label: 'Отменять заказы' },
+                        ],
+                      },
+                      {
+                        group: 'Клиенты',
+                        items: [
+                          { key: 'view_clients',   label: 'Просматривать клиентов' },
+                          { key: 'edit_clients',   label: 'Редактировать клиентов' },
+                          { key: 'manage_loyalty', label: 'Управлять баллами' },
+                        ],
+                      },
+                      {
+                        group: 'Склад',
+                        items: [
+                          { key: 'view_stock',     label: 'Просматривать остатки' },
+                          { key: 'edit_stock',     label: 'Закупки и списания' },
+                          { key: 'edit_thresholds',label: 'Изменять пороги' },
+                        ],
+                      },
+                      {
+                        group: 'Меню',
+                        items: [
+                          { key: 'edit_cost_cards', label: 'Редактировать техкарты' },
+                          { key: 'edit_products',   label: 'Редактировать товары и цены' },
+                        ],
+                      },
+                      {
+                        group: 'Финансы',
+                        items: [
+                          { key: 'view_reports', label: 'Видеть отчётность и P&L' },
+                          { key: 'add_expenses', label: 'Добавлять расходы' },
+                          { key: 'view_revenue', label: 'Видеть выручку смены' },
+                        ],
+                      },
+                      {
+                        group: 'Смена',
+                        items: [
+                          { key: 'open_shift',  label: 'Открывать смену' },
+                          { key: 'close_shift', label: 'Закрывать смену' },
+                        ],
+                      },
+                      {
+                        group: 'Прочее',
+                        items: [
+                          { key: 'access_settings', label: 'Доступ к настройкам' },
+                        ],
+                      },
+                    ].map(group => (
+                      <View key={group.group} style={{ marginTop: 20 }}>
+                        {/* Заголовок группы */}
+                        <View style={styles.menuCatRow}>
+                          <View style={styles.menuCatLine} />
+                          <Text style={styles.menuCatName}>{group.group}</Text>
+                          <View style={styles.menuCatLine} />
+                        </View>
+                        {/* Переключатели */}
+                        <View style={styles.menuCard}>
+                          {group.items.map((item, idx) => (
+                            <Pressable
+                              key={item.key}
+                              style={[styles.menuRow, idx < group.items.length - 1 && styles.menuRowDiv]}
+                              onPress={() => setEmpModal(m => ({
+                                ...m,
+                                permissions: { ...m.permissions, [item.key]: !m.permissions[item.key] }
+                              }))}
+                            >
+                              <Text style={[styles.menuItemName, { flex: 1 }]}>{item.label}</Text>
+                              <Toggle
+                                value={!!empModal.permissions[item.key]}
+                                onValueChange={() => setEmpModal(m => ({
+                                  ...m,
+                                  permissions: { ...m.permissions, [item.key]: !m.permissions[item.key] }
+                                }))}
+                                size="sm"
+                              />
+                            </Pressable>
+                          ))}
+                        </View>
+                      </View>
+                    ))}
+                  </>
+                )}
+
                 {/* Сохранить */}
                 <Pressable
                   style={({ pressed }) => [styles.confirmBtn, { marginTop: 20 }, pressed && { opacity: 0.88 }]}
@@ -1469,8 +1563,13 @@ export default function SettingsScreen({ navigation }) {
                     try {
                       if (empModal.id) {
                         updateUser(empModal.id, empModal.name, empModal.pin, empModal.role, empModal.salaryType, parseFloat(empModal.salaryAmount) || 0);
+                        if (empModal.role !== 'admin') saveUserPermissions(empModal.id, empModal.permissions || DEFAULT_PERMISSIONS);
                       } else {
                         addUser(empModal.name, empModal.pin, empModal.role, empModal.salaryType, parseFloat(empModal.salaryAmount) || 0);
+                        if (empModal.role !== 'admin') {
+                          const newUser = getUsers().find(u => u.name === empModal.name.trim());
+                          if (newUser) saveUserPermissions(newUser.id, empModal.permissions || DEFAULT_PERMISSIONS);
+                        }
                       }
                       loadAll();
                       setEmpModal(null);

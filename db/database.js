@@ -297,6 +297,8 @@ export function initDatabase() {
     `ALTER TABLE business_profile ADD COLUMN logo_base64 TEXT DEFAULT ''`,
     // Исторический максимум остатка для шкалы склада
     `ALTER TABLE stock ADD COLUMN max_ostatok REAL DEFAULT 0`,
+    // Права доступа сотрудника
+    `ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT '{}'`,
     `ALTER TABLE orders  ADD COLUMN status     TEXT DEFAULT 'completed'`,
     `ALTER TABLE clients ADD COLUMN birth_date TEXT DEFAULT ''`,
     `CREATE TABLE IF NOT EXISTS price_schedules (id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER NOT NULL, variant_id INTEGER, new_price REAL NOT NULL, effective_date TEXT NOT NULL, applied INTEGER DEFAULT 0, created_at TEXT NOT NULL)`,
