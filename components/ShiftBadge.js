@@ -42,10 +42,9 @@ export default function ShiftBadge({ stats, onShiftPress, onStockPress }) {
                 </View>
                 <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
                   {(lowStockItems || []).map((item, i) => (
-                    <Pressable
+                    <View
                       key={i}
                       style={[styles.stockRow, i < (lowStockItems.length - 1) && styles.stockRowDiv]}
-                      onPress={() => { setStockOpen(false); onStockPress?.(); }}
                     >
                       <Text style={styles.stockName} numberOfLines={1}>{item.name}</Text>
                       <Text style={[
@@ -55,7 +54,7 @@ export default function ShiftBadge({ stats, onShiftPress, onStockPress }) {
                       ]}>
                         {item['остаток']} {item.unit}
                       </Text>
-                    </Pressable>
+                    </View>
                   ))}
                 </ScrollView>
                 <Pressable
