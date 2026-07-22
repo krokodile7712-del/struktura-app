@@ -11,7 +11,7 @@ import {
   insertModifierGroup, updateModifierGroup, deleteModifierGroup,
   insertModifierOption, updateModifierOption, deleteModifierOption,
   getCostCardForVariant, saveCostCardForVariant,
-  getUsers, updateUserPin,
+  getUsers, updateUserPin, addUser, updateUser, deleteUser,
   getDiscounts, setSetting, getSetting, getLoyaltyConfig, updateLoyaltyConfig,
   getPayMethods, savePayMethods,
   getZones, addZone, updateZone, deleteZone,
@@ -20,7 +20,7 @@ import {
   getAllStock, updateStockThreshold,
   getUnlinkedCostCards,
   getBusinessProfile, updateBusinessProfile, applyBusinessPreset, BUSINESS_PRESETS,
-  getTerms, pluralizeRu, genitivePluralRu, genitiveSingularRu,
+  getTerms, getRoleNames, pluralizeRu, genitivePluralRu, genitiveSingularRu,
   exportAllData,
 } from '../db/queries';
 import { canConvert, conversionFactor } from '../constants/units';
