@@ -890,122 +890,233 @@ export default function SettingsScreen({ navigation }) {
         </SectionAccordion>
 
         <SectionAccordion sectionKey="loyalty" selectedSection={selectedSection}>
-        {/* Программа лояльности */}
-        {modules.loyalty !== false && (
-          <MetalCard style={{ marginTop: 12 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-              <Text style={styles.blockTitle}>⭐ Программа лояльности</Text>
-              <InfoTip
-                title="Программа лояльности"
-                text="Помогает удерживать клиентов — они возвращаются снова чтобы получить бонус или потратить накопленное. Выберите модель: Баллы (клиент копит и тратит), Скидка (автоматическая скидка для всех клиентов), Абонемент (фиксированное число посещений)."
-              />
-            </View>
+        {modules.loyalty !== false ? (<>
 
-            {/* Выбор модели */}
-            <Text style={styles.fieldLabel}>Модель</Text>
-            <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-              {[
-                { key: 'points',       label: '⭐ Баллы' },
-                { key: 'discount',     label: '🏷 Скидка' },
-                { key: 'subscription', label: '🎟 Абонемент' },
-              ].map(opt => (
-                <Pressable
-                  key={opt.key}
-                  style={[styles.catChip, loyaltyModel === opt.key && styles.catChipActive]}
-                  onPress={() => setLoyaltyModel(opt.key)}
-                >
-                  <Text style={[styles.catChipLabel, loyaltyModel === opt.key && { color: colors.greenLight }]}>
-                    {opt.label}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-
-            {/* Баллы */}
-            {loyaltyModel === 'points' && <>
-              <Text style={styles.fieldLabel}>% от суммы заказа → баллы</Text>
-              <TextInput
-                style={styles.input}
-                keyboardType="numeric"
-                value={String(loyaltyConfig.earn_pct ?? 10)}
-                onChangeText={v => setLoyaltyConfig(c => ({ ...c, earn_pct: parseFloat(v) || 0 }))}
-                placeholderTextColor={colors.muted}
-              />
-              <Text style={styles.fieldLabel}>Ценность 1 балла, ₽</Text>
-              <TextInput
-                style={styles.input}
-                keyboardType="numeric"
-                value={String(loyaltyConfig.point_value ?? 1)}
-                onChangeText={v => setLoyaltyConfig(c => ({ ...c, point_value: parseFloat(v) || 1 }))}
-                placeholderTextColor={colors.muted}
-              />
+          {/* Выбор модели */}
+          <View style={styles.menuCard}>
+            {[
+              {
+                key: 'points',
+                icon: '⭐',
+                label: 'Баллы',
+                desc: 'Клиент копит баллы с каждой покупки и тратит их как скидку',
+                tip: 'Подходит для кофеен, ресторанов, магазинов — стимулирует повторные покупки.',
+              },
+              {
+                key: 'discount',
+                icon: '🏷',
+                label: 'Фиксированная скидка',
+                desc: 'Постоянная скидка для каждого клиента из базы',
+                tip: 'Подходит для салонов и услуг — у каждого клиента своя скидка.',
+              },
+              {
+                key: 'subscription',
+                icon: '🎟',
+                label: 'Абонемент',
+                desc: 'Клиент покупает N визитов, каждый заказ списывает один',
+                tip: 'Идеально для занятий, стрижек, массажа — продаёте пакет заранее.',
+              },
+            ].map((m, idx) => (
               <Pressable
-                style={({ pressed }) => [styles.row, pressed && { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8 }]}
-                onPress={() => setLoyaltyConfig(c => ({ ...c, allow_spend: !c.allow_spend }))}
+                key={m.key}
+                style={[styles.menuRow, idx < 2 && styles.menuRowDiv, loyaltyModel === m.key && { backgroundColor: 'rgba(61,158,146,0.06)' }]}
+                onPress={() => setLoyaltyModel(m.key)}
               >
-                <Text style={styles.rowName}>Разрешить оплату баллами</Text>
-                <Text style={styles.rowPrice}>{loyaltyConfig.allow_spend ? '☑' : '☐'}</Text>
+                <Text style={{ fontSize: 22, marginRight: 12 }}>{m.icon}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.menuItemName, loyaltyModel === m.key && { color: colors.greenLight }]}>{m.label}</Text>
+                  <Text style={styles.menuItemSub}>{m.desc}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <InfoTip title={m.label} text={m.tip} />
+                  <View style={[styles.productCheckbox, loyaltyModel === m.key && styles.productCheckboxOn]}>
+                    {loyaltyModel === m.key && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
+                  </View>
+                </View>
               </Pressable>
-              {loyaltyConfig.allow_spend && <>
-                <Text style={styles.fieldLabel}>Макс. % суммы чека оплачиваемый баллами</Text>
-                <TextInput
-                  style={styles.input}
-                  keyboardType="numeric"
-                  value={String(loyaltyConfig.max_spend_pct ?? 50)}
-                  onChangeText={v => setLoyaltyConfig(c => ({ ...c, max_spend_pct: parseFloat(v) || 0 }))}
-                  placeholder="50"
-                  placeholderTextColor={colors.muted}
-                />
-                <Text style={styles.hintText}>Например 50 — клиент может оплатить баллами не более половины чека.</Text>
-              </>}
-            </>}
+            ))}
+          </View>
 
-            {/* Скидка */}
-            {loyaltyModel === 'discount' && <>
-              <Text style={styles.fieldLabel}>Скидка для зарегистрированных клиентов, %</Text>
+          {/* ── Настройки модели Баллы ── */}
+          {loyaltyModel === 'points' && (() => {
+            const earnPct   = loyaltyConfig.earn_pct   ?? 10;
+            const ptValue   = loyaltyConfig.point_value ?? 1;
+            const example   = 500;
+            const earned    = Math.round(example * earnPct / 100);
+            const earnedRub = Math.round(earned * ptValue);
+            return (
+              <View style={{ marginTop: 16 }}>
+                <View style={styles.menuCard}>
+                  <View style={[styles.menuRow, styles.menuRowDiv]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.menuItemName}>За каждые 100 ₽</Text>
+                      <Text style={styles.menuItemSub}>Сколько баллов начисляется</Text>
+                    </View>
+                    <TextInput
+                      color={colors.text}
+                      style={styles.loyaltyInput}
+                      keyboardType="numeric"
+                      value={String(earnPct)}
+                      onChangeText={v => setLoyaltyConfig(c => ({ ...c, earn_pct: parseFloat(v) || 0 }))}
+                      placeholderTextColor={colors.muted}
+                    />
+                    <Text style={styles.loyaltyUnit}>балл.</Text>
+                  </View>
+                  <View style={styles.menuRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.menuItemName}>1 балл равен</Text>
+                      <Text style={styles.menuItemSub}>Ценность при списании</Text>
+                    </View>
+                    <TextInput
+                      color={colors.text}
+                      style={styles.loyaltyInput}
+                      keyboardType="numeric"
+                      value={String(ptValue)}
+                      onChangeText={v => setLoyaltyConfig(c => ({ ...c, point_value: parseFloat(v) || 1 }))}
+                      placeholderTextColor={colors.muted}
+                    />
+                    <Text style={styles.loyaltyUnit}>₽</Text>
+                  </View>
+                </View>
+
+                {/* Живой пример */}
+                <View style={styles.loyaltyExample}>
+                  <Text style={styles.loyaltyExampleTitle}>Пример: заказ на {example} ₽</Text>
+                  <Text style={styles.loyaltyExampleLine}>Клиент получит <Text style={styles.loyaltyExampleAccent}>{earned} баллов</Text> = <Text style={styles.loyaltyExampleAccent}>{earnedRub} ₽</Text> скидки при следующем заказе</Text>
+                </View>
+
+                {/* Списание баллов */}
+                <View style={[styles.menuCard, { marginTop: 12 }]}>
+                  <Pressable
+                    style={[styles.menuRow, loyaltyConfig.allow_spend && styles.menuRowDiv]}
+                    onPress={() => setLoyaltyConfig(c => ({ ...c, allow_spend: !c.allow_spend }))}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.menuItemName}>Разрешить тратить баллы</Text>
+                      <Text style={styles.menuItemSub}>Клиент может оплатить часть заказа баллами</Text>
+                    </View>
+                    <Toggle value={!!loyaltyConfig.allow_spend} onValueChange={v => setLoyaltyConfig(c => ({ ...c, allow_spend: v }))} size="sm" />
+                  </Pressable>
+                  {loyaltyConfig.allow_spend && (
+                    <View style={styles.menuRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.menuItemName}>Максимум баллами</Text>
+                        <Text style={styles.menuItemSub}>% от суммы заказа</Text>
+                      </View>
+                      <TextInput
+                        color={colors.text}
+                        style={styles.loyaltyInput}
+                        keyboardType="numeric"
+                        value={String(loyaltyConfig.max_spend_pct ?? 50)}
+                        onChangeText={v => setLoyaltyConfig(c => ({ ...c, max_spend_pct: parseFloat(v) || 0 }))}
+                        placeholderTextColor={colors.muted}
+                      />
+                      <Text style={styles.loyaltyUnit}>%</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            );
+          })()}
+
+          {/* ── Настройки модели Скидка ── */}
+          {loyaltyModel === 'discount' && (() => {
+            const pct = loyaltyConfig.pct ?? 5;
+            const example = 500;
+            const disc = Math.round(example * pct / 100);
+            return (
+              <View style={{ marginTop: 16 }}>
+                <View style={styles.menuCard}>
+                  <View style={styles.menuRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.menuItemName}>Скидка клиентам из базы</Text>
+                      <Text style={styles.menuItemSub}>Применяется автоматически при выборе клиента</Text>
+                    </View>
+                    <TextInput
+                      color={colors.text}
+                      style={styles.loyaltyInput}
+                      keyboardType="numeric"
+                      value={String(pct)}
+                      onChangeText={v => setLoyaltyConfig(c => ({ ...c, pct: parseFloat(v) || 0 }))}
+                      placeholderTextColor={colors.muted}
+                    />
+                    <Text style={styles.loyaltyUnit}>%</Text>
+                  </View>
+                </View>
+                <View style={styles.loyaltyExample}>
+                  <Text style={styles.loyaltyExampleTitle}>Пример: заказ на {example} ₽</Text>
+                  <Text style={styles.loyaltyExampleLine}>Клиент заплатит <Text style={styles.loyaltyExampleAccent}>{example - disc} ₽</Text> вместо {example} ₽ <Text style={{ color: colors.redLight }}>(−{disc} ₽)</Text></Text>
+                </View>
+                <View style={[styles.menuCard, { marginTop: 12 }]}>
+                  <View style={styles.menuRow}>
+                    <Text style={[styles.menuItemSub, { flex: 1 }]}>💡 Скидку для конкретного клиента можно изменить в карточке клиента</Text>
+                  </View>
+                </View>
+              </View>
+            );
+          })()}
+
+          {/* ── Настройки модели Абонемент ── */}
+          {loyaltyModel === 'subscription' && (
+            <View style={{ marginTop: 16 }}>
+              <View style={styles.menuCard}>
+                <View style={styles.menuRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.menuItemName}>Списывать за 1 заказ</Text>
+                    <Text style={styles.menuItemSub}>Сколько визитов расходуется</Text>
+                  </View>
+                  <TextInput
+                    color={colors.text}
+                    style={styles.loyaltyInput}
+                    keyboardType="numeric"
+                    value={String(loyaltyConfig.deduct_per_visit ?? 1)}
+                    onChangeText={v => setLoyaltyConfig(c => ({ ...c, deduct_per_visit: parseFloat(v) || 1 }))}
+                    placeholderTextColor={colors.muted}
+                  />
+                  <Text style={styles.loyaltyUnit}>виз.</Text>
+                </View>
+              </View>
+              <View style={styles.loyaltyExample}>
+                <Text style={styles.loyaltyExampleTitle}>Как это работает</Text>
+                <Text style={styles.loyaltyExampleLine}>Пополните баланс клиента в его карточке → при каждом заказе автоматически спишется <Text style={styles.loyaltyExampleAccent}>{loyaltyConfig.deduct_per_visit ?? 1} виз.</Text></Text>
+              </View>
+            </View>
+          )}
+
+          {/* Общий лимит */}
+          <View style={[styles.menuCard, { marginTop: 16 }]}>
+            <View style={styles.menuRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.menuItemName}>Максимальная скидка на заказ</Text>
+                <Text style={styles.menuItemSub}>Сумма всех скидок не превысит этот %</Text>
+              </View>
               <TextInput
-                style={styles.input}
+                color={colors.text}
+                style={styles.loyaltyInput}
                 keyboardType="numeric"
-                value={String(loyaltyConfig.pct ?? 5)}
-                onChangeText={v => setLoyaltyConfig(c => ({ ...c, pct: parseFloat(v) || 0 }))}
+                value={String(loyaltyConfig.max_discount_pct ?? 100)}
+                onChangeText={v => setLoyaltyConfig(c => ({ ...c, max_discount_pct: parseFloat(v) || 100 }))}
                 placeholderTextColor={colors.muted}
               />
-              <Text style={styles.hintText}>
-                При выборе клиента в кассе скидка применяется автоматически.
-              </Text>
-            </>}
+              <Text style={styles.loyaltyUnit}>%</Text>
+            </View>
+          </View>
 
-            {/* Абонемент */}
-            {loyaltyModel === 'subscription' && <>
-              <Text style={styles.fieldLabel}>Списывать посещений за 1 заказ</Text>
-              <TextInput
-                style={styles.input}
-                keyboardType="numeric"
-                value={String(loyaltyConfig.deduct_per_visit ?? 1)}
-                onChangeText={v => setLoyaltyConfig(c => ({ ...c, deduct_per_visit: parseFloat(v) || 1 }))}
-                placeholderTextColor={colors.muted}
-              />
-              <Text style={styles.hintText}>
-                Администратор пополняет баланс клиента в карточке клиента. В кассе при продаже посещение списывается автоматически.
-              </Text>
-            </>}
+          {/* Сохранить */}
+          <Pressable
+            style={({ pressed }) => [styles.confirmBtn, { marginTop: 16 }, pressed && { opacity: 0.88 }]}
+            onPress={saveLoyalty}
+          >
+            <Text style={styles.confirmBtnText}>Сохранить</Text>
+          </Pressable>
 
-            {/* Общий лимит скидки — для всех моделей */}
-            <Text style={styles.fieldLabel}>Максимальная скидка на заказ, %</Text>
-            <TextInput
-              style={styles.input}
-              keyboardType="numeric"
-              value={String(loyaltyConfig.max_discount_pct ?? 100)}
-              onChangeText={v => setLoyaltyConfig(c => ({ ...c, max_discount_pct: parseFloat(v) || 100 }))}
-              placeholder="100"
-              placeholderTextColor={colors.muted}
-            />
-            <Text style={styles.hintText}>Суммарная скидка (авто + ручная + баллы) не превысит этот %.</Text>
-
-            <MetalButton title="Сохранить" variant="success" onPress={saveLoyalty} style={{ marginTop: 8 }} />
-          </MetalCard>
+        </>) : (
+          <View style={[styles.menuCard, { marginTop: 12 }]}>
+            <View style={styles.menuRow}>
+              <Text style={styles.menuItemSub}>Модуль лояльности отключён в настройках профиля бизнеса.</Text>
+            </View>
+          </View>
         )}
-
         </SectionAccordion>
 
         <SectionAccordion sectionKey="payment" selectedSection={selectedSection}>
@@ -2291,6 +2402,12 @@ const styles = StyleSheet.create({
     padding: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.3)',
   },
   prodModalTitle: { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text },
+  loyaltyInput: { width: 60, padding: 8, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', borderRadius: 10, color: colors.text, fontFamily: fonts.family, fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  loyaltyUnit: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, width: 36 },
+  loyaltyExample: { marginTop: 10, padding: 14, backgroundColor: 'rgba(61,95,168,0.08)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(61,95,168,0.2)', gap: 4 },
+  loyaltyExampleTitle: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
+  loyaltyExampleLine: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.text, lineHeight: 20 },
+  loyaltyExampleAccent: { fontFamily: fonts.familySemibold, color: colors.greenLight },
   prodModalFooter: { padding: 16, borderTopWidth: 1, borderTopColor: 'rgba(74,77,84,0.3)', backgroundColor: '#0e0f11' },
   confirmBtn: { paddingVertical: 15, borderRadius: 14, backgroundColor: 'rgba(61,158,146,0.85)', alignItems: 'center' },
   confirmBtnText: { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff' },
