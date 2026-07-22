@@ -1362,21 +1362,29 @@ export default function SettingsScreen({ navigation }) {
             </View>
           </>)}
 
-          {/* Несвязанные техкарты */}
+          {/* Несвязанные техкарты — аккордеон */}
           {unlinkedCards.length > 0 && (
-            <View style={[styles.menuCard, { marginTop: 24, borderColor: 'rgba(160,16,32,0.3)', borderWidth: 1 }]}>
-              <View style={[styles.menuRow, { borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.2)' }]}>
-                <Text style={{ fontSize: 18, marginRight: 10 }}>⚠️</Text>
+            <View style={{ marginTop: 20 }}>
+              <Pressable
+                style={({ pressed }) => [styles.stockAccHead, { backgroundColor: pressed ? 'rgba(160,16,32,0.06)' : 'rgba(160,16,32,0.04)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(160,16,32,0.2)' }]}
+                onPress={() => setOpenStockCats(prev => ({ ...prev, __unlinked: !prev.__unlinked }))}
+              >
+                <Text style={{ fontSize: 16, marginRight: 8 }}>⚠️</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.menuItemName, { color: colors.redLight }]}>Несвязанные техкарты</Text>
-                  <Text style={styles.menuItemSub}>Пересоздайте их через карточку товара в Меню и цены</Text>
+                  <Text style={[styles.stockAccTitle, { color: colors.redLight }]}>Несвязанные техкарты</Text>
+                  <Text style={styles.menuItemSub}>Пересоздайте через карточку товара</Text>
                 </View>
-              </View>
-              {unlinkedCards.map(uc => (
-                <View key={uc.id} style={[styles.menuRow, { borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.15)' }]}>
-                  <Text style={[styles.menuItemName, { flex: 1, color: colors.muted }]}>{uc.name}</Text>
+                <Text style={[styles.stockAccArrow, openStockCats.__unlinked && { transform: [{ rotate: '180deg' }] }]}>▼</Text>
+              </Pressable>
+              {openStockCats.__unlinked && (
+                <View style={[styles.menuCard, { marginTop: 6, borderColor: 'rgba(160,16,32,0.2)' }]}>
+                  {unlinkedCards.map((uc, idx) => (
+                    <View key={uc.id} style={[styles.menuRow, idx < unlinkedCards.length - 1 && styles.menuRowDiv]}>
+                      <Text style={[styles.menuItemName, { flex: 1, color: colors.muted }]}>{uc.name}</Text>
+                    </View>
+                  ))}
                 </View>
-              ))}
+              )}
             </View>
           )}
 
@@ -2549,8 +2557,10 @@ const styles = StyleSheet.create({
     padding: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.3)',
   },
   prodModalTitle: { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text },
-  stockAccHead: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
-  stockAccArrow: { fontFamily: fonts.familyRegular, fontSize: 10, color: 'rgba(74,77,84,0.6)' },
+  stockCatGroup: { marginBottom: 6 },
+  stockAccHead: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 4, gap: 8 },
+  stockAccTitle: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, flex: 1 },
+  stockAccArrow: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
   loyaltyInput: { width: 60, padding: 8, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', borderRadius: 10, color: colors.text, fontFamily: fonts.family, fontSize: 16, fontWeight: '700', textAlign: 'center' },
   loyaltyUnit: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, width: 36 },
   loyaltyExample: { marginTop: 10, padding: 14, backgroundColor: 'rgba(61,95,168,0.08)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(61,95,168,0.2)', gap: 4 },
