@@ -119,7 +119,7 @@ export default function SettingsScreen({ navigation }) {
 
   const loadAll = () => {
     try {
-      setUsers(getAllUsers());
+      setUsers(getUsers());
       setProducts(getAllProductsAdmin());
       const u = getUsers();
       setUsers(u);
