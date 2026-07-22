@@ -1183,7 +1183,7 @@ export default function SettingsScreen({ navigation }) {
               </View>
 
               <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                {/* Название */
+                {/* Название */}
                 <Text style={styles.productFieldLabel}>Название</Text>
                 <TextInput
                   color={colors.text}
