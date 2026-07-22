@@ -153,41 +153,55 @@ export function spendPoints(client_id, points) {
   return spend;
 }
 
-export function updateBusinessProfile({ businessName, modules, terms, roles, units, accessKey, logoBase64, phone, address, city, workHoursFrom, workHoursTo, inn, preset }) {
+export function updateBusinessProfile({ businessName, modules, terms, roles, units, accessKey,
+  logoBase64, phone, address, city, workHoursFrom, workHoursTo, inn, preset,
+  receiptName, receiptFooter, currency, dateFormat,
+  email, whatsapp, telegram, instagram, vk, website, theme }) {
   const db = getDb();
-  // Защитное создание колонок если они ещё не добавлены миграцией
-  for (const col of ['logo_base64', 'phone', 'address', 'city', 'work_hours_from', 'work_hours_to', 'inn', 'preset']) {
+  const cols = ['logo_base64','phone','address','city','work_hours_from','work_hours_to','inn','preset',
+    'receipt_name','receipt_footer','currency','date_format','email','whatsapp','telegram','instagram','vk','website','theme'];
+  for (const col of cols) {
     try { db.execSync(`ALTER TABLE business_profile ADD COLUMN ${col} TEXT DEFAULT ''`); } catch (_) {}
   }
   const existing = db.getFirstSync(`SELECT id FROM business_profile ORDER BY id LIMIT 1`);
   const payload = [
-    businessName ?? '',
+    businessName    ?? '',
     JSON.stringify(modules || {}),
-    JSON.stringify(terms  || {}),
-    JSON.stringify(roles  || {}),
-    JSON.stringify(units  || []),
-    accessKey    ?? '',
-    logoBase64   ?? '',
-    phone        ?? '',
-    address      ?? '',
-    city         ?? '',
-    workHoursFrom ?? '',
-    workHoursTo  ?? '',
-    inn          ?? '',
-    preset       ?? '',
+    JSON.stringify(terms   || {}),
+    JSON.stringify(roles   || {}),
+    JSON.stringify(units   || []),
+    accessKey       ?? '',
+    logoBase64      ?? '',
+    phone           ?? '',
+    address         ?? '',
+    city            ?? '',
+    workHoursFrom   ?? '',
+    workHoursTo     ?? '',
+    inn             ?? '',
+    preset          ?? '',
+    receiptName     ?? '',
+    receiptFooter   ?? '',
+    currency        ?? '₽',
+    dateFormat      ?? 'DD.MM.YYYY',
+    email           ?? '',
+    whatsapp        ?? '',
+    telegram        ?? '',
+    instagram       ?? '',
+    vk              ?? '',
+    website         ?? '',
+    theme           ?? 'dark',
   ];
+  const fields = `business_name=?,modules=?,terms=?,roles=?,units=?,access_key=?,
+    logo_base64=?,phone=?,address=?,city=?,work_hours_from=?,work_hours_to=?,inn=?,preset=?,
+    receipt_name=?,receipt_footer=?,currency=?,date_format=?,email=?,whatsapp=?,telegram=?,instagram=?,vk=?,website=?,theme=?`;
   if (existing) {
-    db.runSync(
-      `UPDATE business_profile SET business_name=?, modules=?, terms=?, roles=?, units=?, access_key=?,
-       logo_base64=?, phone=?, address=?, city=?, work_hours_from=?, work_hours_to=?, inn=?, preset=?
-       WHERE id=?`,
-      [...payload, existing.id]
-    );
+    db.runSync(`UPDATE business_profile SET ${fields} WHERE id=?`, [...payload, existing.id]);
   } else {
     db.runSync(
-      `INSERT INTO business_profile (business_name, modules, terms, roles, units, access_key,
-       logo_base64, phone, address, city, work_hours_from, work_hours_to, inn, preset)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO business_profile (business_name,modules,terms,roles,units,access_key,
+        logo_base64,phone,address,city,work_hours_from,work_hours_to,inn,preset,
+        receipt_name,receipt_footer,currency,date_format,email,whatsapp,telegram,instagram,vk,website,theme)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       payload
     );
   }

@@ -89,6 +89,8 @@ export default function SettingsScreen({ navigation }) {
   const [selectedSection, setSelectedSection] = useState('menu');
   const [menuSearch, setMenuSearch]   = useState('');
   const [stockSearch, setStockSearch]   = useState('');
+  const [bizDraft, setBizDraft]         = useState(null);
+  const [receiptPreview, setReceiptPreview] = useState(false);
   const [stockSearchOpen, setStockSearchOpen] = useState(false);
   const [openStockCats, setOpenStockCats] = useState({});
   const [empModal, setEmpModal]         = useState(null);
@@ -122,6 +124,67 @@ export default function SettingsScreen({ navigation }) {
   }; // { businessName, modules, terms, units, unitInput }
 
   useEffect(() => { loadAll(); }, []);
+
+  // Открываем редактор профиля при переходе в секцию
+  React.useEffect(() => {
+    if (selectedSection === 'business' && profile) {
+      setBizDraft({
+        businessName:  profile.business_name  || '',
+        logoUrl:       profile.logo_base64    || profile.logo_url || '',
+        city:          profile.city           || '',
+        phone:         profile.phone          || '',
+        address:       profile.address        || '',
+        hoursFrom:     profile.work_hours_from || '09:00',
+        hoursTo:       profile.work_hours_to   || '21:00',
+        inn:           profile.inn            || '',
+        receiptName:   profile.receipt_name   || '',
+        receiptFooter: profile.receipt_footer || '',
+        currency:      profile.currency       || '₽',
+        dateFormat:    profile.date_format    || 'DD.MM.YYYY',
+        email:         profile.email          || '',
+        whatsapp:      profile.whatsapp       || '',
+        telegram:      profile.telegram       || '',
+        instagram:     profile.instagram      || '',
+        vk:            profile.vk             || '',
+        website:       profile.website        || '',
+        theme:         profile.theme          || 'dark',
+      });
+    }
+  }, [selectedSection, profile]);
+
+  const saveBizDraft = () => {
+    if (!bizDraft) return;
+    try {
+      updateBusinessProfile({
+        businessName:  bizDraft.businessName,
+        logoBase64:    bizDraft.logoUrl,
+        city:          bizDraft.city,
+        phone:         bizDraft.phone,
+        address:       bizDraft.address,
+        workHoursFrom: bizDraft.hoursFrom,
+        workHoursTo:   bizDraft.hoursTo,
+        inn:           bizDraft.inn,
+        receiptName:   bizDraft.receiptName,
+        receiptFooter: bizDraft.receiptFooter,
+        currency:      bizDraft.currency,
+        dateFormat:    bizDraft.dateFormat,
+        email:         bizDraft.email,
+        whatsapp:      bizDraft.whatsapp,
+        telegram:      bizDraft.telegram,
+        instagram:     bizDraft.instagram,
+        vk:            bizDraft.vk,
+        website:       bizDraft.website,
+        theme:         bizDraft.theme,
+        modules:       profile?.modules || {},
+        terms:         profile?.terms   || {},
+        roles:         profile?.roles   || {},
+        units:         profile?.units   || [],
+        accessKey:     profile?.access_key || '',
+        preset:        profile?.preset  || 'custom',
+      });
+      loadAll();
+    } catch(e) { console.error(e); }
+  };
 
   const loadAll = () => {
     try { setProducts(getAllProductsAdmin()); } catch(e) { console.error('products',e); }
@@ -1394,12 +1457,159 @@ export default function SettingsScreen({ navigation }) {
         </SectionAccordion>
 
         <SectionAccordion sectionKey="business" selectedSection={selectedSection}>
-        {/* Резервное копирование */}
-        <MetalCard style={{ marginTop: 12 }}>
-          <Text style={styles.blockTitle}>💾 Резервное копирование</Text>
-          <Text style={styles.hintText}>Открывает системное меню «Поделиться» с данными в виде текста.</Text>
-          <MetalButton title={exporting ? 'Экспорт...' : '📤 Экспорт и поделиться'} variant="pay" onPress={handleExport} disabled={exporting} />
-        </MetalCard>
+        {bizDraft ? (<>
+
+          {/* ОСНОВНОЕ */}
+          <Text style={styles.bizGroupLabel}>Основное</Text>
+          <View style={styles.menuCard}>
+            {[
+              { key: 'businessName', label: 'Название бизнеса', placeholder: 'Кофейня «Берёза»' },
+              { key: 'logoUrl',      label: 'Логотип (URL)',     placeholder: 'https://...' },
+              { key: 'city',         label: 'Город',             placeholder: 'Москва' },
+            ].map((f, idx) => (
+              <View key={f.key} style={[styles.bizFieldRow, idx < 2 && styles.menuRowDiv]}>
+                <Text style={styles.bizFieldLabel}>{f.label}</Text>
+                <TextInput
+                  color={colors.text}
+                  style={styles.bizInput}
+                  value={bizDraft[f.key]}
+                  onChangeText={v => setBizDraft(d => ({ ...d, [f.key]: v }))}
+                  placeholder={f.placeholder}
+                  placeholderTextColor={colors.muted}
+                />
+              </View>
+            ))}
+          </View>
+
+          <View style={[styles.menuCard, { marginTop: 10 }]}>
+            {[
+              { key: 'phone',   label: 'Телефон',  placeholder: '+7 999 123-45-67', kb: 'phone-pad' },
+              { key: 'address', label: 'Адрес',    placeholder: 'ул. Ленина, 1',    kb: 'default'   },
+              { key: 'inn',     label: 'ИНН / ИП', placeholder: 'ИП Иванов И.И.',  kb: 'default'   },
+            ].map((f, idx) => (
+              <View key={f.key} style={[styles.bizFieldRow, idx < 2 && styles.menuRowDiv]}>
+                <Text style={styles.bizFieldLabel}>{f.label}</Text>
+                <TextInput
+                  color={colors.text}
+                  style={styles.bizInput}
+                  value={bizDraft[f.key]}
+                  onChangeText={v => setBizDraft(d => ({ ...d, [f.key]: v }))}
+                  placeholder={f.placeholder}
+                  placeholderTextColor={colors.muted}
+                  keyboardType={f.kb}
+                />
+              </View>
+            ))}
+            <View style={styles.bizFieldRow}>
+              <Text style={styles.bizFieldLabel}>Часы работы</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <TextInput color={colors.text} style={[styles.bizInput, { width: 70, textAlign: 'center' }]} value={bizDraft.hoursFrom} onChangeText={v => setBizDraft(d => ({ ...d, hoursFrom: v }))} placeholder="09:00" placeholderTextColor={colors.muted} keyboardType="numbers-and-punctuation" />
+                <Text style={{ color: colors.muted }}>—</Text>
+                <TextInput color={colors.text} style={[styles.bizInput, { width: 70, textAlign: 'center' }]} value={bizDraft.hoursTo} onChangeText={v => setBizDraft(d => ({ ...d, hoursTo: v }))} placeholder="21:00" placeholderTextColor={colors.muted} keyboardType="numbers-and-punctuation" />
+              </View>
+            </View>
+          </View>
+
+          {/* ЧЕК */}
+          <Text style={styles.bizGroupLabel}>Чек и печать</Text>
+          <View style={styles.menuCard}>
+            <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
+              <Text style={styles.bizFieldLabel}>Название на чеке</Text>
+              <TextInput color={colors.text} style={styles.bizInput} value={bizDraft.receiptName} onChangeText={v => setBizDraft(d => ({ ...d, receiptName: v }))} placeholder={bizDraft.businessName || 'Как в основном'} placeholderTextColor={colors.muted} />
+            </View>
+            <View style={styles.bizFieldRow}>
+              <Text style={styles.bizFieldLabel}>Текст подвала</Text>
+              <TextInput color={colors.text} style={styles.bizInput} value={bizDraft.receiptFooter} onChangeText={v => setBizDraft(d => ({ ...d, receiptFooter: v }))} placeholder="Спасибо за покупку!" placeholderTextColor={colors.muted} />
+            </View>
+          </View>
+          <Pressable style={({ pressed }) => [styles.bizPreviewBtn, pressed && { opacity: 0.8 }]} onPress={() => setReceiptPreview(true)}>
+            <Text style={styles.bizPreviewBtnText}>👁 Предпросмотр чека</Text>
+          </Pressable>
+
+          {/* ВАЛЮТА */}
+          <Text style={styles.bizGroupLabel}>Валюта и формат</Text>
+          <View style={styles.menuCard}>
+            <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
+              <Text style={styles.bizFieldLabel}>Символ валюты</Text>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {['₽','$','€','₸','₴'].map(cur => (
+                  <Pressable key={cur} style={[styles.bizCurrencyChip, bizDraft.currency === cur && styles.bizCurrencyChipActive]} onPress={() => setBizDraft(d => ({ ...d, currency: cur }))}>
+                    <Text style={[styles.bizCurrencyText, bizDraft.currency === cur && { color: colors.greenLight }]}>{cur}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+            <View style={styles.bizFieldRow}>
+              <Text style={styles.bizFieldLabel}>Формат даты</Text>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {['DD.MM.YYYY','MM/DD/YYYY','YYYY-MM-DD'].map(fmt => (
+                  <Pressable key={fmt} style={[styles.bizCurrencyChip, bizDraft.dateFormat === fmt && styles.bizCurrencyChipActive]} onPress={() => setBizDraft(d => ({ ...d, dateFormat: fmt }))}>
+                    <Text style={[{ fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted }, bizDraft.dateFormat === fmt && { color: colors.greenLight }]}>{fmt}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          </View>
+
+          {/* КОНТАКТЫ */}
+          <Text style={styles.bizGroupLabel}>Контакты для клиентов</Text>
+          <View style={styles.menuCard}>
+            {[
+              { key: 'email',    label: '✉️ Email',     placeholder: 'hello@business.ru', kb: 'email-address' },
+              { key: 'whatsapp', label: '💬 WhatsApp',  placeholder: '+7 999 123-45-67',  kb: 'phone-pad'     },
+              { key: 'telegram', label: '✈️ Telegram',  placeholder: '@username',          kb: 'default'       },
+            ].map((f, idx) => (
+              <View key={f.key} style={[styles.bizFieldRow, idx < 2 && styles.menuRowDiv]}>
+                <Text style={styles.bizFieldLabel}>{f.label}</Text>
+                <TextInput color={colors.text} style={styles.bizInput} value={bizDraft[f.key]} onChangeText={v => setBizDraft(d => ({ ...d, [f.key]: v }))} placeholder={f.placeholder} placeholderTextColor={colors.muted} keyboardType={f.kb} autoCapitalize="none" />
+              </View>
+            ))}
+          </View>
+
+          {/* СОЦСЕТИ */}
+          <Text style={styles.bizGroupLabel}>Социальные сети</Text>
+          <View style={styles.menuCard}>
+            {[
+              { key: 'instagram', label: '📸 Instagram', placeholder: '@coffee.shop'    },
+              { key: 'vk',        label: '🔵 ВКонтакте', placeholder: 'vk.com/coffee'  },
+              { key: 'website',   label: '🌐 Сайт',      placeholder: 'coffee.ru'       },
+            ].map((f, idx) => (
+              <View key={f.key} style={[styles.bizFieldRow, idx < 2 && styles.menuRowDiv]}>
+                <Text style={styles.bizFieldLabel}>{f.label}</Text>
+                <TextInput color={colors.text} style={styles.bizInput} value={bizDraft[f.key]} onChangeText={v => setBizDraft(d => ({ ...d, [f.key]: v }))} placeholder={f.placeholder} placeholderTextColor={colors.muted} autoCapitalize="none" />
+              </View>
+            ))}
+          </View>
+
+          {/* ТЕМА */}
+          <Text style={styles.bizGroupLabel}>Тема оформления</Text>
+          <View style={styles.menuCard}>
+            {[
+              { key: 'dark',  label: '🌙 Тёмная',   sub: 'Чёрный фон, оливковый акцент' },
+              { key: 'light', label: '☀️ Светлая',  sub: 'Белый фон, тёмный текст' },
+            ].map((t, idx) => (
+              <Pressable key={t.key} style={[styles.menuRow, idx === 0 && styles.menuRowDiv]} onPress={() => setBizDraft(d => ({ ...d, theme: t.key }))}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.menuItemName}>{t.label}</Text>
+                  <Text style={styles.menuItemSub}>{t.sub}</Text>
+                </View>
+                <View style={[styles.productCheckbox, bizDraft.theme === t.key && styles.productCheckboxOn]}>
+                  {bizDraft.theme === t.key && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
+                </View>
+              </Pressable>
+            ))}
+          </View>
+
+          {/* Сохранить */}
+          <Pressable style={({ pressed }) => [styles.confirmBtn, { marginTop: 20 }, pressed && { opacity: 0.88 }]} onPress={saveBizDraft}>
+            <Text style={styles.confirmBtnText}>Сохранить</Text>
+          </Pressable>
+
+        </>) : (
+          <View style={[styles.menuCard, { padding: 16, marginTop: 8 }]}>
+            <Text style={styles.menuItemSub}>Загрузка...</Text>
+          </View>
+        )}
         </SectionAccordion>
 
         <SectionAccordion sectionKey="system" selectedSection={selectedSection}>
@@ -1869,6 +2079,76 @@ export default function SettingsScreen({ navigation }) {
               </ScrollView>
             </View>
           )}
+        </View>
+      </Modal>
+
+      {/* Предпросмотр чека */}
+      <Modal visible={receiptPreview} transparent animationType="fade" onRequestClose={() => setReceiptPreview(false)}>
+        <View style={styles.prodModalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setReceiptPreview(false)} />
+          <View style={styles.receiptBox}>
+            <View style={styles.prodModalHeader}>
+              <Text style={styles.prodModalTitle}>Предпросмотр чека</Text>
+              <Pressable onPress={() => setReceiptPreview(false)} hitSlop={14} style={styles.itemModalClose}>
+                <Text style={styles.itemModalCloseText}>✕</Text>
+              </Pressable>
+            </View>
+            <ScrollView contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
+              <View style={styles.receiptPaper}>
+                {/* Логотип / название */}
+                <Text style={styles.receiptBizName}>{bizDraft?.receiptName || bizDraft?.businessName || 'Название бизнеса'}</Text>
+                {bizDraft?.address ? <Text style={styles.receiptBizSub}>{bizDraft.address}</Text> : null}
+                {bizDraft?.phone   ? <Text style={styles.receiptBizSub}>{bizDraft.phone}</Text>   : null}
+                <View style={styles.receiptDivider} />
+
+                {/* Дата и время */}
+                <View style={styles.receiptRow}>
+                  <Text style={styles.receiptMeta}>22.07.2026  14:32</Text>
+                  <Text style={styles.receiptMeta}>Смена #12</Text>
+                </View>
+                <View style={styles.receiptDivider} />
+
+                {/* Позиции */}
+                {[
+                  { name: 'Американо', price: 100 },
+                  { name: 'Латте S',   price: 90  },
+                  { name: 'Круассан',  price: 120 },
+                ].map((item, i) => (
+                  <View key={i} style={styles.receiptRow}>
+                    <Text style={styles.receiptItem}>{item.name}</Text>
+                    <Text style={styles.receiptItem}>{item.price} {bizDraft?.currency || '₽'}</Text>
+                  </View>
+                ))}
+                <View style={styles.receiptDivider} />
+
+                {/* Итого */}
+                <View style={styles.receiptRow}>
+                  <Text style={styles.receiptTotal}>ИТОГО</Text>
+                  <Text style={styles.receiptTotal}>310 {bizDraft?.currency || '₽'}</Text>
+                </View>
+                <View style={[styles.receiptRow, { marginTop: 4 }]}>
+                  <Text style={styles.receiptMeta}>Наличные</Text>
+                  <Text style={styles.receiptMeta}>400 {bizDraft?.currency || '₽'}</Text>
+                </View>
+                <View style={styles.receiptRow}>
+                  <Text style={styles.receiptMeta}>Сдача</Text>
+                  <Text style={styles.receiptMeta}>90 {bizDraft?.currency || '₽'}</Text>
+                </View>
+
+                {/* Подвал */}
+                {(bizDraft?.receiptFooter || bizDraft?.inn) ? (
+                  <>
+                    <View style={styles.receiptDivider} />
+                    {bizDraft?.inn         ? <Text style={styles.receiptFooter}>{bizDraft.inn}</Text>   : null}
+                    {bizDraft?.receiptFooter ? <Text style={styles.receiptFooter}>{bizDraft.receiptFooter}</Text> : null}
+                  </>
+                ) : null}
+              </View>
+              <Text style={[styles.menuItemSub, { textAlign: 'center', marginTop: 12 }]}>
+                Это предварительный макет. Реальный чек зависит от принтера.
+              </Text>
+            </ScrollView>
+          </View>
         </View>
       </Modal>
 
@@ -2555,6 +2835,25 @@ const styles = StyleSheet.create({
     padding: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.3)',
   },
   prodModalTitle: { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text },
+  receiptBox: { width: 320, maxHeight: '88%', backgroundColor: '#0e0f11', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(74,77,84,0.5)', overflow: 'hidden' },
+  receiptPaper: { backgroundColor: '#ffffff', borderRadius: 12, padding: 20 },
+  receiptBizName: { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: '#111', textAlign: 'center', marginBottom: 4 },
+  receiptBizSub:  { fontFamily: fonts.familyRegular, fontSize: 12, color: '#555', textAlign: 'center', lineHeight: 18 },
+  receiptDivider: { height: 1, backgroundColor: '#ddd', marginVertical: 12, borderStyle: 'dashed' },
+  receiptRow:     { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+  receiptMeta:    { fontFamily: fonts.familyRegular, fontSize: 11, color: '#888' },
+  receiptItem:    { fontFamily: fonts.familyRegular, fontSize: 13, color: '#222' },
+  receiptTotal:   { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: '#111' },
+  receiptFooter:  { fontFamily: fonts.familyRegular, fontSize: 11, color: '#888', textAlign: 'center', marginTop: 4 },
+  bizGroupLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginTop: 20, marginBottom: 8, marginLeft: 2 },
+  bizFieldRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, gap: 12 },
+  bizFieldLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, width: 140 },
+  bizInput: { flex: 1, fontFamily: fonts.familyRegular, fontSize: 13, color: colors.text, textAlign: 'right', padding: 0 },
+  bizPreviewBtn: { marginTop: 8, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(61,158,146,0.4)', alignItems: 'center', backgroundColor: 'rgba(61,158,146,0.06)' },
+  bizPreviewBtnText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight },
+  bizCurrencyChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', backgroundColor: '#07080a' },
+  bizCurrencyChipActive: { borderColor: 'rgba(61,158,146,0.5)', backgroundColor: 'rgba(61,158,146,0.08)' },
+  bizCurrencyText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   stockCatGroup: { marginBottom: 4 },
   stockAccHead: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12, backgroundColor: '#0e0f11', borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', marginBottom: 6 },
   stockAccTitle: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, flex: 1 },

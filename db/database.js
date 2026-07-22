@@ -299,6 +299,18 @@ export function initDatabase() {
     `ALTER TABLE stock ADD COLUMN max_ostatok REAL DEFAULT 0`,
     // Права доступа сотрудника
     `ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT '{}'`,
+    // Расширенный профиль бизнеса
+    `ALTER TABLE business_profile ADD COLUMN receipt_name TEXT DEFAULT ''`,
+    `ALTER TABLE business_profile ADD COLUMN receipt_footer TEXT DEFAULT ''`,
+    `ALTER TABLE business_profile ADD COLUMN currency TEXT DEFAULT '₽'`,
+    `ALTER TABLE business_profile ADD COLUMN date_format TEXT DEFAULT 'DD.MM.YYYY'`,
+    `ALTER TABLE business_profile ADD COLUMN email TEXT DEFAULT ''`,
+    `ALTER TABLE business_profile ADD COLUMN whatsapp TEXT DEFAULT ''`,
+    `ALTER TABLE business_profile ADD COLUMN telegram TEXT DEFAULT ''`,
+    `ALTER TABLE business_profile ADD COLUMN instagram TEXT DEFAULT ''`,
+    `ALTER TABLE business_profile ADD COLUMN vk TEXT DEFAULT ''`,
+    `ALTER TABLE business_profile ADD COLUMN website TEXT DEFAULT ''`,
+    `ALTER TABLE business_profile ADD COLUMN theme TEXT DEFAULT 'dark'`,
     `ALTER TABLE orders  ADD COLUMN status     TEXT DEFAULT 'completed'`,
     `ALTER TABLE clients ADD COLUMN birth_date TEXT DEFAULT ''`,
     `CREATE TABLE IF NOT EXISTS price_schedules (id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER NOT NULL, variant_id INTEGER, new_price REAL NOT NULL, effective_date TEXT NOT NULL, applied INTEGER DEFAULT 0, created_at TEXT NOT NULL)`,
