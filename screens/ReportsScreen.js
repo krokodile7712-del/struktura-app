@@ -15,6 +15,7 @@ import {
   exportAllData,
 } from '../db/queries';
 import { getHomeRoute, can } from '../db/session';
+import DatePicker from '../components/DatePicker';
 import { colors, fonts, spacing } from '../constants/theme';
 
 // ─── Утилиты дат ─────────────────────────────────────────────────────────────
@@ -197,6 +198,7 @@ export default function ReportsScreen({ navigation }) {
     } catch (e) { console.error(e); }
   }, [getRange, compare]);
 
+  const [picker, setPicker] = useState(null); // 'from' | 'to'
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   if (!can('view_reports')) return (
@@ -442,6 +444,12 @@ export default function ReportsScreen({ navigation }) {
       </ScrollView>
 
       <BottomBar navigation={navigation} activeTab="Kassa" />
+      <DatePicker visible={picker === 'from'} value={customFrom}
+        onChange={v => { setCustomFrom(v); setPreset('custom'); setPicker(null); }}
+        onClose={() => setPicker(null)} title="Начало периода" />
+      <DatePicker visible={picker === 'to'} value={customTo}
+        onChange={v => { setCustomTo(v); setPreset('custom'); setPicker(null); }}
+        onClose={() => setPicker(null)} title="Конец периода" />
 
       {/* Модалка своего периода */}
       <Modal visible={showCustom} transparent animationType="fade" onRequestClose={() => setShowCustom(false)}>
@@ -454,10 +462,22 @@ export default function ReportsScreen({ navigation }) {
                 <Text style={styles.modalCloseTxt}>✕</Text>
               </Pressable>
             </View>
-            <Text style={styles.fieldLabel}>С (ГГГГ-ММ-ДД)</Text>
-            <TextInput color={colors.text} style={styles.input} value={customFrom} onChangeText={setCustomFrom} placeholder="2024-01-01" placeholderTextColor={colors.muted} keyboardType="numbers-and-punctuation" />
-            <Text style={styles.fieldLabel}>По (ГГГГ-ММ-ДД)</Text>
-            <TextInput color={colors.text} style={styles.input} value={customTo} onChangeText={setCustomTo} placeholder="2024-01-31" placeholderTextColor={colors.muted} keyboardType="numbers-and-punctuation" />
+            <Text style={styles.fieldLabel}>Начало</Text>
+            <Pressable style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}
+              onPress={() => { setShowCustom(false); setPicker('from'); }}>
+              <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text }}>
+                {customFrom.split('-').reverse().join('.')}
+              </Text>
+              <Text style={{ color: colors.muted }}>📅</Text>
+            </Pressable>
+            <Text style={styles.fieldLabel}>Конец</Text>
+            <Pressable style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}
+              onPress={() => { setShowCustom(false); setPicker('to'); }}>
+              <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text }}>
+                {customTo.split('-').reverse().join('.')}
+              </Text>
+              <Text style={{ color: colors.muted }}>📅</Text>
+            </Pressable>
             <Pressable style={({ pressed }) => [styles.confirmBtn, { marginTop: 16 }, pressed && { opacity: 0.88 }]}
               onPress={() => { setPreset('custom'); setShowCustom(false); }}>
               <Text style={styles.confirmBtnText}>Применить</Text>

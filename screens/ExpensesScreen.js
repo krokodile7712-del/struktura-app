@@ -9,6 +9,7 @@ import EmptyState from '../components/EmptyState';
 import InfoTip from '../components/InfoTip';
 import { useFocusEffect } from '@react-navigation/native';
 import { getAllExpenses, insertExpense } from '../db/queries';
+import DatePicker from '../components/DatePicker';
 import { getHomeRoute, can } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
 
@@ -35,6 +36,7 @@ export default function ExpensesScreen({ navigation }) {
   const [showCustom, setShowCustom] = useState(false);
   const [expenses, setExpenses]   = useState([]);
   const [addModal, setAddModal]   = useState(false);
+  const [picker, setPicker]         = useState(null); // 'from' | 'to' | 'date'
 
   // Форма добавления
   const [category, setCategory]   = useState(CATEGORIES[0]);
@@ -241,15 +243,13 @@ export default function ExpensesScreen({ navigation }) {
                 ))}
               </View>
               {dateMode === 'custom' && (
-                <TextInput
-                  color={colors.text}
-                  style={[styles.input, { marginTop: 8 }]}
-                  value={customDate}
-                  onChangeText={setCustomDate}
-                  placeholder="ГГГГ-ММ-ДД"
-                  placeholderTextColor={colors.muted}
-                  keyboardType="numbers-and-punctuation"
-                />
+                <Pressable style={[styles.input, { marginTop: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}
+                  onPress={() => setPicker('date')}>
+                  <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: customDate ? colors.text : colors.muted }}>
+                    {customDate ? customDate.split('-').reverse().join('.') : 'Выбрать дату'}
+                  </Text>
+                  <Text style={{ color: colors.muted }}>📅</Text>
+                </Pressable>
               )}
 
               {/* Сохранить */}
@@ -279,10 +279,22 @@ export default function ExpensesScreen({ navigation }) {
               </Pressable>
             </View>
             <View style={{ padding: 20, paddingTop: 8 }}>
-              <Text style={styles.fieldLabel}>С (ГГГГ-ММ-ДД)</Text>
-              <TextInput color={colors.text} style={styles.input} value={customFrom} onChangeText={setCustomFrom} placeholder="2024-01-01" placeholderTextColor={colors.muted} keyboardType="numbers-and-punctuation" />
-              <Text style={styles.fieldLabel}>По (ГГГГ-ММ-ДД)</Text>
-              <TextInput color={colors.text} style={styles.input} value={customTo} onChangeText={setCustomTo} placeholder="2024-01-31" placeholderTextColor={colors.muted} keyboardType="numbers-and-punctuation" />
+              <Text style={styles.fieldLabel}>Начало</Text>
+              <Pressable style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}
+                onPress={() => setPicker('from')}>
+                <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: customFrom ? colors.text : colors.muted }}>
+                  {customFrom ? customFrom.split('-').reverse().join('.') : 'Выбрать'}
+                </Text>
+                <Text style={{ color: colors.muted }}>📅</Text>
+              </Pressable>
+              <Text style={styles.fieldLabel}>Конец</Text>
+              <Pressable style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}
+                onPress={() => setPicker('to')}>
+                <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: customTo ? colors.text : colors.muted }}>
+                  {customTo ? customTo.split('-').reverse().join('.') : 'Выбрать'}
+                </Text>
+                <Text style={{ color: colors.muted }}>📅</Text>
+              </Pressable>
               <Pressable style={({ pressed }) => [styles.confirmBtn, { marginTop: 16 }, pressed && { opacity: 0.88 }]}
                 onPress={() => { setShowCustom(false); load(); }}>
                 <Text style={styles.confirmBtnText}>Применить</Text>
@@ -291,6 +303,27 @@ export default function ExpensesScreen({ navigation }) {
           </View>
         </View>
       </Modal>
+      <DatePicker
+        visible={picker === 'date'}
+        value={customDate}
+        onChange={setCustomDate}
+        onClose={() => setPicker(null)}
+        title="Дата расхода"
+      />
+      <DatePicker
+        visible={picker === 'from'}
+        value={customFrom}
+        onChange={v => { setCustomFrom(v); load(); }}
+        onClose={() => setPicker(null)}
+        title="Начало периода"
+      />
+      <DatePicker
+        visible={picker === 'to'}
+        value={customTo}
+        onChange={v => { setCustomTo(v); load(); }}
+        onClose={() => setPicker(null)}
+        title="Конец периода"
+      />
     </View>
   );
 }

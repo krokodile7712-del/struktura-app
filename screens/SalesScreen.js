@@ -11,6 +11,7 @@ import { getRecentOrders, getOrderItems, deleteOrder, updateOrder, returnOrder, 
 import { useToast } from '../components/Toast';
 import { getSession, getHomeRoute } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
+import DatePicker from '../components/DatePicker';
 
 const PERIODS = [
   { key: 'day',    label: 'День' },
@@ -54,6 +55,7 @@ export default function SalesScreen({ navigation }) {
   const [dateFrom, setDateFrom] = useState(todayStr());
   const [dateTo, setDateTo]     = useState(todayStr());
   const [orders, setOrders]     = useState([]);
+  const [picker, setPicker] = useState(null);
   const [shown, setShown]       = useState(false);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(null);
@@ -167,9 +169,17 @@ export default function SalesScreen({ navigation }) {
 
           {period === 'custom' ? (
             <View style={styles.datesRow}>
-              <TextInput style={[styles.dateInput, { flex: 1 }]} placeholder="С (ГГГГ-ММ-ДД)" placeholderTextColor={colors.muted} value={dateFrom} onChangeText={v => { setDateFrom(v); setShown(false); }} />
+              <Pressable style={[styles.dateInput, { flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 12 }]}
+                onPress={() => setPicker('from')}>
+                <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text }}>{dateFrom.split('-').reverse().join('.')}</Text>
+                <Text style={{ color: colors.muted }}>📅</Text>
+              </Pressable>
               <Text style={styles.dateSep}>—</Text>
-              <TextInput style={[styles.dateInput, { flex: 1 }]} placeholder="По (ГГГГ-ММ-ДД)" placeholderTextColor={colors.muted} value={dateTo} onChangeText={v => { setDateTo(v); setShown(false); }} />
+              <Pressable style={[styles.dateInput, { flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 12 }]}
+                onPress={() => setPicker('to')}>
+                <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text }}>{dateTo.split('-').reverse().join('.')}</Text>
+                <Text style={{ color: colors.muted }}>📅</Text>
+              </Pressable>
             </View>
           ) : (
             <Text style={styles.dateRange}>
@@ -335,6 +345,12 @@ export default function SalesScreen({ navigation }) {
           </View>
         </View>
       </Modal>
+      <DatePicker visible={picker === 'from'} value={dateFrom}
+        onChange={v => { setDateFrom(v); setShown(false); setPicker(null); }}
+        onClose={() => setPicker(null)} title="Начало периода" />
+      <DatePicker visible={picker === 'to'} value={dateTo}
+        onChange={v => { setDateTo(v); setShown(false); setPicker(null); }}
+        onClose={() => setPicker(null)} title="Конец периода" />
     </View>
   );
 }
