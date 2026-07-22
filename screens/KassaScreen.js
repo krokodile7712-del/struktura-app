@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import SwipeableRow from '../components/SwipeableRow';
 import { useToast } from '../components/Toast';
 import { useFocusEffect } from '@react-navigation/native';
-import { getHomeRoute, getCurrentLocationId } from '../db/session';
+import { getHomeRoute, getCurrentLocationId, can } from '../db/session';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
   FlatList, Modal, ActivityIndicator, TextInput, Alert,
