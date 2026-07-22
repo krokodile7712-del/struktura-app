@@ -1293,7 +1293,7 @@ export default function SettingsScreen({ navigation }) {
             );
             return cats.map(cat => {
               const items = filtered.filter(s => (s.category || 'Без категории') === cat);
-              const isOpen = openStockCats[cat] !== false; // открыто по умолчанию
+              const isOpen = openStockCats[cat] === true; // закрыто по умолчанию
               return (
                 <View key={cat} style={{ marginBottom: 12 }}>
                   {/* Заголовок категории — тап раскрывает/скрывает */}
