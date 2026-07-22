@@ -356,6 +356,14 @@ export default function SettingsScreen({ navigation }) {
           }));
         saveCostCardForVariant(savedVariant.id, ingredients);
       });
+      // Обновляем базовую цену продукта минимальной ценой варианта
+      try {
+        const db = require('../db/database').getDb();
+        const minPrice = Math.min(...variantsPayload.map(v => v.price).filter(p => p > 0));
+        if (isFinite(minPrice) && minPrice > 0) {
+          db.runSync('UPDATE products SET price = ? WHERE id = ?', [minPrice, productModal.product.id]);
+        }
+      } catch (_) {}
       loadAll();
     } catch (e) { console.error(e); }
     setProductModal(null);
@@ -365,6 +373,14 @@ export default function SettingsScreen({ navigation }) {
     if (!productModal) return;
     try {
       setProductActive(productModal.product.id, !productModal.product.active);
+      // Обновляем базовую цену продукта минимальной ценой варианта
+      try {
+        const db = require('../db/database').getDb();
+        const minPrice = Math.min(...variantsPayload.map(v => v.price).filter(p => p > 0));
+        if (isFinite(minPrice) && minPrice > 0) {
+          db.runSync('UPDATE products SET price = ? WHERE id = ?', [minPrice, productModal.product.id]);
+        }
+      } catch (_) {}
       loadAll();
     } catch (e) { console.error(e); }
     setProductModal(null);
@@ -1436,6 +1452,12 @@ export default function SettingsScreen({ navigation }) {
                     </Pressable>
                   ))}
               </ScrollView>
+              <Pressable
+                style={({ pressed }) => [styles.confirmBtn, pressed && { opacity: 0.88 }, { marginTop: 10 }]}
+                onPress={() => setIngredientPicker(null)}
+              >
+                <Text style={styles.confirmBtnText}>Готово</Text>
+              </Pressable>
             </View>
           )}
         </View>
@@ -2081,6 +2103,8 @@ const styles = StyleSheet.create({
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   modalTitle: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, flex: 1 },
   modalClose: { fontSize: 18, color: colors.muted, padding: 4 },
+  itemModalClose: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(74,77,84,0.25)', alignItems: 'center', justifyContent: 'center' },
+  itemModalCloseText: { fontSize: 13, color: colors.text, fontFamily: fonts.familySemibold },
   variantBlock: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border },
   variantHeaderRow: { flexDirection: 'row', alignItems: 'center' },
 
