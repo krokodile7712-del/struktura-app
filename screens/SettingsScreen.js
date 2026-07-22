@@ -1170,6 +1170,7 @@ export default function SettingsScreen({ navigation }) {
                 {/* Название */}
                 <Text style={styles.productFieldLabel}>Название</Text>
                 <TextInput
+                  color={colors.text}
                   style={[styles.input, styles.productNameInput]}
                   value={productModal.product.name}
                   onChangeText={v => setProductModal(m => ({ ...m, product: { ...m.product, name: v } }))}
@@ -1207,6 +1208,7 @@ export default function SettingsScreen({ navigation }) {
                     <View key={idx} style={[styles.productVariantRow, idx < productModal.variants.length - 1 && styles.menuRowDiv]}>
                       {productModal.variants.length > 1 && (
                         <TextInput
+                          color={colors.text}
                           style={styles.productVariantName}
                           placeholder="Название (напр. Маленький)"
                           placeholderTextColor={colors.muted}
@@ -1216,6 +1218,7 @@ export default function SettingsScreen({ navigation }) {
                       )}
                       <View style={styles.productVariantPriceRow}>
                         <TextInput
+                          color={colors.text}
                           style={styles.productVariantPrice}
                           keyboardType="numeric"
                           placeholder="0"
@@ -1354,6 +1357,7 @@ export default function SettingsScreen({ navigation }) {
                               )}
                             </View>
                             <TextInput
+                              color={colors.text}
                               style={styles.techIngAmount}
                               keyboardType="numeric"
                               value={row.amount}
@@ -1448,9 +1452,9 @@ export default function SettingsScreen({ navigation }) {
                 <Pressable onPress={() => setNewProductModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
               </View>
               <Text style={styles.fieldLabel}>Название</Text>
-              <TextInput style={styles.input} value={newProductModal.name} onChangeText={(v) => setNewProductModal(m => ({ ...m, name: v }))} placeholderTextColor={colors.muted} />
+              <TextInput style={[styles.input, {color: colors.text}]} value={newProductModal.name} onChangeText={(v) => setNewProductModal(m => ({ ...m, name: v }))} placeholderTextColor={colors.muted} />
               <Text style={styles.fieldLabel}>{terms.category}</Text>
-              <TextInput style={styles.input} value={newProductModal.category} onChangeText={(v) => setNewProductModal(m => ({ ...m, category: v }))} placeholder={`Название ${terms.category.toLowerCase()}и`} placeholderTextColor={colors.muted} />
+              <TextInput style={[styles.input, {color: colors.text}]} value={newProductModal.category} onChangeText={(v) => setNewProductModal(m => ({ ...m, category: v }))} placeholder={`Название ${terms.category.toLowerCase()}и`} placeholderTextColor={colors.muted} />
               {categories.length > 0 && (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
                   {categories.map(c => (
@@ -1478,7 +1482,7 @@ export default function SettingsScreen({ navigation }) {
                 <Pressable onPress={() => setStockModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
               </View>
               <Text style={styles.fieldLabel}>Порог нехватки ({stockModal.unit})</Text>
-              <TextInput style={styles.input} keyboardType="numeric" value={stockModal['порог']} onChangeText={(v) => setStockModal(m => ({ ...m, порог: v }))} placeholderTextColor={colors.muted} />
+              <TextInput style={[styles.input, {color: colors.text}]} keyboardType="numeric" value={stockModal['порог']} onChangeText={(v) => setStockModal(m => ({ ...m, порог: v }))} placeholderTextColor={colors.muted} />
               <MetalButton title="Сохранить" variant="success" onPress={saveStockModal} style={{ marginTop: 10 }} />
             </View>
           )}
