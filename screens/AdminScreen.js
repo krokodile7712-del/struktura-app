@@ -42,7 +42,6 @@ const getMenuItems = (terms) => [
   { icon: '📈', label: 'Отчётность',  sub: 'P&L · графики',               screen: 'Reports',  variant: 'success' },
   { icon: '📦', label: 'Склад',       sub: 'Остатки · закупки',            screen: 'Stock',    variant: 'default', module: 'stock' },
   { icon: '💸', label: 'Расходы',     sub: 'Затраты за день',              screen: 'Expenses', variant: 'danger'  },
-  { icon: '📅', label: 'Открыть смену', sub: 'Начать рабочий день',        screen: 'Shift',    variant: 'success', module: 'shifts', hideWhenShiftOpen: true },
   { icon: '⚙️', label: 'Настройки',   sub: 'Профиль · модули',             screen: 'Settings', variant: 'pay'     },
 ];
 
