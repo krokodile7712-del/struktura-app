@@ -1613,19 +1613,68 @@ export default function SettingsScreen({ navigation }) {
         </SectionAccordion>
 
         <SectionAccordion sectionKey="system" selectedSection={selectedSection}>
-        <MetalCard style={{ marginTop: 12 }}>
-          <Text style={styles.blockTitle}>🚀 Мастер настройки</Text>
-          <Text style={styles.hintText}>Запустите пошаговый мастер настройки — он покажет как новый пользователь видит приложение в первый раз. Доступен в любое время.</Text>
-          <MetalButton
-            title="→ Запустить мастер настройки"
-            variant="default"
-            onPress={() => {
-              setSetting('onboarding_done', '');
-              navigation.navigate('Onboarding');
-            }}
-            style={{ marginTop: 8 }}
-          />
-        </MetalCard>
+
+          {/* Онбординг */}
+          <Text style={styles.bizGroupLabel}>Настройка</Text>
+          <View style={styles.menuCard}>
+            <Pressable
+              style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
+              onPress={() => { setSetting('onboarding_done', ''); navigation.navigate('Onboarding'); }}
+            >
+              <Text style={{ fontSize: 20, marginRight: 12 }}>🚀</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.menuItemName}>Мастер настройки</Text>
+                <Text style={styles.menuItemSub}>Пройти первоначальную настройку заново</Text>
+              </View>
+              <Text style={styles.menuItemArrow}>›</Text>
+            </Pressable>
+          </View>
+
+          {/* Резервное копирование */}
+          <Text style={styles.bizGroupLabel}>Данные</Text>
+          <View style={styles.menuCard}>
+            <Pressable
+              style={({ pressed }) => [styles.menuRow, styles.menuRowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
+              onPress={async () => {
+                try {
+                  const data = exportAllData();
+                  await Share.share({ message: data, title: 'Резервная копия СТРУКТУРА' });
+                } catch (e) { console.error(e); }
+              }}
+            >
+              <Text style={{ fontSize: 20, marginRight: 12 }}>💾</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.menuItemName}>Экспорт и резервная копия</Text>
+                <Text style={styles.menuItemSub}>Открывает системное меню «Поделиться» с данными</Text>
+              </View>
+              <Text style={styles.menuItemArrow}>›</Text>
+            </Pressable>
+            <View style={[styles.menuRow, { opacity: 0.5 }]}>
+              <Text style={{ fontSize: 20, marginRight: 12 }}>📥</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.menuItemName}>Импорт данных</Text>
+                <Text style={styles.menuItemSub}>Скоро — восстановление из резервной копии</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* О приложении */}
+          <Text style={styles.bizGroupLabel}>О приложении</Text>
+          <View style={styles.menuCard}>
+            <View style={[styles.menuRow, styles.menuRowDiv]}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.menuItemName}>СТРУКТУРА</Text>
+                <Text style={styles.menuItemSub}>Версия 1.0.0 · React Native / Expo SDK 56</Text>
+              </View>
+            </View>
+            <View style={styles.menuRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.menuItemName}>Разработка</Text>
+                <Text style={styles.menuItemSub}>Создано с ❤️ в Termux + Claude</Text>
+              </View>
+            </View>
+          </View>
+
         </SectionAccordion>
       </ScrollView>
     </Pressable>
