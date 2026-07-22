@@ -118,25 +118,26 @@ export default function DashboardScreen({ navigation }) {
           <Text style={styles.heroArrow}>›</Text>
         </Pressable>
 
-        {/* Вторичные действия */}
-        <View style={[styles.grid, { gap }]}>
-          {visibleItems.map((item) => {
-            const ac = ACCENT[item.variant] || ACCENT.default;
-            return (
-              <Pressable
-                key={item.screen}
-                style={({ pressed }) => [
-                  styles.tile,
-                  { width: tileW, borderColor: ac.border, backgroundColor: pressed ? ac.border : ac.bg },
-                ]}
-                onPress={() => navigation.navigate(item.screen)}
-              >
-                <Text style={styles.tileIcon}>{item.icon}</Text>
-                <Text style={styles.tileLabel}>{item.label}</Text>
-                {item.sub ? <Text style={styles.tileSub}>{item.sub}</Text> : null}
-              </Pressable>
-            );
-          })}
+        {/* Вторичные действия — список */}
+        <View style={styles.list}>
+          {visibleItems.map((item, idx) => (
+            <Pressable
+              key={item.screen}
+              style={({ pressed }) => [
+                styles.listItem,
+                idx < visibleItems.length - 1 && styles.listItemDiv,
+                pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
+              ]}
+              onPress={() => navigation.navigate(item.screen)}
+            >
+              <Text style={styles.listIcon}>{item.icon}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.listLabel}>{item.label}</Text>
+                {item.sub ? <Text style={styles.listSub}>{item.sub}</Text> : null}
+              </View>
+              <Text style={styles.listArrow}>›</Text>
+            </Pressable>
+          ))}
         </View>
 
         <Pressable style={styles.switchBtn} onPress={() => navigation.navigate('Login')}>
@@ -190,24 +191,13 @@ const styles = StyleSheet.create({
   heroLabel: { fontFamily: fonts.family, fontSize: 17, fontWeight: '700', color: '#c8e890', textTransform: 'capitalize' },
   heroSub:   { fontFamily: fonts.familyRegular, fontSize: 12, color: 'rgba(200,232,144,0.6)', marginTop: 2 },
   heroArrow: { fontFamily: fonts.family, fontSize: 28, color: 'rgba(200,232,144,0.5)', marginLeft: 'auto' },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 14,
-  },
-  tile: {
-    aspectRatio: 1,
-    borderRadius: 14,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 10,
-    gap: 6,
-    marginBottom: 10,
-  },
-  tileIcon:  { fontSize: 26 },
-  tileLabel: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.text, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center' },
-  tileSub:   { fontFamily: fonts.familyRegular, fontSize: 8, color: colors.muted, textAlign: 'center', lineHeight: 11 },
+  list:        { backgroundColor: '#0b0c0f', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', overflow: 'hidden', marginBottom: 14 },
+  listItem:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, gap: 12 },
+  listItemDiv: { borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.2)' },
+  listIcon:    { fontSize: 18, width: 24, textAlign: 'center', opacity: 0.7 },
+  listLabel:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
+  listSub:     { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 1 },
+  listArrow:   { fontSize: 18, color: 'rgba(74,77,84,0.4)' },
   switchBtn: { padding: 14, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(74,77,84,0.35)', alignItems: 'center', marginTop: 4 },
   switchBtnText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, letterSpacing: 1 },
 });
