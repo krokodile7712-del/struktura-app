@@ -840,7 +840,7 @@ export default function SettingsScreen({ navigation }) {
 
         {/* Шапка с кнопкой + */}
         <View style={styles.menuTopBarSticky}>
-          <Text style={styles.menuTopTitle}>{roleNames.barista}ы</Text>
+          <Text style={styles.menuTopTitle}>Сотрудники</Text>
           <View style={styles.menuFloatBtns} pointerEvents="box-none">
             <View style={styles.menuFloatRow}>
               <Pressable
