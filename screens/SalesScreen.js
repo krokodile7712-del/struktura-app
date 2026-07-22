@@ -240,7 +240,7 @@ export default function SalesScreen({ navigation }) {
               style={styles.searchInput}
               value={search}
               onChangeText={setSearch}
-              placeholder="Сумма или способ..."
+              placeholder="Поиск по товару, сумме или способу оплаты..."
               placeholderTextColor={colors.muted}
               autoFocus
             />
