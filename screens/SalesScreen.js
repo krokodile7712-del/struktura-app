@@ -100,11 +100,18 @@ export default function SalesScreen({ navigation }) {
     try {
       const { from, to } = getRange();
       const all = getRecentOrders(500);
-      setOrders(all.filter(o => {
+      const filtered = all.filter(o => {
         const d = dateKey(o.created_at);
         return d >= from && d <= to;
-      }));
+      });
+      setOrders(filtered);
       setPayMethods(getPayMethods());
+      // Грузим позиции всех заказов для поиска
+      const map = {};
+      filtered.forEach(o => {
+        try { map[o.id] = getOrderItems(o.id); } catch (_) {}
+      });
+      setAllItemsMap(map);
     } catch (e) { console.error(e); }
   }, [period, dateFrom, dateTo]);
 
@@ -242,17 +249,7 @@ export default function SalesScreen({ navigation }) {
             </Pressable>
           </View>
         ) : (
-          <Pressable onPress={() => {
-              setSearchOpen(true);
-              // Предзагружаем позиции всех заказов для поиска
-              if (Object.keys(allItemsMap).length === 0) {
-                const map = {};
-                orders.forEach(o => {
-                  try { map[o.id] = getOrderItems(o.id); } catch (_) {}
-                });
-                setAllItemsMap(map);
-              }
-            }} hitSlop={10} style={styles.badgeBtn}>
+          <Pressable onPress={() => setSearchOpen(true)} hitSlop={10} style={styles.badgeBtn}>
             <Text style={styles.badgeTxt}>🔍</Text>
           </Pressable>
         )}
