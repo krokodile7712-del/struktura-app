@@ -1148,251 +1148,153 @@ export default function SettingsScreen({ navigation }) {
       </View>
       <BottomBar navigation={navigation} activeTab="Kassa" />
 
-      {/* Модалка товара */}
+      {/* Модалка товара — упрощённая Apple стиль */}
       <Modal visible={!!productModal} transparent animationType="fade" onRequestClose={() => setProductModal(null)}>
         <View style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setProductModal(null)} />
           {productModal && (
-            <View style={[styles.modalInner, { maxHeight: '88%' }]}>
+            <View style={[styles.modalInner, { maxHeight: '92%', width: '52%' }]}>
+
+              {/* Заголовок */}
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>{productModal.product.name}</Text>
-                <Pressable onPress={() => setProductModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
+                <View style={{ flex: 1 }}>
+                  <TextInput
+                    style={styles.productNameInput}
+                    value={productModal.product.name}
+                    onChangeText={v => setProductModal(m => ({ ...m, product: { ...m.product, name: v } }))}
+                    placeholder="Название товара"
+                    placeholderTextColor={colors.muted}
+                  />
+                </View>
+                <Pressable onPress={() => setProductModal(null)} hitSlop={14} style={styles.itemModalClose}>
+                  <Text style={styles.itemModalCloseText}>✕</Text>
+                </Pressable>
               </View>
-              <ScrollView showsVerticalScrollIndicator={false}>
-                {/* ─── Секция осей вариативности ─── */}
-                <Text style={styles.sectionTitle}>Оси вариативности</Text>
-                <Text style={styles.hintText}>
-                  Задайте оси (напр. «Размер», «Цвет») и их значения, затем нажмите «Сгенерировать комбинации» — варианты создадутся автоматически. Без осей добавляйте варианты вручную ниже.
-                </Text>
 
-                {(productModal.axes || []).map(axis => {
-                  const aKey = axisUid(axis);
-                  return (
-                    <View key={aKey} style={styles.axisBlock}>
-                      {/* Название оси */}
-                      <View style={styles.axisHeaderRow}>
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+
+                {/* ── Категория ── */}
+                <Text style={styles.productFieldLabel}>Категория</Text>
+                <View style={styles.productCatRow}>
+                  {categories.map(cat => (
+                    <Pressable
+                      key={cat}
+                      style={[styles.productCatChip, productModal.product.category === cat && styles.productCatChipActive]}
+                      onPress={() => setProductModal(m => ({ ...m, product: { ...m.product, category: cat } }))}
+                    >
+                      <Text style={[styles.productCatChipText, productModal.product.category === cat && styles.productCatChipTextActive]}>{cat}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+
+                {/* ── Варианты / Цена ── */}
+                <View style={styles.productSectionHead}>
+                  <Text style={styles.productFieldLabel}>
+                    {productModal.variants.length > 1 ? 'Варианты и цены' : 'Цена'}
+                  </Text>
+                  <InfoTip
+                    title="Варианты"
+                    text="Если товар продаётся в нескольких размерах или видах — добавьте вариант для каждого. Если один вариант — оставьте название пустым, только цену."
+                  />
+                </View>
+
+                <View style={styles.menuCard}>
+                  {productModal.variants.map((v, idx) => (
+                    <View key={idx} style={[styles.productVariantRow, idx < productModal.variants.length - 1 && styles.menuRowDiv]}>
+                      {productModal.variants.length > 1 && (
                         <TextInput
-                          style={[styles.input, { flex: 1 }]}
-                          placeholder="Название оси (напр. Размер, Цвет)"
-                          placeholderTextColor={colors.muted}
-                          value={axis.name}
-                          onChangeText={v => setAxisName(aKey, v)}
-                        />
-                        <Pressable onPress={() => removeAxis(aKey)} hitSlop={10} style={{ marginLeft: 8, padding: 4 }}>
-                          <Text style={styles.ingredientRemove}>✕</Text>
-                        </Pressable>
-                      </View>
-                      {/* Значения оси — чипы-инпуты */}
-                      <View style={styles.axisValuesWrap}>
-                        {(axis.values || []).map(val => {
-                          const vKey = valueUid(val);
-                          return (
-                            <View key={vKey} style={styles.axisValueChip}>
-                              <TextInput
-                                style={styles.axisValueInput}
-                                value={val.label}
-                                onChangeText={v => setAxisValueLabel(aKey, vKey, v)}
-                                placeholder="—"
-                                placeholderTextColor={colors.muted}
-                              />
-                              <Pressable onPress={() => removeAxisValue(aKey, vKey)} hitSlop={6} style={{ paddingLeft: 4 }}>
-                                <Text style={styles.axisValueRemove}>×</Text>
-                              </Pressable>
-                            </View>
-                          );
-                        })}
-                        <Pressable style={styles.addValueBtn} onPress={() => addAxisValue(aKey)}>
-                          <Text style={styles.addValueBtnText}>+ значение</Text>
-                        </Pressable>
-                      </View>
-                    </View>
-                  );
-                })}
-
-                <MetalButton title="+ Добавить ось" variant="default" onPress={addAxis} style={{ marginTop: 4 }} />
-
-                {(productModal.axes || []).some(a => (a.values || []).some(v => v.label?.trim())) && (() => {
-                  const validAxes = (productModal.axes || []).filter(a => (a.values || []).some(v => v.label?.trim()));
-                  const count = validAxes.reduce((acc, a) => acc * a.values.filter(v => v.label?.trim()).length, 1);
-                  return (
-                    <MetalButton
-                      title={`🔄 Сгенерировать комбинации (${count})`}
-                      variant="pay"
-                      onPress={generateCombinations}
-                      style={{ marginTop: 8 }}
-                    />
-                  );
-                })()}
-
-                {/* ─── Секция вариантов ─── */}
-                <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Варианты</Text>
-                <Text style={styles.hintText}>Если у {genitiveSingularRu(terms.item).toLowerCase()} один вариант — оставь название пустым, он не будет показываться отдельным чипом в кассе.</Text>
-                {productModal.variants.map((v, idx) => {
-                  const key = variantKey(v, idx);
-                  return (
-                    <View key={key} style={styles.variantBlock}>
-                      <View style={styles.variantHeaderRow}>
-                        <TextInput
-                          style={[styles.input, { flex: 1 }]}
-                          placeholder="Название варианта (напр. Маленький)"
+                          style={styles.productVariantName}
+                          placeholder="Название (напр. Маленький)"
                           placeholderTextColor={colors.muted}
                           value={v.label}
-                          onChangeText={(val) => setVariantField(idx, 'label', val)}
+                          onChangeText={val => setVariantField(idx, 'label', val)}
                         />
+                      )}
+                      <View style={styles.productVariantPriceRow}>
+                        <TextInput
+                          style={styles.productVariantPrice}
+                          keyboardType="numeric"
+                          placeholder="0"
+                          placeholderTextColor={colors.muted}
+                          value={v.price}
+                          onChangeText={val => setVariantField(idx, 'price', val)}
+                        />
+                        <Text style={styles.productVariantUnit}>₽</Text>
+                        {/* Техкарта */}
+                        <Pressable
+                          style={styles.techCardBtn}
+                          onPress={() => setIngredientPicker({ variantKey: variantKey(v, idx), search: '' })}
+                        >
+                          <Text style={styles.techCardBtnText}>
+                            🧾 {(productModal.techCards[variantKey(v, idx)] || []).length > 0
+                              ? `${(productModal.techCards[variantKey(v, idx)] || []).length} ингр.`
+                              : 'Техкарта'}
+                          </Text>
+                        </Pressable>
                         {productModal.variants.length > 1 && (
-                          <Pressable onPress={() => removeVariantRow(idx)} hitSlop={8} style={{ marginLeft: 8 }}>
-                            <Text style={styles.ingredientRemove}>✕</Text>
+                          <Pressable onPress={() => removeVariantRow(idx)} hitSlop={10}>
+                            <Text style={{ color: colors.muted, fontSize: 16 }}>✕</Text>
                           </Pressable>
                         )}
                       </View>
-                      <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
-                        <TextInput
-                          style={[styles.input, { flex: 1 }]}
-                          keyboardType="numeric"
-                          placeholder="Цена, ₽"
-                          placeholderTextColor={colors.muted}
-                          value={v.price}
-                          onChangeText={(val) => setVariantField(idx, 'price', val)}
-                        />
-                        <TextInput
-                          style={[styles.input, { flex: 1 }]}
-                          placeholder="Артикул/SKU"
-                          placeholderTextColor={colors.muted}
-                          value={v.sku}
-                          onChangeText={(val) => setVariantField(idx, 'sku', val)}
-                        />
-                      </View>
-
-                      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
-                        <Text style={styles.techCardTitle}>🧾 Техкарта{v.label ? ` · ${v.label}` : ''}</Text>
-                        <InfoTip
-                          title="Что такое техкарта?"
-                          text="Техкарта (рецепт) — список ингредиентов со склада, которые автоматически списываются при каждой продаже. Например для латте: молоко 200 мл + кофе 18 г. Без техкарты остатки на складе не изменятся при продаже."
-                        />
-                      </View>
-                      {(productModal.techCards[key] || []).length === 0 && (
-                        <Text style={styles.hintText}>Ингредиенты не заданы — списание со склада работать не будет.</Text>
-                      )}
-                      {(productModal.techCards[key] || []).map((row, ri) => {
-                        const availableUnits = [...new Set([row.stockUnit, ...(profile?.units || [])])].filter(Boolean);
-                        const needsFactor = row.unit && row.stockUnit && row.unit !== row.stockUnit;
-                        const cycleUnit = () => {
-                          // Оставляем только совместимые единицы (та же группа или совпадение со складской)
-                          const compatible = availableUnits.filter(
-                            u => u === row.stockUnit || canConvert(u, row.stockUnit)
-                          );
-                          if (compatible.length <= 1) return;
-                          const idx = compatible.indexOf(row.unit);
-                          const next = compatible[(idx + 1) % compatible.length];
-                          setIngredientUnit(key, ri, next);
-                        };
-                        return (
-                          <View key={ri}>
-                            <View style={styles.ingredientRow}>
-                              <Text style={styles.ingredientName} numberOfLines={1}>{row.name}</Text>
-                              <TextInput
-                                style={styles.ingredientAmount}
-                                keyboardType="numeric"
-                                value={row.amount}
-                                onChangeText={(val) => setIngredientAmount(key, ri, val)}
-                                placeholder="0"
-                                placeholderTextColor={colors.muted}
-                              />
-                              <Pressable onPress={cycleUnit} style={styles.ingredientUnitBtn} hitSlop={6}>
-                                <Text style={styles.ingredientUnitBtnText}>{row.unit || row.stockUnit}</Text>
-                              </Pressable>
-                              <Pressable onPress={() => removeIngredientRow(key, ri)} hitSlop={8}>
-                                <Text style={styles.ingredientRemove}>✕</Text>
-                              </Pressable>
-                            </View>
-                            {needsFactor && (
-                              <View style={styles.factorRow}>
-                                <Text style={styles.factorLabel}>× коэф. ({row.unit} → {row.stockUnit})</Text>
-                                <TextInput
-                                  style={[styles.factorInput, row.autoFactor && styles.factorInputAuto]}
-                                  keyboardType="numeric"
-                                  value={row.factor}
-                                  onChangeText={(val) => setIngredientFactor(key, ri, val)}
-                                  placeholder="1"
-                                  placeholderTextColor={colors.muted}
-                                />
-                                {row.autoFactor && (
-                                  <Text style={styles.factorAutoLabel}>авто</Text>
-                                )}
-                              </View>
-                            )}
-                          </View>
-                        );
-                      })}
-                      <Pressable style={styles.addIngredientBtn} onPress={() => setIngredientPicker({ variantKey: key, search: '' })}>
-                        <Text style={styles.addIngredientBtnLabel}>+ ингредиент со склада</Text>
-                      </Pressable>
                     </View>
-                  );
-                })}
-                <MetalButton title="+ Добавить вариант" variant="default" onPress={addVariantRow} style={{ marginTop: 4 }} />
+                  ))}
+                </View>
 
+                <Pressable style={styles.productAddVariant} onPress={addVariantRow}>
+                  <Text style={styles.productAddVariantText}>+ Добавить вариант</Text>
+                </Pressable>
+                <Text style={styles.productHint}>
+                  💡 Несколько вариантов — например Латте S и Латте L с разными ценами
+                </Text>
+
+                {/* ── Модификаторы ── */}
                 {modifierGroups.length > 0 && (
                   <>
-                    <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Модификаторы</Text>
-                    {modifierGroups.map(g => {
-                      const checked = productModal.groupIds.includes(g.id);
-                      return (
-                        <Pressable key={g.id} style={styles.checkRow} onPress={() => toggleGroupForProduct(g.id)}>
-                          <Text style={styles.checkBox}>{checked ? '☑' : '☐'}</Text>
-                          <Text style={styles.rowName}>{g.name}</Text>
-                        </Pressable>
-                      );
-                    })}
+                    <Text style={[styles.productFieldLabel, { marginTop: 16 }]}>Модификаторы</Text>
+                    <View style={styles.menuCard}>
+                      {modifierGroups.map((g, idx) => {
+                        const checked = productModal.groupIds.includes(g.id);
+                        return (
+                          <Pressable
+                            key={g.id}
+                            style={[styles.productVariantRow, idx < modifierGroups.length - 1 && styles.menuRowDiv]}
+                            onPress={() => toggleGroupForProduct(g.id)}
+                          >
+                            <Text style={[styles.productVariantName, { flex: 1 }]}>{g.name}</Text>
+                            <View style={[styles.productCheckbox, checked && styles.productCheckboxOn]}>
+                              {checked && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
+                            </View>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                    <Text style={styles.productHint}>
+                      💡 Модификаторы — дополнения к товару: молоко, сироп, размер стакана
+                    </Text>
                   </>
                 )}
+
+                {/* ── Статус ── */}
+                <View style={[styles.productVariantRow, { marginTop: 16, backgroundColor: '#0b0c0f', borderRadius: 14, paddingHorizontal: 16, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)' }]}>
+                  <Text style={styles.productVariantName}>Активен</Text>
+                  <Toggle
+                    value={!!productModal.product.active}
+                    onValueChange={() => toggleProductActive()}
+                  />
+                </View>
+
               </ScrollView>
 
-              {/* Плановые цены */}
-              <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
-                <Text style={styles.sectionTitle}>📅 Плановые цены</Text>
-                <Text style={styles.hintText}>Цена изменится автоматически в указанную дату при открытии кассы.</Text>
-                {priceSchedules.map(s => (
-                  <View key={s.id} style={[styles.row, { alignItems: 'center' }]}>
-                    <Text style={styles.rowName}>{s.effective_date} → {s.new_price} ₽</Text>
-                    <Pressable onPress={() => { deletePriceSchedule(s.id); setPriceSchedules(getPriceSchedules(productModal.product.id)); }} hitSlop={10}>
-                      <Text style={{ color: colors.redLight, fontSize: 14, padding: 4 }}>✕</Text>
-                    </Pressable>
-                  </View>
-                ))}
-                <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
-                  <TextInput
-                    style={[styles.input, { flex: 1, padding: 10 }]}
-                    placeholder="Цена ₽"
-                    keyboardType="numeric"
-                    placeholderTextColor={colors.muted}
-                    value={productModal._newSchedulePrice || ''}
-                    onChangeText={v => setProductModal(m => ({ ...m, _newSchedulePrice: v }))}
-                  />
-                  <TextInput
-                    style={[styles.input, { flex: 1.5, padding: 10 }]}
-                    placeholder="ГГГГ-ММ-ДД"
-                    placeholderTextColor={colors.muted}
-                    value={productModal._newScheduleDate || ''}
-                    onChangeText={v => setProductModal(m => ({ ...m, _newScheduleDate: v }))}
-                  />
-                  <MetalButton title="+" variant="default" style={{ paddingHorizontal: 16 }} onPress={() => {
-                    const price = parseFloat(productModal._newSchedulePrice);
-                    const date  = (productModal._newScheduleDate || '').trim();
-                    if (!price || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
-                    addPriceSchedule(productModal.product.id, null, price, date);
-                    setPriceSchedules(getPriceSchedules(productModal.product.id));
-                    setProductModal(m => ({ ...m, _newSchedulePrice: '', _newScheduleDate: '' }));
-                  }} />
-                </View>
+              {/* Кнопки */}
+              <View style={{ gap: 8, marginTop: 14 }}>
+                <Pressable
+                  style={({ pressed }) => [styles.confirmBtn, pressed && { opacity: 0.88 }]}
+                  onPress={saveProduct}
+                >
+                  <Text style={styles.confirmBtnText}>Сохранить</Text>
+                </Pressable>
               </View>
-
-              <MetalButton title="Сохранить" variant="success" onPress={saveProduct} style={{ marginTop: 10 }} />
-              <MetalButton
-                title={productModal.product.active ? '🚫 Деактивировать' : '✓ Активировать'}
-                variant={productModal.product.active ? 'danger' : 'success'}
-                onPress={toggleProductActive}
-              />
             </View>
           )}
         </View>
@@ -1962,6 +1864,28 @@ const styles = StyleSheet.create({
   sectionTitle: { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.text, marginBottom: 18, letterSpacing: -0.3 },
   phoneback: { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
   phoneBackText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight },
+  // Модалка товара
+  productNameInput: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, flex: 1, paddingVertical: 4 },
+  productFieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 16 },
+  productSectionHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, marginBottom: 8 },
+  productCatRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  productCatChip: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', backgroundColor: '#07080a' },
+  productCatChipActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.1)' },
+  productCatChipText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  productCatChipTextActive: { color: colors.greenLight },
+  productVariantRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, gap: 10 },
+  productVariantName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, marginBottom: 6 },
+  productVariantPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+  productVariantPrice: { fontFamily: fonts.family, fontSize: 18, fontWeight: '700', color: colors.text, width: 80, textAlign: 'right', padding: 0 },
+  productVariantUnit: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
+  techCardBtn: { flex: 1, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(74,77,84,0.35)', backgroundColor: '#07080a', alignItems: 'center' },
+  techCardBtnText: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
+  productAddVariant: { paddingVertical: 12, alignItems: 'center' },
+  productAddVariantText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.greenLight },
+  productHint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, lineHeight: 18, marginBottom: 4 },
+  productCheckbox: { width: 24, height: 24, borderRadius: 8, borderWidth: 1.5, borderColor: 'rgba(74,77,84,0.5)', alignItems: 'center', justifyContent: 'center' },
+  productCheckboxOn: { backgroundColor: colors.greenLight, borderColor: colors.greenLight },
+
   // Меню и цены — шапка
   menuTopBar: { marginBottom: 12 },
   menuTopBarSticky: {
