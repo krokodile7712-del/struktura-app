@@ -1156,23 +1156,26 @@ export default function SettingsScreen({ navigation }) {
           {productModal && (
             <View style={[styles.modalInner, { maxHeight: '92%', width: '52%' }]}>
 
-              {/* Заголовок */}
+              {/* Заголовок с крестиком */}
               <View style={styles.modalHeader}>
-                <View style={{ flex: 1 }}>
-                  <TextInput
-                    style={styles.productNameInput}
-                    value={productModal.product.name}
-                    onChangeText={v => setProductModal(m => ({ ...m, product: { ...m.product, name: v } }))}
-                    placeholder="Название товара"
-                    placeholderTextColor={colors.muted}
-                  />
-                </View>
+                <Text style={styles.modalTitle}>
+                  {productModal.product.id ? 'Редактировать' : 'Новый товар'}
+                </Text>
                 <Pressable onPress={() => setProductModal(null)} hitSlop={14} style={styles.itemModalClose}>
                   <Text style={styles.itemModalCloseText}>✕</Text>
                 </Pressable>
               </View>
 
               <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                {/* Название */}
+                <Text style={styles.productFieldLabel}>Название</Text>
+                <TextInput
+                  style={[styles.input, styles.productNameInput]}
+                  value={productModal.product.name}
+                  onChangeText={v => setProductModal(m => ({ ...m, product: { ...m.product, name: v } }))}
+                  placeholder="Название товара"
+                  placeholderTextColor={colors.muted}
+                />
 
                 {/* ── Категория ── */}
                 <Text style={styles.productFieldLabel}>Категория</Text>
@@ -1962,7 +1965,7 @@ const styles = StyleSheet.create({
   phoneback: { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
   phoneBackText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight },
   // Модалка товара
-  productNameInput: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, flex: 1, paddingVertical: 6, paddingHorizontal: 10, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', borderRadius: 10 },
+  productNameInput: { fontSize: 16, fontFamily: fonts.familySemibold },
   productFieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 16 },
   productSectionHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, marginBottom: 8 },
   productCatRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
