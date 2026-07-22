@@ -1170,7 +1170,7 @@ export default function SettingsScreen({ navigation }) {
         <View style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setProductModal(null)} />
           {productModal && (
-            <View style={[styles.modalInner, { maxHeight: '92%', width: '52%' }]}>
+            <View style={[styles.modalInner, { maxHeight: '92%', width: '52%', flex: 1 }]}>
 
               {/* Заголовок с крестиком */}
               <View style={styles.modalHeader}>
@@ -1182,8 +1182,8 @@ export default function SettingsScreen({ navigation }) {
                 </Pressable>
               </View>
 
-              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                {/* Название */}
+              <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                {/* Название */
                 <Text style={styles.productFieldLabel}>Название</Text>
                 <TextInput
                   color={colors.text}
@@ -1331,7 +1331,7 @@ export default function SettingsScreen({ navigation }) {
             const vKey = techCardModal.variantKey;
             const ingredients = productModal.techCards[vKey] || [];
             return (
-              <View style={[styles.modalInner, { width: '48%', maxHeight: '80%' }]}>
+              <View style={[styles.modalInner, { width: '48%', maxHeight: '80%', flex: 1 }]}>
                 {/* Заголовок */}
                 <View style={styles.modalHeader}>
                   <View style={{ flex: 1 }}>
@@ -1343,7 +1343,7 @@ export default function SettingsScreen({ navigation }) {
                   </Pressable>
                 </View>
 
-                <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                   {ingredients.length === 0 && (
                     <View style={styles.techCardEmpty}>
                       <Text style={styles.techCardEmptyIcon}>🧪</Text>
