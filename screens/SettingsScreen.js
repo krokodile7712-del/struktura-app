@@ -119,25 +119,26 @@ export default function SettingsScreen({ navigation }) {
   useEffect(() => { loadAll(); }, []);
 
   const loadAll = () => {
+    try { setProducts(getAllProductsAdmin()); } catch(e) { console.error('products',e); }
     try {
-      setUsers(getUsers());
-      setRoleNames(getRoleNames());
-      setProducts(getAllProductsAdmin());
       const u = getUsers();
       setUsers(u);
+      setRoleNames(getRoleNames());
       setPinBarista(u.find(x => x.role === 'barista')?.pin || '');
       setPinAdmin(u.find(x => x.role === 'admin')?.pin || '');
-      setDiscounts(getDiscounts());
-      setPayMethodsList(getPayMethods());
-      setZones(getZones());
-      setModifierGroups(getAllModifierGroups());
-      setStock(getAllStock());
+    } catch(e) { console.error('users',e); }
+    try { setDiscounts(getDiscounts()); } catch(e) {}
+    try { setPayMethodsList(getPayMethods()); } catch(e) {}
+    try { setZones(getZones()); } catch(e) {}
+    try { setModifierGroups(getAllModifierGroups()); } catch(e) {}
+    try { setStock(getAllStock()); } catch(e) {}
+    try {
       const lc = getLoyaltyConfig();
       setLoyaltyModel(lc.model || 'points');
       setLoyaltyConfig(c => ({ ...c, ...lc.config }));
-      setUnlinkedCards(getUnlinkedCostCards());
-      setProfile(getBusinessProfile());
-    } catch (e) { console.error(e); }
+    } catch(e) {}
+    try { setUnlinkedCards(getUnlinkedCostCards()); } catch(e) {}
+    try { setProfile(getBusinessProfile()); } catch(e) {}
   };
 
   // ── Товары + варианты + модификаторы + техкарты ──
