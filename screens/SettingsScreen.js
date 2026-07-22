@@ -1245,33 +1245,96 @@ export default function SettingsScreen({ navigation }) {
         </SectionAccordion>
 
         <SectionAccordion sectionKey="stock" selectedSection={selectedSection}>
-        {modules.stock !== false && (
-          <MetalCard style={{ marginTop: 12 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-            <Text style={styles.blockTitle}>📦 Пороги остатка склада</Text>
-            <InfoTip
-              title="Пороговый остаток"
-              text="Минимальный остаток при котором появится предупреждение что товар заканчивается. Например, для кофе поставьте 500 г — когда останется меньше, вы увидите предупреждение на главном экране. Это помогает вовремя делать закупки."
-            />
-          </View>
-            {stock.length === 0 && <Text style={styles.empty}>Нет данных на складе.</Text>}
-            {stock.map(s => (
-              <Pressable key={s.id} style={({ pressed }) => [styles.row, pressed && { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8 }]} onPress={() => openStockModal(s)}>
-                <Text style={styles.rowName}>{s.name}</Text>
-                <Text style={styles.rowPrice}>порог: {s['порог']} {s.unit} ›</Text>
-              </Pressable>
-            ))}
-          </MetalCard>
-        )}
+        {modules.stock !== false ? (<>
 
-        {unlinkedCards.length > 0 && (
-          <MetalCard style={{ marginTop: 12 }}>
-            <Text style={styles.blockTitle}>⚠️ Несвязанные техкарты</Text>
-            <Text style={styles.hintText}>Эти техкарты остались от старой модели и не привязаны к конкретному варианту {genitiveSingularRu(terms.item).toLowerCase()}. Пересоздайте их через карточку {genitiveSingularRu(terms.item).toLowerCase()} выше.</Text>
-            {unlinkedCards.map(c => (
-              <View key={c.id} style={({ pressed }) => [styles.row, pressed && { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8 }]}><Text style={styles.rowName}>{c.name}</Text></View>
-            ))}
-          </MetalCard>
+          {/* Пороги остатков */}
+          <View style={styles.menuTopBarSticky}>
+            <Text style={styles.menuTopTitle}>Пороги остатков</Text>
+            <View style={styles.menuFloatBtns} pointerEvents="box-none">
+              <InfoTip
+                title="Пороговый остаток"
+                text="Минимальный остаток при котором появится предупреждение ⚠️ на главном экране. Помогает вовремя делать закупки — вы увидите сигнал до того как товар закончится."
+              />
+            </View>
+          </View>
+
+          {stock.length === 0 ? (
+            <View style={[styles.menuCard, { padding: 16 }]}>
+              <Text style={styles.menuItemSub}>Позиции склада появятся здесь после заполнения техкарт в разделе Меню и цены.</Text>
+            </View>
+          ) : (
+            <View style={styles.menuCard}>
+              {stock.map((s, idx) => (
+                <View
+                  key={s.id}
+                  style={[styles.menuRow, idx < stock.length - 1 && styles.menuRowDiv]}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.menuItemName}>{s.name}</Text>
+                    <Text style={styles.menuItemSub}>Предупреждать при остатке меньше порога</Text>
+                  </View>
+                  <TextInput
+                    color={colors.text}
+                    style={styles.loyaltyInput}
+                    keyboardType="numeric"
+                    value={String(s['порог'] || '')}
+                    placeholder="0"
+                    placeholderTextColor={colors.muted}
+                    onChangeText={v => {
+                      const val = parseFloat(v) || 0;
+                      try { updateStockThreshold(s.id, val); loadAll(); } catch (_) {}
+                    }}
+                  />
+                  <Text style={[styles.loyaltyUnit, { width: 40 }]}>{s.unit}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Категории склада */}
+          {stockCats.length > 0 && (<>
+            <View style={[styles.menuTopBarSticky, { marginTop: 24 }]}>
+              <Text style={styles.menuTopTitle}>Категории склада</Text>
+            </View>
+            <Text style={[styles.menuItemSub, { marginBottom: 10 }]}>
+              Нажмите чтобы переименовать — изменится у всех позиций категории
+            </Text>
+            <View style={styles.menuCard}>
+              {stockCats.map((cat, idx) => (
+                <Pressable
+                  key={cat}
+                  style={({ pressed }) => [styles.menuRow, idx < stockCats.length - 1 && styles.menuRowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
+                  onPress={() => setStockCatModal({ oldName: cat, newName: cat })}
+                >
+                  <Text style={[styles.menuItemName, { flex: 1 }]}>{cat}</Text>
+                  <Text style={styles.menuItemArrow}>›</Text>
+                </Pressable>
+              ))}
+            </View>
+          </>)}
+
+          {/* Несвязанные техкарты */}
+          {unlinkedCards.length > 0 && (
+            <View style={[styles.menuCard, { marginTop: 24, borderColor: 'rgba(160,16,32,0.3)', borderWidth: 1 }]}>
+              <View style={[styles.menuRow, { borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.2)' }]}>
+                <Text style={{ fontSize: 18, marginRight: 10 }}>⚠️</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.menuItemName, { color: colors.redLight }]}>Несвязанные техкарты</Text>
+                  <Text style={styles.menuItemSub}>Пересоздайте их через карточку товара в Меню и цены</Text>
+                </View>
+              </View>
+              {unlinkedCards.map(uc => (
+                <View key={uc.id} style={[styles.menuRow, { borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.15)' }]}>
+                  <Text style={[styles.menuItemName, { flex: 1, color: colors.muted }]}>{uc.name}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+        </>) : (
+          <View style={[styles.menuCard, { padding: 16 }]}>
+            <Text style={styles.menuItemSub}>Модуль склада отключён в настройках профиля бизнеса.</Text>
+          </View>
         )}
         </SectionAccordion>
 
