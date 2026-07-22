@@ -1181,10 +1181,9 @@ export default function SettingsScreen({ navigation }) {
                 </Pressable>
               </View>
 
-              {/* Контент — скроллируется */}
+              {/* Контент */}
               <ScrollView
-                style={{ flex: 1 }}
-                contentContainerStyle={{ padding: 20, paddingTop: 0 }}
+                contentContainerStyle={{ padding: 20, paddingTop: 8 }}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
               >
