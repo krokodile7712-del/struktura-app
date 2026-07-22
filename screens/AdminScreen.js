@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Image, StyleSheet, ScrollView, Pressable, Dimensions } from 'react-native';
 import TopBar from '../components/TopBar';
+import ShiftBanner from '../components/ShiftBanner';
 import BottomBar from '../components/BottomBar';
 import StatsBar from '../components/StatsBar';
 import { getBusinessProfile, getOpenShift, getTerms, pluralizeRu, getRoleNames, getDashboardStats } from '../db/queries';
@@ -50,6 +51,7 @@ export default function AdminScreen({ navigation }) {
   const [shiftOpen, setShiftOpen] = useState(false);
   const [terms, setTerms]         = useState({ item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' });
   const [roleNames, setRoleNames] = useState({ barista: 'Сотрудник', admin: 'Администратор' });
+  const [hasShift, setHasShift] = useState(true);
   const [stats, setStats]         = useState(null);
   const [profile, setProfile]     = useState(null);
   const cols = useColumns();
@@ -63,6 +65,7 @@ export default function AdminScreen({ navigation }) {
       setTerms(getTerms());
       setRoleNames(getRoleNames());
       setStats(getDashboardStats());
+      setHasShift(!!getOpenShift());
     } catch (e) { console.error(e); }
   };
 
@@ -89,6 +92,7 @@ export default function AdminScreen({ navigation }) {
   return (
     <View style={{ flex: 1 }}>
       <TopBar title={roleNames.admin} navigation={navigation} activeScreen="Admin" />
+      {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift')} />}
       <StatsBar
         stats={stats}
         modules={modules}

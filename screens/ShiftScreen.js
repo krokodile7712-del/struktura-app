@@ -60,6 +60,17 @@ export default function ShiftScreen({ navigation }) {
           {error !== '' && <Text style={styles.error}>⚠️ {error}</Text>}
 
           <MetalButton title="▶ Начать рабочий день" variant="action" onPress={handleOpen} />
+          <Pressable
+            style={{ paddingVertical: 14, alignItems: 'center', marginTop: 4 }}
+            onPress={() => {
+              const user = getSession();
+              navigation.navigate(user?.role === 'admin' ? 'Admin' : 'Dashboard');
+            }}
+          >
+            <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted }}>
+              Войти без открытия смены →
+            </Text>
+          </Pressable>
         </MetalCard>
 
         <MetalCard style={{ marginTop: 12 }}>

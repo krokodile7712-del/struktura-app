@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
+import ShiftBanner from '../components/ShiftBanner';
 import BottomBar from '../components/BottomBar';
 import { getAllProducts, getAllClients, getCategories, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, getAllVariantsWithSku, getZones, getOrderTemplates, saveOrderTemplate, deleteOrderTemplate, applyPendingPriceSchedules, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms, getLoyaltyConfig, spendPoints } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
@@ -42,6 +43,7 @@ export default function KassaScreen({ navigation, route }) {
   const [skuMap, setSkuMap] = useState({});       // {sku_lower: product_id}
   // ── Парковка заказов (слоты) ────────────────────────────────────────────────
   // Каждый слот = один активный чек со своим состоянием
+  const [hasShift, setHasShift] = useState(!!getOpenShift());
   const [slots, setSlots] = useState([
     { id: 1, order: [], orderNote: '', appliedDiscount: null, pointsToSpend: '', zone: null, forClient: route?.params?.forClient || null }
   ]);
@@ -130,6 +132,7 @@ export default function KassaScreen({ navigation, route }) {
   // (зоны, шаблоны, модули могли измениться в Настройках)
   useFocusEffect(useCallback(() => {
     try {
+      setHasShift(!!getOpenShift());
       const profile = getBusinessProfile();
       const zonesOn = profile?.modules?.zones === true;
       const templatesOn = profile?.modules?.templates === true;
@@ -453,6 +456,17 @@ export default function KassaScreen({ navigation, route }) {
   const [noShiftWarning, setNoShiftWarning] = useState(false);
 
   const openPrePay = () => {
+    if (!hasShift) {
+      Alert.alert(
+        'Смена не открыта',
+        'Чтобы провести продажу, сначала откройте смену.',
+        [
+          { text: 'Отмена', style: 'cancel' },
+          { text: 'Открыть смену', onPress: () => navigation.navigate('Shift') },
+        ]
+      );
+      return;
+    }
     if (order.length === 0) return;
     setClientSearch('');
     setPrePayOpen(true);
@@ -577,6 +591,7 @@ export default function KassaScreen({ navigation, route }) {
         </View>
       )}
 
+      {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift')} />}
       <View style={styles.layout}>
         <View style={styles.left}>
           {/* Строка поиска */}

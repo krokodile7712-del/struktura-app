@@ -27,11 +27,8 @@ export default function LoginScreen({ navigation }) {
     setError('');
     setSession(user);
     setPermissions(user.role === 'admin' ? null : getUserPermissions(user.id));
-    const shiftsEnabled = getBusinessProfile()?.modules?.shifts !== false;
-    const openShift = shiftsEnabled ? getOpenShift() : true;
-    if (shiftsEnabled && !openShift) {
-      navigation.navigate('Shift');
-    } else if (user.role === 'admin') {
+    // Идём в основной экран — смену можно открыть позже
+    if (user.role === 'admin') {
       navigation.navigate('Admin');
     } else {
       navigation.navigate('Dashboard');
