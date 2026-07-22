@@ -87,6 +87,7 @@ export default function SettingsScreen({ navigation }) {
   const [selectedSection, setSelectedSection] = useState('menu');
   const [menuSearch, setMenuSearch]   = useState('');
   const [empModal, setEmpModal]         = useState(null);
+  const [roleNames, setRoleNames]       = useState({ admin: 'Администратор', barista: 'Сотрудник' });
 
   const [techCardModal, setTechCardModal] = useState(null); // { variantKey, variantLabel }
   const [menuSearchOpen, setMenuSearchOpen] = useState(false);
@@ -120,6 +121,7 @@ export default function SettingsScreen({ navigation }) {
   const loadAll = () => {
     try {
       setUsers(getUsers());
+      setRoleNames(getRoleNames());
       setProducts(getAllProductsAdmin());
       const u = getUsers();
       setUsers(u);
