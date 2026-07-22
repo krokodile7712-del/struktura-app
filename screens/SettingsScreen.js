@@ -1170,7 +1170,7 @@ export default function SettingsScreen({ navigation }) {
         <View style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setProductModal(null)} />
           {productModal && (
-            <View style={[styles.modalInner, { height: Dimensions.get('window').height * 0.85, width: '52%', justifyContent: 'flex-start' }]}>
+            <View style={[styles.modalInner, { maxHeight: Dimensions.get('window').height * 0.85, width: '52%' }]}>
 
               {/* Заголовок с крестиком */}
               <View style={styles.modalHeader}>
@@ -1182,7 +1182,7 @@ export default function SettingsScreen({ navigation }) {
                 </Pressable>
               </View>
 
-              <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={true} keyboardShouldPersistTaps="handled">
+              <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                 {/* Название */}
                 <Text style={styles.productFieldLabel}>Название</Text>
                 <TextInput
