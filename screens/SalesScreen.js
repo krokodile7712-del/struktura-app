@@ -75,6 +75,7 @@ export default function SalesScreen({ navigation }) {
   const [payFilter, setPayFilter] = useState('all');
   const [search, setSearch]       = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
+  const [allItemsMap, setAllItemsMap] = useState({});
   const [picker, setPicker]       = useState(null);
   const [showStats, setShowStats] = useState(false);
 
@@ -118,7 +119,12 @@ export default function SalesScreen({ navigation }) {
     return true;
   }).filter(o => {
     if (!search.trim()) return true;
-    return String(o.total).includes(search) || o.method?.toLowerCase().includes(search.toLowerCase());
+    const q = search.toLowerCase();
+    if (String(o.total).includes(q)) return true;
+    if (o.method?.toLowerCase().includes(q)) return true;
+    // Поиск по позициям заказа
+    const items = allItemsMap[o.id] || [];
+    return items.some(i => i.name?.toLowerCase().includes(q));
   });
 
   // Метрики
@@ -236,7 +242,17 @@ export default function SalesScreen({ navigation }) {
             </Pressable>
           </View>
         ) : (
-          <Pressable onPress={() => setSearchOpen(true)} hitSlop={10} style={styles.badgeBtn}>
+          <Pressable onPress={() => {
+              setSearchOpen(true);
+              // Предзагружаем позиции всех заказов для поиска
+              if (Object.keys(allItemsMap).length === 0) {
+                const map = {};
+                orders.forEach(o => {
+                  try { map[o.id] = getOrderItems(o.id); } catch (_) {}
+                });
+                setAllItemsMap(map);
+              }
+            }} hitSlop={10} style={styles.badgeBtn}>
             <Text style={styles.badgeTxt}>🔍</Text>
           </Pressable>
         )}
