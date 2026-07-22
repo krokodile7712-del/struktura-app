@@ -1307,17 +1307,16 @@ export default function SettingsScreen({ navigation }) {
                   />
                 </View>
 
-              </ScrollView>
-
-              {/* Кнопки */}
-              <View style={{ gap: 8, marginTop: 14 }}>
+                {/* Кнопка — внутри ScrollView, всегда достижима */}
                 <Pressable
-                  style={({ pressed }) => [styles.confirmBtn, pressed && { opacity: 0.88 }]}
+                  style={({ pressed }) => [styles.confirmBtn, { marginTop: 20, marginBottom: 8 }, pressed && { opacity: 0.88 }]}
                   onPress={saveProduct}
                 >
                   <Text style={styles.confirmBtnText}>Сохранить</Text>
                 </Pressable>
-              </View>
+
+              </ScrollView>
+
             </View>
           )}
         </View>
