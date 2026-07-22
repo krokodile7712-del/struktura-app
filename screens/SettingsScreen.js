@@ -86,6 +86,7 @@ export default function SettingsScreen({ navigation }) {
   const isPhone = SW < 600;
   const [selectedSection, setSelectedSection] = useState('menu');
   const [menuSearch, setMenuSearch]   = useState('');
+  const [techCardModal, setTechCardModal] = useState(null); // { variantKey, variantLabel }
   const [menuSearchOpen, setMenuSearchOpen] = useState(false);
   const [stockCatModal, setStockCatModal] = useState(null); // {oldName, newName}
   const [stockCats, setStockCats] = useState([]);
@@ -1220,10 +1221,10 @@ export default function SettingsScreen({ navigation }) {
                           onChangeText={val => setVariantField(idx, 'price', val)}
                         />
                         <Text style={styles.productVariantUnit}>₽</Text>
-                        {/* Техкарта */}
+                        {/* Техкарта — открывает отдельную модалку */}
                         <Pressable
                           style={styles.techCardBtn}
-                          onPress={() => setIngredientPicker({ variantKey: variantKey(v, idx), search: '' })}
+                          onPress={() => setTechCardModal({ variantKey: variantKey(v, idx), variantLabel: v.label || (productModal.product.name) })}
                         >
                           <Text style={styles.techCardBtnText}>
                             🧾 {(productModal.techCards[variantKey(v, idx)] || []).length > 0
@@ -1297,6 +1298,95 @@ export default function SettingsScreen({ navigation }) {
               </View>
             </View>
           )}
+        </View>
+      </Modal>
+
+      {/* Модалка техкарты — список ингредиентов варианта */}
+      <Modal visible={!!techCardModal} transparent animationType="fade" onRequestClose={() => setTechCardModal(null)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setTechCardModal(null)} />
+          {techCardModal && productModal && (() => {
+            const vKey = techCardModal.variantKey;
+            const ingredients = productModal.techCards[vKey] || [];
+            return (
+              <View style={[styles.modalInner, { width: '48%', maxHeight: '80%' }]}>
+                {/* Заголовок */}
+                <View style={styles.modalHeader}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.modalTitle}>Техкарта</Text>
+                    <Text style={styles.productHint}>{techCardModal.variantLabel}</Text>
+                  </View>
+                  <Pressable onPress={() => setTechCardModal(null)} hitSlop={14} style={styles.itemModalClose}>
+                    <Text style={styles.itemModalCloseText}>✕</Text>
+                  </Pressable>
+                </View>
+
+                <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                  {ingredients.length === 0 && (
+                    <View style={styles.techCardEmpty}>
+                      <Text style={styles.techCardEmptyIcon}>🧪</Text>
+                      <Text style={styles.techCardEmptyText}>Ингредиенты не добавлены</Text>
+                      <Text style={styles.productHint}>Добавьте ингредиенты — они будут списываться со склада при каждой продаже</Text>
+                    </View>
+                  )}
+
+                  {/* Список ингредиентов */}
+                  {ingredients.length > 0 && (
+                    <View style={styles.menuCard}>
+                      {ingredients.map((row, ri) => {
+                        const availableUnits = [...new Set([row.stockUnit, ...(profile?.units || [])])].filter(Boolean);
+                        const compatible = availableUnits.filter(u => u === row.stockUnit || canConvert(u, row.stockUnit));
+                        const needsFactor = row.unit && row.stockUnit && row.unit !== row.stockUnit;
+                        const cycleUnit = () => {
+                          if (compatible.length <= 1) return;
+                          const i = compatible.indexOf(row.unit);
+                          setIngredientUnit(vKey, ri, compatible[(i + 1) % compatible.length]);
+                        };
+                        return (
+                          <View key={ri} style={[styles.techIngRow, ri < ingredients.length - 1 && styles.menuRowDiv]}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.techIngName}>{row.name}</Text>
+                              {needsFactor && (
+                                <Text style={styles.techIngFactor}>× коэф. {row.factor || '1'} ({row.unit} → {row.stockUnit})</Text>
+                              )}
+                            </View>
+                            <TextInput
+                              style={styles.techIngAmount}
+                              keyboardType="numeric"
+                              value={row.amount}
+                              onChangeText={val => setIngredientAmount(vKey, ri, val)}
+                              placeholder="0"
+                              placeholderTextColor={colors.muted}
+                            />
+                            <Pressable onPress={cycleUnit} hitSlop={8} style={styles.techIngUnitBtn}>
+                              <Text style={styles.techIngUnitText}>{row.unit || row.stockUnit}</Text>
+                            </Pressable>
+                            <Pressable onPress={() => removeIngredientRow(vKey, ri)} hitSlop={10} style={{ paddingLeft: 4 }}>
+                              <Text style={{ color: colors.muted, fontSize: 16 }}>✕</Text>
+                            </Pressable>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
+
+                  {/* Кнопка добавить */}
+                  <Pressable
+                    style={styles.techIngAddBtn}
+                    onPress={() => { setIngredientPicker({ variantKey: vKey, search: '' }); }}
+                  >
+                    <Text style={styles.techIngAddText}>+ Добавить ингредиент со склада</Text>
+                  </Pressable>
+
+                  {ingredients.length === 0 && stock.length === 0 && (
+                    <Text style={[styles.productHint, { marginTop: 8, textAlign: 'center' }]}>
+                      Сначала добавьте позиции на склад
+                    </Text>
+                  )}
+                </ScrollView>
+              </View>
+            );
+          })()}
         </View>
       </Modal>
 
@@ -1865,7 +1955,7 @@ const styles = StyleSheet.create({
   phoneback: { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
   phoneBackText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight },
   // Модалка товара
-  productNameInput: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, flex: 1, paddingVertical: 4 },
+  productNameInput: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, flex: 1, paddingVertical: 6, paddingHorizontal: 10, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', borderRadius: 10 },
   productFieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 16 },
   productSectionHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, marginBottom: 8 },
   productCatRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -1874,9 +1964,9 @@ const styles = StyleSheet.create({
   productCatChipText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
   productCatChipTextActive: { color: colors.greenLight },
   productVariantRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, gap: 10 },
-  productVariantName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, marginBottom: 6 },
+  productVariantName: { flex: 1, fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, padding: 8, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', borderRadius: 10, marginRight: 8 },
   productVariantPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
-  productVariantPrice: { fontFamily: fonts.family, fontSize: 18, fontWeight: '700', color: colors.text, width: 80, textAlign: 'right', padding: 0 },
+  productVariantPrice: { fontFamily: fonts.family, fontSize: 16, fontWeight: '700', color: colors.text, width: 72, textAlign: 'right', padding: 8, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', borderRadius: 10 },
   productVariantUnit: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
   techCardBtn: { flex: 1, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(74,77,84,0.35)', backgroundColor: '#07080a', alignItems: 'center' },
   techCardBtnText: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
@@ -1885,6 +1975,19 @@ const styles = StyleSheet.create({
   productHint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, lineHeight: 18, marginBottom: 4 },
   productCheckbox: { width: 24, height: 24, borderRadius: 8, borderWidth: 1.5, borderColor: 'rgba(74,77,84,0.5)', alignItems: 'center', justifyContent: 'center' },
   productCheckboxOn: { backgroundColor: colors.greenLight, borderColor: colors.greenLight },
+
+  // Техкарта модалка
+  techCardEmpty: { alignItems: 'center', paddingVertical: 24, gap: 8 },
+  techCardEmptyIcon: { fontSize: 32 },
+  techCardEmptyText: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
+  techIngRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, gap: 10 },
+  techIngName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, marginBottom: 2 },
+  techIngFactor: { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted },
+  techIngAmount: { width: 64, padding: 8, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', borderRadius: 10, color: colors.text, fontFamily: fonts.family, fontSize: 16, textAlign: 'right' },
+  techIngUnitBtn: { paddingVertical: 7, paddingHorizontal: 10, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', borderRadius: 10 },
+  techIngUnitText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  techIngAddBtn: { paddingVertical: 14, alignItems: 'center', borderTopWidth: 1, borderTopColor: 'rgba(74,77,84,0.2)', marginTop: 8 },
+  techIngAddText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight },
 
   // Меню и цены — шапка
   menuTopBar: { marginBottom: 12 },
