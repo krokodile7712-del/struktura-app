@@ -130,29 +130,26 @@ export default function AdminScreen({ navigation }) {
           <Text style={styles.heroArrow}>›</Text>
         </Pressable>
 
-        {/* Сетка действий */}
-        <View style={[styles.grid, { gap }]}>
-          {visibleItems.map((item) => {
-            const ac = ACCENT[item.variant] || ACCENT.default;
-            return (
-              <Pressable
-                key={item.screen}
-                style={({ pressed }) => [
-                  styles.tile,
-                  {
-                    width: tileWidth,
-                    borderColor: ac.border,
-                    backgroundColor: pressed ? ac.border : ac.bg,
-                  },
-                ]}
-                onPress={() => navigation.navigate(item.screen)}
-              >
-                <Text style={styles.tileIcon}>{item.icon}</Text>
-                <Text style={styles.tileLabel}>{item.label}</Text>
-                {item.sub ? <Text style={styles.tileSub}>{item.sub}</Text> : null}
-              </Pressable>
-            );
-          })}
+        {/* Список действий */}
+        <View style={styles.list}>
+          {visibleItems.map((item, idx) => (
+            <Pressable
+              key={item.screen}
+              style={({ pressed }) => [
+                styles.listItem,
+                idx < visibleItems.length - 1 && styles.listItemDiv,
+                pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
+              ]}
+              onPress={() => navigation.navigate(item.screen)}
+            >
+              <Text style={styles.listIcon}>{item.icon}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.listLabel}>{item.label}</Text>
+                {item.sub ? <Text style={styles.listSub}>{item.sub}</Text> : null}
+              </View>
+              <Text style={styles.listArrow}>›</Text>
+            </Pressable>
+          ))}
         </View>
 
         {/* Сменить аккаунт */}
