@@ -2367,3 +2367,8 @@ export function getBusinessMetrics(pnlFull, businessPreset) {
 
   return metrics;
 }
+
+export function deleteUser(id) {
+  const db = getDb();
+  db.runSync(`UPDATE users SET active = 0 WHERE id = ?`, [id]);
+}

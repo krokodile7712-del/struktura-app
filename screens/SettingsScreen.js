@@ -86,6 +86,8 @@ export default function SettingsScreen({ navigation }) {
   const isPhone = SW < 600;
   const [selectedSection, setSelectedSection] = useState('menu');
   const [menuSearch, setMenuSearch]   = useState('');
+  const [empModal, setEmpModal]         = useState(null);
+
   const [techCardModal, setTechCardModal] = useState(null); // { variantKey, variantLabel }
   const [menuSearchOpen, setMenuSearchOpen] = useState(false);
   const [stockCatModal, setStockCatModal] = useState(null); // {oldName, newName}
@@ -117,6 +119,7 @@ export default function SettingsScreen({ navigation }) {
 
   const loadAll = () => {
     try {
+      setUsers(getAllUsers());
       setProducts(getAllProductsAdmin());
       const u = getUsers();
       setUsers(u);
@@ -834,17 +837,50 @@ export default function SettingsScreen({ navigation }) {
         </SectionAccordion>
 
         <SectionAccordion sectionKey="employees" selectedSection={selectedSection}>
-        {/* Сотрудники (заменяет старую секцию PIN-кодов) */}
-        <MetalCard style={{ marginTop: 12 }}>
-          <Text style={styles.blockTitle}>👥 Сотрудники</Text>
-          <Text style={styles.hintText}>Управление именными сотрудниками и их PIN-кодами.</Text>
-          <MetalButton
-            title="→ Управление сотрудниками"
-            variant="default"
-            onPress={() => navigation.navigate('Employees')}
-            style={{ marginTop: 8 }}
-          />
-        </MetalCard>
+
+        {/* Шапка с кнопкой + */}
+        <View style={styles.menuTopBarSticky}>
+          <Text style={styles.menuTopTitle}>{roleNames.barista}ы</Text>
+          <View style={styles.menuFloatBtns} pointerEvents="box-none">
+            <View style={styles.menuFloatRow}>
+              <Pressable
+                onPress={() => setEmpModal({ id: null, name: '', pin: '', pin2: '', role: 'barista', salaryType: 'shift', salaryAmount: '' })}
+                hitSlop={14}
+                style={[styles.menuBadge, styles.menuBadgeAdd]}
+              >
+                <Text style={[styles.menuBadgeText, { color: colors.greenLight }]}>＋</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+
+        {/* Список сотрудников */}
+        {users.length === 0 ? (
+          <Text style={[styles.empty, { paddingVertical: 20 }]}>Нет сотрудников. Нажмите ＋ чтобы добавить.</Text>
+        ) : (
+          <View style={styles.menuCard}>
+            {users.map((u, idx) => (
+              <Pressable
+                key={u.id}
+                style={({ pressed }) => [
+                  styles.menuRow,
+                  idx < users.length - 1 && styles.menuRowDiv,
+                  pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
+                ]}
+                onPress={() => setEmpModal({ id: u.id, name: u.name, pin: u.pin, pin2: u.pin, role: u.role, salaryType: u.salary_type || 'shift', salaryAmount: String(u.salary_amount || '') })}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.menuItemName}>{u.name}</Text>
+                  <Text style={styles.menuItemSub}>
+                    {u.role === 'admin' ? roleNames.admin : roleNames.barista}
+                    {u.salary_amount > 0 ? `  ·  ${u.salary_amount} ₽` : ''}
+                  </Text>
+                </View>
+                <Text style={styles.menuItemArrow}>›</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
 
         </SectionAccordion>
 
@@ -1309,6 +1345,150 @@ export default function SettingsScreen({ navigation }) {
                   <Text style={styles.confirmBtnText}>Сохранить</Text>
                 </Pressable>
               </View>
+            </View>
+          )}
+        </View>
+      </Modal>
+
+      {/* Модалка сотрудника */}
+      <Modal visible={!!empModal} transparent animationType="fade" onRequestClose={() => setEmpModal(null)}>
+        <View style={styles.prodModalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setEmpModal(null)} />
+          {empModal && (
+            <View style={[styles.prodModalBox, { width: '44%' }]}>
+              <View style={styles.prodModalHeader}>
+                <Text style={styles.prodModalTitle}>{empModal.id ? 'Редактировать' : 'Новый сотрудник'}</Text>
+                <Pressable onPress={() => setEmpModal(null)} hitSlop={14} style={styles.itemModalClose}>
+                  <Text style={styles.itemModalCloseText}>✕</Text>
+                </Pressable>
+              </View>
+
+              <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 8 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+
+                <Text style={styles.productFieldLabel}>Имя</Text>
+                <TextInput
+                  color={colors.text}
+                  style={styles.prodInput}
+                  value={empModal.name}
+                  onChangeText={v => setEmpModal(m => ({ ...m, name: v }))}
+                  placeholder="Имя сотрудника"
+                  placeholderTextColor={colors.muted}
+                />
+
+                <Text style={styles.productFieldLabel}>PIN-код</Text>
+                <TextInput
+                  color={colors.text}
+                  style={[styles.prodInput, { textAlign: 'center', letterSpacing: 6, fontSize: 18 }]}
+                  value={empModal.pin}
+                  onChangeText={v => setEmpModal(m => ({ ...m, pin: v.replace(/\D/g,'') }))}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  secureTextEntry
+                  placeholder="• • • •"
+                  placeholderTextColor={colors.muted}
+                />
+
+                <Text style={styles.productFieldLabel}>Подтвердите PIN</Text>
+                <TextInput
+                  color={colors.text}
+                  style={[styles.prodInput, { textAlign: 'center', letterSpacing: 6, fontSize: 18 }]}
+                  value={empModal.pin2}
+                  onChangeText={v => setEmpModal(m => ({ ...m, pin2: v.replace(/\D/g,'') }))}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  secureTextEntry
+                  placeholder="• • • •"
+                  placeholderTextColor={colors.muted}
+                />
+
+                <Text style={styles.productFieldLabel}>Роль</Text>
+                <View style={styles.menuCard}>
+                  {[
+                    { key: 'admin',   label: roleNames.admin,   sub: 'Полный доступ к настройкам и отчётам' },
+                    { key: 'barista', label: roleNames.barista, sub: 'Только касса и базовые функции' },
+                  ].map((r, idx) => (
+                    <Pressable
+                      key={r.key}
+                      style={[styles.menuRow, idx === 0 && styles.menuRowDiv]}
+                      onPress={() => setEmpModal(m => ({ ...m, role: r.key }))}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.menuItemName}>{r.label}</Text>
+                        <Text style={styles.menuItemSub}>{r.sub}</Text>
+                      </View>
+                      <View style={[styles.productCheckbox, empModal.role === r.key && styles.productCheckboxOn]}>
+                        {empModal.role === r.key && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
+                      </View>
+                    </Pressable>
+                  ))}
+                </View>
+
+                <Text style={styles.productFieldLabel}>Ставка</Text>
+                <View style={styles.menuCard}>
+                  {[
+                    { key: 'shift',       label: 'За смену',         unit: '₽/смена' },
+                    { key: 'hourly',      label: 'Почасовая',        unit: '₽/час' },
+                    { key: 'monthly',     label: 'Оклад',            unit: '₽/мес' },
+                    { key: 'revenue_pct', label: '% от выручки',     unit: '%' },
+                  ].map((s, idx) => (
+                    <Pressable
+                      key={s.key}
+                      style={[styles.menuRow, idx < 3 && styles.menuRowDiv]}
+                      onPress={() => setEmpModal(m => ({ ...m, salaryType: s.key }))}
+                    >
+                      <Text style={[styles.menuItemName, { flex: 1 }]}>{s.label}</Text>
+                      {empModal.salaryType === s.key && (
+                        <TextInput
+                          color={colors.text}
+                          style={[styles.prodInput, { width: 80, marginRight: 8, padding: 6, textAlign: 'right', marginBottom: 0 }]}
+                          value={empModal.salaryAmount}
+                          onChangeText={v => setEmpModal(m => ({ ...m, salaryAmount: v }))}
+                          keyboardType="numeric"
+                          placeholder="0"
+                          placeholderTextColor={colors.muted}
+                        />
+                      )}
+                      <Text style={[styles.menuItemSub, { marginRight: 8 }]}>{s.unit}</Text>
+                      <View style={[styles.productCheckbox, empModal.salaryType === s.key && styles.productCheckboxOn]}>
+                        {empModal.salaryType === s.key && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
+                      </View>
+                    </Pressable>
+                  ))}
+                </View>
+
+                {/* Сохранить */}
+                <Pressable
+                  style={({ pressed }) => [styles.confirmBtn, { marginTop: 20 }, pressed && { opacity: 0.88 }]}
+                  onPress={() => {
+                    if (!empModal.name.trim()) return;
+                    if (empModal.pin !== empModal.pin2) return;
+                    if (empModal.pin.length < 4) return;
+                    try {
+                      if (empModal.id) {
+                        updateUser(empModal.id, empModal.name, empModal.pin, empModal.role, empModal.salaryType, parseFloat(empModal.salaryAmount) || 0);
+                      } else {
+                        addUser(empModal.name, empModal.pin, empModal.role, empModal.salaryType, parseFloat(empModal.salaryAmount) || 0);
+                      }
+                      loadAll();
+                      setEmpModal(null);
+                    } catch (e) { console.error(e); }
+                  }}
+                >
+                  <Text style={styles.confirmBtnText}>Сохранить</Text>
+                </Pressable>
+
+                {empModal.id && (
+                  <Pressable
+                    style={{ paddingVertical: 14, alignItems: 'center', marginTop: 8 }}
+                    onPress={() => {
+                      try { deleteUser(empModal.id); loadAll(); setEmpModal(null); } catch (e) { console.error(e); }
+                    }}
+                  >
+                    <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.redLight }}>Удалить сотрудника</Text>
+                  </Pressable>
+                )}
+
+              </ScrollView>
             </View>
           )}
         </View>
