@@ -1249,6 +1249,24 @@ export function findCostCardForItem(productId, name, size, variantId) {
 }
 
 // Сохраняет техкарту для конкретного варианта товара (универсальная модель, variant_id)
+export function refreshCostCardPrices() {
+  // Обновляет price_per_unit в cost_ingredients из avg_price склада
+  const db = getDb();
+  try {
+    const ings = db.getAllSync(`SELECT ci.id, ci.name, ci.unit FROM cost_ingredients ci WHERE ci.price_per_unit = 0 OR ci.price_per_unit IS NULL`);
+    for (const ing of ings) {
+      const stock = db.getFirstSync(
+        `SELECT avg_price, last_price FROM stock WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))`,
+        [ing.name]
+      );
+      const price = stock?.avg_price || stock?.last_price || 0;
+      if (price > 0) {
+        db.runSync(`UPDATE cost_ingredients SET price_per_unit = ? WHERE id = ?`, [price, ing.id]);
+      }
+    }
+  } catch (e) { console.error('refreshCostCardPrices', e); }
+}
+
 export function fixCostCardLinks() {
   // Одноразовая миграция: для карт с variant_id но без product_id — проставляем product_id
   const db = getDb();

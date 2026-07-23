@@ -7,7 +7,7 @@ import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import EmptyState from '../components/EmptyState';
 import InfoTip from '../components/InfoTip';
-import { getAllCostCards, deleteCostCard, getTerms, genitiveSingularRu, fixCostCardLinks } from '../db/queries';
+import { getAllCostCards, deleteCostCard, getTerms, genitiveSingularRu, fixCostCardLinks, refreshCostCardPrices } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
 function cardCost(card) {
@@ -22,7 +22,7 @@ export default function CostCardsScreen({ navigation }) {
   useEffect(() => { loadCards(); try { setTerms(getTerms()); } catch (e) { console.error(e); } }, []);
 
   const loadCards = () => {
-    try { fixCostCardLinks(); setCards(getAllCostCards()); } catch (e) { console.error(e); }
+    try { fixCostCardLinks(); refreshCostCardPrices(); setCards(getAllCostCards()); } catch (e) { console.error(e); }
   };
 
   const handleDelete = (id) => {

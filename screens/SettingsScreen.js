@@ -353,6 +353,7 @@ export default function SettingsScreen({ navigation }) {
       ...m,
       techCards: { ...m.techCards, [key]: [...(m.techCards[key] || []), {
         name: stockItem.name, amount: '', unit: stockItem.unit, stockUnit: stockItem.unit, factor: '1',
+        pricePerUnit: String(stockItem.avg_price || stockItem.last_price || '0'),
       }]},
     }));
   };
@@ -373,6 +374,13 @@ export default function SettingsScreen({ navigation }) {
   // Если новая единица совпадает со складской — сбрасываем фактор на 1.
   // Если совместима (та же группа) — подставляем авто-фактор.
   // Несовместимые единицы (разные группы) не принимаются.
+  const setIngredientPrice = (key, index, value) => {
+    setProductModal(m => {
+      const rows = [...m.techCards[key]];
+      rows[index] = { ...rows[index], pricePerUnit: value };
+      return { ...m, techCards: { ...m.techCards, [key]: rows } };
+    });
+  };
   const setIngredientUnit = (key, index, unit) => {
     setProductModal(m => {
       const rows = [...m.techCards[key]];
@@ -428,7 +436,7 @@ export default function SettingsScreen({ navigation }) {
           .filter(r => r.name && parseFloat(r.amount) > 0)
           .map(r => ({
             name: r.name, amount: parseFloat(r.amount) || 0, unit: r.unit,
-            pricePerUnit: 0, factor: parseFloat(r.factor) || 1,
+            pricePerUnit: parseFloat(r.pricePerUnit) || 0, factor: parseFloat(r.factor) || 1,
           }));
         saveCostCardForVariant(savedVariant.id, ingredients);
       });
