@@ -48,7 +48,6 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
     {
       title: 'Склад',
       items: [
-        { icon: '◫', label: 'Склад',      screen: 'Stock',       module: 'stock' },
         { icon: '▦', label: 'Техкарты',   screen: 'CostCards',   module: 'stock' },
       ],
     },
