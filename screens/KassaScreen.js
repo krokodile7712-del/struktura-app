@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import SwipeableRow from '../components/SwipeableRow';
 import { useToast } from '../components/Toast';
 import { useFocusEffect } from '@react-navigation/native';
-import { getHomeRoute, getCurrentLocationId, can } from '../db/session';
+import { getHomeRoute, getCurrentLocationId, can, getSession } from '../db/session';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
   FlatList, Modal, ActivityIndicator, TextInput, Alert,
@@ -11,7 +11,7 @@ import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import ShiftBanner from '../components/ShiftBanner';
 import BottomBar from '../components/BottomBar';
-import { getAllProducts, getAllClients, getCategories, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, getAllVariantsWithSku, getZones, getOrderTemplates, saveOrderTemplate, deleteOrderTemplate, applyPendingPriceSchedules, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms, getLoyaltyConfig, spendPoints } from '../db/queries';
+import { getAllProducts, getAllClients, getCategories, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, getAllVariantsWithSku, getZones, getOrderTemplates, saveOrderTemplate, deleteOrderTemplate, applyPendingPriceSchedules, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms, getLoyaltyConfig, spendPoints, checkSubscriptionBalance } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
 const CAT_ICONS = { 'Кофе': '☕', 'Лимонады': '🍹', 'Допы': '🍬', 'Прочее': '🫙' };
@@ -467,6 +467,18 @@ export default function KassaScreen({ navigation, route }) {
       );
       return;
     }
+    // Fix 4: проверка абонемента
+    if (forClient?.id && loyaltyModel === 'subscription') {
+      const check = checkSubscriptionBalance(forClient.id);
+      if (!check.ok) {
+        Alert.alert(
+          '🎟 Абонемент исчерпан',
+          `У клиента ${forClient.fio} не осталось визитов. Пополните абонемент в карточке клиента.`,
+          [{ text: 'ОК' }]
+        );
+        return;
+      }
+    }
     if (order.length === 0) return;
     setClientSearch('');
     setPrePayOpen(true);
@@ -514,10 +526,12 @@ export default function KassaScreen({ navigation, route }) {
       cardAmount = total;
     }
     try {
+      const currentUser = getSession();
       const { stockWarnings } = createOrder({
         total, method: payMethod, methodType: selectedMethod.type,
         shift_id: currentShift?.id || null,
         client_id: forClient?.id || null,
+        cashier_id: currentUser?.id || null,
         items: order,
         cashAmount, cardAmount,
         discountPct: effectiveDiscount?.pct || 0,
@@ -530,12 +544,22 @@ export default function KassaScreen({ navigation, route }) {
           const pts = parseFloat(pointsToSpend) || 0;
           if (pts > 0) spendPoints(forClient.id, pts);
         }
-        addClientVisit(forClient.id, rawTotal);
+        const visitResult = addClientVisit(forClient.id, total); // total = после скидки
       }
       setExpandedCartId(null);
       setPayModalOpen(false);
       closeSlot(activeSlotId);
-      toast.show(`Оплата ${total} ₽ принята ✓`);
+      // Fix 3: обратная связь по баллам
+      let toastMsg = `Оплата ${total} ₽ принята ✓`;
+      if (forClient?.id) {
+        if (loyaltyModel === 'points') {
+          const earned = Math.round(total * (loyaltyConfig.earn_pct ?? 10) / 100);
+          if (earned > 0) toastMsg += `  •  +${earned} балл.`;
+        } else if (loyaltyModel === 'subscription') {
+          toastMsg += `  •  -1 визит`;
+        }
+      }
+      toast.show(toastMsg);
       if (stockWarnings && stockWarnings.length > 0) {
         const lines = stockWarnings.map(w => `${w.name}: ${w.amount.toFixed(1)} ${w.unit || ''}`).join('\n');
         Alert.alert('⚠️ Склад ушёл в минус', lines);

@@ -681,18 +681,19 @@ export function deleteModifier(id) {
 
 // ─── Заказы ───────────────────────────────────────────────────────────────
 
-export function createOrder({ total, method, methodType, shift_id, client_id, items, cashAmount, cardAmount, discountPct, locationId, note, zone }) {
+export function createOrder({ total, method, methodType, shift_id, client_id, cashier_id, items, cashAmount, cardAmount, discountPct, locationId, note, zone }) {
   const db = getDb();
   const now = new Date().toISOString();
 
   try { db.execSync(`ALTER TABLE orders ADD COLUMN cash_amount REAL DEFAULT 0`); } catch (_) {}
   try { db.execSync(`ALTER TABLE orders ADD COLUMN card_amount REAL DEFAULT 0`); } catch (_) {}
   try { db.execSync(`ALTER TABLE orders ADD COLUMN discount_pct REAL DEFAULT 0`); } catch (_) {}
+  try { db.execSync(`ALTER TABLE orders ADD COLUMN cashier_id INTEGER DEFAULT NULL`); } catch (_) {}
 
   const result = db.runSync(
-    `INSERT INTO orders (created_at, total, method, method_type, shift_id, client_id, cash_amount, card_amount, discount_pct, note, zone)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [now, total, method, methodType || '', shift_id || null, client_id || null, cashAmount || 0, cardAmount || 0, discountPct || 0, note || '', zone || '']
+    `INSERT INTO orders (created_at, total, method, method_type, shift_id, client_id, cashier_id, cash_amount, card_amount, discount_pct, note, zone)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [now, total, method, methodType || '', shift_id || null, client_id || null, cashier_id || null, cashAmount || 0, cardAmount || 0, discountPct || 0, note || '', zone || '']
   );
   const orderId = result.lastInsertRowId;
 
@@ -769,6 +770,15 @@ export function updateClient(id, { fio, phone, balance, discount_pct, birth_date
     `UPDATE clients SET fio = ?, phone = ?, balance = ?, discount_pct = ?, birth_date = ? WHERE id = ?`,
     [fio, phone, balance, discount_pct ?? 0, birth_date || '', id]
   );
+}
+
+export function checkSubscriptionBalance(client_id) {
+  const db = getDb();
+  const { model } = getLoyaltyConfig();
+  if (model !== 'subscription') return { ok: true };
+  const client = db.getFirstSync(`SELECT balance FROM clients WHERE id = ?`, [client_id]);
+  const balance = client?.balance || 0;
+  return { ok: balance > 0, balance };
 }
 
 export function addClientVisit(client_id, amount) {
