@@ -831,11 +831,22 @@ export function openShift(cashOpen = 0, userId = null, employeeName = '') {
 export function closeShift(shift_id) {
   const db = getDb();
   const now = new Date().toISOString();
+  // Считаем по method_type (новые заказы) + fallback по method (старые)
   const totals = db.getFirstSync(
     `SELECT
-       SUM(CASE WHEN method='Наличные' THEN total ELSE 0 END) as cash_total,
-       SUM(CASE WHEN method='Карта' OR method='QR' THEN total ELSE 0 END) as card_total
-     FROM orders WHERE shift_id = ?`,
+       SUM(CASE
+         WHEN method_type = 'cash' THEN total
+         WHEN (method_type IS NULL OR method_type = '') AND (method = 'Наличные') THEN total
+         WHEN method_type = 'mixed' THEN COALESCE(cash_amount, 0)
+         ELSE 0 END) as cash_total,
+       SUM(CASE
+         WHEN method_type = 'card' THEN total
+         WHEN (method_type IS NULL OR method_type = '') AND (method != 'Наличные') THEN total
+         WHEN method_type = 'mixed' THEN COALESCE(card_amount, 0)
+         ELSE 0 END) as card_total,
+       SUM(total) as total_revenue,
+       COUNT(*) as order_count
+     FROM orders WHERE shift_id = ? AND (status IS NULL OR status != 'returned')`,
     [shift_id]
   );
   db.runSync(

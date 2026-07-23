@@ -1660,10 +1660,18 @@ export default function SettingsScreen({ navigation }) {
                     { text: 'Сбросить', style: 'destructive', onPress: () => {
                       try {
                         const db = require('../db/database').getDb();
-                        ['orders','order_items','clients','products','product_variants',
-                         'stock','stock_movements','shifts','expenses'].forEach(t => {
+                        // Очищаем все данные кроме настроек и профиля
+                        [
+                          'orders', 'order_items', 'stock_deductions',
+                          'clients',
+                          'shifts', 'expenses',
+                          'stock_movements',
+                          'stock_by_location',
+                        ].forEach(t => {
                           try { db.runSync(`DELETE FROM ${t}`); } catch (_) {}
                         });
+                        // Сбрасываем остатки склада в 0
+                        try { db.runSync(`UPDATE stock SET остаток = 0, max_ostatok = 0`); } catch (_) {}
                         loadAll();
                       } catch (e) { console.error(e); }
                     }},
