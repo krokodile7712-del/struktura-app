@@ -1324,149 +1324,19 @@ export default function SettingsScreen({ navigation }) {
         </SectionAccordion>
 
         <SectionAccordion sectionKey="stock" selectedSection={selectedSection}>
-        {modules.stock !== false ? (<>
-
-          {/* Поиск — sticky как в Меню и ценах */}
-          {selectedSection === 'stock' && (
-            <View style={styles.menuTopBarSticky}>
-              {stockSearchOpen ? (
-                <View style={styles.menuSearchRow}>
-                  <TextInput
-                    color={colors.text}
-                    style={styles.menuSearchInput}
-                    value={stockSearch}
-                    onChangeText={setStockSearch}
-                    placeholder="Поиск позиции..."
-                    placeholderTextColor={colors.muted}
-                    autoFocus
-                  />
-                  <Pressable onPress={() => { setStockSearchOpen(false); setStockSearch(''); }} hitSlop={10} style={styles.menuBadge}>
-                    <Text style={styles.menuBadgeText}>✕</Text>
-                  </Pressable>
-                </View>
-              ) : (
-                <View style={styles.menuSearchRow}>
-                  <Text style={styles.menuTopTitle}>Пороги остатков</Text>
-                  <Pressable onPress={() => setStockSearchOpen(true)} hitSlop={14} style={styles.menuBadge}>
-                    <Text style={styles.menuBadgeText}>🔍</Text>
-                  </Pressable>
-                </View>
-              )}
-            </View>
-          )}
-
-          {stock.length === 0 ? (
-            <View style={[styles.menuCard, { padding: 16 }]}>
-              <Text style={styles.menuItemSub}>Позиции склада появятся здесь после заполнения техкарт в разделе Меню и цены.</Text>
-            </View>
-          ) : (() => {
-            const filtered = stock.filter(s =>
-              !stockSearch.trim() || s.name?.toLowerCase().includes(stockSearch.toLowerCase())
-            );
-            const cats = [...new Set(filtered.map(s => s.category || 'Без категории'))].sort();
-            if (filtered.length === 0) return (
-              <Text style={[styles.empty, { paddingVertical: 16 }]}>Ничего не найдено</Text>
-            );
-            return cats.map(cat => {
-              const items = filtered.filter(s => (s.category || 'Без категории') === cat);
-              const isOpen = openStockCats[cat] === true; // закрыто по умолчанию
-              return (
-                <View key={cat} style={{ marginBottom: 12 }}>
-                  {/* Заголовок категории — тап раскрывает/скрывает */}
-                  <Pressable
-                    style={({ pressed }) => [styles.stockAccHead, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
-                    onPress={() => setOpenStockCats(prev => ({ ...prev, [cat]: !isOpen }))}
-                  >
-                    <Text style={styles.stockAccTitle}>{cat}</Text>
-                    <Text style={[styles.stockAccArrow, isOpen && { transform: [{ rotate: '180deg' }] }]}>▼</Text>
-                  </Pressable>
-
-                  {/* Список позиций */}
-                  {isOpen && (
-                    <View style={styles.menuCard}>
-                      {items.map((s, idx) => (
-                        <View
-                          key={s.id}
-                          style={[styles.menuRow, idx < items.length - 1 && styles.menuRowDiv]}
-                        >
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.menuItemName}>{s.name}</Text>
-                          </View>
-                          <TextInput
-                            color={colors.text}
-                            style={styles.loyaltyInput}
-                            keyboardType="numeric"
-                            value={String(s['порог'] || '')}
-                            placeholder="0"
-                            placeholderTextColor={colors.muted}
-                            onChangeText={v => {
-                              const val = parseFloat(v) || 0;
-                              try { updateStockThreshold(s.id, val); loadAll(); } catch (_) {}
-                            }}
-                          />
-                          <Text style={[styles.loyaltyUnit, { width: 40 }]}>{s.unit}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-                </View>
-              );
-            });
-          })()}
-
-          {/* Категории склада */}
-          {stockCats.length > 0 && (<>
-            <View style={[styles.menuTopBarSticky, { marginTop: 24 }]}>
-              <Text style={styles.menuTopTitle}>Категории склада</Text>
-            </View>
-            <Text style={[styles.menuItemSub, { marginBottom: 10 }]}>
-              Нажмите чтобы переименовать — изменится у всех позиций категории
-            </Text>
-            <View style={styles.menuCard}>
-              {stockCats.map((cat, idx) => (
-                <Pressable
-                  key={cat}
-                  style={({ pressed }) => [styles.menuRow, idx < stockCats.length - 1 && styles.menuRowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
-                  onPress={() => setStockCatModal({ oldName: cat, newName: cat })}
-                >
-                  <Text style={[styles.menuItemName, { flex: 1 }]}>{cat}</Text>
-                  <Text style={styles.menuItemArrow}>›</Text>
-                </Pressable>
-              ))}
-            </View>
-          </>)}
-
-          {/* Несвязанные техкарты — аккордеон */}
-          {unlinkedCards.length > 0 && (
-            <View style={{ marginTop: 20 }}>
-              <Pressable
-                style={({ pressed }) => [styles.stockAccHead, { backgroundColor: pressed ? 'rgba(160,16,32,0.06)' : 'rgba(160,16,32,0.04)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(160,16,32,0.2)' }]}
-                onPress={() => setOpenStockCats(prev => ({ ...prev, __unlinked: !prev.__unlinked }))}
-              >
-                <Text style={{ fontSize: 16, marginRight: 8 }}>⚠️</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.stockAccTitle, { color: colors.redLight }]}>Несвязанные техкарты</Text>
-                  <Text style={styles.menuItemSub}>Пересоздайте через карточку товара</Text>
-                </View>
-                <Text style={[styles.stockAccArrow, openStockCats.__unlinked && { transform: [{ rotate: '180deg' }] }]}>▼</Text>
-              </Pressable>
-              {openStockCats.__unlinked && (
-                <View style={[styles.menuCard, { marginTop: 6, borderColor: 'rgba(160,16,32,0.2)' }]}>
-                  {unlinkedCards.map((uc, idx) => (
-                    <View key={uc.id} style={[styles.menuRow, idx < unlinkedCards.length - 1 && styles.menuRowDiv]}>
-                      <Text style={[styles.menuItemName, { flex: 1, color: colors.muted }]}>{uc.name}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-          )}
-
-        </>) : (
-          <View style={[styles.menuCard, { padding: 16 }]}>
-            <Text style={styles.menuItemSub}>Модуль склада отключён в настройках профиля бизнеса.</Text>
+          <View style={[styles.menuCard, { marginTop: 8 }]}>
+            <Pressable
+              style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
+              onPress={() => navigation.navigate('Stock')}
+            >
+              <Text style={{ fontSize: 20, marginRight: 12 }}>📦</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.menuItemName}>Перейти в раздел Склад</Text>
+                <Text style={styles.menuItemSub}>Остатки, пороги и категории управляются там</Text>
+              </View>
+              <Text style={styles.menuItemArrow}>›</Text>
+            </Pressable>
           </View>
-        )}
         </SectionAccordion>
 
         <SectionAccordion sectionKey="business" selectedSection={selectedSection}>

@@ -11,7 +11,7 @@ import {
   setStockForLocation, adjustStockForLocation,
   getStockHistory, getLocations,
   getCurrentLocationId, setCurrentLocationId,
-  getBusinessProfile,
+  getBusinessProfile, updateStockThreshold,
 } from '../db/queries';
 import { getDb } from '../db/database';
 import { getHomeRoute, can } from '../db/session';
@@ -44,6 +44,9 @@ export default function StockScreen({ navigation }) {
   const [locations, setLocations]   = useState([]);
   const [selectedLocId, setSelectedLocId] = useState(null);
   const [locEnabled, setLocEnabled] = useState(false);
+  const [catModal, setCatModal]     = useState(false);
+  const [stockCats, setStockCats]   = useState([]);
+  const [catModal2, setCatModal2]   = useState(null); // {oldName, newName}
 
   useFocusEffect(useCallback(() => {
     try {
@@ -55,7 +58,9 @@ export default function StockScreen({ navigation }) {
         setLocations(locs);
         setSelectedLocId(getCurrentLocationId());
       }
-      setStock(getAllStock());
+      const allStock = getAllStock();
+      setStock(allStock);
+      setStockCats([...new Set(allStock.map(s => s.category || 'Без категории'))].sort());
     } catch (e) { console.error(e); }
   }, []));
 
@@ -124,7 +129,15 @@ export default function StockScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title="Склад" onBack={() => navigation.navigate(getHomeRoute())} />
+      <TopBar
+        title="Склад"
+        onBack={() => navigation.navigate(getHomeRoute())}
+        rightElement={
+          <Pressable onPress={() => setCatModal(true)} hitSlop={8} style={styles.catBtn}>
+            <Text style={styles.catBtnText}>⚙ Категории</Text>
+          </Pressable>
+        }
+      />
 
       {locEnabled && locations.length > 0 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false}
@@ -228,6 +241,81 @@ export default function StockScreen({ navigation }) {
           );
         })}
       </ScrollView>
+
+
+      {/* Модалка категорий */}
+      <Modal visible={catModal} transparent animationType="fade" onRequestClose={() => setCatModal(false)}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCatModal(false)} />
+          <View style={styles.catModalBox}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Категории склада</Text>
+              <Pressable onPress={() => setCatModal(false)} hitSlop={14} style={styles.modalClose}>
+                <Text style={styles.modalCloseTxt}>✕</Text>
+              </Pressable>
+            </View>
+            <ScrollView contentContainerStyle={{ padding: 16 }}>
+              <Text style={[styles.sectionLabel, { marginBottom: 12 }]}>
+                Нажмите на категорию чтобы переименовать — изменится у всех позиций
+              </Text>
+              <View style={styles.card}>
+                {stockCats.map((cat, idx) => (
+                  <Pressable
+                    key={cat}
+                    style={({ pressed }) => [styles.catRow, idx < stockCats.length - 1 && styles.rowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
+                    onPress={() => setCatModal2({ oldName: cat, newName: cat })}
+                  >
+                    <Text style={styles.catName}>{cat}</Text>
+                    <Text style={styles.catArrow}>›</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Переименование категории */}
+      <Modal visible={!!catModal2} transparent animationType="fade" onRequestClose={() => setCatModal2(null)}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCatModal2(null)} />
+          <View style={[styles.catModalBox, { maxHeight: 260 }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Переименовать</Text>
+              <Pressable onPress={() => setCatModal2(null)} hitSlop={14} style={styles.modalClose}>
+                <Text style={styles.modalCloseTxt}>✕</Text>
+              </Pressable>
+            </View>
+            <View style={{ padding: 16 }}>
+              <TextInput
+                color={colors.text}
+                style={styles.input}
+                value={catModal2?.newName || ''}
+                onChangeText={v => setCatModal2(m => ({ ...m, newName: v }))}
+                placeholder="Название категории"
+                placeholderTextColor={colors.muted}
+                autoFocus
+              />
+              <Pressable
+                style={({ pressed }) => [styles.confirmBtn, { marginTop: 12 }, pressed && { opacity: 0.88 }]}
+                onPress={() => {
+                  if (!catModal2?.newName?.trim()) return;
+                  try {
+                    const db = getDb();
+                    db.runSync(`UPDATE stock SET category = ? WHERE category = ?`, [catModal2.newName.trim(), catModal2.oldName]);
+                    const allStock = getAllStock();
+                    setStock(allStock);
+                    setStockCats([...new Set(allStock.map(s => s.category || 'Без категории'))].sort());
+                    setCatModal2(null);
+                  } catch (e) { console.error(e); }
+                }}
+              >
+                <Text style={styles.confirmBtnText}>Сохранить</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <BottomBar navigation={navigation} activeTab="Kassa" />
 
