@@ -1249,8 +1249,22 @@ export function findCostCardForItem(productId, name, size, variantId) {
 }
 
 // Сохраняет техкарту для конкретного варианта товара (универсальная модель, variant_id)
+export function fixCostCardLinks() {
+  // Одноразовая миграция: для карт с variant_id но без product_id — проставляем product_id
+  const db = getDb();
+  try {
+    const orphans = db.getAllSync(`SELECT cc.id, pv.product_id FROM cost_cards cc JOIN product_variants pv ON cc.variant_id = pv.id WHERE cc.product_id IS NULL AND cc.variant_id IS NOT NULL`);
+    for (const row of orphans) {
+      db.runSync(`UPDATE cost_cards SET product_id = ? WHERE id = ?`, [row.product_id, row.id]);
+    }
+  } catch (_) {}
+}
+
 export function saveCostCardForVariant(variantId, ingredients) {
   const db = getDb();
+  // Получаем product_id из варианта
+  const variant = db.getFirstSync(`SELECT product_id FROM product_variants WHERE id = ?`, [variantId]);
+  const productId = variant?.product_id || null;
   const existing = db.getFirstSync(`SELECT * FROM cost_cards WHERE variant_id = ?`, [variantId]);
 
   if (ingredients.length === 0) {
@@ -1270,8 +1284,8 @@ export function saveCostCardForVariant(variantId, ingredients) {
     const product = variant ? db.getFirstSync(`SELECT * FROM products WHERE id = ?`, [variant.product_id]) : null;
     const name = variant?.label ? `${product?.name || ''} ${variant.label}`.trim() : (product?.name || '');
     const result = db.runSync(
-      `INSERT INTO cost_cards (name, variant_id) VALUES (?, ?)`,
-      [name, variantId]
+      `INSERT INTO cost_cards (name, variant_id, product_id) VALUES (?, ?, ?)`,
+      [name, variantId, product?.id || null]
     );
     cardId = result.lastInsertRowId;
   }

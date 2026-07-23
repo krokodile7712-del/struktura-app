@@ -7,7 +7,7 @@ import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import EmptyState from '../components/EmptyState';
 import InfoTip from '../components/InfoTip';
-import { getAllCostCards, deleteCostCard, getTerms, genitiveSingularRu } from '../db/queries';
+import { getAllCostCards, deleteCostCard, getTerms, genitiveSingularRu, fixCostCardLinks } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
 function cardCost(card) {
@@ -22,7 +22,7 @@ export default function CostCardsScreen({ navigation }) {
   useEffect(() => { loadCards(); try { setTerms(getTerms()); } catch (e) { console.error(e); } }, []);
 
   const loadCards = () => {
-    try { setCards(getAllCostCards()); } catch (e) { console.error(e); }
+    try { fixCostCardLinks(); setCards(getAllCostCards()); } catch (e) { console.error(e); }
   };
 
   const handleDelete = (id) => {
@@ -55,7 +55,7 @@ export default function CostCardsScreen({ navigation }) {
           {cards.map(card => {
             const isOpen = expandedId === card.id;
             const cost = cardCost(card);
-            const linked = !!card.product_id;
+            const linked = !!(card.product_id || card.variant_id);
             return (
               <View key={card.id}>
                 <Pressable style={styles.row} onPress={() => setExpandedId(isOpen ? null : card.id)}>
