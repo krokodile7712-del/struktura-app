@@ -25,6 +25,7 @@ import {
   exportAllData,
 } from '../db/queries';
 import { canConvert, conversionFactor } from '../constants/units';
+import { getDb } from '../db/database';
 import Hint from '../components/Hint';
 import InfoTip from '../components/InfoTip';
 import Toggle from '../components/Toggle';
@@ -103,7 +104,7 @@ export default function SettingsScreen({ navigation }) {
   const [openSections, setOpenSections] = useState({ menu: true, employees: false, loyalty: false, payment: false, stock: false, business: false, system: false });  const renameStockCategory = (oldName, newName) => {
     if (!newName.trim() || newName === oldName) return;
     try {
-      const db = require('../db/database').getDb();
+      const db = getDb();
       db.runSync('UPDATE stock SET category = ? WHERE category = ?', [newName.trim(), oldName]);
       const s = getAllStock();
       const cats = [...new Set(s.map(i => i.category || 'Без категории'))].filter(Boolean).sort();
@@ -432,7 +433,7 @@ export default function SettingsScreen({ navigation }) {
       });
       // Обновляем базовую цену продукта минимальной ценой варианта
       try {
-        const db = require('../db/database').getDb();
+        const db = getDb();
         const minPrice = Math.min(...variantsPayload.map(v => v.price).filter(p => p > 0));
         if (isFinite(minPrice) && minPrice > 0) {
           db.runSync('UPDATE products SET price = ? WHERE id = ?', [minPrice, productModal.product.id]);
@@ -449,7 +450,7 @@ export default function SettingsScreen({ navigation }) {
       setProductActive(productModal.product.id, !productModal.product.active);
       // Обновляем базовую цену продукта минимальной ценой варианта
       try {
-        const db = require('../db/database').getDb();
+        const db = getDb();
         const minPrice = Math.min(...variantsPayload.map(v => v.price).filter(p => p > 0));
         if (isFinite(minPrice) && minPrice > 0) {
           db.runSync('UPDATE products SET price = ? WHERE id = ?', [minPrice, productModal.product.id]);
@@ -1659,7 +1660,7 @@ export default function SettingsScreen({ navigation }) {
                     { text: 'Отмена', style: 'cancel' },
                     { text: 'Сбросить', style: 'destructive', onPress: () => {
                       try {
-                        const db = require('../db/database').getDb();
+                        const db = getDb();
                         // Очищаем все данные кроме настроек и профиля
                         [
                           'orders', 'order_items', 'stock_deductions',
@@ -1673,7 +1674,8 @@ export default function SettingsScreen({ navigation }) {
                         // Сбрасываем остатки склада в 0
                         try { db.runSync(`UPDATE stock SET остаток = 0, max_ostatok = 0`); } catch (_) {}
                         loadAll();
-                      } catch (e) { console.error(e); }
+                        toast.show('Данные сброшены ✓', 'info');
+                      } catch (e) { console.error(e); toast.show('Ошибка сброса', 'warn'); }
                     }},
                   ]
                 );
