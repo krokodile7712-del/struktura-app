@@ -36,6 +36,7 @@ import ExpensesScreen from './screens/ExpensesScreen';
 import AdminScreen from './screens/AdminScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import MigrateScreen from './screens/MigrateScreen';
+import ProductsScreen from './screens/ProductsScreen';
 import LocationsScreen from './screens/LocationsScreen';
 import EmployeesScreen from './screens/EmployeesScreen';
 import InventoryScreen from './screens/InventoryScreen';

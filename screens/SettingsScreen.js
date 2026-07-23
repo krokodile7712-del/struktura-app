@@ -821,103 +821,19 @@ export default function SettingsScreen({ navigation }) {
 
         {/* Меню и цены */}
         <SectionAccordion sectionKey="menu" selectedSection={selectedSection}>
-
-        {/* Список товаров по категориям */}
-        {(() => {
-          const filtered = products.filter(p =>
-            !menuSearch.trim() ||
-            p.name?.toLowerCase().includes(menuSearch.toLowerCase())
-          );
-          const cats = [...new Set(filtered.map(p => p.category || 'Без категории'))];
-          if (filtered.length === 0) {
-            return <Text style={[styles.empty, { paddingVertical: 24 }]}>Нет {genitivePluralRu(terms.item).toLowerCase()}{menuSearch ? ` по запросу «${menuSearch}»` : ''}.</Text>;
-          }
-          return cats.map(cat => {
-            const catProducts = filtered.filter(p => (p.category || 'Без категории') === cat);
-            return (
-              <View key={cat} style={styles.menuCatGroup}>
-                {/* Заголовок категории */}
-                <View style={styles.menuCatRow}>
-                  <View style={styles.menuCatLine} />
-                  <Text style={styles.menuCatName}>{cat}</Text>
-                  <View style={styles.menuCatLine} />
-                </View>
-                {/* Карточка с товарами */}
-                <View style={styles.menuCard}>
-                  {catProducts.map((p, idx) => {
-                    const inactive = !p.active;
-                    const hasVariants = p.variants && p.variants.length > 1;
-                    const price = p.price > 0
-                      ? (hasVariants ? `от ${p.price} ₽` : `${p.price} ₽`)
-                      : null;
-                    return (
-                      <Pressable
-                        key={p.id}
-                        style={({ pressed }) => [
-                          styles.menuRow,
-                          idx < catProducts.length - 1 && styles.menuRowDiv,
-                          pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
-                          inactive && { opacity: 0.45 },
-                        ]}
-                        onPress={() => openProduct(p)}
-                      >
-                        <Text style={styles.menuItemName} numberOfLines={1}>
-                          {inactive ? '🚫 ' : ''}{p.name}
-                        </Text>
-                        <Text style={[styles.menuItemPrice, !price && styles.menuItemPriceNone]}>
-                          {price || 'цена не задана'}
-                        </Text>
-                        <Text style={styles.menuItemArrow}>›</Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
+          <View style={[styles.menuCard, { marginTop: 8 }]}>
+            <Pressable
+              style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
+              onPress={() => navigation.navigate('Products')}
+            >
+              <Text style={{ fontSize: 20, marginRight: 12 }}>🛍</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.menuItemName}>Товары и цены</Text>
+                <Text style={styles.menuItemSub}>Добавить товары, цены и техкарты</Text>
               </View>
-            );
-          });
-        })()}
-
-        {/* Модификаторы */}
-        {modules.modifiers !== false && (
-          <View style={{ marginTop: 24 }}>
-            <View style={styles.menuTopBarSticky}>
-              <Text style={styles.menuTopTitle}>Модификаторы</Text>
-              <View style={styles.menuFloatBtns} pointerEvents="box-none">
-                <View style={styles.menuFloatRow}>
-                  <Pressable onPress={openNewGroup} hitSlop={14} style={[styles.menuBadge, styles.menuBadgeAdd]}>
-                    <Text style={[styles.menuBadgeText, { color: colors.greenLight }]}>＋</Text>
-                  </Pressable>
-                </View>
-              </View>
-            </View>
-            {modifierGroups.length === 0 ? (
-              <Text style={[styles.empty, { paddingVertical: 16 }]}>Групп пока нет.</Text>
-            ) : (
-              <View style={styles.menuCard}>
-                {modifierGroups.map((g, idx) => (
-                  <Pressable
-                    key={g.id}
-                    style={({ pressed }) => [
-                      styles.menuRow,
-                      idx < modifierGroups.length - 1 && styles.menuRowDiv,
-                      pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
-                    ]}
-                    onPress={() => openEditGroup(g)}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.menuItemName}>{g.name}</Text>
-                      <Text style={styles.menuItemSub}>
-                        {g.selection_type === 'multiple' ? 'Несколько вариантов' : 'Один вариант'} · {g.options.length} опц.
-                      </Text>
-                    </View>
-                    <Text style={styles.menuItemArrow}>›</Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
+              <Text style={styles.menuItemArrow}>›</Text>
+            </Pressable>
           </View>
-        )}
-
         </SectionAccordion>
 
         <SectionAccordion sectionKey="employees" selectedSection={selectedSection}>

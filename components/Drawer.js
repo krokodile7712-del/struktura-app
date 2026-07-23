@@ -43,12 +43,14 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
         { icon: '≡', label: 'Продажи',    screen: 'Sales',       always: true },
         { icon: '★', label: 'Клиенты',    screen: 'ClientsList', module: 'clients' },
         { icon: '↓', label: 'Расходы',    screen: 'Expenses',    always: true },
+        { icon: '🛍', label: 'Товары',     screen: 'Products',    always: true },
       ],
     },
     {
       title: 'Склад',
       items: [
         { icon: '▦', label: 'Техкарты',   screen: 'CostCards',   module: 'stock' },
+
       ],
     },
     {
