@@ -24,6 +24,7 @@ export default function CostCardsScreen({ navigation }) {
   const [cards, setCards]     = useState([]);
   const [stock, setStock]     = useState([]);
   const [terms, setTerms]     = useState({});
+  const [openCats, setOpenCats]   = useState({});
   const [editCard, setEditCard]   = useState(null); // карта в редактировании
   const [ingPicker, setIngPicker] = useState(false);
   const [ingSearch, setIngSearch] = useState('');
@@ -117,43 +118,58 @@ export default function CostCardsScreen({ navigation }) {
         {cards.length === 0 ? (
           <EmptyState icon="🧾" title="Техкарт нет"
             text="Создайте техкарту в Настройки → Меню и цены → откройте карточку товара → Техкарта." />
-        ) : (
-          cards.map((card, idx) => {
-            const cost = cardCost(card);
-            const linked = !!(card.product_id || card.variant_id);
+        ) : (() => {
+          // Группируем по категории
+          const cats = [...new Set(cards.map(c => c.product_category || 'Без категории'))];
+          return cats.map(cat => {
+            const catCards = cards.filter(c => (c.product_category || 'Без категории') === cat);
+            const isOpen = openCats[cat] !== false; // открыто по умолчанию
+            const catCost = catCards.reduce((s, c) => s + cardCost(c), 0);
             return (
-              <Pressable
-                key={card.id}
-                style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}
-                onPress={() => openEdit(card)}
-              >
-                <View style={styles.cardHead}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.cardName}>{linked ? '' : '⚠️ '}{card.name}</Text>
-                    <Text style={styles.cardSub}>{card.ingredients.length} ингр.</Text>
-                  </View>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={styles.cardCost}>{fmt(cost)} ₽</Text>
-                    <Text style={styles.cardEdit}>Изменить ›</Text>
-                  </View>
-                </View>
+              <View key={cat} style={styles.catGroup}>
+                {/* Заголовок категории */}
+                <Pressable
+                  style={styles.catHead}
+                  onPress={() => setOpenCats(p => ({ ...p, [cat]: !isOpen }))}
+                >
+                  <Text style={styles.catTitle}>{cat}</Text>
+                  <Text style={styles.catCost}>{fmt(catCost)} ₽</Text>
+                  <Text style={[styles.catArrow, isOpen && { transform: [{ rotate: '180deg' }] }]}>▼</Text>
+                </Pressable>
 
-                {/* Список ингредиентов */}
-                {card.ingredients.length > 0 && (
-                  <View style={styles.ingList}>
-                    {card.ingredients.map((ing, i) => (
-                      <View key={i} style={[styles.ingRow, i < card.ingredients.length - 1 && styles.ingDiv]}>
-                        <Text style={styles.ingName}>{ing.name}</Text>
-                        <Text style={styles.ingAmt}>{ing.amount} {ing.unit}</Text>
-                        <Text style={styles.ingCost}>{fmt(ing.amount * (ing.price_per_unit || 0))} ₽</Text>
-                      </View>
-                    ))}
+                {/* Карточки категории */}
+                {isOpen && (
+                  <View style={styles.groupCard}>
+                    {catCards.map((card, idx) => {
+                      const cost = cardCost(card);
+                      const linked = !!(card.product_id || card.variant_id);
+                      return (
+                        <Pressable
+                          key={card.id}
+                          style={({ pressed }) => [
+                            styles.cardRow,
+                            idx < catCards.length - 1 && styles.rowDiv,
+                            pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
+                          ]}
+                          onPress={() => openEdit(card)}
+                        >
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.cardName}>{linked ? '' : '⚠️ '}{card.name}</Text>
+                            <Text style={styles.cardSub}>{card.ingredients.length} ингр.{card.ingredients.length > 0 ? ` · ${card.ingredients.map(i => i.name).join(', ').slice(0, 40)}` : ''}</Text>
+                          </View>
+                          <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={styles.cardCost}>{fmt(cost)} ₽</Text>
+                            <Text style={styles.cardEdit}>›</Text>
+                          </View>
+                        </Pressable>
+                      );
+                    })}
                   </View>
                 )}
-              </Pressable>
+              </View>
             );
-          })
-        )}
+          });
+        })()}
       </ScrollView>
 
       <BottomBar navigation={navigation} activeTab="Kassa" />
@@ -297,6 +313,14 @@ export default function CostCardsScreen({ navigation }) {
 const styles = StyleSheet.create({
   inner: { padding: 16, paddingBottom: 24 },
 
+  catGroup: { marginBottom: 6 },
+  catHead:  { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, backgroundColor: '#0e0f11', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', marginBottom: 6 },
+  catTitle: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, flex: 1 },
+  catCost:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, marginRight: 8 },
+  catArrow: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  groupCard:{ backgroundColor: '#0b0c0f', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', overflow: 'hidden', marginBottom: 4 },
+  cardRow:  { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 14 },
+  rowDiv:   { borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.2)' },
   card: { backgroundColor: '#0b0c0f', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', marginBottom: 10, overflow: 'hidden' },
   cardHead: { flexDirection: 'row', alignItems: 'center', padding: 14 },
   cardName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },

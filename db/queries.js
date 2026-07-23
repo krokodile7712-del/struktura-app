@@ -984,7 +984,12 @@ export function initDefaultLocation() {
 export function getAllCostCards() {
   const db = getDb();
   try { db.execSync(`ALTER TABLE cost_cards ADD COLUMN size TEXT DEFAULT ''`); } catch (_) {}
-  const cards = db.getAllSync(`SELECT * FROM cost_cards ORDER BY name`);
+  const cards = db.getAllSync(
+    `SELECT cc.*, COALESCE(p.category, '') as product_category
+     FROM cost_cards cc
+     LEFT JOIN products p ON cc.product_id = p.id
+     ORDER BY COALESCE(p.category, ''), cc.name`
+  );
   return cards.map(card => ({
     ...card,
     ingredients: db.getAllSync(`SELECT * FROM cost_ingredients WHERE cost_card_id = ?`, [card.id]),
