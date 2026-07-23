@@ -184,7 +184,8 @@ export default function SettingsScreen({ navigation }) {
         preset:        profile?.preset  || 'custom',
       });
       loadAll();
-    } catch(e) { console.error(e); }
+      toast.show('Профиль сохранён ✓', 'info');
+    } catch(e) { console.error(e); toast.show('Ошибка сохранения', 'warn'); }
   };
 
   const loadAll = () => {
@@ -440,7 +441,8 @@ export default function SettingsScreen({ navigation }) {
         }
       } catch (_) {}
       loadAll();
-    } catch (e) { console.error(e); }
+      toast.show('Товар сохранён ✓', 'info');
+    } catch (e) { console.error(e); toast.show('Ошибка', 'warn'); }
     setProductModal(null);
   };
 
@@ -457,7 +459,8 @@ export default function SettingsScreen({ navigation }) {
         }
       } catch (_) {}
       loadAll();
-    } catch (e) { console.error(e); }
+      toast.show('Товар сохранён ✓', 'info');
+    } catch (e) { console.error(e); toast.show('Ошибка', 'warn'); }
     setProductModal(null);
   };
 
@@ -490,7 +493,7 @@ export default function SettingsScreen({ navigation }) {
 
   // ── Лояльность ──
   const saveLoyalty = () => {
-    try { updateLoyaltyConfig(loyaltyModel, loyaltyConfig); loadAll(); } catch (e) { console.error(e); }
+    try { updateLoyaltyConfig(loyaltyModel, loyaltyConfig); loadAll(); toast.show('Лояльность сохранена ✓', 'info'); } catch (e) { console.error(e); toast.show('Ошибка', 'warn'); }
   };
 
   // ── PIN ──
@@ -499,7 +502,8 @@ export default function SettingsScreen({ navigation }) {
       if (pinBarista.trim()) updateUserPin('barista', pinBarista.trim());
       if (pinAdmin.trim()) updateUserPin('admin', pinAdmin.trim());
       loadAll();
-    } catch (e) { console.error(e); }
+      toast.show('PIN-коды сохранены ✓', 'info');
+    } catch (e) { console.error(e); toast.show('Ошибка', 'warn'); }
   };
 
   // ── Способы оплаты ──
@@ -587,7 +591,7 @@ export default function SettingsScreen({ navigation }) {
 
   // ── Скидки ──
   const saveDiscounts = (list) => {
-    try { setSetting('discounts', JSON.stringify(list)); setDiscounts(list); } catch (e) { console.error(e); }
+    try { setSetting('discounts', JSON.stringify(list)); setDiscounts(list); toast.show('Скидки сохранены ✓', 'info'); } catch (e) { console.error(e); toast.show('Ошибка', 'warn'); }
   };
   const openNewDiscount = () => setDiscountModal({ index: -1, name: '', pct: '', desc: '' });
   const openEditDiscount = (i) => setDiscountModal({ index: i, name: discounts[i].name, pct: String(discounts[i].pct), desc: discounts[i].desc || '' });
