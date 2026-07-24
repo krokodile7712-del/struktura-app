@@ -17,6 +17,7 @@ import { getDb } from '../db/database';
 import { getHomeRoute, can } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
 import { useFocusEffect } from '@react-navigation/native';
+import { useToast } from '../components/Toast';
 
 function updateStockLocal(itemId, newValue) {
   const db = getDb();
@@ -33,6 +34,7 @@ const MODES = [
 
 export default function StockScreen({ navigation }) {
   const { width: W } = useWindowDimensions();
+  const toast = useToast();
   const [stock, setStock]           = useState([]);
   const [search, setSearch]         = useState('');
   const [modalItem, setModalItem]   = useState(null);
@@ -87,7 +89,8 @@ export default function StockScreen({ navigation }) {
       db.runSync(`UPDATE cost_ingredients SET price_per_unit = ? WHERE LOWER(name) = LOWER(?)`, [p, modalItem.name]);
       reload();
       setModalItem(m => ({ ...m, avg_price: p }));
-    } catch(e) { console.error(e); }
+      toast.show(`Цена ${p} ₽/ед. сохранена ✓`, 'info');
+    } catch(e) { console.error(e); toast.show('Ошибка сохранения', 'warn'); }
   };
 
   const confirm = () => {
@@ -381,7 +384,7 @@ export default function StockScreen({ navigation }) {
                     />
                     <Text style={styles.curAvg}>₽/ед.</Text>
                     <Pressable
-                      style={styles.priceSaveBtn}
+                      style={({ pressed }) => [styles.priceSaveBtn, pressed && { opacity: 0.7, backgroundColor: 'rgba(61,158,146,0.3)' }]}
                       onPress={() => savePrice(String(modalItem.avg_price || ''))}
                     >
                       <Text style={styles.priceSaveTxt}>✓</Text>
