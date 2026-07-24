@@ -248,6 +248,7 @@ export default function ProductsScreen({ navigation }) {
 
   const handleSave = ({ name, category, active, vars }) => {
     try {
+      console.log('[SAVE] start', { name, category, vars: vars.length });
       const db = getDb();
       let productId = modal.product?.id;
 
@@ -265,6 +266,7 @@ export default function ProductsScreen({ navigation }) {
         );
       }
 
+      console.log('[SAVE] step1 productId=', productId);
       // 2. Сохраняем варианты через простую функцию
       const savedVariants = upsertProductVariants(productId, vars.map(v => ({
         id: v.id || null,
@@ -272,12 +274,14 @@ export default function ProductsScreen({ navigation }) {
         price: v.price,
       })));
 
+      console.log('[SAVE] step2 savedVariants=', JSON.stringify(savedVariants));
       // 3. Обновляем базовую цену
       const prices = vars.map(v => parseFloat(v.price) || 0).filter(p => p > 0);
       if (prices.length > 0) {
         db.runSync(`UPDATE products SET price=? WHERE id=?`, [Math.min(...prices), productId]);
       }
 
+      console.log('[SAVE] step3 prices done');
       // 4. Сохраняем техкарты
       savedVariants.forEach((sv, i) => {
         if (!sv?.id) return;
@@ -294,9 +298,10 @@ export default function ProductsScreen({ navigation }) {
         saveCostCardForVariant(sv.id, ings);
       });
 
+      console.log('[SAVE] step4 techcards done');
       load();
       setModal(null);
-    } catch (e) { console.error(e); Alert.alert('Ошибка сохранения', String(e.message)); }
+    } catch (e) { console.error('[SAVE ERROR]', e.message, e.stack); Alert.alert('Ошибка сохранения', String(e.message)); }
   };
 
   const handleDelete = (id) => {
