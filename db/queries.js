@@ -2588,12 +2588,12 @@ export function upsertProductVariants(productId, vars) {
     const price = parseFloat(v.price) || 0;
     const label = v.label || '';
     if (v.id) {
-      db.runSync(`UPDATE product_variants SET label=?, size=?, price=?, active=1 WHERE id=?`, [label, label, price, v.id]);
+      db.runSync(`UPDATE product_variants SET label=?, price=?, active=1 WHERE id=?`, [label, price, v.id]);
       saved.push({ ...v, id: Number(v.id) });
     } else {
       const res = db.runSync(
-        `INSERT INTO product_variants (product_id, label, size, price, axis_values, sku, active) VALUES (?,?,?,?,?,?,1)`,
-        [productId, label, label, price, '{}', '']
+        `INSERT INTO product_variants (product_id, label, price, axis_values, sku, active) VALUES (?,?,?,?,?,1)`,
+        [productId, label, price, '{}', '']
       );
       saved.push({ ...v, id: res.lastInsertRowId });
     }
