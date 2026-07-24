@@ -614,12 +614,18 @@ export function getAllProductsAdmin() {
     // Считаем себестоимость из техкарт
     try {
       const db = getDb();
-      const cards = db.getAllSync(
-        `SELECT ci.amount, ci.price_per_unit FROM cost_ingredients ci
-         JOIN cost_cards cc ON ci.cost_card_id = cc.id
-         WHERE cc.product_id = ? AND ci.amount > 0 AND ci.price_per_unit > 0`, [p.id]
-      );
-      const cost = cards.reduce((s, i) => s + (i.amount * i.price_per_unit), 0);
+      // Считаем через variant_id — согласованно с UI модалки
+      const varIds = db.getAllSync(`SELECT id FROM product_variants WHERE product_id = ?`, [p.id]).map(r => r.id);
+      let cost = 0;
+      for (const vid of varIds) {
+        const card = db.getFirstSync(`SELECT id FROM cost_cards WHERE variant_id = ?`, [vid]);
+        if (!card) continue;
+        const rows = db.getAllSync(
+          `SELECT amount, price_per_unit FROM cost_ingredients WHERE cost_card_id = ? AND amount > 0 AND price_per_unit > 0`,
+          [card.id]
+        );
+        cost += rows.reduce((s, i) => s + i.amount * i.price_per_unit, 0);
+      }
       return { ...p, avg_cost: Math.round(cost * 100) / 100 };
     } catch(_) { return { ...p, avg_cost: 0 }; }
   });
