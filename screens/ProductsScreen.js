@@ -7,6 +7,7 @@ import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import EmptyState from '../components/EmptyState';
 import Toggle from '../components/Toggle';
+import InfoTip from '../components/InfoTip';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   getAllProductsAdmin, insertProduct, setProductActive, deleteProduct,
@@ -74,7 +75,10 @@ function ProductModal({ product, variants, techCards, stock, categories, onClose
         <TextInput color={colors.text} style={styles.input} value={name} onChangeText={setName} placeholder="Название товара" placeholderTextColor={colors.muted} />
 
         {/* Категория */}
-        <Text style={styles.fieldLabel}>Категория</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, marginBottom: 8 }}>
+          <Text style={[styles.fieldLabel, { marginTop: 0, marginBottom: 0 }]}>Категория</Text>
+          <InfoTip title="Категория" text="Категория помогает группировать товары в списке и в кассе. Например: Кофе, Допы, Еда. Клиент её не видит — это только для вас." />
+        </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
           {categories.map(cat => (
             <Pressable key={cat}
@@ -87,11 +91,14 @@ function ProductModal({ product, variants, techCards, stock, categories, onClose
 
         {/* Варианты и цены */}
         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16, marginBottom: 8 }}>
-          <Text style={[styles.fieldLabel, { flex: 1, marginTop: 0, marginBottom: 0 }]}>
-            {vars.length > 1 ? 'Варианты и цены' : 'Цена'}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+            <Text style={[styles.fieldLabel, { marginTop: 0, marginBottom: 0 }]}>
+              {vars.length > 1 ? 'Размеры / Виды' : 'Цена продажи'}
+            </Text>
+            <InfoTip title="Размеры и виды" text="Если товар продаётся в одном варианте — просто введите цену. Если есть размеры (S/M/L) или виды (сырник с джемом / без) — нажмите «Добавить размер»." />
+          </View>
           <Pressable onPress={addVariant} style={styles.addVarBtn}>
-            <Text style={styles.addVarTxt}>+ вариант</Text>
+            <Text style={styles.addVarTxt}>+ Добавить размер</Text>
           </Pressable>
         </View>
 
@@ -118,9 +125,10 @@ function ProductModal({ product, variants, techCards, stock, categories, onClose
 
             {/* Техкарта варианта */}
             <View style={styles.techBlock}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <Text style={styles.techTitle}>🧾 Техкарта{v.ings.length > 0 ? ` (${v.ings.length})` : ''}</Text>
-                {v.ings.length > 0 && <Text style={[styles.techTitle, { color: 'rgba(61,158,146,0.6)', fontSize: 10 }]}>цена ↑ при закупке</Text>}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                <Text style={styles.techTitle}>Что списывается со склада{v.ings.length > 0 ? ` (${v.ings.length})` : ''}</Text>
+                <InfoTip title="Списание со склада" text="При каждой продаже этого товара указанные позиции автоматически спишутся со склада. Например: кофе 18г, молоко 150мл. Цена позиций подтягивается из последней закупки." />
+                {v.ings.length > 0 && <Text style={[styles.techTitle, { color: 'rgba(61,158,146,0.6)', fontSize: 10, marginLeft: 'auto' }]}>цена из закупок</Text>}
               </View>
               {v.ings.map((ing, ii) => (
                 <View key={ii} style={styles.ingRow}>
@@ -141,7 +149,7 @@ function ProductModal({ product, variants, techCards, stock, categories, onClose
                 </View>
               ))}
               <Pressable style={styles.addIngBtn} onPress={() => setIngPicker(vi)}>
-                <Text style={styles.addIngTxt}>+ Ингредиент со склада</Text>
+                <Text style={styles.addIngTxt}>+ Добавить позицию из склада</Text>
               </Pressable>
             </View>
           </View>
@@ -149,7 +157,10 @@ function ProductModal({ product, variants, techCards, stock, categories, onClose
 
         {/* Активен */}
         <View style={styles.activeRow}>
-          <Text style={styles.activeLabel}>Активен</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text style={styles.activeLabel}>Продаётся сейчас</Text>
+          <InfoTip title="Продаётся сейчас" text="Если выключить — товар пропадёт из кассы но не удалится. Удобно для сезонных позиций или когда закончился ингредиент." />
+        </View>
           <Toggle value={active} onValueChange={setActive} size="sm" />
         </View>
 
@@ -160,7 +171,7 @@ function ProductModal({ product, variants, techCards, stock, categories, onClose
 
         {product?.id && (
           <Pressable style={styles.deleteBtn} onPress={() => onDelete(product.id)}>
-            <Text style={styles.deleteBtnTxt}>Удалить товар</Text>
+            <Text style={styles.deleteBtnTxt}>Убрать из меню навсегда</Text>
           </Pressable>
         )}
       </ScrollView>
@@ -328,7 +339,7 @@ export default function ProductsScreen({ navigation }) {
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
         {products.length === 0 ? (
-          <EmptyState icon="🛍" title="Товаров нет" text="Нажмите ＋ чтобы добавить первый товар." />
+          <EmptyState icon="🛍" title="Товаров нет" text="Нажмите ＋ чтобы добавить первый товар. Укажите название, цену — и можно принимать заказы. Техкарту (для учёта склада) можно добавить позже." />
         ) : filtered.length === 0 ? (
           <EmptyState icon="🔍" title="Ничего не найдено" text={`Нет товаров по запросу «${search}»`} />
         ) : (
