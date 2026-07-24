@@ -361,7 +361,12 @@ export default function ProductsScreen({ navigation }) {
                         >
                           <View style={{ flex: 1 }}>
                             <Text style={styles.productName}>{p.name}</Text>
-                            <Text style={styles.productSub}>{p.cost_card_count > 0 ? `🧾 ${p.cost_card_count} техкарт` : '🧾 нет техкарты'}</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
+                              <Text style={styles.productSub}>{p.cost_card_count > 0 ? `🧾 ${p.cost_card_count}` : '🧾'}</Text>
+                              {p.avg_cost > 0 && (
+                                <Text style={styles.productCost}>себест. {p.avg_cost.toFixed(2)} ₽</Text>
+                              )}
+                            </View>
                           </View>
                           <View style={{ alignItems: 'flex-end' }}>
                             <Text style={[styles.productPrice, !p.price && styles.productPriceNone]}>{priceLabel}</Text>
@@ -429,11 +434,11 @@ const styles = StyleSheet.create({
   rowDiv:       { borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.2)' },
   productName:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
   productSub:   { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
-  productPrice: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
+  productPrice: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
   productPriceNone: { color: colors.muted, fontStyle: 'italic', fontSize: 11 },
   productArrow: { fontSize: 18, color: 'rgba(74,77,84,0.4)' },
   inactiveBadge:{ fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted },
-  productCost:  { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted },
+  productCost:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.greenLight },
 
   // Модалка
   modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: 16 },
