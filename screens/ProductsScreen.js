@@ -373,17 +373,15 @@ export default function ProductsScreen({ navigation }) {
                           <View style={{ flex: 1 }}>
                             <Text style={styles.productName}>{p.name}</Text>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
-                              <Text style={styles.productSub}>{p.cost_card_count > 0 ? `🧾 ${p.cost_card_count}` : '🧾'}</Text>
-                              {p.avg_cost > 0 && (
-                                <Text style={styles.productCost}>себест. {p.avg_cost.toFixed(2)} ₽</Text>
-                              )}
+                              {p.avg_cost > 0
+                                ? <Text style={styles.productCost}>🧾 себест. {p.avg_cost.toFixed(2)} ₽</Text>
+                                : <Text style={styles.productSub}>🧾 нет техкарты</Text>
+                              }
                             </View>
                           </View>
                           <View style={{ alignItems: 'flex-end' }}>
                             <Text style={[styles.productPrice, !p.price && styles.productPriceNone]}>{priceLabel}</Text>
-                            {p.avg_cost > 0 && (
-                              <Text style={styles.productCost}>с/с {p.avg_cost.toFixed(2)} ₽</Text>
-                            )}
+
                             {!p.active && <Text style={styles.inactiveBadge}>неакт.</Text>}
                           </View>
                           <Text style={styles.productArrow}>›</Text>
