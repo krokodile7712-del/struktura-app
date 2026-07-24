@@ -378,10 +378,14 @@ export default function StockScreen({ navigation }) {
                       placeholder="0"
                       placeholderTextColor={colors.muted}
                       onChangeText={v => setModalItem(m => ({ ...m, avg_price: v }))}
-                      onEndEditing={e => savePrice(e.nativeEvent.text)}
-                      onBlur={() => savePrice(String(modalItem.avg_price || ''))}
                     />
                     <Text style={styles.curAvg}>₽/ед.</Text>
+                    <Pressable
+                      style={styles.priceSaveBtn}
+                      onPress={() => savePrice(String(modalItem.avg_price || ''))}
+                    >
+                      <Text style={styles.priceSaveTxt}>✓</Text>
+                    </Pressable>
                   </View>
                 </View>
 
@@ -637,5 +641,7 @@ const styles = StyleSheet.create({
   histQty:    { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.text, flex: 1, textAlign: 'center' },
   priceRow:   { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
   priceInput: { paddingVertical: 4, paddingHorizontal: 10, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', borderRadius: 8, color: colors.text, fontFamily: fonts.family, fontSize: 14, minWidth: 70, textAlign: 'center' },
+  priceSaveBtn: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 8, backgroundColor: 'rgba(61,158,146,0.15)', borderWidth: 1, borderColor: 'rgba(61,158,146,0.4)' },
+  priceSaveTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight },
   histPrice:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.greenLight, flex: 1, textAlign: 'right' },
 });
