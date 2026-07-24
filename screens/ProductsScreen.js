@@ -11,7 +11,7 @@ import InfoTip from '../components/InfoTip';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   getAllProductsAdmin, insertProduct, setProductActive, deleteProduct,
-  getProductVariants, saveProductAxesAndVariants,
+  getProductVariants, upsertProductVariants,
   getCostCardForVariant, saveCostCardForVariant,
   getAllStock, getCategories, getDb,
 } from '../db/queries';
@@ -251,41 +251,52 @@ export default function ProductsScreen({ navigation }) {
       const db = getDb();
       let productId = modal.product?.id;
 
+      // 1. Создаём или обновляем товар
       if (!productId) {
-        const res = db.runSync(`INSERT INTO products (name, category, price, active) VALUES (?, ?, ?, 1)`, [name, category, parseFloat(vars[0]?.price) || 0]);
+        const res = db.runSync(
+          `INSERT INTO products (name, category, price, active) VALUES (?, ?, ?, 1)`,
+          [name, category, parseFloat(vars[0]?.price) || 0]
+        );
         productId = res.lastInsertRowId;
       } else {
-        db.runSync(`UPDATE products SET name=?, category=?, active=? WHERE id=?`, [name, category, active ? 1 : 0, productId]);
+        db.runSync(
+          `UPDATE products SET name=?, category=?, active=? WHERE id=?`,
+          [name, category, active ? 1 : 0, productId]
+        );
       }
 
-      // Сохраняем варианты
-      const varPayload = vars.map((v, i) => ({
+      // 2. Сохраняем варианты через простую функцию
+      const savedVariants = upsertProductVariants(productId, vars.map(v => ({
         id: v.id || null,
         label: v.label || '',
-        size: v.label || '',
-        price: parseFloat(v.price) || 0,
-        sku: '',
-        active: 1,
-      }));
+        price: v.price,
+      })));
 
-      const { variants: savedVariants } = saveProductAxesAndVariants(productId, [], varPayload);
+      // 3. Обновляем базовую цену
+      const prices = vars.map(v => parseFloat(v.price) || 0).filter(p => p > 0);
+      if (prices.length > 0) {
+        db.runSync(`UPDATE products SET price=? WHERE id=?`, [Math.min(...prices), productId]);
+      }
 
-      // Обновляем базовую цену
-      const minPrice = Math.min(...varPayload.map(v => v.price).filter(p => p > 0));
-      if (isFinite(minPrice)) db.runSync(`UPDATE products SET price=? WHERE id=?`, [minPrice, productId]);
-
-      // Сохраняем техкарты
+      // 4. Сохраняем техкарты
       savedVariants.forEach((sv, i) => {
         if (!sv?.id) return;
-        const ings = (vars[i]?.ings || [])
+        const varIng = vars[i]?.ings || [];
+        const ings = varIng
           .filter(r => r.name && parseFloat(r.amount) > 0)
-          .map(r => ({ name: r.name, amount: parseFloat(r.amount), unit: r.unit, pricePerUnit: parseFloat(r.price_per_unit) || 0, factor: 1 }));
+          .map(r => ({
+            name: r.name,
+            amount: parseFloat(r.amount),
+            unit: r.unit,
+            pricePerUnit: parseFloat(r.price_per_unit) || 0,
+            factor: 1,
+          }));
         saveCostCardForVariant(sv.id, ings);
       });
 
       load();
       setModal(null);
-    } catch (e) { console.error(e); Alert.alert('Ошибка', e.message); }
+    } catch (e) { console.error(e); Alert.alert('Ошибка сохранения', String(e.message)); }
   };
 
   const handleDelete = (id) => {

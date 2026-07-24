@@ -617,9 +617,9 @@ export function getAllProductsAdmin() {
       const cards = db.getAllSync(
         `SELECT ci.amount, ci.price_per_unit FROM cost_ingredients ci
          JOIN cost_cards cc ON ci.cost_card_id = cc.id
-         WHERE cc.product_id = ?`, [p.id]
+         WHERE cc.product_id = ? AND ci.amount > 0 AND ci.price_per_unit > 0`, [p.id]
       );
-      const cost = cards.reduce((s, i) => s + (i.amount || 0) * (i.price_per_unit || 0), 0);
+      const cost = cards.reduce((s, i) => s + (i.amount * i.price_per_unit), 0);
       return { ...p, avg_cost: Math.round(cost * 100) / 100 };
     } catch(_) { return { ...p, avg_cost: 0 }; }
   });
