@@ -13,8 +13,9 @@ import {
   getAllProductsAdmin, insertProduct, setProductActive, deleteProduct,
   getProductVariants, upsertProductVariants,
   getCostCardForVariant, saveCostCardForVariant,
-  getAllStock, getCategories, getDb, cleanOrphanCostIngredients,
+  getAllStock, getCategories, cleanOrphanCostIngredients,
 } from '../db/queries';
+import { getDb } from '../db/database';
 import { getHomeRoute } from '../db/session';
 import { colors, fonts } from '../constants/theme';
 
