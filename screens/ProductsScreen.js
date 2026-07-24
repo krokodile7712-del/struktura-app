@@ -123,6 +123,29 @@ function ProductModal({ product, variants, techCards, stock, categories, onClose
                 )}
               </View>
             </View>
+            {/* Себестоимость варианта */}
+            {(() => {
+              const cost = v.ings.reduce((s, ing) =>
+                s + (parseFloat(ing.amount) || 0) * (parseFloat(ing.price_per_unit) || 0), 0);
+              const price = parseFloat(v.price) || 0;
+              const margin = price > 0 && cost > 0 ? Math.round((1 - cost / price) * 100) : null;
+              if (cost <= 0) return null;
+              return (
+                <View style={styles.costRow}>
+                  <Text style={styles.costLabel}>Себестоимость</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Text style={styles.costValue}>{cost.toFixed(2)} ₽</Text>
+                    {margin !== null && (
+                      <View style={[styles.marginBadge, { backgroundColor: margin >= 50 ? 'rgba(61,158,146,0.12)' : margin >= 30 ? 'rgba(122,158,82,0.12)' : 'rgba(160,16,32,0.1)' }]}>
+                        <Text style={[styles.marginText, { color: margin >= 50 ? colors.greenLight : margin >= 30 ? '#7a9e52' : colors.redLight }]}>
+                          {margin}% маржа
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              );
+            })()}
 
             {/* Техкарта варианта */}
             <View style={styles.techBlock}>
@@ -373,12 +396,9 @@ export default function ProductsScreen({ navigation }) {
                         >
                           <View style={{ flex: 1 }}>
                             <Text style={styles.productName}>{p.name}</Text>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
-                              {p.avg_cost > 0
-                                ? <Text style={styles.productCost}>🧾 себест. {p.avg_cost.toFixed(2)} ₽</Text>
-                                : <Text style={styles.productSub}>🧾 нет техкарты</Text>
-                              }
-                            </View>
+                            <Text style={styles.productSub}>
+                              {p.cost_card_count > 0 ? '🧾 есть техкарта' : '🧾 нет техкарты'}
+                            </Text>
                           </View>
                           <View style={{ alignItems: 'flex-end' }}>
                             <Text style={[styles.productPrice, !p.price && styles.productPriceNone]}>{priceLabel}</Text>
@@ -481,6 +501,11 @@ const styles = StyleSheet.create({
   addIngBtn:  { paddingVertical: 8, alignItems: 'center', borderTopWidth: 1, borderTopColor: 'rgba(74,77,84,0.15)', marginTop: 4 },
   addIngTxt:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.greenLight },
 
+  costRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, paddingHorizontal: 2, borderTopWidth: 1, borderTopColor: 'rgba(74,77,84,0.15)', marginTop: 4 },
+  costLabel:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+  costValue:   { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
+  marginBadge: { paddingVertical: 2, paddingHorizontal: 8, borderRadius: 8 },
+  marginText:  { fontFamily: fonts.familySemibold, fontSize: 11 },
   activeRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: 'rgba(74,77,84,0.2)' },
   activeLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
 
