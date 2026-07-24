@@ -1291,6 +1291,15 @@ export function refreshCostCardPrices() {
   } catch (e) { console.error('refreshCostCardPrices', e); }
 }
 
+export function cleanOrphanCostIngredients() {
+  // Удаляем cost_ingredients без цены у которых техкарта есть но ингредиент не добавлен пользователем
+  const db = getDb();
+  try {
+    // Оставляем только записи где amount > 0
+    db.runSync(`DELETE FROM cost_ingredients WHERE amount IS NULL OR amount <= 0`);
+  } catch (_) {}
+}
+
 export function fixCostCardLinks() {
   // Одноразовая миграция: для карт с variant_id но без product_id — проставляем product_id
   const db = getDb();
@@ -2546,4 +2555,29 @@ export function getPaymentBreakdown(from, to) {
       [from, to]
     );
   } catch (_) { return []; }
+}
+
+export function upsertProductVariants(productId, vars) {
+  const db = getDb();
+  const keepIds = vars.filter(v => v.id).map(v => Number(v.id));
+  const existing = db.getAllSync(`SELECT id FROM product_variants WHERE product_id = ?`, [productId]).map(r => r.id);
+  for (const id of existing) {
+    if (!keepIds.includes(id)) db.runSync(`DELETE FROM product_variants WHERE id = ?`, [id]);
+  }
+  const saved = [];
+  for (const v of vars) {
+    const price = parseFloat(v.price) || 0;
+    const label = v.label || '';
+    if (v.id) {
+      db.runSync(`UPDATE product_variants SET label=?, size=?, price=?, active=1 WHERE id=?`, [label, label, price, v.id]);
+      saved.push({ ...v, id: Number(v.id) });
+    } else {
+      const res = db.runSync(
+        `INSERT INTO product_variants (product_id, label, size, price, axis_values, sku, active) VALUES (?,?,?,?,?,?,1)`,
+        [productId, label, label, price, '{}', '']
+      );
+      saved.push({ ...v, id: res.lastInsertRowId });
+    }
+  }
+  return saved;
 }
