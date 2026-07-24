@@ -118,7 +118,10 @@ function ProductModal({ product, variants, techCards, stock, categories, onClose
 
             {/* Техкарта варианта */}
             <View style={styles.techBlock}>
-              <Text style={styles.techTitle}>🧾 Техкарта{v.ings.length > 0 ? ` (${v.ings.length})` : ''}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <Text style={styles.techTitle}>🧾 Техкарта{v.ings.length > 0 ? ` (${v.ings.length})` : ''}</Text>
+                {v.ings.length > 0 && <Text style={[styles.techTitle, { color: 'rgba(61,158,146,0.6)', fontSize: 10 }]}>цена ↑ при закупке</Text>}
+              </View>
               {v.ings.map((ing, ii) => (
                 <View key={ii} style={styles.ingRow}>
                   <Text style={styles.ingName} numberOfLines={1}>{ing.name}</Text>
@@ -130,7 +133,7 @@ function ProductModal({ product, variants, techCards, stock, categories, onClose
                   <TextInput color={colors.text} style={[styles.ingInput, { width: 60 }]}
                     keyboardType="numeric" value={ing.price_per_unit}
                     onChangeText={val => setIngField(vi, ii, 'price_per_unit', val)}
-                    placeholder="цена" placeholderTextColor={colors.muted} />
+                    placeholder={ing.price_per_unit ? ing.price_per_unit : 'авто'} placeholderTextColor={colors.muted} />
                   <Text style={styles.ingUnit}>₽</Text>
                   <Pressable onPress={() => removeIng(vi, ii)} hitSlop={10}>
                     <Text style={{ color: colors.muted, fontSize: 16 }}>✕</Text>
