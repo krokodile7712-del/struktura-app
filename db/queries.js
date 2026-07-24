@@ -1300,21 +1300,16 @@ export function refreshCostCardPrices() {
 export function deleteOldCostCards() {
   const db = getDb();
   try {
-    // Диагностика: показываем что есть
-    const all = db.getAllSync(`SELECT id, name, product_id, variant_id FROM cost_cards LIMIT 20`);
-    console.log('[CLEANUP] Все техкарты:', JSON.stringify(all));
-
-    // Техкарты у которых нет живого варианта в product_variants
-    const orphans = db.getAllSync(`
+    // Удаляем ВСЕ техкарты у которых нет variant_id с живым вариантом
+    const toDelete = db.getAllSync(`
       SELECT cc.id FROM cost_cards cc
-      WHERE cc.variant_id IS NULL
-         OR cc.variant_id NOT IN (SELECT id FROM product_variants)
+      LEFT JOIN product_variants pv ON cc.variant_id = pv.id
+      WHERE pv.id IS NULL
     `);
-    for (const c of orphans) {
+    for (const c of toDelete) {
       db.runSync(`DELETE FROM cost_ingredients WHERE cost_card_id = ?`, [c.id]);
       db.runSync(`DELETE FROM cost_cards WHERE id = ?`, [c.id]);
     }
-    console.log(`[CLEANUP] Удалено техкарт без живого варианта: ${orphans.length}`);
   } catch (e) { console.error(e); }
 }
 
