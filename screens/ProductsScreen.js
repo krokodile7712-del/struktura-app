@@ -249,13 +249,10 @@ export default function ProductsScreen({ navigation }) {
   };
 
   const handleSave = ({ name, category, active, vars }) => {
-    const step = { n: 0 };
     try {
       const db = getDb();
       let productId = modal.product?.id;
 
-      // 1. Создаём или обновляем товар
-      step.n = 1;
       if (!productId) {
         const res = db.runSync(
           `INSERT INTO products (name, category, price, active) VALUES (?, ?, ?, 1)`,
@@ -263,49 +260,32 @@ export default function ProductsScreen({ navigation }) {
         );
         productId = Number(res.lastInsertRowId);
       } else {
-        db.runSync(
-          `UPDATE products SET name=?, category=?, active=? WHERE id=?`,
-          [name, category, active ? 1 : 0, productId]
-        );
+        db.runSync(`UPDATE products SET name=?, category=?, active=? WHERE id=?`,
+          [name, category, active ? 1 : 0, productId]);
       }
 
-      // 2. Сохраняем варианты
-      step.n = 2;
-      const varData = vars.map(v => ({
+      const savedVariants = upsertProductVariants(Number(productId), vars.map(v => ({
         id: v.id ? Number(v.id) : null,
         label: String(v.label || ''),
         price: String(v.price || '0'),
-      }));
-      const savedVariants = upsertProductVariants(Number(productId), varData);
+      })));
 
-      // 3. Обновляем базовую цену
-      step.n = 3;
       const prices = vars.map(v => parseFloat(v.price) || 0).filter(p => p > 0);
       if (prices.length > 0) {
         db.runSync(`UPDATE products SET price=? WHERE id=?`, [Math.min(...prices), productId]);
       }
 
-      // 4. Сохраняем техкарты
-      step.n = 4;
       savedVariants.forEach((sv, i) => {
         if (!sv?.id) return;
-        const varIng = vars[i]?.ings || [];
-        const ings = varIng
+        const ings = (vars[i]?.ings || [])
           .filter(r => r.name && parseFloat(r.amount) > 0)
-          .map(r => ({
-            name: r.name,
-            amount: parseFloat(r.amount),
-            unit: r.unit,
-            pricePerUnit: parseFloat(r.price_per_unit) || 0,
-            factor: 1,
-          }));
+          .map(r => ({ name: r.name, amount: parseFloat(r.amount), unit: r.unit, pricePerUnit: parseFloat(r.price_per_unit) || 0, factor: 1 }));
         saveCostCardForVariant(Number(sv.id), ings);
       });
 
-      step.n = 5;
       load();
       setModal(null);
-    } catch (e) { console.error(e); Alert.alert(`Ошибка на шаге ${step.n}`, String(e.message || e)); }
+    } catch (e) { console.error(e); Alert.alert('Ошибка сохранения', String(e.message || e)); }
   };
 
   const handleDelete = (id) => {
