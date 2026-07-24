@@ -49,7 +49,6 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
     {
       title: 'Склад',
       items: [
-        { icon: '▦', label: 'Техкарты',   screen: 'CostCards',   module: 'stock' },
 
       ],
     },

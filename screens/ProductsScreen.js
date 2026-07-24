@@ -344,7 +344,8 @@ export default function ProductsScreen({ navigation }) {
                   <View style={styles.groupCard}>
                     {catProducts.map((p, idx) => {
                       const hasVariants = p.variant_count > 1;
-                      const priceLabel = hasVariants ? `от ${fmt(p.price)} ₽` : p.price > 0 ? `${fmt(p.price)} ₽` : 'цена не задана';
+                      const displayPrice = p.min_price || p.price;
+                      const priceLabel = hasVariants ? `от ${fmt(displayPrice)} ₽` : displayPrice > 0 ? `${fmt(displayPrice)} ₽` : 'цена не задана';
                       return (
                         <Pressable key={p.id}
                           style={({ pressed }) => [

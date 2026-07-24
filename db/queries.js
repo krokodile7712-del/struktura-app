@@ -603,7 +603,14 @@ export function getAllProducts() {
 
 export function getAllProductsAdmin() {
   const db = getDb();
-  return db.getAllSync(`SELECT * FROM products ORDER BY category, name`);
+  return db.getAllSync(`
+    SELECT p.*,
+      (SELECT COUNT(*) FROM product_variants pv WHERE pv.product_id = p.id) as variant_count,
+      (SELECT COUNT(*) FROM cost_cards cc WHERE cc.product_id = p.id) as cost_card_count,
+      (SELECT MIN(pv.price) FROM product_variants pv WHERE pv.product_id = p.id AND pv.price > 0) as min_price
+    FROM products p
+    ORDER BY p.category, p.name
+  `);
 }
 
 export function setProductActive(id, active) {
