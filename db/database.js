@@ -404,5 +404,18 @@ export function initDatabase() {
     );
   `);
 
+  // Удаляем техкарты без живого варианта (старый формат от веб-версии)
+  try {
+    const orphans = db.getAllSync(`
+      SELECT cc.id FROM cost_cards cc
+      LEFT JOIN product_variants pv ON cc.variant_id = pv.id
+      WHERE pv.id IS NULL
+    `);
+    for (const row of orphans) {
+      db.runSync('DELETE FROM cost_ingredients WHERE cost_card_id = ?', [row.id]);
+      db.runSync('DELETE FROM cost_cards WHERE id = ?', [row.id]);
+    }
+  } catch (_) {}
+
   console.log('[DB] Инициализация завершена');
 }
