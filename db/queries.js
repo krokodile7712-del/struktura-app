@@ -610,7 +610,19 @@ export function getAllProductsAdmin() {
       (SELECT MIN(pv.price) FROM product_variants pv WHERE pv.product_id = p.id AND pv.price > 0) as min_price
     FROM products p
     ORDER BY p.category, p.name
-  `);
+  `).map(p => {
+    // Считаем себестоимость из техкарт
+    try {
+      const db = getDb();
+      const cards = db.getAllSync(
+        `SELECT ci.amount, ci.price_per_unit FROM cost_ingredients ci
+         JOIN cost_cards cc ON ci.cost_card_id = cc.id
+         WHERE cc.product_id = ?`, [p.id]
+      );
+      const cost = cards.reduce((s, i) => s + (i.amount || 0) * (i.price_per_unit || 0), 0);
+      return { ...p, avg_cost: Math.round(cost * 100) / 100 };
+    } catch(_) { return { ...p, avg_cost: 0 }; }
+  });
 }
 
 export function setProductActive(id, active) {

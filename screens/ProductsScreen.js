@@ -365,6 +365,9 @@ export default function ProductsScreen({ navigation }) {
                           </View>
                           <View style={{ alignItems: 'flex-end' }}>
                             <Text style={[styles.productPrice, !p.price && styles.productPriceNone]}>{priceLabel}</Text>
+                            {p.avg_cost > 0 && (
+                              <Text style={styles.productCost}>с/с {p.avg_cost.toFixed(2)} ₽</Text>
+                            )}
                             {!p.active && <Text style={styles.inactiveBadge}>неакт.</Text>}
                           </View>
                           <Text style={styles.productArrow}>›</Text>
@@ -430,6 +433,7 @@ const styles = StyleSheet.create({
   productPriceNone: { color: colors.muted, fontStyle: 'italic', fontSize: 11 },
   productArrow: { fontSize: 18, color: 'rgba(74,77,84,0.4)' },
   inactiveBadge:{ fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted },
+  productCost:  { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted },
 
   // Модалка
   modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: 16 },
