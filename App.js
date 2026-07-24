@@ -139,6 +139,7 @@ export default function App() {
             <Stack.Screen name="ClientCard"  component={ClientCardScreen} />
             <Stack.Screen name="ClientsList" component={ClientsListScreen} />
             <Stack.Screen name="CostCards"   component={CostCardsScreen} />
+            <Stack.Screen name="Products"    component={ProductsScreen} />
             <Stack.Screen name="Expenses"    component={ExpensesScreen} />
             <Stack.Screen name="Migrate"     component={MigrateScreen} />
             <Stack.Screen name="Locations"      component={LocationsScreen} />
