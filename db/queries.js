@@ -2603,3 +2603,16 @@ export function upsertProductVariants(productId, vars) {
   }
   return saved;
 }
+
+export function deleteProduct(id) {
+  const db = getDb();
+  try {
+    const cards = db.getAllSync(`SELECT id FROM cost_cards WHERE product_id = ? OR variant_id IN (SELECT id FROM product_variants WHERE product_id = ?)`, [id, id]);
+    for (const c of cards) {
+      db.runSync(`DELETE FROM cost_ingredients WHERE cost_card_id = ?`, [c.id]);
+      db.runSync(`DELETE FROM cost_cards WHERE id = ?`, [c.id]);
+    }
+    db.runSync(`DELETE FROM product_variants WHERE product_id = ?`, [id]);
+    db.runSync(`DELETE FROM products WHERE id = ?`, [id]);
+  } catch (e) { console.error(e); throw e; }
+}
