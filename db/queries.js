@@ -1297,6 +1297,19 @@ export function refreshCostCardPrices() {
   } catch (e) { console.error('refreshCostCardPrices', e); }
 }
 
+export function deleteOldCostCards() {
+  // Удаляет техкарты без variant_id (старый формат от веб-версии)
+  const db = getDb();
+  try {
+    const old = db.getAllSync(`SELECT id FROM cost_cards WHERE variant_id IS NULL OR variant_id = 0`);
+    for (const c of old) {
+      db.runSync(`DELETE FROM cost_ingredients WHERE cost_card_id = ?`, [c.id]);
+      db.runSync(`DELETE FROM cost_cards WHERE id = ?`, [c.id]);
+    }
+    console.log(`[CLEANUP] Удалено старых техкарт: ${old.length}`);
+  } catch (e) { console.error(e); }
+}
+
 export function cleanOrphanCostIngredients() {
   // Удаляем cost_ingredients без цены у которых техкарта есть но ингредиент не добавлен пользователем
   const db = getDb();
