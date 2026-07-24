@@ -76,6 +76,20 @@ export default function StockScreen({ navigation }) {
   };
   const closeModal = () => { setModalItem(null); setMode(null); };
 
+  const savePrice = (newPrice) => {
+    if (!modalItem) return;
+    const p = parseFloat(newPrice);
+    if (isNaN(p) || p < 0) return;
+    try {
+      const db = getDb();
+      db.runSync(`UPDATE stock SET avg_price = ?, last_price = ? WHERE id = ?`, [p, p, modalItem.id]);
+      // Обновляем техкарты
+      db.runSync(`UPDATE cost_ingredients SET price_per_unit = ? WHERE LOWER(name) = LOWER(?)`, [p, modalItem.name]);
+      reload();
+      setModalItem(m => ({ ...m, avg_price: p }));
+    } catch(e) { console.error(e); }
+  };
+
   const confirm = () => {
     if (!modalItem || !qty) return;
     const n = parseFloat(qty);
@@ -353,9 +367,22 @@ export default function StockScreen({ navigation }) {
                       </View>
                     )}
                   </View>
-                  {modalItem.avg_price > 0 && (
-                    <Text style={styles.curAvg}>Средняя цена: {modalItem.avg_price} ₽/ед.</Text>
-                  )}
+                  {/* Цена за единицу — редактируемая */}
+                  <View style={styles.priceRow}>
+                    <Text style={styles.curAvg}>Цена за единицу:</Text>
+                    <TextInput
+                      color={colors.text}
+                      style={styles.priceInput}
+                      keyboardType="numeric"
+                      value={String(modalItem.avg_price || '')}
+                      placeholder="0"
+                      placeholderTextColor={colors.muted}
+                      onChangeText={v => setModalItem(m => ({ ...m, avg_price: v }))}
+                      onEndEditing={e => savePrice(e.nativeEvent.text)}
+                      onBlur={() => savePrice(String(modalItem.avg_price || ''))}
+                    />
+                    <Text style={styles.curAvg}>₽/ед.</Text>
+                  </View>
                 </View>
 
                 {/* Режимы */}
@@ -608,5 +635,7 @@ const styles = StyleSheet.create({
   histRow:    { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.15)' },
   histDate:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, flex: 1 },
   histQty:    { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.text, flex: 1, textAlign: 'center' },
+  priceRow:   { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
+  priceInput: { paddingVertical: 4, paddingHorizontal: 10, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', borderRadius: 8, color: colors.text, fontFamily: fonts.family, fontSize: 14, minWidth: 70, textAlign: 'center' },
   histPrice:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.greenLight, flex: 1, textAlign: 'right' },
 });
