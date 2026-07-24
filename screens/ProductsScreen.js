@@ -248,17 +248,19 @@ export default function ProductsScreen({ navigation }) {
   };
 
   const handleSave = ({ name, category, active, vars }) => {
+    const step = { n: 0 };
     try {
       const db = getDb();
       let productId = modal.product?.id;
 
       // 1. Создаём или обновляем товар
+      step.n = 1;
       if (!productId) {
         const res = db.runSync(
           `INSERT INTO products (name, category, price, active) VALUES (?, ?, ?, 1)`,
           [name, category, parseFloat(vars[0]?.price) || 0]
         );
-        productId = res.lastInsertRowId;
+        productId = Number(res.lastInsertRowId);
       } else {
         db.runSync(
           `UPDATE products SET name=?, category=?, active=? WHERE id=?`,
@@ -266,20 +268,24 @@ export default function ProductsScreen({ navigation }) {
         );
       }
 
-      // 2. Сохраняем варианты через простую функцию
-      const savedVariants = upsertProductVariants(productId, vars.map(v => ({
-        id: v.id || null,
-        label: v.label || '',
-        price: v.price,
-      })));
+      // 2. Сохраняем варианты
+      step.n = 2;
+      const varData = vars.map(v => ({
+        id: v.id ? Number(v.id) : null,
+        label: String(v.label || ''),
+        price: String(v.price || '0'),
+      }));
+      const savedVariants = upsertProductVariants(Number(productId), varData);
 
       // 3. Обновляем базовую цену
+      step.n = 3;
       const prices = vars.map(v => parseFloat(v.price) || 0).filter(p => p > 0);
       if (prices.length > 0) {
         db.runSync(`UPDATE products SET price=? WHERE id=?`, [Math.min(...prices), productId]);
       }
 
       // 4. Сохраняем техкарты
+      step.n = 4;
       savedVariants.forEach((sv, i) => {
         if (!sv?.id) return;
         const varIng = vars[i]?.ings || [];
@@ -292,12 +298,13 @@ export default function ProductsScreen({ navigation }) {
             pricePerUnit: parseFloat(r.price_per_unit) || 0,
             factor: 1,
           }));
-        saveCostCardForVariant(sv.id, ings);
+        saveCostCardForVariant(Number(sv.id), ings);
       });
 
+      step.n = 5;
       load();
       setModal(null);
-    } catch (e) { console.error(e); Alert.alert('Ошибка сохранения', String(e.message)); }
+    } catch (e) { console.error(e); Alert.alert(`Ошибка на шаге ${step.n}`, String(e.message || e)); }
   };
 
   const handleDelete = (id) => {
