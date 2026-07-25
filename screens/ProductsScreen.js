@@ -460,19 +460,26 @@ export default function ProductsScreen({ navigation }) {
         ) : filtered.length === 0 ? (
           <EmptyState icon="🔍" title="Ничего не найдено" text={`Нет товаров по запросу «${search}»`} />
         ) : (
-          cats.map(cat => {
+          <View style={styles.allCatsCard}>
+          {cats.map((cat, catIdx) => {
             const catProducts = filtered.filter(p => (p.category || 'Без категории') === cat);
-            const isOpen = openCats[cat] !== false;
+            const isOpen = openCats[cat] === true;
             return (
-              <View key={cat} style={styles.catGroup}>
-                <Pressable style={styles.catHead} onPress={() => setOpenCats(p => ({ ...p, [cat]: !isOpen }))}>
+              <View key={cat}>
+                {catIdx > 0 && <View style={styles.catDivider} />}
+                <Pressable
+                  style={({ pressed }) => [styles.catHead, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
+                  onPress={() => setOpenCats(p => ({ ...p, [cat]: !isOpen }))}
+                >
                   <Text style={styles.catTitle}>{cat}</Text>
-                  <Text style={styles.catCount}>{catProducts.length} поз.</Text>
-                  <Text style={[styles.catArrow, isOpen && { transform: [{ rotate: '180deg' }] }]}>▼</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Text style={styles.catCount}>{catProducts.length} поз.</Text>
+                    <Text style={[styles.catChevron, isOpen && styles.catChevronOpen]}>›</Text>
+                  </View>
                 </Pressable>
 
                 {isOpen && (
-                  <View style={styles.groupCard}>
+                  <View style={styles.catInner}>
                     {catProducts.map((p, idx) => {
                       const hasVariants = p.variant_count > 1;
                       const displayPrice = p.min_price || p.price;
@@ -506,7 +513,8 @@ export default function ProductsScreen({ navigation }) {
                 )}
               </View>
             );
-          })
+          })}
+          </View>
         ))}
       </ScrollView>
 
@@ -736,6 +744,8 @@ export default function ProductsScreen({ navigation }) {
 const styles = StyleSheet.create({
   inner: { padding: 16, paddingBottom: 24 },
 
+  allCatsCard: { backgroundColor: '#0b0c0f', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', overflow: 'hidden', marginBottom: 12 },
+  catInner:    { borderTopWidth: 1, borderTopColor: 'rgba(74,77,84,0.2)' },
   optCard:     { backgroundColor: '#07080a', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', padding: 12, marginBottom: 8 },
   optRow:      { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
   optModeRow:  { flexDirection: 'row', gap: 8, marginBottom: 10 },
@@ -767,11 +777,13 @@ const styles = StyleSheet.create({
   badgeBtn:          { width: 32, height: 32, borderRadius: 10, backgroundColor: '#0e0f11', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', alignItems: 'center', justifyContent: 'center' },
   badgeTxt:          { fontSize: 14, color: colors.muted },
 
-  catGroup: { marginBottom: 8 },
-  catHead:  { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, backgroundColor: '#0e0f11', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', marginBottom: 6 },
-  catTitle: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, flex: 1 },
-  catCount: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginRight: 8 },
-  catArrow: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  catGroup:        { marginBottom: 4 },
+  catHead:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 13, paddingHorizontal: 16, borderRadius: 0 },
+  catDivider:      { height: 1, backgroundColor: 'rgba(74,77,84,0.2)', marginHorizontal: 16 },
+  catTitle:        { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
+  catCount:        { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
+  catChevron:      { fontSize: 20, color: colors.muted, transform: [{ rotate: '90deg' }] },
+  catChevronOpen:  { transform: [{ rotate: '-90deg' }] },
 
   groupCard:    { backgroundColor: '#0b0c0f', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', overflow: 'hidden' },
   productRow:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 14, gap: 8 },
