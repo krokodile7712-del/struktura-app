@@ -535,9 +535,11 @@ export default function ProductsScreen({ navigation }) {
                     style={({ pressed }) => [styles.productRow, idx < arr.length-1 && styles.rowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.04)' }]}
                     onPress={() => {
                       if (stockPicker !== null) {
-                        const { optIdx } = stockPicker;
+                        const { optIdx, field } = stockPicker;
                         setGroupModal(m => ({ ...m, options: m.options.map((o,i) => i===optIdx
-                          ? { ...o, ingrToDeduct: s.name, deductUnit: s.unit }
+                          ? field === 'replace'
+                            ? { ...o, ingrToReplace: s.name }
+                            : { ...o, ingrToDeduct: s.name, deductUnit: s.unit }
                           : o
                         )}));
                       }
@@ -637,17 +639,19 @@ export default function ProductsScreen({ navigation }) {
                     {(opt.mode||'add') === 'replace' && (
                       <View style={styles.optStockRow}>
                         <Text style={styles.optLabel}>Заменить:</Text>
-                        <TextInput color={colors.text}
-                          style={[styles.input, { flex: 1, marginBottom: 0, padding: 8 }]}
-                          value={opt.ingrToReplace || ''} placeholder="молоко (из техкарты)"
-                          placeholderTextColor={colors.muted}
-                          onChangeText={v => setGroupModal(m => ({ ...m, options: m.options.map((o,i) => i===idx ? {...o, ingrToReplace: v} : o) }))} />
+                        <Pressable style={[styles.input, { flex: 1, marginBottom: 0, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 10 }]}
+                          onPress={() => setStockPicker({ optIdx: idx, field: 'replace' })}>
+                          <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: opt.ingrToReplace ? colors.text : colors.muted }}>
+                            {opt.ingrToReplace || 'Выбрать ингредиент →'}
+                          </Text>
+                          <Text style={{ color: colors.muted }}>📦</Text>
+                        </Pressable>
                       </View>
                     )}
                     <View style={styles.optStockRow}>
                       <Text style={styles.optLabel}>{(opt.mode||'add') === 'replace' ? 'На:' : 'Из склада:'}</Text>
                       <Pressable style={[styles.input, { flex: 1, marginBottom: 0, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 10 }]}
-                        onPress={() => setStockPicker({ optIdx: idx })}>
+                        onPress={() => setStockPicker({ optIdx: idx, field: 'deduct' })}>
                         <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: opt.ingrToDeduct ? colors.text : colors.muted }}>
                           {opt.ingrToDeduct || 'Выбрать из склада →'}
                         </Text>
