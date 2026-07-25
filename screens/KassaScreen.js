@@ -675,210 +675,219 @@ export default function KassaScreen({ navigation, route }) {
         </View>
 
         <View style={styles.orderPanel}>
-          {/* Вкладки парковки — показываются когда есть 2+ слота */}
+
+          {/* ── Слоты парковки (только когда 2+) ── */}
           {slots.length > 1 && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.slotBar} contentContainerStyle={styles.slotBarInner}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}
+              style={styles.slotBar} contentContainerStyle={styles.slotBarInner}>
               {slots.map((s, i) => {
                 const qty = s.order.reduce((sum, it) => sum + (it.quantity || 1), 0);
                 const isActive = s.id === activeSlotId;
                 return (
-                  <Pressable key={s.id} style={[styles.slotTab, isActive && styles.slotTabActive]} onPress={() => { setActiveSlotId(s.id); setExpandedCartId(null); }}>
+                  <Pressable key={s.id}
+                    style={[styles.slotTab, isActive && styles.slotTabActive]}
+                    onPress={() => { setActiveSlotId(s.id); setExpandedCartId(null); }}>
                     <Text style={[styles.slotTabText, isActive && styles.slotTabTextActive]}>
-                      {s.zone ? (s.table ? `${s.zone.name}·${s.table.name}` : s.zone.name) : `№${i + 1}`}{qty > 0 ? ` (${qty})` : ''}
+                      {s.zone ? (s.table ? `${s.zone.name}·${s.table.name}` : s.zone.name) : `Чек ${i + 1}`}
+                      {qty > 0 ? `  ${qty}` : ''}
                     </Text>
                   </Pressable>
                 );
               })}
               <Pressable style={styles.slotTabNew} onPress={parkAndNew}>
-                <Text style={styles.slotTabNewText}>+ Чек</Text>
+                <Text style={styles.slotTabNewText}>＋</Text>
               </Pressable>
             </ScrollView>
           )}
 
-          {/* Выбор зоны */}
+          {/* ── Зоны и столы ── */}
           {zonesEnabled && zones.length > 0 && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.zoneBar} contentContainerStyle={styles.zoneBarInner}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}
+              style={styles.zoneBar} contentContainerStyle={styles.zoneBarInner}>
               <Pressable style={[styles.zoneChip, !activeZone && styles.zoneChipActive]} onPress={() => setActiveZone(null)}>
                 <Text style={[styles.zoneChipText, !activeZone && styles.zoneChipTextActive]}>Без зоны</Text>
               </Pressable>
               {zones.map(z => (
                 <Pressable key={z.id} style={[styles.zoneChip, activeZone?.id === z.id && styles.zoneChipActive]} onPress={() => setActiveZone(z)}>
-                  <Text style={[styles.zoneChipText, activeZone?.id === z.id && styles.zoneChipTextActive]}>
-                    📍 {z.name}
-                  </Text>
+                  <Text style={[styles.zoneChipText, activeZone?.id === z.id && styles.zoneChipTextActive]}>📍 {z.name}</Text>
                 </Pressable>
               ))}
             </ScrollView>
           )}
-
-          {/* Выбор стола — показывается если у зоны есть столы */}
           {zonesEnabled && activeZone?.tables?.length > 0 && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.zoneBar} contentContainerStyle={styles.zoneBarInner}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}
+              style={styles.zoneBar} contentContainerStyle={styles.zoneBarInner}>
               <Pressable style={[styles.zoneChip, !activeTable && styles.zoneChipActive]} onPress={() => setActiveTable(null)}>
                 <Text style={[styles.zoneChipText, !activeTable && styles.zoneChipTextActive]}>Без стола</Text>
               </Pressable>
               {activeZone.tables.map(t => (
                 <Pressable key={t.id} style={[styles.zoneChip, activeTable?.id === t.id && styles.zoneChipActive]} onPress={() => setActiveTable(t)}>
-                  <Text style={[styles.zoneChipText, activeTable?.id === t.id && styles.zoneChipTextActive]}>
-                    {t.name}
-                  </Text>
+                  <Text style={[styles.zoneChipText, activeTable?.id === t.id && styles.zoneChipTextActive]}>{t.name}</Text>
                 </Pressable>
               ))}
             </ScrollView>
           )}
 
-          {/* Строка клиента вверху корзины */}
+          {/* ── Клиент ── */}
           <Pressable
-            style={[styles.clientRow, forClient && styles.clientRowActive]}
-            onPress={() => setClientPickerOpen(true)}
-          >
+            style={[styles.cartClientRow, forClient && styles.cartClientRowActive]}
+            onPress={() => setClientPickerOpen(true)}>
             {forClient ? (
               <>
-                <View style={styles.clientRowAvatar}>
-                  <Text style={styles.clientRowAvatarTxt}>{(forClient.fio||'?').charAt(0).toUpperCase()}</Text>
+                <View style={styles.cartClientAvatar}>
+                  <Text style={styles.cartClientAvatarTxt}>{(forClient.fio||'?').charAt(0).toUpperCase()}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.clientRowName}>{forClient.fio}</Text>
-                  <Text style={styles.clientRowSub}>
-                    {loyaltyModel === 'points' ? `${forClient.balance || 0} баллов · +${Math.round(rawTotal * (loyaltyConfig.earn_pct || 10) / 100)} за заказ` :
-                     loyaltyModel === 'subscription' ? `${forClient.balance || 0} визитов` :
-                     forClient.discount_pct ? `-${forClient.discount_pct}% скидка` : ''}
+                  <Text style={styles.cartClientName}>{forClient.fio}</Text>
+                  <Text style={styles.cartClientSub}>
+                    {loyaltyModel === 'points'
+                      ? `★ ${forClient.balance || 0} баллов · +${Math.round(rawTotal * (loyaltyConfig.earn_pct || 10) / 100)} за заказ`
+                      : loyaltyModel === 'subscription'
+                      ? `🎟 ${forClient.balance || 0} визитов`
+                      : forClient.discount_pct ? `🏷 −${forClient.discount_pct}% скидка` : ''}
                   </Text>
                 </View>
-                <Pressable onPress={(e) => { e.stopPropagation?.(); updateSlot({ forClient: null }); }} hitSlop={10}>
-                  <Text style={{ color: colors.muted, fontSize: 16 }}>✕</Text>
+                <Pressable onPress={(e) => { e.stopPropagation?.(); updateSlot({ forClient: null }); }} hitSlop={12} style={styles.cartClientRemove}>
+                  <Text style={styles.cartClientRemoveTxt}>✕</Text>
                 </Pressable>
               </>
             ) : (
               <>
-                <Text style={styles.clientRowIcon}>👤</Text>
-                <Text style={styles.clientRowEmpty}>Добавить клиента</Text>
-                <Text style={styles.clientRowChevron}>›</Text>
+                <Text style={styles.cartClientIcon}>👤</Text>
+                <Text style={styles.cartClientEmpty}>Добавить клиента</Text>
+                <Text style={styles.cartClientChevron}>›</Text>
               </>
             )}
           </Pressable>
-          <View style={styles.orderHeader}>
-            <View>
-              <Text style={styles.orderHeaderTitle}>
-                {terms.order}
-              </Text>
-              <Text style={styles.orderHeaderCount}>
-                {order.reduce((s,i)=>s+(i.quantity||1),0)} позиций
-              </Text>
-            </View>
-            <View style={styles.orderHeaderBtns}>
-              {templatesEnabled && (
-                <Pressable onPress={() => setTemplatesListOpen(true)} hitSlop={8} style={styles.orderHeaderBtn}>
-                  <Text style={styles.orderHeaderBtnLabel}>Шаблоны</Text>
-                </Pressable>
-              )}
-              <Pressable onPress={() => setNoteModalOpen(true)} hitSlop={8} style={[styles.orderHeaderBtn, orderNote && styles.orderHeaderBtnActive]}>
-                <Text style={[styles.orderHeaderBtnLabel, orderNote && { color: colors.greenLight }]}>Заметка</Text>
-              </Pressable>
-              {slots.length === 1 && (
-                <Pressable onPress={parkAndNew} hitSlop={8} style={styles.orderHeaderBtn}>
-                  <Text style={styles.orderHeaderBtnLabel}>Отложить</Text>
-                </Pressable>
-              )}
-              {order.length > 0 && (
-                <Pressable onPress={() => { setOrder([]); setExpandedCartId(null); }} hitSlop={8} style={[styles.orderHeaderBtn, styles.orderHeaderBtnDanger]}>
-                  <Text style={[styles.orderHeaderBtnLabel, { color: colors.redLight }]}>Очистить</Text>
-                </Pressable>
-              )}
-            </View>
-          </View>
-          {orderNote ? <Text style={styles.orderNotePreview}>📝 {orderNote}</Text> : null}
-          <ScrollView style={{ flex: 1 }}>
-            {order.map((item) => {
-              const isExpanded = expandedCartId === item.id;
-              const hasMods = (item.modifiers || []).length > 0;
-              return (
+
+          {/* ── Заметка к заказу (если есть) ── */}
+          {orderNote ? (
+            <Pressable style={styles.cartNoteRow} onPress={() => setNoteModalOpen(true)}>
+              <Text style={styles.cartNoteText} numberOfLines={1}>📝 {orderNote}</Text>
+              <Text style={styles.cartClientChevron}>›</Text>
+            </Pressable>
+          ) : null}
+
+          {/* ── Список позиций ── */}
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={order.length === 0 ? { flex: 1 } : { paddingVertical: 8 }}>
+            {order.length === 0 ? (
+              <View style={styles.cartEmpty}>
+                <Text style={styles.cartEmptyIcon}>🛒</Text>
+                <Text style={styles.cartEmptyTitle}>Корзина пуста</Text>
+                <Text style={styles.cartEmptyHint}>Выберите товар из меню слева</Text>
+              </View>
+            ) : (
+              order.map((item, idx) => (
                 <SwipeableRow key={item.id} onAction={() => removeFromOrder(item.id)} label="Удалить">
-                {/* Вся строка реагирует на долгий тап — открывает заметку */}
-                <View style={styles.orderItem}>
-                  {/* Тап на верхнюю часть → редактировать (выбор размера/мод), долгий тап → заметка */}
-                  <Pressable
-                    style={styles.orderItemMain}
-                    onPress={() => editCartItemMods(item)}
-                    onLongPress={() => setItemNoteModal({ id: item.id, note: item.note || '' })}
-                    delayLongPress={280}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <View style={styles.orderItemTopRow}>
-                        <Text style={styles.orderItemName} numberOfLines={2}>
-                          {item.name}{item.size ? ` ${item.size}` : ''}
+                  <View style={[styles.cartItem, idx < order.length - 1 && styles.cartItemDiv]}>
+                    {/* Название + цена */}
+                    <Pressable
+                      style={{ flex: 1 }}
+                      onPress={() => editCartItemMods(item)}
+                      onLongPress={() => setItemNoteModal({ id: item.id, note: item.note || '' })}
+                      delayLongPress={280}>
+                      <View style={styles.cartItemTop}>
+                        <Text style={styles.cartItemName} numberOfLines={2}>
+                          {item.name}{item.size ? `  ${item.size}` : ''}
                         </Text>
-                        <Text style={styles.orderItemPrice}>{(item.price * (item.quantity || 1)).toFixed(0)} ₽</Text>
+                        <Text style={styles.cartItemTotal}>
+                          {(item.price * (item.quantity || 1)).toFixed(0)} ₽
+                        </Text>
                       </View>
                       {(item.quantity || 1) > 1 && (
-                        <Text style={styles.orderItemUnitPrice}>{item.price} ₽ × {item.quantity}</Text>
+                        <Text style={styles.cartItemUnit}>{item.price} ₽ × {item.quantity}</Text>
                       )}
                       {(item.modifiers || []).length > 0 && (
-                        <View style={styles.orderItemMods}>
+                        <View style={styles.cartItemMods}>
                           {(item.modifiers || []).map((m, mi) => (
-                            <View key={mi} style={styles.orderItemModChip}>
-                              <Text style={styles.orderItemModText}>{m.optionName}{m.priceDelta > 0 ? ` +${m.priceDelta}₽` : ''}</Text>
+                            <View key={mi} style={styles.cartItemModChip}>
+                              <Text style={styles.cartItemModTxt}>
+                                {m.optionName}{m.priceDelta > 0 ? ` +${m.priceDelta}₽` : ''}
+                              </Text>
                             </View>
                           ))}
                         </View>
                       )}
                       {item.note ? <Text style={styles.cartItemNote}>💬 {item.note}</Text> : null}
+                    </Pressable>
+                    {/* − qty + */}
+                    <View style={styles.cartQtyRow}>
+                      <Pressable style={styles.cartQtyBtn} onPress={() => setItemQty(item.id, (item.quantity || 1) - 1)} hitSlop={8}>
+                        <Text style={styles.cartQtyBtnTxt}>−</Text>
+                      </Pressable>
+                      <Text style={styles.cartQtyVal}>{item.quantity || 1}</Text>
+                      <Pressable style={styles.cartQtyBtn} onPress={() => duplicateCartItem(item)} hitSlop={8}>
+                        <Text style={styles.cartQtyBtnTxt}>+</Text>
+                      </Pressable>
                     </View>
-                  </Pressable>
-                  {/* −qty+ | + новая строка */}
-                  <View style={styles.orderItemControls}>
-                    <Pressable style={styles.qtyBtn} onPress={() => setItemQty(item.id, (item.quantity || 1) - 1)} hitSlop={8}>
-                      <Text style={styles.qtyBtnText}>−</Text>
-                    </Pressable>
-                    <Text style={styles.qtyVal}>{item.quantity || 1}</Text>
-                    <Pressable style={styles.qtyBtn} onPress={() => duplicateCartItem(item)} hitSlop={8}>
-                      <Text style={styles.qtyBtnText}>+</Text>
-                    </Pressable>
-                  </View>
                   </View>
                 </SwipeableRow>
-              );
-            })}
-            {order.length === 0 && <Text style={styles.emptyOrder}>Корзина пуста</Text>}
+              ))
+            )}
           </ScrollView>
 
-          <View style={styles.orderFooter}>
-            {/* Краткая строка скидки если уже выбрана */}
-            {(effectiveDiscount || forClient || (pointsDiscount > 0)) && (
-              <View style={styles.footerSummary}>
-                {forClient && (
-                  <Text style={styles.footerSummaryLine}>👤 {forClient.fio}</Text>
-                )}
-                {effectiveDiscount && (
-                  <Text style={styles.footerSummaryLine}>🏷 {effectiveDiscount.name} −{effectiveDiscount.pct}%</Text>
+          {/* ── Футер ── */}
+          <View style={styles.cartFooter}>
+            {/* Скидка / баллы */}
+            {(discountAmount > 0 || pointsDiscount > 0) && (
+              <View style={styles.cartPricingRows}>
+                <View style={styles.cartPricingRow}>
+                  <Text style={styles.cartPricingLabel}>Подытог</Text>
+                  <Text style={styles.cartPricingVal}>{rawTotal} ₽</Text>
+                </View>
+                {discountAmount > 0 && effectiveDiscount && (
+                  <View style={styles.cartPricingRow}>
+                    <Text style={styles.cartPricingLabel}>🏷 {effectiveDiscount.name}</Text>
+                    <Text style={[styles.cartPricingVal, { color: colors.greenLight }]}>−{discountAmount} ₽</Text>
+                  </View>
                 )}
                 {pointsDiscount > 0 && (
-                  <Text style={styles.footerSummaryLine}>★ Баллы −{pointsDiscount} ₽</Text>
+                  <View style={styles.cartPricingRow}>
+                    <Text style={styles.cartPricingLabel}>★ Баллы</Text>
+                    <Text style={[styles.cartPricingVal, { color: colors.greenLight }]}>−{pointsDiscount} ₽</Text>
+                  </View>
                 )}
               </View>
             )}
 
             {/* Итого */}
-            <View style={styles.footerTotalRow}>
-              {(discountAmount > 0 || pointsDiscount > 0) && (
-                <Text style={styles.footerRawTotal}>{rawTotal} ₽</Text>
-              )}
-              <Text style={styles.footerTotal}>{total} ₽</Text>
+            <View style={styles.cartTotalRow}>
+              <Text style={styles.cartTotalLabel}>Итого</Text>
+              <Text style={styles.cartTotalVal}>{total} ₽</Text>
             </View>
 
-            {/* Одна кнопка Оплатить */}
+            {/* Вспомогательные кнопки */}
+            <View style={styles.cartActions}>
+              <Pressable style={styles.cartActionBtn} onPress={() => setNoteModalOpen(true)}>
+                <Text style={styles.cartActionTxt}>📝 Заметка</Text>
+              </Pressable>
+              {templatesEnabled && (
+                <Pressable style={styles.cartActionBtn} onPress={() => setTemplatesListOpen(true)}>
+                  <Text style={styles.cartActionTxt}>Шаблоны</Text>
+                </Pressable>
+              )}
+              <Pressable style={styles.cartActionBtn} onPress={parkAndNew}>
+                <Text style={styles.cartActionTxt}>⏸ Отложить</Text>
+              </Pressable>
+              {order.length > 0 && (
+                <Pressable style={styles.cartActionBtn} onPress={() => { setOrder([]); setExpandedCartId(null); }}>
+                  <Text style={[styles.cartActionTxt, { color: colors.redLight }]}>Очистить</Text>
+                </Pressable>
+              )}
+            </View>
+
+            {/* Кнопка оплаты */}
             <Pressable
               style={({ pressed }) => [
-                styles.payBtn,
-                order.length === 0 && styles.payBtnDisabled,
+                styles.cartPayBtn,
+                order.length === 0 && styles.cartPayBtnOff,
                 pressed && order.length > 0 && { opacity: 0.88 },
               ]}
               onPress={() => order.length > 0 && openPrePay()}
-              disabled={order.length === 0}
-            >
-              <Text style={styles.payBtnIcon}>💰</Text>
-              <Text style={styles.payBtnText}>Оплатить</Text>
-              <Text style={styles.payBtnTotal}>{total} ₽</Text>
+              disabled={order.length === 0}>
+              <Text style={styles.cartPayBtnTxt}>
+                {order.length === 0 ? 'Добавьте товар' : `Оплатить  ${total} ₽`}
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -1646,6 +1655,54 @@ const styles = StyleSheet.create({
   cartItemNoteHint: { fontFamily: fonts.familyRegular, fontSize: 9, color: 'rgba(74,77,84,0.5)', marginTop: 1, fontStyle: 'italic' },
   itemNoteIndicator: { fontSize: 10, color: '#7a9be8' },
   input: { padding: 13, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 15, fontFamily: fonts.family },
+
+  /* ── Корзина ── */
+  cartClientRow:      { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.2)' },
+  cartClientRowActive:{ backgroundColor: 'rgba(61,158,146,0.05)' },
+  cartClientAvatar:   { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(61,158,146,0.18)', alignItems: 'center', justifyContent: 'center' },
+  cartClientAvatarTxt:{ fontFamily: fonts.family, fontSize: 12, fontWeight: '800', color: colors.greenLight },
+  cartClientName:     { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.greenLight },
+  cartClientSub:      { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 1 },
+  cartClientIcon:     { fontSize: 15, width: 28, textAlign: 'center' },
+  cartClientEmpty:    { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, flex: 1 },
+  cartClientChevron:  { fontSize: 17, color: 'rgba(74,77,84,0.4)' },
+  cartClientRemove:   { width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(74,77,84,0.2)', alignItems: 'center', justifyContent: 'center' },
+  cartClientRemoveTxt:{ fontSize: 11, color: colors.muted, fontFamily: fonts.familySemibold },
+  cartNoteRow:        { flexDirection: 'row', alignItems: 'center', paddingVertical: 7, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.2)', backgroundColor: 'rgba(122,158,82,0.06)' },
+  cartNoteText:       { fontFamily: fonts.familyRegular, fontSize: 12, color: '#7a9e52', flex: 1 },
+  cartEmpty:          { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
+  cartEmptyIcon:      { fontSize: 36, opacity: 0.3 },
+  cartEmptyTitle:     { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted },
+  cartEmptyHint:      { fontFamily: fonts.familyRegular, fontSize: 12, color: 'rgba(74,77,84,0.6)', textAlign: 'center' },
+  cartItem:           { paddingVertical: 12, paddingHorizontal: 14, flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  cartItemDiv:        { borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.15)' },
+  cartItemTop:        { flexDirection: 'row', justifyContent: 'space-between', gap: 8, marginBottom: 2 },
+  cartItemName:       { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, flex: 1, lineHeight: 18 },
+  cartItemTotal:      { fontFamily: fonts.family, fontSize: 14, fontWeight: '700', color: colors.text },
+  cartItemUnit:       { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
+  cartItemMods:       { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 5 },
+  cartItemModChip:    { paddingVertical: 2, paddingHorizontal: 7, borderRadius: 6, backgroundColor: 'rgba(74,77,84,0.18)' },
+  cartItemModTxt:     { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted },
+  cartItemNote:       { fontFamily: fonts.familyRegular, fontSize: 11, color: '#7a9e52', marginTop: 4 },
+  cartQtyRow:         { flexDirection: 'column', alignItems: 'center', gap: 2 },
+  cartQtyBtn:         { width: 28, height: 28, borderRadius: 8, backgroundColor: 'rgba(74,77,84,0.2)', alignItems: 'center', justifyContent: 'center' },
+  cartQtyBtnTxt:      { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text, lineHeight: 20 },
+  cartQtyVal:         { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, minWidth: 20, textAlign: 'center' },
+  cartFooter:         { borderTopWidth: 1, borderTopColor: 'rgba(74,77,84,0.25)', paddingHorizontal: 14, paddingTop: 10, paddingBottom: 14, gap: 8 },
+  cartPricingRows:    { gap: 4, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.2)' },
+  cartPricingRow:     { flexDirection: 'row', justifyContent: 'space-between' },
+  cartPricingLabel:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+  cartPricingVal:     { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
+  cartTotalRow:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cartTotalLabel:     { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
+  cartTotalVal:       { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.text },
+  cartActions:        { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+  cartActionBtn:      { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10, backgroundColor: 'rgba(74,77,84,0.15)', borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)' },
+  cartActionTxt:      { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
+  cartPayBtn:         { paddingVertical: 15, borderRadius: 16, backgroundColor: colors.greenLight, alignItems: 'center', justifyContent: 'center' },
+  cartPayBtnOff:      { backgroundColor: 'rgba(74,77,84,0.25)' },
+  cartPayBtnTxt:      { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: '#fff' },
+
   orderPanel: { width: '33%', minWidth: 240, borderLeftWidth: 1, borderLeftColor: colors.border, backgroundColor: colors.surface },
   orderHeader: { paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   orderHeaderBtns: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, flex: 1, justifyContent: 'flex-end' },
