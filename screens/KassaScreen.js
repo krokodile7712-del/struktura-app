@@ -614,7 +614,7 @@ export default function KassaScreen({ navigation, route }) {
                 <Text style={[styles.catRailLabel, isActive && styles.catRailLabelActive]} numberOfLines={2}>
                   {group}
                 </Text>
-                {isActive && <View style={styles.catRailBar} />}
+                {isActive ? <View style={styles.catRailBar} /> : null}
               </Pressable>
             );
           })}
@@ -681,7 +681,7 @@ export default function KassaScreen({ navigation, route }) {
                     style={[styles.slotTab, isActive && styles.slotTabActive]}
                     onPress={() => { setActiveSlotId(s.id); setExpandedCartId(null); }}>
                     <Text style={[styles.slotTabText, isActive && styles.slotTabTextActive]}>
-                      {s.zone ? (s.table ? `${s.zone.name}·${s.table.name}` : s.zone.name) : `Чек ${i+1}`}{qty > 0 ? ` · ${qty}` : ''}
+                      {`${s.zone ? (s.table ? `${s.zone.name}·${s.table.name}` : s.zone.name) : `Чек ${i+1}`}${qty > 0 ? ` · ${qty}` : ''}`}
                     </Text>
                   </Pressable>
                 );
