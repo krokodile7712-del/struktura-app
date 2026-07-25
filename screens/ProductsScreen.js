@@ -725,50 +725,44 @@ export default function ProductsScreen({ navigation }) {
                         </Text>
                       )}
                       {/* Аккордеон по категориям */}
-                      <View style={styles.allCatsCard}>
+                      <View style={{ gap: 4 }}>
                         {cats.map((cat, catIdx) => {
                           const catProds = filtered.filter(p => (p.category || 'Без категории') === cat);
                           const isOpen = openProdCats[cat] === true;
                           const catSelected = catProds.filter(p => selProds.includes(Number(p.id))).length;
                           return (
                             <View key={cat}>
-                              {catIdx > 0 && <View style={styles.catDivider} />}
-                              <Pressable
-                                style={({ pressed }) => [styles.catHead, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
-                                onPress={() => setOpenProdCats(p => ({ ...p, [cat]: !isOpen }))}>
-                                <Text style={styles.catTitle}>{cat}</Text>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                  {catSelected > 0 && (
-                                    <View style={{ backgroundColor: 'rgba(61,158,146,0.15)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 }}>
-                                      <Text style={{ fontFamily: fonts.familySemibold, fontSize: 11, color: colors.greenLight }}>{catSelected} ✓</Text>
-                                    </View>
-                                  )}
-                                  <Text style={styles.catCount}>{catProds.length} поз.</Text>
+                              {/* Заголовок секции — uppercase серый */}
+                              <Text style={styles.modCatLabel}>{cat.toUpperCase()}</Text>
+                              {/* Карточка */}
+                              <View style={styles.modCatCard}>
+                                <Pressable
+                                  style={({ pressed }) => [styles.modCatHead, pressed && { backgroundColor: 'rgba(255,255,255,0.04)' }]}
+                                  onPress={() => setOpenProdCats(p => ({ ...p, [cat]: !isOpen }))}>
+                                  <Text style={styles.modCatTitle}>
+                                    {catSelected > 0 ? `${catSelected} из ${catProds.length} выбрано` : `${catProds.length} товар(ов)`}
+                                  </Text>
                                   <Text style={[styles.catChevron, isOpen && styles.catChevronOpen]}>›</Text>
-                                </View>
-                              </Pressable>
-                              {isOpen && (
-                                <View style={styles.catInner}>
-                                  {catProds.map((p, idx) => {
-                                    const on = selProds.includes(Number(p.id));
-                                    return (
-                                      <Pressable key={p.id}
-                                        style={({ pressed }) => [styles.productRow, idx < catProds.length-1 && styles.rowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
-                                        onPress={() => setGroupModal(m => ({
-                                          ...m,
-                                          selProducts: on
-                                            ? (m.selProducts||[]).filter(id => id !== Number(p.id))
-                                            : [...(m.selProducts||[]), Number(p.id)]
-                                        }))}>
-                                        <Text style={[styles.productName, { flex: 1 }, on && { color: colors.greenLight }]}>{p.name}</Text>
-                                        <View style={[styles.checkbox, on && styles.checkboxOn]}>
-                                          {on && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
-                                        </View>
-                                      </Pressable>
-                                    );
-                                  })}
-                                </View>
-                              )}
+                                </Pressable>
+                                {isOpen && catProds.map((p, idx) => {
+                                  const on = selProds.includes(Number(p.id));
+                                  return (
+                                    <Pressable key={p.id}
+                                      style={({ pressed }) => [styles.modProdRow, idx < catProds.length-1 && styles.rowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
+                                      onPress={() => setGroupModal(m => ({
+                                        ...m,
+                                        selProducts: on
+                                          ? (m.selProducts||[]).filter(id => id !== Number(p.id))
+                                          : [...(m.selProducts||[]), Number(p.id)]
+                                      }))}>
+                                      <Text style={[styles.productName, { flex: 1 }, on && { color: colors.greenLight }]}>{p.name}</Text>
+                                      <View style={[styles.checkbox, on && styles.checkboxOn]}>
+                                        {on && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
+                                      </View>
+                                    </Pressable>
+                                  );
+                                })}
+                              </View>
                             </View>
                           );
                         })}
@@ -865,6 +859,11 @@ const styles = StyleSheet.create({
   modeBtnActive:   { borderColor: 'rgba(61,158,146,0.5)', backgroundColor: 'rgba(61,158,146,0.1)' },
   modeBtnTxt:      { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
   modeBtnTxtActive:{ color: colors.greenLight },
+  modCatLabel:  { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, paddingHorizontal: 4, paddingBottom: 4, paddingTop: 8 },
+  modCatCard:   { backgroundColor: '#0b0c0f', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', overflow: 'hidden' },
+  modCatHead:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 14, backgroundColor: 'rgba(74,77,84,0.08)' },
+  modCatTitle:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  modProdRow:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, gap: 10 },
   pickerSheet:  { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.65)', padding: 20 },
   pickerBox:    { width: '50%', maxHeight: '75%', backgroundColor: '#0e0f11', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(74,77,84,0.5)', overflow: 'hidden' },
   pickerHandle: { display: 'none' },
