@@ -399,12 +399,14 @@ export default function ProductsScreen({ navigation }) {
         title="Товары"
         onBack={() => navigation.navigate(getHomeRoute())}
         rightElement={
-          <Pressable style={[styles.addBtn, { marginRight: 8 }]} onPress={() => setCatOrderModal(true)} hitSlop={8}>
-            <Text style={[styles.addBtnTxt, { fontSize: 16 }]}>⇅</Text>
-          </Pressable>
-          <Pressable style={styles.addBtn} onPress={() => openProduct(null)} hitSlop={8}>
-            <Text style={styles.addBtnTxt}>＋</Text>
-          </Pressable>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <Pressable style={styles.addBtn} onPress={() => setCatOrderModal(true)} hitSlop={8}>
+              <Text style={[styles.addBtnTxt, { fontSize: 16 }]}>⇅</Text>
+            </Pressable>
+            <Pressable style={styles.addBtn} onPress={() => openProduct(null)} hitSlop={8}>
+              <Text style={styles.addBtnTxt}>＋</Text>
+            </Pressable>
+          </View>
         }
       />
 
