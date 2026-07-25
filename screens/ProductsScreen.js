@@ -692,12 +692,12 @@ export default function ProductsScreen({ navigation }) {
                         updateModifierGroup(groupModal.id, { name: groupModal.name, selectionType: groupModal.selectionType });
                         // Пересоздаём опции
                         opts.forEach(o => {
-                          if (o.id) updateModifierOption(o.id, { name: o.name, priceDelta: parseFloat(o.price_delta)||0, ingrToReplace:'', ingrToDeduct:'', deductAmount:0, deductUnit:'' });
-                          else insertModifierOption({ groupId: groupModal.id, name: o.name, priceDelta: parseFloat(o.price_delta)||0, ingrToReplace:'', ingrToDeduct: o.ingrToDeduct||'', deductAmount: parseFloat(o.deductAmount)||0, deductUnit: o.deductUnit||'' });
+                          if (o.id) updateModifierOption(o.id, { name: o.name, priceDelta: parseFloat(o.price_delta)||0, ingrToReplace: o.ingrToReplace||'', ingrToDeduct: o.ingrToDeduct||'', deductAmount: parseFloat(o.deductAmount)||0, deductUnit: o.deductUnit||'' });
+                          else insertModifierOption({ groupId: groupModal.id, name: o.name, priceDelta: parseFloat(o.price_delta)||0, ingrToReplace: o.ingrToReplace||'', ingrToDeduct: o.ingrToDeduct||'', deductAmount: parseFloat(o.deductAmount)||0, deductUnit: o.deductUnit||'' });
                         });
                       } else {
                         const res = insertModifierGroup({ name: groupModal.name, selectionType: groupModal.selectionType });
-                        opts.forEach(o => insertModifierOption({ groupId: res.lastInsertRowId || res, name: o.name, priceDelta: parseFloat(o.price_delta)||0, ingrToReplace:'', ingrToDeduct: o.ingrToDeduct||'', deductAmount: parseFloat(o.deductAmount)||0, deductUnit: o.deductUnit||'' }));
+                        opts.forEach(o => insertModifierOption({ groupId: res.lastInsertRowId || res, name: o.name, priceDelta: parseFloat(o.price_delta)||0, ingrToReplace: o.ingrToReplace||'', ingrToDeduct: o.ingrToDeduct||'', deductAmount: parseFloat(o.deductAmount)||0, deductUnit: o.deductUnit||'' }));
                       }
                       load();
                       setGroupModal(null);
