@@ -188,29 +188,37 @@ function ProductModal({ product, variants, techCards, stock, categories, allModG
         {/* Модификаторы */}
         {allModGroups && allModGroups.length > 0 && (
           <>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, marginBottom: 8 }}>
-              <Text style={[styles.fieldLabel, { marginTop: 0, marginBottom: 0 }]}>Модификаторы в кассе</Text>
-              <InfoTip title="Модификаторы" text="При добавлении товара в кассе появится выбор из этих групп. Например: Сироп, Альт. молоко." />
-            </View>
+            <Text style={[styles.fieldLabel, { marginTop: 20, marginBottom: 4 }]}>Предлагать при заказе</Text>
+            <Text style={[styles.productSub, { marginBottom: 10, paddingHorizontal: 2 }]}>
+              Включите что кассир увидит при добавлении этого товара в заказ
+            </Text>
             <View style={styles.groupCard}>
-              {allModGroups.map((g, idx) => (
-                <Pressable key={g.id}
-                  style={[styles.productRow, idx < allModGroups.length-1 && styles.rowDiv]}
-                  onPress={() => setSelGroups(prev =>
-                    prev.includes(Number(g.id)) ? prev.filter(id => id !== Number(g.id)) : [...prev, Number(g.id)]
-                  )}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.productName}>{g.name}</Text>
-                    <Text style={styles.productSub}>
-                      {g.options?.map(o => `${o.name}${o.price_delta > 0 ? ` +${o.price_delta}₽` : ''}`).join(' · ')}
-                    </Text>
-                  </View>
-                  <View style={[styles.checkbox, selGroups.includes(Number(g.id)) && styles.checkboxOn]}>
-                    {selGroups.includes(Number(g.id)) && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
-                  </View>
-                </Pressable>
-              ))}
+              {allModGroups.map((g, idx) => {
+                const on = selGroups.includes(Number(g.id));
+                return (
+                  <Pressable key={g.id}
+                    style={({ pressed }) => [styles.productRow, idx < allModGroups.length-1 && styles.rowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
+                    onPress={() => setSelGroups(prev =>
+                      prev.includes(Number(g.id)) ? prev.filter(id => id !== Number(g.id)) : [...prev, Number(g.id)]
+                    )}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.productName, on && { color: colors.greenLight }]}>{g.name}</Text>
+                      <Text style={styles.productSub}>
+                        {g.options?.map(o => `${o.name}${o.price_delta > 0 ? ` +${o.price_delta}₽` : ''}`).join(' · ')}
+                      </Text>
+                    </View>
+                    <View style={[styles.checkbox, on && styles.checkboxOn]}>
+                      {on && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
+                    </View>
+                  </Pressable>
+                );
+              })}
             </View>
+            {selGroups.length > 0 && (
+              <Text style={[styles.productSub, { marginTop: 6, paddingHorizontal: 2, color: colors.greenLight }]}>
+                ✓ При заказе кассир увидит выбор: {allModGroups.filter(g => selGroups.includes(Number(g.id))).map(g => g.name).join(', ')}
+              </Text>
+            )}
           </>
         )}
 
@@ -421,7 +429,7 @@ export default function ProductsScreen({ navigation }) {
 
       {tab === 'modifiers' && (
         <View style={styles.searchBar}>
-          <Pressable style={styles.addBtn} onPress={() => setGroupModal({ id: null, name: '', selectionType: 'single', options: [] })} >
+          <Pressable style={styles.addBtn} onPress={() => setGroupModal({ id: null, name: '', selectionType: 'single', selProducts: [], options: [] })} >
             <Text style={styles.addBtnTxt}>＋</Text>
           </Pressable>
           <Text style={[styles.searchPlaceholder, { flex: 1, marginLeft: 10 }]}>Группы модификаторов</Text>
@@ -438,7 +446,16 @@ export default function ProductsScreen({ navigation }) {
                 {modGroups.map((g, idx) => (
                   <Pressable key={g.id}
                     style={({ pressed }) => [styles.productRow, idx < modGroups.length-1 && styles.rowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
-                    onPress={() => setGroupModal({ id: g.id, name: g.name, selectionType: g.selection_type || 'single', options: (g.options || []).map(o => ({ ...o, price_delta: String(o.price_delta || ''), deductAmount: String(o.deduct_amount || ''), ingrToDeduct: o.ingr_to_deduct || '', ingrToReplace: o.ingr_to_replace || '', mode: o.ingr_to_replace ? 'replace' : 'add' })) })}
+                    onPress={() => {
+                    // Загружаем к каким товарам привязана группа
+                    const linkedProductIds = (() => {
+                      try {
+                        const db = getDb();
+                        return db.getAllSync('SELECT product_id FROM product_modifier_groups WHERE group_id = ?', [g.id]).map(r => Number(r.product_id));
+                      } catch(_) { return []; }
+                    })();
+                    setGroupModal({ id: g.id, name: g.name, selectionType: g.selection_type || 'single', selProducts: linkedProductIds, options: (g.options || []).map(o => ({ ...o, price_delta: String(o.price_delta || ''), deductAmount: String(o.deduct_amount || ''), ingrToDeduct: o.ingr_to_deduct || '', ingrToReplace: o.ingr_to_replace || '', mode: o.ingr_to_replace ? 'replace' : 'add' })) });
+                  }}
                   >
                     <View style={{ flex: 1 }}>
                       <Text style={styles.productName}>{g.name}</Text>
@@ -682,6 +699,37 @@ export default function ProductsScreen({ navigation }) {
                   <Text style={styles.addIngTxt}>+ Добавить вариант</Text>
                 </Pressable>
 
+                {/* Для каких товаров */}
+                <Text style={styles.fieldLabel}>Для каких товаров</Text>
+                <Text style={[styles.productSub, { marginBottom: 10 }]}>Модификатор появится в кассе при заказе этих товаров</Text>
+                {products.length > 0 ? (
+                  <View style={styles.groupCard}>
+                    {products.map((p, idx) => {
+                      const on = (groupModal.selProducts || []).includes(Number(p.id));
+                      return (
+                        <Pressable key={p.id}
+                          style={({ pressed }) => [styles.productRow, idx < products.length-1 && styles.rowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
+                          onPress={() => setGroupModal(m => ({
+                            ...m,
+                            selProducts: on
+                              ? (m.selProducts||[]).filter(id => id !== Number(p.id))
+                              : [...(m.selProducts||[]), Number(p.id)]
+                          }))}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.productName, on && { color: colors.greenLight }]}>{p.name}</Text>
+                            <Text style={styles.productSub}>{p.category}</Text>
+                          </View>
+                          <View style={[styles.checkbox, on && styles.checkboxOn]}>
+                            {on && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
+                          </View>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                ) : (
+                  <Text style={styles.productSub}>Сначала добавьте товары в разделе Товары</Text>
+                )}
+
                 {/* Сохранить */}
                 <Pressable style={({ pressed }) => [styles.confirmBtn, { marginTop: 16 }, pressed && { opacity: 0.88 }]}
                   onPress={() => {
@@ -699,6 +747,20 @@ export default function ProductsScreen({ navigation }) {
                         const res = insertModifierGroup({ name: groupModal.name, selectionType: groupModal.selectionType });
                         opts.forEach(o => insertModifierOption({ groupId: res.lastInsertRowId || res, name: o.name, priceDelta: parseFloat(o.price_delta)||0, ingrToReplace: o.ingrToReplace||'', ingrToDeduct: o.ingrToDeduct||'', deductAmount: parseFloat(o.deductAmount)||0, deductUnit: o.deductUnit||'' }));
                       }
+                      // Сохраняем привязку к товарам
+                      const db2 = getDb();
+                      const gId = groupModal.id || Number(db2.getFirstSync('SELECT last_insert_rowid() as id')?.id);
+                      (groupModal.selProducts || []).forEach(pid => {
+                        try {
+                          const exists = db2.getFirstSync('SELECT id FROM product_modifier_groups WHERE product_id = ? AND group_id = ?', [pid, groupModal.id || gId]);
+                          if (!exists) db2.runSync('INSERT INTO product_modifier_groups (product_id, group_id) VALUES (?, ?)', [pid, groupModal.id || gId]);
+                        } catch(_) {}
+                      });
+                      // Удаляем отвязанные товары
+                      db2.runSync('DELETE FROM product_modifier_groups WHERE group_id = ?', [groupModal.id || gId]);
+                      (groupModal.selProducts || []).forEach(pid => {
+                        try { db2.runSync('INSERT INTO product_modifier_groups (product_id, group_id) VALUES (?, ?)', [pid, groupModal.id || gId]); } catch(_) {}
+                      });
                       load();
                       setGroupModal(null);
                     } catch(e) { console.error(e); }
