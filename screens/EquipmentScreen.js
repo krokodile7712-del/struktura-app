@@ -88,7 +88,7 @@ export default function EquipmentScreen({ navigation }) {
       <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
         {items.length === 0 ? (
           <EmptyState icon="⚙️" title="Оборудование не добавлено"
-            text="Добавьте кофемашину, блендер, холодильник — и система будет считать амортизацию за каждую продажу. Это часть реальной себестоимости."
+            text="Добавьте оборудование — и система будет считать амортизацию за каждую продажу. Это часть реальной себестоимости."
             action="+ Добавить оборудование" onAction={openNew} />
         ) : (
           <MetalCard>
@@ -132,7 +132,7 @@ export default function EquipmentScreen({ navigation }) {
               </View>
               <ScrollView showsVerticalScrollIndicator={false}>
                 <Text style={styles.fieldLabel}>Название *</Text>
-                <TextInput style={styles.input} value={modal.name} onChangeText={v => setModal(m => ({...m, name: v}))} placeholder="Кофемашина La Marzocco" placeholderTextColor={colors.muted} autoFocus={!modal.id} />
+                <TextInput style={styles.input} value={modal.name} onChangeText={v => setModal(m => ({...m, name: v}))} placeholder="Название оборудования" placeholderTextColor={colors.muted} autoFocus={!modal.id} />
 
                 <Text style={styles.fieldLabel}>Стоимость покупки, ₽</Text>
                 <TextInput style={styles.input} value={modal.cost} onChangeText={v => setModal(m => ({...m, cost: v}))} keyboardType="numeric" placeholder="150000" placeholderTextColor={colors.muted} />
@@ -163,7 +163,7 @@ export default function EquipmentScreen({ navigation }) {
 
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, marginBottom: 6 }}>
                   <Text style={styles.fieldLabel}>Счётчик циклов</Text>
-                  <InfoTip title="Как считать циклы?" text="Каждый заказ — для универсального оборудования. Конкретный товар — например кофемашина считает только при продаже кофе. Вручную — сотрудник нажимает '+' на этом экране." />
+                  <InfoTip title="Как считать циклы?" text="Каждый заказ — для универсального оборудования. Конкретный товар — считает только при продаже выбранного товара. Вручную — сотрудник нажимает '+' на этом экране." />
                 </View>
                 {COUNTER_TYPES.map(t => (
                   <Pressable key={t.key} style={[styles.optionRow, modal.counter_type === t.key && styles.optionRowActive]} onPress={() => setModal(m => ({...m, counter_type: t.key}))}>

@@ -22,7 +22,7 @@ const STEPS = [
 const PRESET_LIST = [
   {
     key: 'coffee',
-    icon: '☕',
+    icon: '🏪',
     label: 'Кофейня / Кафе',
     desc: 'Напитки, еда и десерты. Модификаторы (молоко, сироп), варианты размера, учёт смен, программа лояльности. Техкарты считают себестоимость каждой чашки.',
     modules: ['Склад', 'Техкарты', 'Лояльность', 'Смены', 'Зоны/столы'],
@@ -82,7 +82,7 @@ const TERM_CONFIGS = [
 ];
 
 const NEXT_STEPS = [
-  { icon: '☕', label: 'Добавить первый товар или услугу', screen: 'Settings', sub: 'Настройки → Меню и цены' },
+  { icon: '🛍', label: 'Добавить первый товар или услугу', screen: 'Settings', sub: 'Настройки → Меню и цены' },
   { icon: '💳', label: 'Настроить способы оплаты', screen: 'Settings', sub: 'Настройки → Оплата и скидки' },
   { icon: '👥', label: 'Добавить сотрудников', screen: 'Employees', sub: 'Имена и PIN-коды' },
   { icon: '🏢', label: 'Внести накладные расходы', screen: 'Overheads', sub: 'Аренда, коммунальные, интернет' },
@@ -262,7 +262,7 @@ export default function OnboardingScreen({ navigation }) {
               style={[styles.input, errors.bizName && styles.inputError]}
               value={bizName}
               onChangeText={v => { setBizName(v); setErrors(e => ({ ...e, bizName: null })); }}
-              placeholder="Кофейня «Берёза», Ателье Мода..."
+              placeholder="Название вашего бизнеса..."
               placeholderTextColor={colors.muted}
               autoFocus
               returnKeyType="next"

@@ -110,7 +110,7 @@ export default function DashboardScreen({ navigation }) {
           ]}
           onPress={() => navigation.navigate('Kassa')}
         >
-          <Text style={styles.heroIcon}>☕</Text>
+          <Text style={styles.heroIcon}>🛍</Text>
           <View>
             <Text style={styles.heroLabel}>Новый {terms.order.toLowerCase()}</Text>
             <Text style={styles.heroSub}>Касса · добавить позиции и оплатить</Text>

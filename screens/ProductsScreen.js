@@ -85,7 +85,7 @@ function ProductModal({ product, variants, techCards, stock, categories, allModG
         {/* Категория */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, marginBottom: 8 }}>
           <Text style={[styles.fieldLabel, { marginTop: 0, marginBottom: 0 }]}>Категория</Text>
-          <InfoTip title="Категория" text="Категория помогает группировать товары в списке и в кассе. Например: Кофе, Допы, Еда. Клиент её не видит — это только для вас." />
+          <InfoTip title="Категория" text="Категория помогает группировать товары в списке и в кассе. Например: Напитки, Услуги, Еда. Клиент её не видит — это только для вас." />
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
           {categories.map(cat => (

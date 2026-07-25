@@ -131,7 +131,7 @@ export default function ClientCardScreen({ route, navigation }) {
               </View>
 
               <Text style={styles.phone}>📞 {client.phone || '—'}</Text>
-              <MetalButton title={`☕ Новый ${terms.order.toLowerCase()}`} variant="success" onPress={handleNewOrder} />
+              <MetalButton title={`＋ Новый ${terms.order.toLowerCase()}`} variant="success" onPress={handleNewOrder} />
               {isAdmin && loyaltyModel === 'subscription' && (
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 4, alignItems: 'center' }}>
                   <TextInput

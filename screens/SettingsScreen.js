@@ -895,7 +895,7 @@ export default function SettingsScreen({ navigation }) {
                 icon: '⭐',
                 label: 'Баллы',
                 desc: 'Клиент копит баллы с каждой покупки и тратит их как скидку',
-                tip: 'Подходит для кофеен, ресторанов, магазинов — стимулирует повторные покупки.',
+                tip: 'Подходит для любого бизнеса — стимулирует повторные покупки.',
               },
               {
                 key: 'discount',
@@ -1262,7 +1262,7 @@ export default function SettingsScreen({ navigation }) {
           <Text style={styles.bizGroupLabel}>Основное</Text>
           <View style={styles.menuCard}>
             {[
-              { key: 'businessName', label: 'Название бизнеса', placeholder: 'Кофейня «Берёза»' },
+              { key: 'businessName', label: 'Название бизнеса', placeholder: 'Название вашего бизнеса' },
               { key: 'logoUrl',      label: 'Логотип (URL)',     placeholder: 'https://...' },
               { key: 'city',         label: 'Город',             placeholder: 'Москва' },
             ].map((f, idx) => (
@@ -1369,9 +1369,9 @@ export default function SettingsScreen({ navigation }) {
           <Text style={styles.bizGroupLabel}>Социальные сети</Text>
           <View style={styles.menuCard}>
             {[
-              { key: 'instagram', label: '📸 Instagram', placeholder: '@coffee.shop'    },
-              { key: 'vk',        label: '🔵 ВКонтакте', placeholder: 'vk.com/coffee'  },
-              { key: 'website',   label: '🌐 Сайт',      placeholder: 'coffee.ru'       },
+              { key: 'instagram', label: '📸 Instagram', placeholder: '@mybusiness'    },
+              { key: 'vk',        label: '🔵 ВКонтакте', placeholder: 'vk.com/mybusiness'  },
+              { key: 'website',   label: '🌐 Сайт',      placeholder: 'mysite.ru'       },
             ].map((f, idx) => (
               <View key={f.key} style={[styles.bizFieldRow, idx < 2 && styles.menuRowDiv]}>
                 <Text style={styles.bizFieldLabel}>{f.label}</Text>

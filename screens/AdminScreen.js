@@ -122,7 +122,7 @@ export default function AdminScreen({ navigation }) {
           onPress={() => navigation.navigate('Kassa')}
           accessibilityLabel={`Новый ${terms.order.toLowerCase()}`}
         >
-          <Text style={styles.heroIcon}>☕</Text>
+          <Text style={styles.heroIcon}>🏪</Text>
           <View>
             <Text style={styles.heroLabel}>Новый {terms.order.toLowerCase()}</Text>
             <Text style={styles.heroSub}>Касса · добавить позиции и оплатить</Text>
