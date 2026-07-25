@@ -2617,3 +2617,14 @@ export function deleteProduct(id) {
     db.runSync(`DELETE FROM products WHERE id = ?`, [id]);
   } catch (e) { console.error(e); throw e; }
 }
+
+export function getCategoryOrder() {
+  try {
+    const raw = getSetting('categoryOrder');
+    return raw ? JSON.parse(raw) : [];
+  } catch (_) { return []; }
+}
+
+export function saveCategoryOrder(order) {
+  setSetting('categoryOrder', JSON.stringify(order));
+}

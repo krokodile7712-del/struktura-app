@@ -166,7 +166,11 @@ export default function KassaScreen({ navigation, route }) {
       for (const e of skuEntries) { if (e.sku) map[e.sku.toLowerCase()] = e.product_id; }
       setSkuMap(map);
       setAllProducts(products);
-      setGroups(cats);
+      const savedOrder = getCategoryOrder();
+      const orderedCats = savedOrder.length > 0
+        ? [...savedOrder.filter(o => cats.includes(o)), ...cats.filter(o => !savedOrder.includes(o))]
+        : cats;
+      setGroups(orderedCats);
       setActiveCat(cats.find(c => c === 'Кофе') || cats[0] || null);
       setDiscounts(disc);
       setCurrentShift(shift);
@@ -591,30 +595,7 @@ export default function KassaScreen({ navigation, route }) {
     <View style={{ flex: 1 }}>
       <TopBar title="Касса" onBack={() => navigation.navigate(getHomeRoute())} />
 
-      {forClient && (
-        <View style={styles.clientBadgeWrap}>
-          <View style={styles.clientBadge}>
-            <View style={styles.clientAvatar}>
-              <Text style={styles.clientAvatarText}>{(forClient.fio || '?').charAt(0).toUpperCase()}</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.clientBadgeName}>{forClient.fio}</Text>
-              {loyaltyModel === 'points' && (
-                <Text style={styles.clientBadgeSub}>
-                  ★ {forClient.balance || 0} баллов · +{Math.round(rawTotal * (loyaltyConfig.earn_pct || 10) / 100)} за этот заказ
-                </Text>
-              )}
-              {loyaltyModel === 'subscription' && (
-                <Text style={[styles.clientBadgeSub, (forClient.balance || 0) <= 0 && { color: colors.redLight }]}>
-                  🎟 {forClient.balance || 0} посещений осталось
-                </Text>
-              )}
-              {loyaltyModel === 'discount' && (
-                <Text style={styles.clientBadgeSub}>🏷 Скидка {loyaltyConfig.pct || 0}% применена</Text>
-              )}
-            </View>
-          </View>
-        </View>
+      
       )}
 
       {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift')} />}
@@ -737,6 +718,7 @@ export default function KassaScreen({ navigation, route }) {
             </ScrollView>
           )}
 
+          {/* Нижнее нажатие на имя клиента → карточка клиента */}
           {/* ═══ СПИСОК ПОЗИЦИЙ ═══ */}
           <ScrollView
             style={{ flex: 1 }}
@@ -802,22 +784,29 @@ export default function KassaScreen({ navigation, route }) {
           <View style={styles.v2Footer}>
 
             {/* Клиент */}
-            <Pressable style={styles.v2Client} onPress={() => setClientPickerOpen(true)}>
+            <View style={styles.v2Client}>
               {forClient ? (
                 <>
-                  <View style={styles.v2ClientDot} />
-                  <Text style={styles.v2ClientName} numberOfLines={1}>{forClient.fio}</Text>
-                  {loyaltyModel === 'points' && (
-                    <Text style={styles.v2ClientBal}>★ {forClient.balance||0}</Text>
-                  )}
-                  <Pressable onPress={(e)=>{e.stopPropagation?.();updateSlot({forClient:null});}} hitSlop={10}>
+                  <Pressable
+                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+                    onPress={() => navigation.navigate('ClientCard', { clientId: forClient.id })}
+                  >
+                    <View style={styles.v2ClientDot} />
+                    <Text style={styles.v2ClientName} numberOfLines={1}>{forClient.fio}</Text>
+                    {loyaltyModel === 'points' && (
+                      <Text style={styles.v2ClientBal}>★ {forClient.balance||0}</Text>
+                    )}
+                  </Pressable>
+                  <Pressable onPress={() => updateSlot({ forClient: null })} hitSlop={10}>
                     <Text style={styles.v2ClientX}>✕</Text>
                   </Pressable>
                 </>
               ) : (
-                <Text style={styles.v2ClientAdd}>👤 Клиент</Text>
+                <Pressable onPress={() => setClientPickerOpen(true)}>
+                  <Text style={styles.v2ClientAdd}>👤 Добавить клиента</Text>
+                </Pressable>
               )}
-            </Pressable>
+            </View>
 
             {/* Скидки если есть */}
             {(discountAmount > 0 || pointsDiscount > 0) && (
@@ -1716,12 +1705,12 @@ const styles = StyleSheet.create({
   v2Mod:        { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
   v2Note:       { fontFamily: fonts.familyRegular, fontSize: 11, color: '#7a9e52', marginTop: 3 },
   v2Footer:     { borderTopWidth: 1, borderTopColor: 'rgba(74,77,84,0.2)', paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14, gap: 10 },
-  v2Client:     { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  v2Client:     { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(74,77,84,0.25)' },
   v2ClientDot:  { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.greenLight },
-  v2ClientName: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.greenLight, flex: 1 },
+  v2ClientName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight, flex: 1 },
   v2ClientBal:  { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
   v2ClientX:    { fontSize: 13, color: 'rgba(74,77,84,0.5)', paddingHorizontal: 2 },
-  v2ClientAdd:  { fontFamily: fonts.familyRegular, fontSize: 12, color: 'rgba(74,77,84,0.6)' },
+  v2ClientAdd:  { fontFamily: fonts.familyRegular, fontSize: 13, color: 'rgba(74,77,84,0.6)' },
   v2Discount:   { gap: 3 },
   v2DiscountTxt:{ fontFamily: fonts.familyRegular, fontSize: 12, color: colors.greenLight },
   v2Total:      { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },

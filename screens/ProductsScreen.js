@@ -15,6 +15,7 @@ import {
   getCostCardForVariant, saveCostCardForVariant,
   getAllStock, getCategories, cleanOrphanCostIngredients, deleteOldCostCards,
   getAllModifierGroups, insertModifierGroup, updateModifierGroup, deleteModifierGroup,
+  getCategoryOrder, saveCategoryOrder,
   insertModifierOption, updateModifierOption, deleteModifierOption,
   getProductModifierGroups, setProductModifierGroups,
 } from '../db/queries';
@@ -287,7 +288,9 @@ export default function ProductsScreen({ navigation }) {
   const [categories, setCategories] = useState([]);
   const [search, setSearch]       = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
-  const [tab, setTab]             = useState('products'); // 'products' | 'modifiers'
+  const [tab, setTab]             = useState('products');
+  const [catOrderModal, setCatOrderModal] = useState(false);
+  const [catOrder, setCatOrder]     = useState([]); // 'products' | 'modifiers'
   const [modGroups, setModGroups] = useState([]);
   const [groupModal, setGroupModal] = useState(null); // {id,name,selectionType,options}
   const [stockPicker, setStockPicker] = useState(null); // { optIdx }
@@ -303,6 +306,7 @@ export default function ProductsScreen({ navigation }) {
       cleanOrphanCostIngredients();
       setProducts(getAllProductsAdmin());
       setModGroups(getAllModifierGroups());
+      setCatOrder(getCategoryOrder());
       setStock(getAllStock());
       const cats = getCategories ? getCategories() : [];
       setCategories(cats.length ? cats : ['Кофе', 'Допы', 'Прочее']);
@@ -383,7 +387,10 @@ export default function ProductsScreen({ navigation }) {
   const filtered = products.filter(p =>
     !search.trim() || p.name.toLowerCase().includes(search.toLowerCase())
   );
-  const cats = [...new Set(filtered.map(p => p.category || 'Без категории'))].sort();
+  const rawCats = [...new Set(filtered.map(p => p.category || 'Без категории'))];
+  const cats = catOrder.length > 0
+    ? [...catOrder.filter(c => rawCats.includes(c)), ...rawCats.filter(c => !catOrder.includes(c))]
+    : rawCats.sort();
   const allCats = [...new Set(products.map(p => p.category || 'Без категории'))].sort();
 
   return (
@@ -392,6 +399,9 @@ export default function ProductsScreen({ navigation }) {
         title="Товары"
         onBack={() => navigation.navigate(getHomeRoute())}
         rightElement={
+          <Pressable style={[styles.addBtn, { marginRight: 8 }]} onPress={() => setCatOrderModal(true)} hitSlop={8}>
+            <Text style={[styles.addBtnTxt, { fontSize: 16 }]}>⇅</Text>
+          </Pressable>
           <Pressable style={styles.addBtn} onPress={() => openProduct(null)} hitSlop={8}>
             <Text style={styles.addBtnTxt}>＋</Text>
           </Pressable>
@@ -539,6 +549,67 @@ export default function ProductsScreen({ navigation }) {
 
       <BottomBar navigation={navigation} activeTab="Kassa" />
 
+
+      {/* Модалка порядка категорий */}
+      <Modal visible={catOrderModal} transparent animationType="fade" onRequestClose={() => setCatOrderModal(false)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCatOrderModal(false)} />
+          <View style={[styles.modalBox, { width: '40%', maxHeight: '80%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Порядок категорий</Text>
+              <Pressable onPress={() => setCatOrderModal(false)} hitSlop={14} style={styles.closeBtn}>
+                <Text style={styles.closeTxt}>✕</Text>
+              </Pressable>
+            </View>
+            <ScrollView contentContainerStyle={{ padding: 16 }}>
+              <Text style={[styles.productSub, { marginBottom: 12 }]}>
+                Порядок в кассе и в списке товаров
+              </Text>
+              {(() => {
+                const allCats = [...new Set(products.map(p => p.category || 'Без категории'))];
+                const ordered = catOrder.length > 0
+                  ? [...catOrder.filter(c => allCats.includes(c)), ...allCats.filter(c => !catOrder.includes(c))]
+                  : allCats.sort();
+                return (
+                  <View style={styles.groupCard}>
+                    {ordered.map((cat, idx) => (
+                      <View key={cat} style={[styles.productRow, idx < ordered.length-1 && styles.rowDiv]}>
+                        <Text style={[styles.productName, { flex: 1 }]}>{cat}</Text>
+                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                          <Pressable
+                            style={[styles.addVarBtn, idx === 0 && { opacity: 0.3 }]}
+                            disabled={idx === 0}
+                            onPress={() => {
+                              const arr = [...ordered];
+                              [arr[idx-1], arr[idx]] = [arr[idx], arr[idx-1]];
+                              setCatOrder(arr);
+                              saveCategoryOrder(arr);
+                            }}
+                          >
+                            <Text style={styles.addVarTxt}>↑</Text>
+                          </Pressable>
+                          <Pressable
+                            style={[styles.addVarBtn, idx === ordered.length-1 && { opacity: 0.3 }]}
+                            disabled={idx === ordered.length-1}
+                            onPress={() => {
+                              const arr = [...ordered];
+                              [arr[idx], arr[idx+1]] = [arr[idx+1], arr[idx]];
+                              setCatOrder(arr);
+                              saveCategoryOrder(arr);
+                            }}
+                          >
+                            <Text style={styles.addVarTxt}>↓</Text>
+                          </Pressable>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                );
+              })()}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {/* Пикер позиции склада для модификатора */}
       <Modal visible={!!stockPicker} transparent animationType="slide" onRequestClose={() => setStockPicker(null)}>
@@ -708,7 +779,10 @@ export default function ProductsScreen({ navigation }) {
                   <Text style={styles.productSub}>Сначала добавьте товары в разделе Товары</Text>
                 ) : (() => {
                   const filtered = products.filter(p => !prodSearch.trim() || p.name.toLowerCase().includes(prodSearch.toLowerCase()));
-                  const cats = [...new Set(filtered.map(p => p.category || 'Без категории'))].sort();
+                  const rawCats = [...new Set(filtered.map(p => p.category || 'Без категории'))];
+  const cats = catOrder.length > 0
+    ? [...catOrder.filter(c => rawCats.includes(c)), ...rawCats.filter(c => !catOrder.includes(c))]
+    : rawCats.sort();
                   const selProds = groupModal.selProducts || [];
                   const selCount = products.filter(p => selProds.includes(Number(p.id))).length;
                   return (
