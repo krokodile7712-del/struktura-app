@@ -433,7 +433,7 @@ export default function ProductsScreen({ navigation }) {
                 {modGroups.map((g, idx) => (
                   <Pressable key={g.id}
                     style={({ pressed }) => [styles.productRow, idx < modGroups.length-1 && styles.rowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
-                    onPress={() => setGroupModal({ id: g.id, name: g.name, selectionType: g.selection_type || 'single', options: g.options || [] })}
+                    onPress={() => setGroupModal({ id: g.id, name: g.name, selectionType: g.selection_type || 'single', options: (g.options || []).map(o => ({ ...o, price_delta: String(o.price_delta || ''), deductAmount: String(o.deduct_amount || ''), ingrToDeduct: o.ingr_to_deduct || '' })) })}
                   >
                     <View style={{ flex: 1 }}>
                       <Text style={styles.productName}>{g.name}</Text>
@@ -563,12 +563,24 @@ export default function ProductsScreen({ navigation }) {
                           placeholderTextColor={colors.muted}
                           onChangeText={v => setGroupModal(m => ({ ...m, options: m.options.map((o,i) => i===idx ? {...o, name: v} : o) }))} />
                         <TextInput color={colors.text}
-                          style={[styles.input, { width: 70, marginBottom: 0, padding: 8, textAlign: 'center' }]}
+                          style={[styles.input, { width: 60, marginBottom: 0, padding: 8, textAlign: 'center' }]}
                           value={String(opt.price_delta || '')} placeholder="+0"
                           placeholderTextColor={colors.muted}
                           keyboardType="numeric"
                           onChangeText={v => setGroupModal(m => ({ ...m, options: m.options.map((o,i) => i===idx ? {...o, price_delta: v} : o) }))} />
-                        <Text style={[styles.productSub, { marginLeft: 4, marginRight: 8 }]}>₽</Text>
+                        <Text style={[styles.productSub, { marginLeft: 2 }]}>₽</Text>
+                        <TextInput color={colors.text}
+                          style={[styles.input, { flex: 1, marginBottom: 0, marginLeft: 6, padding: 8 }]}
+                          value={opt.ingrToDeduct || ''} placeholder="Списать (напр: молоко)"
+                          placeholderTextColor={colors.muted}
+                          onChangeText={v => setGroupModal(m => ({ ...m, options: m.options.map((o,i) => i===idx ? {...o, ingrToDeduct: v} : o) }))} />
+                        <TextInput color={colors.text}
+                          style={[styles.input, { width: 50, marginBottom: 0, padding: 8, textAlign: 'center' }]}
+                          value={String(opt.deductAmount || '')} placeholder="100"
+                          placeholderTextColor={colors.muted}
+                          keyboardType="numeric"
+                          onChangeText={v => setGroupModal(m => ({ ...m, options: m.options.map((o,i) => i===idx ? {...o, deductAmount: v} : o) }))} />
+                        <Text style={[styles.productSub, { marginRight: 4 }]}>мл/г</Text>
                         <Pressable onPress={() => setGroupModal(m => ({ ...m, options: m.options.filter((_,i) => i!==idx) }))} hitSlop={10}>
                           <Text style={{ color: colors.muted, fontSize: 18 }}>✕</Text>
                         </Pressable>
@@ -592,11 +604,11 @@ export default function ProductsScreen({ navigation }) {
                         // Пересоздаём опции
                         opts.forEach(o => {
                           if (o.id) updateModifierOption(o.id, { name: o.name, priceDelta: parseFloat(o.price_delta)||0, ingrToReplace:'', ingrToDeduct:'', deductAmount:0, deductUnit:'' });
-                          else insertModifierOption({ groupId: groupModal.id, name: o.name, priceDelta: parseFloat(o.price_delta)||0, ingrToReplace:'', ingrToDeduct:'', deductAmount:0, deductUnit:'' });
+                          else insertModifierOption({ groupId: groupModal.id, name: o.name, priceDelta: parseFloat(o.price_delta)||0, ingrToReplace:'', ingrToDeduct: o.ingrToDeduct||'', deductAmount: parseFloat(o.deductAmount)||0, deductUnit: o.deductUnit||'' });
                         });
                       } else {
                         const res = insertModifierGroup({ name: groupModal.name, selectionType: groupModal.selectionType });
-                        opts.forEach(o => insertModifierOption({ groupId: res.lastInsertRowId || res, name: o.name, priceDelta: parseFloat(o.price_delta)||0, ingrToReplace:'', ingrToDeduct:'', deductAmount:0, deductUnit:'' }));
+                        opts.forEach(o => insertModifierOption({ groupId: res.lastInsertRowId || res, name: o.name, priceDelta: parseFloat(o.price_delta)||0, ingrToReplace:'', ingrToDeduct: o.ingrToDeduct||'', deductAmount: parseFloat(o.deductAmount)||0, deductUnit: o.deductUnit||'' }));
                       }
                       load();
                       setGroupModal(null);
