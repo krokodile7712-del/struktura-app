@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { LogBox } from 'react-native';
+LogBox.ignoreLogs(['Text strings must be rendered']);
 import SwipeableRow from '../components/SwipeableRow';
 import { useToast } from '../components/Toast';
 import { useFocusEffect } from '@react-navigation/native';
