@@ -11,7 +11,7 @@ import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import ShiftBanner from '../components/ShiftBanner';
 import BottomBar from '../components/BottomBar';
-import { getAllProducts, getAllClients, getCategories, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, getAllVariantsWithSku, getZones, getOrderTemplates, saveOrderTemplate, deleteOrderTemplate, applyPendingPriceSchedules, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms, getLoyaltyConfig, spendPoints, checkSubscriptionBalance } from '../db/queries';
+import { getAllProducts, getAllClients, getCategories, getCategoryOrder, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, getAllVariantsWithSku, getZones, getOrderTemplates, saveOrderTemplate, deleteOrderTemplate, applyPendingPriceSchedules, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms, getLoyaltyConfig, spendPoints, checkSubscriptionBalance } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
 const CAT_ICONS = { 'Кофе': '☕', 'Лимонады': '🍹', 'Допы': '🍬', 'Прочее': '🫙' };
@@ -583,7 +583,7 @@ export default function KassaScreen({ navigation, route }) {
         <TopBar title="Касса" onBack={() => navigation.navigate(getHomeRoute())} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
           <Text style={styles.emptyTitle}>Меню пустое</Text>
-          <Text style={styles.emptyHint}>Импортируйте данные из Google Sheets через Admin → Импорт</Text>
+          <Text style={styles.emptyHint}>Добавьте товары в разделе Товары</Text>
           <MetalButton title="← Назад" variant="back" onPress={() => navigation.navigate(getHomeRoute())} />
         </View>
         <BottomBar navigation={navigation} activeTab="Kassa" />
