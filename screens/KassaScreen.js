@@ -619,30 +619,38 @@ export default function KassaScreen({ navigation, route }) {
 
       {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift')} />}
       <View style={styles.layout}>
+        {/* ── Вертикальная колонка категорий ── */}
+        <View style={styles.catRail}>
+          {groups.map(group => {
+            const isActive = activeCat === group && !searchQuery;
+            return (
+              <Pressable
+                key={group}
+                style={[styles.catRailItem, isActive && styles.catRailItemActive]}
+                onPress={() => { setActiveCat(group); setSearchQuery(''); }}
+              >
+                <Text style={styles.catRailIcon}>{CAT_ICONS[group] || '🫙'}</Text>
+                <Text style={[styles.catRailLabel, isActive && styles.catRailLabelActive]} numberOfLines={2}>
+                  {group}
+                </Text>
+                {isActive && <View style={styles.catRailBar} />}
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {/* ── Центр: поиск + сетка товаров ── */}
         <View style={styles.left}>
-          {/* Строка поиска */}
           <View style={styles.searchWrap}>
             <TextInput
               style={styles.searchInput}
               value={searchQuery}
-              onChangeText={v => { setSearchQuery(v); if (v) setActiveCat(groups[0]); }}
-              placeholder="🔍 Поиск по названию или артикулу..."
+              onChangeText={v => { setSearchQuery(v); }}
+              placeholder="Поиск..."
               placeholderTextColor={colors.muted}
               clearButtonMode="while-editing"
             />
           </View>
-          {!searchQuery && (
-            <FlatList
-              horizontal data={groups} keyExtractor={(g) => g} showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.catList}
-              renderItem={({ item: group }) => (
-                <Pressable style={[styles.catBtn, activeCat === group && styles.catBtnActive]} onPress={() => setActiveCat(group)}>
-                  <Text style={styles.catIcon}>{CAT_ICONS[group] || '🫙'}</Text>
-                  <Text style={[styles.catLabel, activeCat === group && styles.catLabelActive]}>{group}</Text>
-                </Pressable>
-              )}
-            />
-          )}
           <ScrollView contentContainerStyle={styles.menuGrid}>
             {filteredProducts.map((item) => {
               const { price, hasRange } = displayPrice(item);
@@ -652,24 +660,28 @@ export default function KassaScreen({ navigation, route }) {
                   key={item.id}
                   style={({ pressed }) => [
                     styles.menuItem,
-                    pressed && { transform: [{ scale: 0.97 }], opacity: 0.85 },
+                    pressed && styles.menuItemPressed,
                     cartQty > 0 && styles.menuItemInCart,
                   ]}
                   onPress={() => openModal(item)}
                 >
                   {cartQty > 0 && (
-                    <View style={styles.cartBadge}><Text style={styles.cartBadgeText}>{cartQty}</Text></View>
+                    <View style={styles.cartBadge}>
+                      <Text style={styles.cartBadgeText}>{cartQty}</Text>
+                    </View>
                   )}
                   <Text style={styles.menuItemName}>{item.name}</Text>
                   {price > 0
-                    ? <Text style={styles.menuItemPrice}>{hasRange ? `от ${price}` : `${price}`} ₽</Text>
-                    : <Text style={styles.menuItemPriceNone}>цена не назначена</Text>
+                    ? <Text style={styles.menuItemPrice}>{hasRange ? `от ${price}` : price} ₽</Text>
+                    : <Text style={styles.menuItemPriceNone}>нет цены</Text>
                   }
                 </Pressable>
               );
             })}
             {filteredProducts.length === 0 && (
-              <Text style={styles.emptyOrder}>Ничего не найдено</Text>
+              <View style={{ padding: 32, alignItems: 'center' }}>
+                <Text style={{ color: colors.muted, fontFamily: fonts.familyRegular, fontSize: 14 }}>Ничего не найдено</Text>
+              </View>
             )}
           </ScrollView>
         </View>
@@ -1500,7 +1512,16 @@ export default function KassaScreen({ navigation, route }) {
 
 const styles = StyleSheet.create({
   layout: { flex: 1, flexDirection: 'row' },
-  left: { flex: 1 },
+
+  /* ── Категории (вертикальный рейл) ── */
+  catRail:          { width: 72, backgroundColor: '#07080a', borderRightWidth: 1, borderRightColor: 'rgba(74,77,84,0.2)', paddingVertical: 8 },
+  catRailItem:      { alignItems: 'center', paddingVertical: 14, paddingHorizontal: 4, position: 'relative' },
+  catRailItemActive:{ backgroundColor: 'rgba(61,158,146,0.08)' },
+  catRailIcon:      { fontSize: 22, marginBottom: 4 },
+  catRailLabel:     { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.muted, textAlign: 'center', lineHeight: 13 },
+  catRailLabelActive:{ color: colors.greenLight },
+  catRailBar:       { position: 'absolute', left: 0, top: '20%', bottom: '20%', width: 3, borderRadius: 2, backgroundColor: colors.greenLight },
+  left: { flex: 1, backgroundColor: colors.surface },
   catList: { paddingHorizontal: 10, paddingVertical: 6 },
   catBtn: { height: 34, paddingHorizontal: 14, borderRadius: 17, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', backgroundColor: 'transparent', flexDirection: 'row', alignItems: 'center', gap: 5, marginRight: 6 },
   catBtnActive: { borderColor: 'rgba(61,158,146,0.7)', backgroundColor: 'rgba(61,158,146,0.12)' },
