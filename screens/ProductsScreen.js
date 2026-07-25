@@ -438,7 +438,7 @@ export default function ProductsScreen({ navigation }) {
                 {modGroups.map((g, idx) => (
                   <Pressable key={g.id}
                     style={({ pressed }) => [styles.productRow, idx < modGroups.length-1 && styles.rowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
-                    onPress={() => setGroupModal({ id: g.id, name: g.name, selectionType: g.selection_type || 'single', options: (g.options || []).map(o => ({ ...o, price_delta: String(o.price_delta || ''), deductAmount: String(o.deduct_amount || ''), ingrToDeduct: o.ingr_to_deduct || '' })) })}
+                    onPress={() => setGroupModal({ id: g.id, name: g.name, selectionType: g.selection_type || 'single', options: (g.options || []).map(o => ({ ...o, price_delta: String(o.price_delta || ''), deductAmount: String(o.deduct_amount || ''), ingrToDeduct: o.ingr_to_deduct || '', ingrToReplace: o.ingr_to_replace || '', mode: o.ingr_to_replace ? 'replace' : 'add' })) })}
                   >
                     <View style={{ flex: 1 }}>
                       <Text style={styles.productName}>{g.name}</Text>

@@ -32,6 +32,7 @@ export default function KassaScreen({ navigation, route }) {
   const [selVariantId, setSelVariantId] = useState(null);
   const [selAxisValues, setSelAxisValues] = useState({}); // {axisId: valueId} при выборе по осям
   const [selModifiers, setSelModifiers] = useState({}); // { [groupId]: optionId | optionId[] }
+  const [openGroups, setOpenGroups] = useState({});
   const [currentShift, setCurrentShift] = useState(null);
   const [shiftsEnabled, setShiftsEnabled] = useState(true);
   const [terms, setTerms] = useState({ item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' });
@@ -247,6 +248,7 @@ export default function KassaScreen({ navigation, route }) {
       }
     });
     setSelModifiers(initialMods);
+    setOpenGroups({});
   };
 
   // Объединяет дубли (одинаковый товар + вариант + модификаторы) вместо новой строки
@@ -1270,42 +1272,68 @@ export default function KassaScreen({ navigation, route }) {
                 )}
 
                 {/* Модификаторы */}
-                {modalGroups.map(group => {
-                  const sel = selModifiers[group.id];
-                  const isSelected = (optId) => group.selection_type === 'multiple' ? (sel || []).includes(optId) : sel === optId;
-                  return (
-                    <View key={group.id} style={styles.itemModalSection}>
-                      <View style={styles.modGroupHead}>
-                        <Text style={styles.itemModalSectionLabel}>{group.name}</Text>
-                        <Text style={styles.modGroupType}>{group.selection_type === 'multiple' ? 'несколько' : 'один'}</Text>
-                      </View>
-                      <View style={styles.modCard}>
-                        {group.options.map((opt, oi) => {
-                          const selected = isSelected(opt.id);
-                          return (
+                {/* Все группы в одной карточке */}
+                {modalGroups.length > 0 && (
+                  <View style={styles.itemModalSection}>
+                    <View style={styles.modAllCard}>
+                      {modalGroups.map((group, gi) => {
+                        const sel = selModifiers[group.id];
+                        const isSelected = (optId) => group.selection_type === 'multiple' ? (sel || []).includes(optId) : sel === optId;
+                        const isOpen = openGroups[group.id] === true;
+                        const selectedOpt = group.selection_type === 'multiple'
+                          ? (sel || []).map(id => group.options.find(o => o.id === id)?.name).filter(Boolean).join(', ')
+                          : group.options.find(o => o.id === sel)?.name;
+                        return (
+                          <View key={group.id}>
+                            {gi > 0 && <View style={styles.modRowDiv} />}
+                            {/* Заголовок группы */}
                             <Pressable
-                              key={opt.id}
-                              style={({ pressed }) => [
-                                styles.modRow,
-                                oi < group.options.length-1 && styles.modRowDiv,
-                                pressed && { backgroundColor: 'rgba(255,255,255,0.04)' },
-                              ]}
-                              onPress={() => toggleModifierOption(group, opt.id)}
+                              style={({ pressed }) => [styles.modGroupRow, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
+                              onPress={() => setOpenGroups(p => ({ ...p, [group.id]: !isOpen }))}
                             >
-                              <View style={[styles.modCheck, selected && styles.modCheckOn]}>
-                                {selected && <Text style={{ color:'#fff', fontSize: 11, fontWeight:'700' }}>✓</Text>}
+                              <View style={{ flex: 1 }}>
+                                <Text style={styles.modGroupName}>{group.name}</Text>
+                                {selectedOpt ? (
+                                  <Text style={styles.modGroupSel}>{selectedOpt}</Text>
+                                ) : (
+                                  <Text style={styles.modGroupNone}>Не выбрано</Text>
+                                )}
                               </View>
-                              <Text style={[styles.modName, selected && { color: colors.greenLight }]}>{opt.name}</Text>
-                              {opt.price_delta > 0 && (
-                                <Text style={[styles.modPrice, selected && { color: colors.greenLight }]}>+{opt.price_delta} ₽</Text>
-                              )}
+                              <Text style={[styles.modChevron, isOpen && styles.modChevronOpen]}>›</Text>
                             </Pressable>
-                          );
-                        })}
-                      </View>
+                            {/* Варианты */}
+                            {isOpen && (
+                              <View style={styles.modOptionsWrap}>
+                                {group.options.map((opt, oi) => {
+                                  const selected = isSelected(opt.id);
+                                  return (
+                                    <Pressable
+                                      key={opt.id}
+                                      style={({ pressed }) => [
+                                        styles.modRow,
+                                        oi < group.options.length-1 && styles.modRowDiv,
+                                        pressed && { backgroundColor: 'rgba(255,255,255,0.04)' },
+                                      ]}
+                                      onPress={() => toggleModifierOption(group, opt.id)}
+                                    >
+                                      <View style={[styles.modCheck, selected && styles.modCheckOn]}>
+                                        {selected && <Text style={{ color:'#fff', fontSize: 11, fontWeight:'700' }}>✓</Text>}
+                                      </View>
+                                      <Text style={[styles.modName, selected && { color: colors.greenLight }]}>{opt.name}</Text>
+                                      {opt.price_delta > 0 && (
+                                        <Text style={[styles.modPrice, selected && { color: colors.greenLight }]}>+{opt.price_delta} ₽</Text>
+                                      )}
+                                    </Pressable>
+                                  );
+                                })}
+                              </View>
+                            )}
+                          </View>
+                        );
+                      })}
                     </View>
-                  );
-                })}
+                  </View>
+                )}
               </ScrollView>
 
               {/* Кнопка добавить с ценой */}
@@ -1502,6 +1530,14 @@ const styles = StyleSheet.create({
   itemModalName: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, flex: 1, marginRight: 12 },
   itemModalClose: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(74,77,84,0.25)', alignItems: 'center', justifyContent: 'center' },
   itemModalCloseText: { fontSize: 14, color: colors.muted, fontFamily: fonts.familySemibold },
+  modAllCard:      { backgroundColor: '#07080a', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', overflow: 'hidden' },
+  modGroupRow:     { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 14, gap: 10 },
+  modGroupName:    { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
+  modGroupSel:     { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.greenLight, marginTop: 2 },
+  modGroupNone:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
+  modChevron:      { fontSize: 20, color: colors.muted, transform: [{ rotate: '90deg' }] },
+  modChevronOpen:  { transform: [{ rotate: '-90deg' }] },
+  modOptionsWrap:  { borderTopWidth: 1, borderTopColor: 'rgba(74,77,84,0.2)' },
   modGroupHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
   modGroupType: { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
   modCard:    { backgroundColor: '#07080a', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', overflow: 'hidden', marginBottom: 4 },
