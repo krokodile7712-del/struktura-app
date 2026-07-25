@@ -431,7 +431,7 @@ export default function ProductsScreen({ navigation }) {
 
       {tab === 'modifiers' && (
         <View style={styles.searchBar}>
-          <Pressable style={styles.addBtn} onPress={() => setGroupModal({ id: null, name: '', selectionType: 'single', selProducts: [], options: [] }); setProdSearch(''); setOpenProdCats({});} >
+          <Pressable style={styles.addBtn} onPress={() => { setGroupModal({ id: null, name: '', selectionType: 'single', selProducts: [], options: [] }); setProdSearch(''); setOpenProdCats({}); }} >
             <Text style={styles.addBtnTxt}>＋</Text>
           </Pressable>
           <Text style={[styles.searchPlaceholder, { flex: 1, marginLeft: 10 }]}>Группы модификаторов</Text>
