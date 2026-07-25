@@ -282,6 +282,8 @@ export default function ProductsScreen({ navigation }) {
   const [tab, setTab]             = useState('products'); // 'products' | 'modifiers'
   const [modGroups, setModGroups] = useState([]);
   const [groupModal, setGroupModal] = useState(null); // {id,name,selectionType,options}
+  const [stockPicker, setStockPicker] = useState(null); // { optIdx }
+  const [stockPickerSearch, setStockPickerSearch] = useState('');
   const [openCats, setOpenCats]   = useState({});
   const [modal, setModal]         = useState(null); // { product, variants, techCards }
 
@@ -508,6 +510,53 @@ export default function ProductsScreen({ navigation }) {
       <BottomBar navigation={navigation} activeTab="Kassa" />
 
 
+      {/* Пикер позиции склада для модификатора */}
+      <Modal visible={!!stockPicker} transparent animationType="slide" onRequestClose={() => setStockPicker(null)}>
+        <View style={styles.pickerSheet}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setStockPicker(null)} />
+          <View style={styles.pickerBox}>
+            <View style={styles.pickerHandle} />
+            <View style={styles.pickerHeader}>
+              <Text style={styles.pickerTitle}>Выбрать из склада</Text>
+              <Pressable onPress={() => setStockPicker(null)} hitSlop={12} style={styles.closeBtn}>
+                <Text style={styles.closeTxt}>✕</Text>
+              </Pressable>
+            </View>
+            <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+              <TextInput color={colors.text} style={styles.searchInput}
+                value={stockPickerSearch} onChangeText={setStockPickerSearch}
+                placeholder="Поиск..." placeholderTextColor={colors.muted} autoFocus />
+            </View>
+            <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 320 }}>
+              <View style={[styles.groupCard, { margin: 16, marginTop: 0 }]}>
+                {stock.filter(s => !stockPickerSearch || s.name.toLowerCase().includes(stockPickerSearch.toLowerCase()))
+                  .map((s, idx, arr) => (
+                  <Pressable key={s.id}
+                    style={({ pressed }) => [styles.productRow, idx < arr.length-1 && styles.rowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.04)' }]}
+                    onPress={() => {
+                      if (stockPicker !== null) {
+                        const { optIdx } = stockPicker;
+                        setGroupModal(m => ({ ...m, options: m.options.map((o,i) => i===optIdx
+                          ? { ...o, ingrToDeduct: s.name, deductUnit: s.unit }
+                          : o
+                        )}));
+                      }
+                      setStockPicker(null);
+                      setStockPickerSearch('');
+                    }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.productName}>{s.name}</Text>
+                      <Text style={styles.productSub}>{s['остаток']} {s.unit} на складе</Text>
+                    </View>
+                    <Text style={styles.productArrow}>›</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       {/* Модалка группы модификаторов */}
       <Modal visible={!!groupModal} transparent animationType="fade" onRequestClose={() => setGroupModal(null)}>
         <View style={styles.modalRoot}>
@@ -553,41 +602,66 @@ export default function ProductsScreen({ navigation }) {
 
                 {/* Варианты */}
                 <Text style={styles.fieldLabel}>Варианты</Text>
-                {groupModal.options.length > 0 && (
-                  <View style={[styles.groupCard, { marginBottom: 8 }]}>
-                    {groupModal.options.map((opt, idx) => (
-                      <View key={idx} style={[styles.productRow, idx < groupModal.options.length-1 && styles.rowDiv]}>
-                        <TextInput color={colors.text}
-                          style={[styles.input, { flex: 1, marginRight: 8, marginBottom: 0, padding: 8 }]}
-                          value={opt.name} placeholder="Название"
-                          placeholderTextColor={colors.muted}
-                          onChangeText={v => setGroupModal(m => ({ ...m, options: m.options.map((o,i) => i===idx ? {...o, name: v} : o) }))} />
-                        <TextInput color={colors.text}
-                          style={[styles.input, { width: 60, marginBottom: 0, padding: 8, textAlign: 'center' }]}
-                          value={String(opt.price_delta || '')} placeholder="+0"
-                          placeholderTextColor={colors.muted}
-                          keyboardType="numeric"
-                          onChangeText={v => setGroupModal(m => ({ ...m, options: m.options.map((o,i) => i===idx ? {...o, price_delta: v} : o) }))} />
-                        <Text style={[styles.productSub, { marginLeft: 2 }]}>₽</Text>
-                        <TextInput color={colors.text}
-                          style={[styles.input, { flex: 1, marginBottom: 0, marginLeft: 6, padding: 8 }]}
-                          value={opt.ingrToDeduct || ''} placeholder="Списать (напр: молоко)"
-                          placeholderTextColor={colors.muted}
-                          onChangeText={v => setGroupModal(m => ({ ...m, options: m.options.map((o,i) => i===idx ? {...o, ingrToDeduct: v} : o) }))} />
-                        <TextInput color={colors.text}
-                          style={[styles.input, { width: 50, marginBottom: 0, padding: 8, textAlign: 'center' }]}
-                          value={String(opt.deductAmount || '')} placeholder="100"
-                          placeholderTextColor={colors.muted}
-                          keyboardType="numeric"
-                          onChangeText={v => setGroupModal(m => ({ ...m, options: m.options.map((o,i) => i===idx ? {...o, deductAmount: v} : o) }))} />
-                        <Text style={[styles.productSub, { marginRight: 4 }]}>мл/г</Text>
-                        <Pressable onPress={() => setGroupModal(m => ({ ...m, options: m.options.filter((_,i) => i!==idx) }))} hitSlop={10}>
-                          <Text style={{ color: colors.muted, fontSize: 18 }}>✕</Text>
+                {groupModal.options.map((opt, idx) => (
+                  <View key={idx} style={styles.optCard}>
+                    {/* Строка 1: название + цена + удалить */}
+                    <View style={styles.optRow}>
+                      <TextInput color={colors.text}
+                        style={[styles.input, { flex: 1, marginBottom: 0, marginRight: 8, padding: 10 }]}
+                        value={opt.name} placeholder="Название (напр: Овсяное молоко)"
+                        placeholderTextColor={colors.muted}
+                        onChangeText={v => setGroupModal(m => ({ ...m, options: m.options.map((o,i) => i===idx ? {...o, name: v} : o) }))} />
+                      <TextInput color={colors.text}
+                        style={[styles.input, { width: 64, marginBottom: 0, padding: 10, textAlign: 'center' }]}
+                        value={String(opt.price_delta || '')} placeholder="+0"
+                        placeholderTextColor={colors.muted} keyboardType="numeric"
+                        onChangeText={v => setGroupModal(m => ({ ...m, options: m.options.map((o,i) => i===idx ? {...o, price_delta: v} : o) }))} />
+                      <Text style={styles.optUnit}>₽</Text>
+                      <Pressable onPress={() => setGroupModal(m => ({ ...m, options: m.options.filter((_,i) => i!==idx) }))} hitSlop={12}>
+                        <Text style={{ color: 'rgba(74,77,84,0.5)', fontSize: 18 }}>✕</Text>
+                      </Pressable>
+                    </View>
+
+                    {/* Строка 2: режим */}
+                    <View style={styles.optModeRow}>
+                      {[{key:'add',label:'＋ Добавление'},{key:'replace',label:'↔ Замена'}].map(mode => (
+                        <Pressable key={mode.key}
+                          style={[styles.modeBtn, (opt.mode||'add') === mode.key && styles.modeBtnActive]}
+                          onPress={() => setGroupModal(m => ({ ...m, options: m.options.map((o,i) => i===idx ? {...o, mode: mode.key} : o) }))}>
+                          <Text style={[styles.modeBtnTxt, (opt.mode||'add') === mode.key && styles.modeBtnTxtActive]}>{mode.label}</Text>
                         </Pressable>
+                      ))}
+                    </View>
+
+                    {/* Строка 3: склад */}
+                    {(opt.mode||'add') === 'replace' && (
+                      <View style={styles.optStockRow}>
+                        <Text style={styles.optLabel}>Заменить:</Text>
+                        <TextInput color={colors.text}
+                          style={[styles.input, { flex: 1, marginBottom: 0, padding: 8 }]}
+                          value={opt.ingrToReplace || ''} placeholder="молоко (из техкарты)"
+                          placeholderTextColor={colors.muted}
+                          onChangeText={v => setGroupModal(m => ({ ...m, options: m.options.map((o,i) => i===idx ? {...o, ingrToReplace: v} : o) }))} />
                       </View>
-                    ))}
+                    )}
+                    <View style={styles.optStockRow}>
+                      <Text style={styles.optLabel}>{(opt.mode||'add') === 'replace' ? 'На:' : 'Из склада:'}</Text>
+                      <Pressable style={[styles.input, { flex: 1, marginBottom: 0, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 10 }]}
+                        onPress={() => setStockPicker({ optIdx: idx })}>
+                        <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: opt.ingrToDeduct ? colors.text : colors.muted }}>
+                          {opt.ingrToDeduct || 'Выбрать из склада →'}
+                        </Text>
+                        <Text style={{ color: colors.muted }}>📦</Text>
+                      </Pressable>
+                      <TextInput color={colors.text}
+                        style={[styles.input, { width: 60, marginBottom: 0, marginLeft: 8, padding: 10, textAlign: 'center' }]}
+                        value={String(opt.deductAmount || '')} placeholder="0"
+                        placeholderTextColor={colors.muted} keyboardType="numeric"
+                        onChangeText={v => setGroupModal(m => ({ ...m, options: m.options.map((o,i) => i===idx ? {...o, deductAmount: v} : o) }))} />
+                      <Text style={styles.optUnit}>{opt.deductUnit || 'мл'}</Text>
+                    </View>
                   </View>
-                )}
+                ))}
                 <Pressable style={styles.addIngBtn}
                   onPress={() => setGroupModal(m => ({ ...m, options: [...m.options, { name: '', price_delta: '' }] }))}>
                   <Text style={styles.addIngTxt}>+ Добавить вариант</Text>
@@ -655,6 +729,21 @@ export default function ProductsScreen({ navigation }) {
 const styles = StyleSheet.create({
   inner: { padding: 16, paddingBottom: 24 },
 
+  optCard:     { backgroundColor: '#07080a', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', padding: 12, marginBottom: 8 },
+  optRow:      { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
+  optModeRow:  { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  optStockRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  optLabel:    { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, width: 72 },
+  optUnit:     { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+  modeBtn:     { flex: 1, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(74,77,84,0.35)', alignItems: 'center', backgroundColor: '#07080a' },
+  modeBtnActive:   { borderColor: 'rgba(61,158,146,0.5)', backgroundColor: 'rgba(61,158,146,0.1)' },
+  modeBtnTxt:      { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
+  modeBtnTxtActive:{ color: colors.greenLight },
+  pickerSheet:  { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
+  pickerBox:    { backgroundColor: '#0e0f11', borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', paddingBottom: 24 },
+  pickerHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(74,77,84,0.5)', alignSelf: 'center', marginTop: 12, marginBottom: 8 },
+  pickerHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, paddingTop: 8 },
+  pickerTitle:  { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text },
   checkbox:    { width: 24, height: 24, borderRadius: 8, borderWidth: 1.5, borderColor: 'rgba(74,77,84,0.5)', alignItems: 'center', justifyContent: 'center' },
   checkboxOn:  { backgroundColor: colors.greenLight, borderColor: colors.greenLight },
   tabBar:      { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.3)' },
