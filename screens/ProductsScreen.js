@@ -310,7 +310,10 @@ export default function ProductsScreen({ navigation }) {
         ...i, amount: String(i.amount), price_per_unit: String(i.price_per_unit || '')
       }));
     }
-    setModal({ product, variants, techCards });
+    // Всегда берём свежие модификаторы из БД
+    const freshModGroups = getAllModifierGroups();
+    setModGroups(freshModGroups);
+    setModal({ product, variants, techCards, freshModGroups });
   };
 
   const handleSave = ({ name, category, active, vars, selGroups }) => {
@@ -718,7 +721,7 @@ export default function ProductsScreen({ navigation }) {
               techCards={modal.techCards}
               stock={stock}
               categories={allCats.length ? allCats : ['Кофе', 'Допы', 'Прочее']}
-              allModGroups={modGroups}
+              allModGroups={modal.freshModGroups || modGroups}
               onClose={() => setModal(null)}
               onSave={handleSave}
               onDelete={handleDelete}
