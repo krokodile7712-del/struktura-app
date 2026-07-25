@@ -1275,20 +1275,34 @@ export default function KassaScreen({ navigation, route }) {
                   const isSelected = (optId) => group.selection_type === 'multiple' ? (sel || []).includes(optId) : sel === optId;
                   return (
                     <View key={group.id} style={styles.itemModalSection}>
-                      <Text style={styles.itemModalSectionLabel}>{group.name}</Text>
-                      {group.options.map(opt => (
-                        <Pressable
-                          key={opt.id}
-                          style={[styles.itemModalRow, isSelected(opt.id) && styles.itemModalRowActive]}
-                          onPress={() => toggleModifierOption(group, opt.id)}
-                        >
-                          <Text style={[styles.itemModalRowText, isSelected(opt.id) && styles.itemModalRowTextActive]}>{opt.name}</Text>
-                          {opt.price_delta > 0 && (
-                            <Text style={[styles.itemModalRowPrice, isSelected(opt.id) && { color: colors.greenLight }]}>+{opt.price_delta} ₽</Text>
-                          )}
-                          {isSelected(opt.id) && <Text style={styles.itemModalRowCheck}>✓</Text>}
-                        </Pressable>
-                      ))}
+                      <View style={styles.modGroupHead}>
+                        <Text style={styles.itemModalSectionLabel}>{group.name}</Text>
+                        <Text style={styles.modGroupType}>{group.selection_type === 'multiple' ? 'несколько' : 'один'}</Text>
+                      </View>
+                      <View style={styles.modCard}>
+                        {group.options.map((opt, oi) => {
+                          const selected = isSelected(opt.id);
+                          return (
+                            <Pressable
+                              key={opt.id}
+                              style={({ pressed }) => [
+                                styles.modRow,
+                                oi < group.options.length-1 && styles.modRowDiv,
+                                pressed && { backgroundColor: 'rgba(255,255,255,0.04)' },
+                              ]}
+                              onPress={() => toggleModifierOption(group, opt.id)}
+                            >
+                              <View style={[styles.modCheck, selected && styles.modCheckOn]}>
+                                {selected && <Text style={{ color:'#fff', fontSize: 11, fontWeight:'700' }}>✓</Text>}
+                              </View>
+                              <Text style={[styles.modName, selected && { color: colors.greenLight }]}>{opt.name}</Text>
+                              {opt.price_delta > 0 && (
+                                <Text style={[styles.modPrice, selected && { color: colors.greenLight }]}>+{opt.price_delta} ₽</Text>
+                              )}
+                            </Pressable>
+                          );
+                        })}
+                      </View>
                     </View>
                   );
                 })}
@@ -1488,6 +1502,15 @@ const styles = StyleSheet.create({
   itemModalName: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, flex: 1, marginRight: 12 },
   itemModalClose: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(74,77,84,0.25)', alignItems: 'center', justifyContent: 'center' },
   itemModalCloseText: { fontSize: 14, color: colors.muted, fontFamily: fonts.familySemibold },
+  modGroupHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  modGroupType: { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
+  modCard:    { backgroundColor: '#07080a', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', overflow: 'hidden', marginBottom: 4 },
+  modRow:     { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, gap: 10 },
+  modRowDiv:  { borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.15)' },
+  modCheck:   { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: 'rgba(74,77,84,0.5)', alignItems: 'center', justifyContent: 'center' },
+  modCheckOn: { backgroundColor: colors.greenLight, borderColor: colors.greenLight },
+  modName:    { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, flex: 1 },
+  modPrice:   { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
   itemModalSection: { marginBottom: 4 },
   itemModalSectionLabel: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 14 },
   itemModalRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 14, borderRadius: 12, marginBottom: 4, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(74,77,84,0.2)' },

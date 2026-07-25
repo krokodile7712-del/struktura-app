@@ -14,6 +14,9 @@ import {
   getProductVariants, upsertProductVariants,
   getCostCardForVariant, saveCostCardForVariant,
   getAllStock, getCategories, cleanOrphanCostIngredients, deleteOldCostCards,
+  getAllModifierGroups, insertModifierGroup, updateModifierGroup, deleteModifierGroup,
+  insertModifierOption, updateModifierOption, deleteModifierOption,
+  getProductModifierGroups, setProductModifierGroups,
 } from '../db/queries';
 import { getDb } from '../db/database';
 import { getHomeRoute } from '../db/session';
@@ -22,7 +25,7 @@ import { colors, fonts } from '../constants/theme';
 const fmt = n => (n || 0).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
 // ─── Модалка товара ───────────────────────────────────────────────────────────
-function ProductModal({ product, variants, techCards, stock, categories, onClose, onSave, onDelete }) {
+function ProductModal({ product, variants, techCards, stock, categories, allModGroups, onClose, onSave, onDelete }) {
   const [name, setName]           = useState(product?.name || '');
   const [category, setCategory]   = useState(product?.category || (categories[0] || ''));
   const [active, setActive]       = useState(product?.active !== 0);
@@ -31,6 +34,9 @@ function ProductModal({ product, variants, techCards, stock, categories, onClose
       ? variants.map(v => ({ id: v.id, label: v.label || v.size || '', price: String(v.price || ''), ings: techCards[v.id] || [] }))
       : [{ id: null, label: '', price: String(product?.price || ''), ings: [] }]
   );
+  const [selGroups, setSelGroups] = useState(() => {
+    try { return product?.id ? (getProductModifierGroups(product.id).map(g => g.id)) : []; } catch { return []; }
+  });
   const [ingPicker, setIngPicker] = useState(null); // varIndex
   const [ingSearch, setIngSearch] = useState('');
 
@@ -56,7 +62,7 @@ function ProductModal({ product, variants, techCards, stock, categories, onClose
 
   const save = () => {
     if (!name.trim()) { Alert.alert('Введите название товара'); return; }
-    onSave({ name: name.trim(), category, active, vars });
+    onSave({ name: name.trim(), category, active, vars, selGroups });
   };
 
   return (
@@ -179,6 +185,35 @@ function ProductModal({ product, variants, techCards, stock, categories, onClose
           </View>
         ))}
 
+        {/* Модификаторы */}
+        {allModGroups && allModGroups.length > 0 && (
+          <>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, marginBottom: 8 }}>
+              <Text style={[styles.fieldLabel, { marginTop: 0, marginBottom: 0 }]}>Модификаторы в кассе</Text>
+              <InfoTip title="Модификаторы" text="При добавлении товара в кассе появится выбор из этих групп. Например: Сироп, Альт. молоко." />
+            </View>
+            <View style={styles.groupCard}>
+              {allModGroups.map((g, idx) => (
+                <Pressable key={g.id}
+                  style={[styles.productRow, idx < allModGroups.length-1 && styles.rowDiv]}
+                  onPress={() => setSelGroups(prev =>
+                    prev.includes(g.id) ? prev.filter(id => id !== g.id) : [...prev, g.id]
+                  )}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.productName}>{g.name}</Text>
+                    <Text style={styles.productSub}>
+                      {g.options?.map(o => `${o.name}${o.price_delta > 0 ? ` +${o.price_delta}₽` : ''}`).join(' · ')}
+                    </Text>
+                  </View>
+                  <View style={[styles.checkbox, selGroups.includes(g.id) && styles.checkboxOn]}>
+                    {selGroups.includes(g.id) && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          </>
+        )}
+
         {/* Активен */}
         <View style={styles.activeRow}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -244,6 +279,9 @@ export default function ProductsScreen({ navigation }) {
   const [categories, setCategories] = useState([]);
   const [search, setSearch]       = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
+  const [tab, setTab]             = useState('products'); // 'products' | 'modifiers'
+  const [modGroups, setModGroups] = useState([]);
+  const [groupModal, setGroupModal] = useState(null); // {id,name,selectionType,options}
   const [openCats, setOpenCats]   = useState({});
   const [modal, setModal]         = useState(null); // { product, variants, techCards }
 
@@ -252,6 +290,7 @@ export default function ProductsScreen({ navigation }) {
       deleteOldCostCards();
       cleanOrphanCostIngredients();
       setProducts(getAllProductsAdmin());
+      setModGroups(getAllModifierGroups());
       setStock(getAllStock());
       const cats = getCategories ? getCategories() : [];
       setCategories(cats.length ? cats : ['Кофе', 'Допы', 'Прочее']);
@@ -272,7 +311,7 @@ export default function ProductsScreen({ navigation }) {
     setModal({ product, variants, techCards });
   };
 
-  const handleSave = ({ name, category, active, vars }) => {
+  const handleSave = ({ name, category, active, vars, selGroups }) => {
     try {
       const db = getDb();
       let productId = modal.product?.id;
@@ -307,6 +346,10 @@ export default function ProductsScreen({ navigation }) {
         saveCostCardForVariant(Number(sv.id), ings);
       });
 
+      // Сохраняем привязку модификаторов
+      if (selGroups !== undefined) {
+        try { setProductModifierGroups(productId, selGroups); } catch(_) {}
+      }
       load();
       setModal(null);
     } catch (e) { console.error(e); Alert.alert('Ошибка сохранения', String(e.message || e)); }
@@ -340,8 +383,18 @@ export default function ProductsScreen({ navigation }) {
         }
       />
 
+      {/* Вкладки */}
+      <View style={styles.tabBar}>
+        <Pressable style={[styles.tabBtn, tab === 'products' && styles.tabBtnActive]} onPress={() => setTab('products')}>
+          <Text style={[styles.tabTxt, tab === 'products' && styles.tabTxtActive]}>Товары</Text>
+        </Pressable>
+        <Pressable style={[styles.tabBtn, tab === 'modifiers' && styles.tabBtnActive]} onPress={() => setTab('modifiers')}>
+          <Text style={[styles.tabTxt, tab === 'modifiers' && styles.tabTxtActive]}>Модификаторы</Text>
+        </Pressable>
+      </View>
+
       {/* Поиск */}
-      <View style={styles.searchBar}>
+      {tab === 'products' && <View style={styles.searchBar}>
         {searchOpen ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
             <TextInput color={colors.text} style={[styles.searchInput, { flex: 1 }]}
@@ -359,10 +412,45 @@ export default function ProductsScreen({ navigation }) {
             </Pressable>
           </View>
         )}
-      </View>
+      </View>}
+
+      {tab === 'modifiers' && (
+        <View style={styles.searchBar}>
+          <Pressable style={styles.addBtn} onPress={() => setGroupModal({ id: null, name: '', selectionType: 'single', options: [] })} >
+            <Text style={styles.addBtnTxt}>＋</Text>
+          </Pressable>
+          <Text style={[styles.searchPlaceholder, { flex: 1, marginLeft: 10 }]}>Группы модификаторов</Text>
+        </View>
+      )}
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
-        {products.length === 0 ? (
+        {tab === 'modifiers' && (
+          <>
+            {modGroups.length === 0 ? (
+              <EmptyState icon="🧂" title="Нет групп" text="Нажмите ＋ чтобы создать первую группу модификаторов — например Сироп или Альт. молоко." />
+            ) : (
+              <View style={styles.groupCard}>
+                {modGroups.map((g, idx) => (
+                  <Pressable key={g.id}
+                    style={({ pressed }) => [styles.productRow, idx < modGroups.length-1 && styles.rowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
+                    onPress={() => setGroupModal({ id: g.id, name: g.name, selectionType: g.selection_type || 'single', options: g.options || [] })}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.productName}>{g.name}</Text>
+                      <Text style={styles.productSub}>
+                        {g.selection_type === 'multiple' ? 'Выбор нескольких' : 'Выбор одного'}
+                        {g.options?.length > 0 ? ` · ${g.options.map(o => `${o.name}${o.price_delta > 0 ? ` +${o.price_delta}₽` : ''}`).join(', ')}` : ''}
+                      </Text>
+                    </View>
+                    <Text style={styles.productArrow}>›</Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </>
+        )}
+
+        {tab === 'products' && (products.length === 0 ? (
           <EmptyState icon="🛍" title="Товаров нет" text="Нажмите ＋ чтобы добавить первый товар. Укажите название, цену — и можно принимать заказы. Техкарту (для учёта склада) можно добавить позже." />
         ) : filtered.length === 0 ? (
           <EmptyState icon="🔍" title="Ничего не найдено" text={`Нет товаров по запросу «${search}»`} />
@@ -414,10 +502,120 @@ export default function ProductsScreen({ navigation }) {
               </View>
             );
           })
-        )}
+        ))}
       </ScrollView>
 
       <BottomBar navigation={navigation} activeTab="Kassa" />
+
+
+      {/* Модалка группы модификаторов */}
+      <Modal visible={!!groupModal} transparent animationType="fade" onRequestClose={() => setGroupModal(null)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setGroupModal(null)} />
+          {groupModal && (
+            <View style={[styles.modalBox, { width: '50%' }]}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{groupModal.id ? 'Группа модификаторов' : 'Новая группа'}</Text>
+                <Pressable onPress={() => setGroupModal(null)} hitSlop={14} style={styles.closeBtn}>
+                  <Text style={styles.closeTxt}>✕</Text>
+                </Pressable>
+              </View>
+              <ScrollView contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled">
+
+                {/* Название */}
+                <Text style={styles.fieldLabel}>Название группы</Text>
+                <TextInput color={colors.text} style={styles.input}
+                  value={groupModal.name}
+                  onChangeText={v => setGroupModal(m => ({ ...m, name: v }))}
+                  placeholder="Например: Сироп, Альт. молоко, Топпинг"
+                  placeholderTextColor={colors.muted} />
+
+                {/* Тип выбора */}
+                <Text style={styles.fieldLabel}>Тип выбора</Text>
+                <View style={styles.groupCard}>
+                  {[
+                    { key: 'single',   label: 'Один вариант',      sub: 'Клиент выбирает один из списка' },
+                    { key: 'multiple', label: 'Несколько вариантов', sub: 'Можно выбрать несколько сразу' },
+                  ].map((t, idx) => (
+                    <Pressable key={t.key}
+                      style={[styles.productRow, idx === 0 && styles.rowDiv]}
+                      onPress={() => setGroupModal(m => ({ ...m, selectionType: t.key }))}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.productName}>{t.label}</Text>
+                        <Text style={styles.productSub}>{t.sub}</Text>
+                      </View>
+                      <View style={[styles.checkbox, groupModal.selectionType === t.key && styles.checkboxOn]}>
+                        {groupModal.selectionType === t.key && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
+                      </View>
+                    </Pressable>
+                  ))}
+                </View>
+
+                {/* Варианты */}
+                <Text style={styles.fieldLabel}>Варианты</Text>
+                {groupModal.options.length > 0 && (
+                  <View style={[styles.groupCard, { marginBottom: 8 }]}>
+                    {groupModal.options.map((opt, idx) => (
+                      <View key={idx} style={[styles.productRow, idx < groupModal.options.length-1 && styles.rowDiv]}>
+                        <TextInput color={colors.text}
+                          style={[styles.input, { flex: 1, marginRight: 8, marginBottom: 0, padding: 8 }]}
+                          value={opt.name} placeholder="Название"
+                          placeholderTextColor={colors.muted}
+                          onChangeText={v => setGroupModal(m => ({ ...m, options: m.options.map((o,i) => i===idx ? {...o, name: v} : o) }))} />
+                        <TextInput color={colors.text}
+                          style={[styles.input, { width: 70, marginBottom: 0, padding: 8, textAlign: 'center' }]}
+                          value={String(opt.price_delta || '')} placeholder="+0"
+                          placeholderTextColor={colors.muted}
+                          keyboardType="numeric"
+                          onChangeText={v => setGroupModal(m => ({ ...m, options: m.options.map((o,i) => i===idx ? {...o, price_delta: v} : o) }))} />
+                        <Text style={[styles.productSub, { marginLeft: 4, marginRight: 8 }]}>₽</Text>
+                        <Pressable onPress={() => setGroupModal(m => ({ ...m, options: m.options.filter((_,i) => i!==idx) }))} hitSlop={10}>
+                          <Text style={{ color: colors.muted, fontSize: 18 }}>✕</Text>
+                        </Pressable>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                <Pressable style={styles.addIngBtn}
+                  onPress={() => setGroupModal(m => ({ ...m, options: [...m.options, { name: '', price_delta: '' }] }))}>
+                  <Text style={styles.addIngTxt}>+ Добавить вариант</Text>
+                </Pressable>
+
+                {/* Сохранить */}
+                <Pressable style={({ pressed }) => [styles.confirmBtn, { marginTop: 16 }, pressed && { opacity: 0.88 }]}
+                  onPress={() => {
+                    if (!groupModal.name.trim()) return;
+                    try {
+                      const opts = groupModal.options.filter(o => o.name.trim());
+                      if (groupModal.id) {
+                        updateModifierGroup(groupModal.id, { name: groupModal.name, selectionType: groupModal.selectionType });
+                        // Пересоздаём опции
+                        opts.forEach(o => {
+                          if (o.id) updateModifierOption(o.id, { name: o.name, priceDelta: parseFloat(o.price_delta)||0, ingrToReplace:'', ingrToDeduct:'', deductAmount:0, deductUnit:'' });
+                          else insertModifierOption({ groupId: groupModal.id, name: o.name, priceDelta: parseFloat(o.price_delta)||0, ingrToReplace:'', ingrToDeduct:'', deductAmount:0, deductUnit:'' });
+                        });
+                      } else {
+                        const res = insertModifierGroup({ name: groupModal.name, selectionType: groupModal.selectionType });
+                        opts.forEach(o => insertModifierOption({ groupId: res.lastInsertRowId || res, name: o.name, priceDelta: parseFloat(o.price_delta)||0, ingrToReplace:'', ingrToDeduct:'', deductAmount:0, deductUnit:'' }));
+                      }
+                      load();
+                      setGroupModal(null);
+                    } catch(e) { console.error(e); }
+                  }}>
+                  <Text style={styles.confirmBtnTxt}>Сохранить</Text>
+                </Pressable>
+
+                {groupModal.id && (
+                  <Pressable style={styles.deleteBtn}
+                    onPress={() => { deleteModifierGroup(groupModal.id); load(); setGroupModal(null); }}>
+                    <Text style={styles.deleteBtnTxt}>Удалить группу</Text>
+                  </Pressable>
+                )}
+              </ScrollView>
+            </View>
+          )}
+        </View>
+      </Modal>
 
       {/* Модалка товара */}
       <Modal visible={!!modal} transparent animationType="fade" onRequestClose={() => setModal(null)}>
@@ -430,6 +628,7 @@ export default function ProductsScreen({ navigation }) {
               techCards={modal.techCards}
               stock={stock}
               categories={allCats.length ? allCats : ['Кофе', 'Допы', 'Прочее']}
+              allModGroups={modGroups}
               onClose={() => setModal(null)}
               onSave={handleSave}
               onDelete={handleDelete}
@@ -444,6 +643,13 @@ export default function ProductsScreen({ navigation }) {
 const styles = StyleSheet.create({
   inner: { padding: 16, paddingBottom: 24 },
 
+  checkbox:    { width: 24, height: 24, borderRadius: 8, borderWidth: 1.5, borderColor: 'rgba(74,77,84,0.5)', alignItems: 'center', justifyContent: 'center' },
+  checkboxOn:  { backgroundColor: colors.greenLight, borderColor: colors.greenLight },
+  tabBar:      { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.3)' },
+  tabBtn:      { flex: 1, paddingVertical: 12, alignItems: 'center' },
+  tabBtnActive:{ borderBottomWidth: 2, borderBottomColor: colors.greenLight },
+  tabTxt:      { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  tabTxtActive:{ color: colors.greenLight },
   addBtn:    { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(61,158,146,0.15)', borderWidth: 1, borderColor: 'rgba(61,158,146,0.4)', alignItems: 'center', justifyContent: 'center' },
   addBtnTxt: { fontSize: 20, color: colors.greenLight, lineHeight: 26 },
 
