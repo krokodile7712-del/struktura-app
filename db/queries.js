@@ -454,17 +454,18 @@ export function deleteModifierOption(id) {
 export function getProductModifierGroups(productId) {
   const db = getDb();
   const links = db.getAllSync(`SELECT group_id FROM product_modifier_groups WHERE product_id = ?`, [productId]);
-  const groupIds = links.map(l => l.group_id);
+  const groupIds = links.map(l => Number(l.group_id));
   if (groupIds.length === 0) return [];
   const all = getAllModifierGroups();
-  return all.filter(g => groupIds.includes(g.id));
+  return all.filter(g => groupIds.includes(Number(g.id)));
 }
 
 export function setProductModifierGroups(productId, groupIds) {
   const db = getDb();
   db.runSync(`DELETE FROM product_modifier_groups WHERE product_id = ?`, [productId]);
   for (const groupId of groupIds) {
-    db.runSync(`INSERT INTO product_modifier_groups (product_id, group_id) VALUES (?, ?)`, [productId, groupId]);
+    if (!groupId) continue;
+    db.runSync(`INSERT INTO product_modifier_groups (product_id, group_id) VALUES (?, ?)`, [Number(productId), Number(groupId)]);
   }
 }
 

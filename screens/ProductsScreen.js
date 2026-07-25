@@ -35,7 +35,7 @@ function ProductModal({ product, variants, techCards, stock, categories, allModG
       : [{ id: null, label: '', price: String(product?.price || ''), ings: [] }]
   );
   const [selGroups, setSelGroups] = useState(() => {
-    try { return product?.id ? (getProductModifierGroups(product.id).map(g => g.id)) : []; } catch { return []; }
+    try { return product?.id ? (getProductModifierGroups(product.id).map(g => Number(g.id))) : []; } catch { return []; }
   });
   const [ingPicker, setIngPicker] = useState(null); // varIndex
   const [ingSearch, setIngSearch] = useState('');
@@ -197,7 +197,7 @@ function ProductModal({ product, variants, techCards, stock, categories, allModG
                 <Pressable key={g.id}
                   style={[styles.productRow, idx < allModGroups.length-1 && styles.rowDiv]}
                   onPress={() => setSelGroups(prev =>
-                    prev.includes(g.id) ? prev.filter(id => id !== g.id) : [...prev, g.id]
+                    prev.includes(Number(g.id)) ? prev.filter(id => id !== Number(g.id)) : [...prev, Number(g.id)]
                   )}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.productName}>{g.name}</Text>
@@ -205,8 +205,8 @@ function ProductModal({ product, variants, techCards, stock, categories, allModG
                       {g.options?.map(o => `${o.name}${o.price_delta > 0 ? ` +${o.price_delta}₽` : ''}`).join(' · ')}
                     </Text>
                   </View>
-                  <View style={[styles.checkbox, selGroups.includes(g.id) && styles.checkboxOn]}>
-                    {selGroups.includes(g.id) && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
+                  <View style={[styles.checkbox, selGroups.includes(Number(g.id)) && styles.checkboxOn]}>
+                    {selGroups.includes(Number(g.id)) && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
                   </View>
                 </Pressable>
               ))}
