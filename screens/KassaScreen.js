@@ -727,8 +727,8 @@ export default function KassaScreen({ navigation, route }) {
             {order.length === 0 ? (
               /* Пустое состояние */
               <View style={styles.v2Empty}>
-                <Text style={styles.v2EmptyIcon}>☕</Text>
-                <Text style={styles.v2EmptyText}>Выберите товар</Text>
+                <Text style={styles.v2EmptyIcon}>🛒</Text>
+                <Text style={styles.v2EmptyText}>Корзина пуста</Text>
               </View>
             ) : (
               order.map((item, idx) => (
