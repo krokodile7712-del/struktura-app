@@ -291,6 +291,8 @@ export default function ProductsScreen({ navigation }) {
   const [modGroups, setModGroups] = useState([]);
   const [groupModal, setGroupModal] = useState(null); // {id,name,selectionType,options}
   const [stockPicker, setStockPicker] = useState(null); // { optIdx }
+  const [prodSearch, setProdSearch] = useState('');
+  const [openProdCats, setOpenProdCats] = useState({});
   const [stockPickerSearch, setStockPickerSearch] = useState('');
   const [openCats, setOpenCats]   = useState({});
   const [modal, setModal]         = useState(null); // { product, variants, techCards }
@@ -429,7 +431,7 @@ export default function ProductsScreen({ navigation }) {
 
       {tab === 'modifiers' && (
         <View style={styles.searchBar}>
-          <Pressable style={styles.addBtn} onPress={() => setGroupModal({ id: null, name: '', selectionType: 'single', selProducts: [], options: [] })} >
+          <Pressable style={styles.addBtn} onPress={() => setGroupModal({ id: null, name: '', selectionType: 'single', selProducts: [], options: [] }); setProdSearch(''); setOpenProdCats({});} >
             <Text style={styles.addBtnTxt}>＋</Text>
           </Pressable>
           <Text style={[styles.searchPlaceholder, { flex: 1, marginLeft: 10 }]}>Группы модификаторов</Text>
@@ -702,33 +704,78 @@ export default function ProductsScreen({ navigation }) {
                 {/* Для каких товаров */}
                 <Text style={styles.fieldLabel}>Для каких товаров</Text>
                 <Text style={[styles.productSub, { marginBottom: 10 }]}>Модификатор появится в кассе при заказе этих товаров</Text>
-                {products.length > 0 ? (
-                  <View style={styles.groupCard}>
-                    {products.map((p, idx) => {
-                      const on = (groupModal.selProducts || []).includes(Number(p.id));
-                      return (
-                        <Pressable key={p.id}
-                          style={({ pressed }) => [styles.productRow, idx < products.length-1 && styles.rowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
-                          onPress={() => setGroupModal(m => ({
-                            ...m,
-                            selProducts: on
-                              ? (m.selProducts||[]).filter(id => id !== Number(p.id))
-                              : [...(m.selProducts||[]), Number(p.id)]
-                          }))}>
-                          <View style={{ flex: 1 }}>
-                            <Text style={[styles.productName, on && { color: colors.greenLight }]}>{p.name}</Text>
-                            <Text style={styles.productSub}>{p.category}</Text>
-                          </View>
-                          <View style={[styles.checkbox, on && styles.checkboxOn]}>
-                            {on && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
-                          </View>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                ) : (
+                {products.length === 0 ? (
                   <Text style={styles.productSub}>Сначала добавьте товары в разделе Товары</Text>
-                )}
+                ) : (() => {
+                  const filtered = products.filter(p => !prodSearch.trim() || p.name.toLowerCase().includes(prodSearch.toLowerCase()));
+                  const cats = [...new Set(filtered.map(p => p.category || 'Без категории'))].sort();
+                  const selProds = groupModal.selProducts || [];
+                  const selCount = products.filter(p => selProds.includes(Number(p.id))).length;
+                  return (
+                    <>
+                      {/* Поиск */}
+                      <View style={styles.optStockRow}>
+                        <TextInput color={colors.text} style={[styles.input, { flex: 1, marginBottom: 8 }]}
+                          value={prodSearch} onChangeText={setProdSearch}
+                          placeholder="Поиск товара..." placeholderTextColor={colors.muted} />
+                      </View>
+                      {selCount > 0 && (
+                        <Text style={[styles.productSub, { marginBottom: 8, color: colors.greenLight }]}>
+                          ✓ Выбрано: {selCount} товар(ов)
+                        </Text>
+                      )}
+                      {/* Аккордеон по категориям */}
+                      <View style={styles.allCatsCard}>
+                        {cats.map((cat, catIdx) => {
+                          const catProds = filtered.filter(p => (p.category || 'Без категории') === cat);
+                          const isOpen = openProdCats[cat] === true;
+                          const catSelected = catProds.filter(p => selProds.includes(Number(p.id))).length;
+                          return (
+                            <View key={cat}>
+                              {catIdx > 0 && <View style={styles.catDivider} />}
+                              <Pressable
+                                style={({ pressed }) => [styles.catHead, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
+                                onPress={() => setOpenProdCats(p => ({ ...p, [cat]: !isOpen }))}>
+                                <Text style={styles.catTitle}>{cat}</Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                  {catSelected > 0 && (
+                                    <View style={{ backgroundColor: 'rgba(61,158,146,0.15)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 }}>
+                                      <Text style={{ fontFamily: fonts.familySemibold, fontSize: 11, color: colors.greenLight }}>{catSelected} ✓</Text>
+                                    </View>
+                                  )}
+                                  <Text style={styles.catCount}>{catProds.length} поз.</Text>
+                                  <Text style={[styles.catChevron, isOpen && styles.catChevronOpen]}>›</Text>
+                                </View>
+                              </Pressable>
+                              {isOpen && (
+                                <View style={styles.catInner}>
+                                  {catProds.map((p, idx) => {
+                                    const on = selProds.includes(Number(p.id));
+                                    return (
+                                      <Pressable key={p.id}
+                                        style={({ pressed }) => [styles.productRow, idx < catProds.length-1 && styles.rowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
+                                        onPress={() => setGroupModal(m => ({
+                                          ...m,
+                                          selProducts: on
+                                            ? (m.selProducts||[]).filter(id => id !== Number(p.id))
+                                            : [...(m.selProducts||[]), Number(p.id)]
+                                        }))}>
+                                        <Text style={[styles.productName, { flex: 1 }, on && { color: colors.greenLight }]}>{p.name}</Text>
+                                        <View style={[styles.checkbox, on && styles.checkboxOn]}>
+                                          {on && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
+                                        </View>
+                                      </Pressable>
+                                    );
+                                  })}
+                                </View>
+                              )}
+                            </View>
+                          );
+                        })}
+                      </View>
+                    </>
+                  );
+                })()}
 
                 {/* Сохранить */}
                 <Pressable style={({ pressed }) => [styles.confirmBtn, { marginTop: 16 }, pressed && { opacity: 0.88 }]}
