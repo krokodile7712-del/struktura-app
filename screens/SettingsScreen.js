@@ -1346,9 +1346,10 @@ export default function SettingsScreen({ navigation }) {
               <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
                 <Text style={styles.bizFieldLabel}>Статус</Text>
                 <Pressable
-                  style={{ paddingVertical: 7, paddingHorizontal: 14, borderRadius: 10, backgroundColor: 'rgba(61,158,146,0.15)', borderWidth: 1, borderColor: 'rgba(61,158,146,0.4)' }}
-                  onPress={connectBooking}>
-                  <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.greenLight }}>Подключить →</Text>
+                  style={{ paddingVertical: 10, paddingHorizontal: 20, borderRadius: 10, backgroundColor: colors.greenLight }}
+                  onPress={() => { Alert.alert('Тест', 'Кнопка работает!'); connectBooking(); }}
+                  hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}>
+                  <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: '#fff' }}>Подключить →</Text>
                 </Pressable>
               </View>
             ) : (
