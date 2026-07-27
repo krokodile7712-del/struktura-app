@@ -32,6 +32,7 @@ import Toggle from '../components/Toggle';
 import { can } from '../db/session';
 import EmptyState from '../components/EmptyState';
 import { colors, fonts, spacing } from '../constants/theme';
+import { upsertBusiness, syncServicesToSupabase } from '../db/supabase';
 import { useToast } from '../components/Toast';
 
 // SectionAccordion — в 2-колоночном layout просто передаёт children
@@ -1336,6 +1337,42 @@ export default function SettingsScreen({ navigation }) {
                 ))}
               </View>
             </View>
+            {/* Кнопка подключения */}
+            {!bookingConnected ? (
+              <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
+                <Text style={styles.bizFieldLabel}>Статус</Text>
+                <Pressable
+                  style={{ paddingVertical: 7, paddingHorizontal: 14, borderRadius: 10, backgroundColor: 'rgba(61,158,146,0.15)', borderWidth: 1, borderColor: 'rgba(61,158,146,0.4)' }}
+                  onPress={connectBooking}>
+                  <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.greenLight }}>Подключить →</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <>
+                <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
+                  <Text style={styles.bizFieldLabel}>Статус</Text>
+                  <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.greenLight }}>● Подключено</Text>
+                </View>
+                <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
+                  <Text style={styles.bizFieldLabel}>Ссылка</Text>
+                  <Text style={{ fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, flex: 1, textAlign: 'right' }} numberOfLines={1}>
+                    struktura.app/book/{bookingSlug}
+                  </Text>
+                </View>
+                <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
+                  <Pressable
+                    style={{ flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: 'rgba(61,158,146,0.1)', alignItems: 'center' }}
+                    onPress={() => setQrModal(true)}>
+                    <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.greenLight }}>📷 QR код</Text>
+                  </Pressable>
+                  <Pressable
+                    style={{ flex: 1, marginLeft: 8, paddingVertical: 10, borderRadius: 10, backgroundColor: 'rgba(74,77,84,0.15)', alignItems: 'center' }}
+                    onPress={syncMenu}>
+                    <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted }}>{syncing ? '⏳...' : '🔄 Меню'}</Text>
+                  </Pressable>
+                </View>
+              </>
+            )}
             <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
               <Text style={styles.bizFieldLabel}>Выбор времени</Text>
               <Toggle
@@ -1595,6 +1632,60 @@ export default function SettingsScreen({ navigation }) {
       </View>
     </View>
   );
+
+
+  const connectBooking = async () => {
+    try {
+      const profile = getBusinessProfile();
+      const name = profile?.business_name || 'Мой бизнес';
+      const type = profile?.business_type || 'cafe';
+      const slug = name.toLowerCase()
+        .replace(/[^a-zа-яё0-9\s]/gi, '')
+        .replace(/\s+/g, '-')
+        .substring(0, 30) + '-' + Date.now().toString().slice(-4);
+      const settings = {
+        hoursFrom: profile?.work_hours_from || '09:00',
+        hoursTo: profile?.work_hours_to || '21:00',
+        slotDuration: profile?.slot_duration || 60,
+        timeSlotsEnabled: profile?.time_slots_enabled !== false,
+      };
+      const biz = await upsertBusiness(slug, name, type, settings);
+      if (biz) {
+        setBookingSlug(slug);
+        setBookingConnected(true);
+        Alert.alert('Готово', 'Онлайн запись подключена!');
+      } else {
+        Alert.alert('Ошибка', 'Не удалось подключить. Проверьте интернет.');
+      }
+    } catch (e) { console.error(e); Alert.alert('Ошибка', e.message); }
+  };
+
+  const syncMenu = async () => {
+    if (!bookingSlug) return;
+    setSyncing(true);
+    try {
+      const profile = getBusinessProfile();
+      const biz = await upsertBusiness(bookingSlug, profile?.business_name, profile?.business_type, {});
+      if (biz) {
+        const products = getAllProducts ? getAllProducts() : [];
+        await syncServicesToSupabase(biz.id, products);
+        Alert.alert('Синхронизировано', `Меню обновлено: ${products.length} позиций`);
+      }
+    } catch (e) { Alert.alert('Ошибка', e.message); }
+    setSyncing(false);
+  };
+
+  const shareBookingLink = async () => {
+    const url = `https://nwmczqsugimvrwlimxtj.supabase.co/storage/v1/object/public/booking/${bookingSlug}`;
+    const link = `https://struktura.app/book/${bookingSlug}`;
+    try {
+      await Share.share({
+        message: `Запишитесь онлайн: ${link}`,
+        url: link,
+        title: 'Онлайн запись',
+      });
+    } catch (_) {}
+  };
 
   return (
     <View style={{ flex: 1 }}>
@@ -2701,6 +2792,33 @@ export default function SettingsScreen({ navigation }) {
               <MetalButton title="Сохранить профиль" variant="success" onPress={saveProfileDraft} style={{ marginTop: 10 }} />
             </View>
           )}
+        </View>
+      </Modal>
+
+      {/* QR Модалка */}
+      <Modal visible={qrModal} transparent animationType="fade" onRequestClose={() => setQrModal(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center', gap: 24 }}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setQrModal(false)} />
+          <Text style={{ fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: '#fff' }}>
+            Онлайн запись
+          </Text>
+          <View style={{ backgroundColor: '#fff', padding: 20, borderRadius: 20 }}>
+            <Image
+              source={{ uri: `https://quickchart.io/qr?text=https://struktura.app/book/${bookingSlug}&size=260&margin=2` }}
+              style={{ width: 260, height: 260 }}
+            />
+          </View>
+          <Text style={{ fontFamily: fonts.familyRegular, fontSize: 13, color: 'rgba(255,255,255,0.6)', textAlign: 'center' }}>
+            struktura.app/book/{bookingSlug}
+          </Text>
+          <Pressable
+            style={{ paddingVertical: 14, paddingHorizontal: 40, borderRadius: 16, backgroundColor: colors.greenLight }}
+            onPress={shareBookingLink}>
+            <Text style={{ fontFamily: fonts.family, fontSize: 16, fontWeight: '700', color: '#fff' }}>Поделиться ссылкой</Text>
+          </Pressable>
+          <Pressable onPress={() => setQrModal(false)} hitSlop={20}>
+            <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: 'rgba(255,255,255,0.5)' }}>Закрыть</Text>
+          </Pressable>
         </View>
       </Modal>
     </View>
