@@ -1638,15 +1638,18 @@ export default function SettingsScreen({ navigation }) {
   );
 
 
+
+  const transliterate = (str) => {
+    const map = {'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'yo','ж':'zh','з':'z','и':'i','й':'y','к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f','х':'h','ц':'ts','ч':'ch','ш':'sh','щ':'sch','ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya'};
+    return str.toLowerCase().split('').map(c => map[c] || (/[a-z0-9]/.test(c) ? c : '-')).join('').replace(/-+/g, '-').replace(/^-|-$/g, '');
+  };
+
   const connectBooking = async () => {
     try {
       const profile = getBusinessProfile();
       const name = profile?.business_name || 'Мой бизнес';
       const type = profile?.business_type || 'cafe';
-      const slug = name.toLowerCase()
-        .replace(/[^a-zа-яё0-9\s]/gi, '')
-        .replace(/\s+/g, '-')
-        .substring(0, 30) + '-' + Date.now().toString().slice(-4);
+      const slug = (transliterate(name) || 'business').substring(0, 20) + '-' + Date.now().toString().slice(-4);
       const settings = {
         hoursFrom: profile?.work_hours_from || '09:00',
         hoursTo: profile?.work_hours_to || '21:00',
