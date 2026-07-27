@@ -1406,7 +1406,7 @@ export default function SettingsScreen({ navigation }) {
             <TouchableOpacity
               activeOpacity={0.7}
               style={{ marginTop: 10, paddingVertical: 14, borderRadius: 14, backgroundColor: colors.greenLight, alignItems: 'center' }}
-              onPress={connectBooking}>
+              onPressIn={connectBooking}>
               <Text style={{ fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff' }}>Подключить онлайн запись</Text>
             </TouchableOpacity>
           )}
