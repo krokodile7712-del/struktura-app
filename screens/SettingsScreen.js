@@ -1377,7 +1377,7 @@ export default function SettingsScreen({ navigation }) {
                   </Pressable>
                 </View>
               </>
-            )}
+            ) : null}
             <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
               <Text style={styles.bizFieldLabel}>Выбор времени</Text>
               <Toggle
