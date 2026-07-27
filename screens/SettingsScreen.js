@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Share, Animated, LayoutAnimation, Platform, Alert, BackHandler, useWindowDimensions, Dimensions, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, TouchableOpacity, Modal, TextInput, Share, Animated, LayoutAnimation, Platform, Alert, BackHandler, useWindowDimensions, Dimensions, Image } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
@@ -1349,12 +1349,12 @@ export default function SettingsScreen({ navigation }) {
             {!bookingConnected ? (
               <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
                 <Text style={styles.bizFieldLabel}>Статус</Text>
-                <Pressable
+                <TouchableOpacity
+                  activeOpacity={0.7}
                   style={{ paddingVertical: 10, paddingHorizontal: 18, borderRadius: 10, backgroundColor: 'rgba(61,158,146,0.15)', borderWidth: 1, borderColor: 'rgba(61,158,146,0.4)' }}
-                  onPress={connectBooking}
-                  hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}>
+                  onPress={connectBooking}>
                   <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.greenLight }}>Подключить →</Text>
-                </Pressable>
+                </TouchableOpacity>
               </View>
             ) : (
               <>
