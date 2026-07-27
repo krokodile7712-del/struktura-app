@@ -90,9 +90,13 @@ export default function SettingsScreen({ navigation }) {
   const isPhone = SW < 600;
   const [selectedSection, setSelectedSection] = useState('menu');
   const [qrModal, setQrModal] = useState(false);
-  const [bookingConnected, setBookingConnected] = useState(false);
-  const [bookingSlug, setBookingSlug] = useState('');
   const [syncing, setSyncing] = useState(false);
+  const [bookingSlug, setBookingSlug] = useState(() => {
+    try { return getBusinessProfile()?.booking_slug || ''; } catch { return ''; }
+  });
+  const [bookingConnected, setBookingConnected] = useState(() => {
+    try { return !!(getBusinessProfile()?.booking_slug); } catch { return false; }
+  });
   const [menuSearch, setMenuSearch]   = useState('');
   const [stockSearch, setStockSearch]   = useState('');
   const [bizDraft, setBizDraft]         = useState(null);
@@ -1346,8 +1350,9 @@ export default function SettingsScreen({ navigation }) {
               <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
                 <Text style={styles.bizFieldLabel}>Статус</Text>
                 <Pressable
-                  style={{ paddingVertical: 8, paddingHorizontal: 16, borderRadius: 10, backgroundColor: 'rgba(61,158,146,0.15)', borderWidth: 1, borderColor: 'rgba(61,158,146,0.4)' }}
-                  onPress={connectBooking}>
+                  style={{ paddingVertical: 10, paddingHorizontal: 18, borderRadius: 10, backgroundColor: 'rgba(61,158,146,0.15)', borderWidth: 1, borderColor: 'rgba(61,158,146,0.4)' }}
+                  onPress={connectBooking}
+                  hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}>
                   <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.greenLight }}>Подключить →</Text>
                 </Pressable>
               </View>
@@ -1660,6 +1665,11 @@ export default function SettingsScreen({ navigation }) {
       if (biz) {
         setBookingSlug(slug);
         setBookingConnected(true);
+        try {
+          const db = getDb();
+          try { db.execSync('ALTER TABLE business_profile ADD COLUMN booking_slug TEXT DEFAULT '''); } catch(_) {}
+          db.runSync('UPDATE business_profile SET booking_slug = ? WHERE id = 1', [slug]);
+        } catch(dbErr) { console.error(dbErr); }
         Alert.alert('Готово', 'Онлайн запись подключена!');
       } else {
         Alert.alert('Ошибка', 'Не удалось подключить. Проверьте интернет.');
