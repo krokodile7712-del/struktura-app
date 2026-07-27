@@ -2628,3 +2628,15 @@ export function getCategoryOrder() {
 export function saveCategoryOrder(order) {
   setSetting('categoryOrder', JSON.stringify(order));
 }
+
+export function updateClientNote(id, note) {
+  const db = getDb();
+  try { db.execSync(`ALTER TABLE clients ADD COLUMN notes TEXT DEFAULT ''`); } catch (_) {}
+  db.runSync(`UPDATE clients SET notes = ? WHERE id = ?`, [note || '', id]);
+}
+
+export function getClientById(id) {
+  const db = getDb();
+  try { db.execSync(`ALTER TABLE clients ADD COLUMN notes TEXT DEFAULT ''`); } catch (_) {}
+  return db.getFirstSync(`SELECT * FROM clients WHERE id = ?`, [id]) || null;
+}
