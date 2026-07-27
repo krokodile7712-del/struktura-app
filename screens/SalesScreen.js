@@ -112,6 +112,7 @@ export default function SalesScreen({ navigation }) {
         try { map[o.id] = getOrderItems(o.id); } catch (_) {}
       });
       setAllItemsMap(map);
+      setItemsMap(map); // Сразу показываем позиции в строках
     } catch (e) { console.error(e); }
   }, [period, dateFrom, dateTo]);
 
