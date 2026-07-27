@@ -131,6 +131,7 @@ export default function SettingsScreen({ navigation }) {
     if (selectedSection === 'business' && profile) {
       setBizDraft({
         businessType:  profile.business_type  || 'cafe',
+        timeSlotsEnabled: profile.time_slots_enabled !== false,
         slotDuration:  String(profile.slot_duration || '60'),
         businessName:  profile.business_name  || '',
         logoUrl:       profile.logo_base64    || profile.logo_url || '',
@@ -160,8 +161,9 @@ export default function SettingsScreen({ navigation }) {
     try {
       updateBusinessProfile({
         businessName:  bizDraft.businessName,
-        businessType:  bizDraft.businessType,
-        slotDuration:  parseInt(bizDraft.slotDuration) || 60,
+        businessType:      bizDraft.businessType,
+        timeSlotsEnabled:  bizDraft.timeSlotsEnabled !== false,
+        slotDuration:      parseInt(bizDraft.slotDuration) || 60,
         logoBase64:    bizDraft.logoUrl,
         city:          bizDraft.city,
         phone:         bizDraft.phone,
@@ -1334,7 +1336,15 @@ export default function SettingsScreen({ navigation }) {
                 ))}
               </View>
             </View>
-            <View style={styles.bizFieldRow}>
+            <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
+              <Text style={styles.bizFieldLabel}>Выбор времени</Text>
+              <Toggle
+                value={bizDraft.timeSlotsEnabled !== false}
+                onValueChange={v => setBizDraft(d => ({ ...d, timeSlotsEnabled: v }))}
+                size="sm"
+              />
+            </View>
+            {bizDraft.timeSlotsEnabled !== false && <View style={styles.bizFieldRow}>
               <Text style={styles.bizFieldLabel}>
                 {bizDraft.businessType === 'cafe' ? 'Интервал слотов (мин)' : 'Длительность услуги (мин)'}
               </Text>
@@ -1347,7 +1357,7 @@ export default function SettingsScreen({ navigation }) {
                   </Pressable>
                 ))}
               </View>
-            </View>
+            </View>}
           </View>
 
           {/* ЧЕК */}
