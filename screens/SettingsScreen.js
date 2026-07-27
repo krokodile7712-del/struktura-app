@@ -1667,7 +1667,7 @@ export default function SettingsScreen({ navigation }) {
         setBookingConnected(true);
         try {
           const db = getDb();
-          try { db.execSync('ALTER TABLE business_profile ADD COLUMN booking_slug TEXT DEFAULT '''); } catch(_) {}
+          try { db.execSync(`ALTER TABLE business_profile ADD COLUMN booking_slug TEXT DEFAULT ''`); } catch(_) {}
           db.runSync('UPDATE business_profile SET booking_slug = ? WHERE id = 1', [slug]);
         } catch(dbErr) { console.error(dbErr); }
         Alert.alert('Готово', 'Онлайн запись подключена!');
