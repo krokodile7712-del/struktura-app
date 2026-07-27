@@ -1371,8 +1371,8 @@ export default function SettingsScreen({ navigation }) {
                     <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.greenLight }}>📷 QR код</Text>
                   </Pressable>
                   <Pressable
-                    style={{ flex: 1, marginLeft: 8, paddingVertical: 10, borderRadius: 10, backgroundColor: 'rgba(74,77,84,0.15)', alignItems: 'center' }}
-                    onPress={syncMenu}>
+                    style={{ flex: 1, marginLeft: 8, paddingVertical: 10, borderRadius: 10, backgroundColor: 'rgba(61,158,146,0.85)', alignItems: 'center' }}
+                    onPress={() => { Alert.alert('Тест', 'syncMenu вызван, slug: ' + bookingSlug); syncMenu(); }}>
                     <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted }}>{syncing ? '⏳...' : '🔄 Меню'}</Text>
                   </Pressable>
                 </View>
@@ -1669,7 +1669,8 @@ export default function SettingsScreen({ navigation }) {
   };
 
   const syncMenu = async () => {
-    if (!bookingSlug) return;
+    console.log('[SYNC] bookingSlug:', bookingSlug);
+    if (!bookingSlug) { Alert.alert('Ошибка', 'bookingSlug пустой — переподключите'); return; }
     setSyncing(true);
     try {
       const profile = getBusinessProfile();
