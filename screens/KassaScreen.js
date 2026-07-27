@@ -597,9 +597,6 @@ export default function KassaScreen({ navigation, route }) {
     <View style={{ flex: 1 }}>
       <TopBar title="Касса" onBack={() => navigation.navigate(getHomeRoute())} />
 
-      
-      )}
-
       {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift')} />}
       <View style={styles.layout}>
         {/* ── Вертикальная колонка категорий ── */}
