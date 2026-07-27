@@ -1346,10 +1346,9 @@ export default function SettingsScreen({ navigation }) {
               <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
                 <Text style={styles.bizFieldLabel}>Статус</Text>
                 <Pressable
-                  style={{ paddingVertical: 10, paddingHorizontal: 20, borderRadius: 10, backgroundColor: colors.greenLight }}
-                  onPress={() => { Alert.alert('Тест', 'Кнопка работает!'); connectBooking(); }}
-                  hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}>
-                  <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: '#fff' }}>Подключить →</Text>
+                  style={{ paddingVertical: 8, paddingHorizontal: 16, borderRadius: 10, backgroundColor: 'rgba(61,158,146,0.15)', borderWidth: 1, borderColor: 'rgba(61,158,146,0.4)' }}
+                  onPress={connectBooking}>
+                  <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.greenLight }}>Подключить →</Text>
                 </Pressable>
               </View>
             ) : (
@@ -1371,8 +1370,8 @@ export default function SettingsScreen({ navigation }) {
                     <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.greenLight }}>📷 QR код</Text>
                   </Pressable>
                   <Pressable
-                    style={{ flex: 1, marginLeft: 8, paddingVertical: 10, borderRadius: 10, backgroundColor: 'rgba(61,158,146,0.85)', alignItems: 'center' }}
-                    onPress={() => { Alert.alert('Тест', 'syncMenu вызван, slug: ' + bookingSlug); syncMenu(); }}>
+                    style={{ flex: 1, marginLeft: 8, paddingVertical: 10, borderRadius: 10, backgroundColor: 'rgba(74,77,84,0.15)', alignItems: 'center' }}
+                    onPress={syncMenu}>
                     <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted }}>{syncing ? '⏳...' : '🔄 Меню'}</Text>
                   </Pressable>
                 </View>
@@ -1640,10 +1639,8 @@ export default function SettingsScreen({ navigation }) {
 
 
   const connectBooking = async () => {
-    console.log('[BOOKING] connectBooking called');
     try {
       const profile = getBusinessProfile();
-      console.log('[BOOKING] profile:', JSON.stringify(profile));
       const name = profile?.business_name || 'Мой бизнес';
       const type = profile?.business_type || 'cafe';
       const slug = name.toLowerCase()
@@ -1657,7 +1654,6 @@ export default function SettingsScreen({ navigation }) {
         timeSlotsEnabled: profile?.time_slots_enabled !== false,
       };
       const biz = await upsertBusiness(slug, name, type, settings);
-      console.log('[BOOKING] biz result:', JSON.stringify(biz));
       if (biz) {
         setBookingSlug(slug);
         setBookingConnected(true);
@@ -1669,8 +1665,7 @@ export default function SettingsScreen({ navigation }) {
   };
 
   const syncMenu = async () => {
-    console.log('[SYNC] bookingSlug:', bookingSlug);
-    if (!bookingSlug) { Alert.alert('Ошибка', 'bookingSlug пустой — переподключите'); return; }
+    if (!bookingSlug) return;
     setSyncing(true);
     try {
       const profile = getBusinessProfile();
