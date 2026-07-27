@@ -870,180 +870,152 @@ export default function KassaScreen({ navigation, route }) {
 
 
       {/* ── Предмодалка оплаты — клиент / скидка / баллы ── */}
-      <Modal visible={prePayOpen} transparent animationType="slide" onRequestClose={() => setPrePayOpen(false)}>
-        <View style={styles.modalRoot}>
+      <Modal visible={prePayOpen} transparent animationType="fade" onRequestClose={() => setPrePayOpen(false)}>
+        <View style={styles.paySheetRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setPrePayOpen(false)} />
-          <View style={[styles.modalInner, { width: '52%', maxHeight: '88%' }]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Оформление заказа</Text>
-              <Pressable onPress={() => setPrePayOpen(false)} hitSlop={14}>
-                <Text style={styles.modalCloseText}>✕</Text>
-              </Pressable>
+          <View style={styles.paySheet}>
+
+            {/* ══ ЛЕВАЯ КОЛОНКА: Состав заказа ══ */}
+            <View style={styles.payLeft}>
+              <View style={styles.payLeftHead}>
+                <Text style={styles.paySheetTitle}>Заказ</Text>
+                <Text style={styles.paySheetSub}>{order.reduce((s,i)=>s+(i.quantity||1),0)} позиций</Text>
+              </View>
+              <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+                {order.map((item, i) => (
+                  <View key={i} style={[styles.payOrderItem, i < order.length-1 && styles.payOrderItemDiv]}>
+                    <Text style={styles.payOrderName} numberOfLines={1}>
+                      {item.name}{item.size ? ` ${item.size}` : ''}
+                      {item.quantity > 1 ? ` ×${item.quantity}` : ''}
+                    </Text>
+                    <Text style={styles.payOrderPrice}>{(item.price*(item.quantity||1)).toFixed(0)} ₽</Text>
+                  </View>
+                ))}
+              </ScrollView>
+              {/* Итого слева */}
+              <View style={styles.payLeftTotal}>
+                {(discountAmount > 0 || pointsDiscount > 0) && (
+                  <View style={styles.payTotalRow}>
+                    <Text style={styles.payTotalRowLbl}>Скидка</Text>
+                    <Text style={[styles.payTotalRowVal, { color: colors.greenLight }]}>−{discountAmount + pointsDiscount} ₽</Text>
+                  </View>
+                )}
+                <View style={styles.payTotalRow}>
+                  <Text style={styles.payTotalBigLbl}>Итого</Text>
+                  <Text style={styles.payTotalBigVal}>{total} ₽</Text>
+                </View>
+              </View>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              {/* Состав заказа */}
-              <View style={styles.prePaySummary}>
-                <Text style={styles.prePaySummaryTitle}>{order.length} поз. · {order.reduce((s,i)=>s+(i.quantity||1),0)} ед.</Text>
-                {order.slice(0, 4).map((item, i) => (
-                  <Text key={i} style={styles.prePaySummaryItem}>
-                    {item.name}{item.quantity > 1 ? ` ×${item.quantity}` : ''} — {(item.price*(item.quantity||1)).toFixed(0)} ₽
-                  </Text>
-                ))}
-                {order.length > 4 && (
-                  <Text style={styles.prePaySummaryMore}>и ещё {order.length - 4} поз.</Text>
-                )}
+            {/* Разделитель */}
+            <View style={styles.payDivider} />
+
+            {/* ══ ПРАВАЯ КОЛОНКА: Оплата ══ */}
+            <View style={styles.payRight}>
+              <View style={styles.payRightHead}>
+                <Text style={styles.paySheetTitle}>Оплата</Text>
+                <Pressable onPress={() => setPrePayOpen(false)} hitSlop={14} style={styles.payCloseBtn}>
+                  <Text style={styles.payCloseTxt}>✕</Text>
+                </Pressable>
               </View>
 
-              {/* ── Клиент ── */}
-              <Text style={styles.prePayLabel}>👤 Клиент</Text>
+              {/* Клиент */}
               {forClient ? (
-                <View style={styles.prePayClientRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.prePayClientName}>{forClient.fio}</Text>
-                    <Text style={styles.prePayClientSub}>
-                      {forClient.phone ? `${forClient.phone} · ` : ''}{loyaltyModel === 'points' ? `★ ${forClient.balance || 0} балл.` : `скидка ${forClient.discount_pct || 0}%`}
-                    </Text>
-                  </View>
-                  <Pressable onPress={() => updateSlot({ forClient: null })} hitSlop={10} style={styles.prePayClientRemove}>
-                    <Text style={{ color: colors.muted, fontSize: 16 }}>✕</Text>
+                <View style={styles.payInfoRow}>
+                  <Text style={styles.payInfoIcon}>👤</Text>
+                  <Text style={styles.payInfoVal} numberOfLines={1}>{forClient.fio}</Text>
+                  <Text style={styles.payInfoSub}>
+                    {loyaltyModel === 'points' ? `★ ${forClient.balance||0}` : `−${forClient.discount_pct||0}%`}
+                  </Text>
+                  <Pressable onPress={() => updateSlot({ forClient: null })} hitSlop={8}>
+                    <Text style={styles.payInfoX}>✕</Text>
                   </Pressable>
                 </View>
               ) : (
-                <>
-                  {/* Кнопка-триггер пикера клиентов */}
-                  <Pressable
-                    style={[styles.discountListRow, { borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: '#07080a' }]}
-                    onPress={() => { setClientSearch(''); setClientPickerOpen(true); }}
-                  >
-                    <Text style={{ flex: 1, fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted }}>
-                      Выбрать из списка...
-                    </Text>
-                    <Text style={{ color: colors.muted, fontSize: 12 }}>▼</Text>
-                  </Pressable>
-                </>
-              )}
-
-              {/* ── Скидка ── */}
-              {loyaltyModel !== 'discount' && can('apply_discounts') && (
-                <>
-                  <Text style={styles.prePayLabel}>🏷 Скидка</Text>
-                  {effectiveDiscount ? (
-                    <View style={styles.prePayClientRow}>
-                      <Text style={{ flex: 1, color: colors.text, fontFamily: fonts.familySemibold, fontSize: 14 }}>
-                        {effectiveDiscount.name} −{effectiveDiscount.pct}% (−{discountAmount} ₽)
-                      </Text>
-                      <Pressable onPress={() => setAppliedDiscount(null)} hitSlop={10} style={styles.prePayClientRemove}>
-                        <Text style={{ color: colors.muted, fontSize: 16 }}>✕</Text>
-                      </Pressable>
-                    </View>
-                  ) : (
-                    <Pressable
-                      style={[styles.discountListRow, { borderRadius: 12, borderWidth: 1, borderColor: appliedDiscount ? 'rgba(61,158,146,0.4)' : colors.border, backgroundColor: '#07080a' }]}
-                      onPress={() => setDiscountDropOpen(true)}
-                    >
-                      <Text style={{ flex: 1, fontFamily: fonts.familySemibold, fontSize: 13, color: appliedDiscount ? colors.greenLight : colors.muted }}>
-                        {appliedDiscount ? `${appliedDiscount.name} −${appliedDiscount.pct}% (−${Math.round(rawTotal * appliedDiscount.pct / 100)} ₽)` : 'Выбрать скидку...'}
-                      </Text>
-                      <Text style={{ color: colors.muted, fontSize: 12 }}>▼</Text>
-                    </Pressable>
-                  )}
-                </>
-              )}
-
-              {/* ── Баллы ── */}
-              {loyaltyModel === 'points' && loyaltyConfig.allow_spend && forClient && (forClient.balance || 0) > 0 && (
-                <>
-                  <Text style={styles.prePayLabel}>★ Списать баллы</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    <TextInput
-                      style={[styles.input, { flex: 1 }]}
-                      keyboardType="numeric"
-                      value={pointsToSpend}
-                      onChangeText={v => setPointsToSpend(v)}
-                      placeholder={`макс ${forClient.balance}`}
-                      placeholderTextColor={colors.muted}
-                    />
-                    <Text style={{ color: colors.muted, fontFamily: fonts.familyRegular, fontSize: 13 }}>
-                      = −{pointsDiscount} ₽
-                    </Text>
-                  </View>
-                </>
-              )}
-
-              {/* ── Итого ── */}
-              <View style={styles.prePayTotalBox}>
-                {(discountAmount > 0 || pointsDiscount > 0) && (
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <Text style={styles.prePayTotalLabel}>Скидка</Text>
-                    <Text style={[styles.prePayTotalLabel, { color: colors.redLight }]}>−{discountAmount + pointsDiscount} ₽</Text>
-                  </View>
-                )}
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Text style={styles.prePayTotalTitle}>Итого к оплате</Text>
-                  <Text style={styles.prePayTotalValue}>{total} ₽</Text>
-                </View>
-              </View>
-            </ScrollView>
-
-            {/* Способ оплаты */}
-            <Text style={styles.prePayLabel}>💳 Способ оплаты</Text>
-            <View style={styles.payMethodsList}>
-              {payMethods.map(m => (
-                <Pressable
-                  key={m.id}
-                  style={[styles.payMethodRow, payMethod === m.name && styles.payMethodRowActive]}
-                  onPress={() => setPayMethod(m.name)}
-                >
-                  {m.icon ? <Text style={styles.payMethodIcon}>{m.icon}</Text> : null}
-                  <Text style={[styles.payMethodName, payMethod === m.name && { color: colors.greenLight }]}>{m.name}</Text>
-                  {payMethod === m.name && <Text style={styles.payMethodCheck}>✓</Text>}
+                <Pressable style={styles.payInfoAdd} onPress={() => { setClientSearch(''); setClientPickerOpen(true); }}>
+                  <Text style={styles.payInfoAddTxt}>👤 Добавить клиента</Text>
                 </Pressable>
-              ))}
-            </View>
+              )}
 
-            {/* Смешанная оплата */}
-            {payMethods.find(m => m.name === payMethod)?.type === 'mixed' && (
-              <View style={styles.mixedPayBox}>
-                <View style={styles.mixedPayRow}>
-                  <Text style={styles.mixedPayLabel}>Наличными</Text>
+              {/* Скидка */}
+              {loyaltyModel !== 'discount' && can('apply_discounts') && (
+                effectiveDiscount ? (
+                  <View style={styles.payInfoRow}>
+                    <Text style={styles.payInfoIcon}>🏷</Text>
+                    <Text style={styles.payInfoVal} numberOfLines={1}>{effectiveDiscount.name} −{effectiveDiscount.pct}%</Text>
+                    <Text style={[styles.payInfoSub, { color: colors.greenLight }]}>−{discountAmount} ₽</Text>
+                    <Pressable onPress={() => setAppliedDiscount(null)} hitSlop={8}>
+                      <Text style={styles.payInfoX}>✕</Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Pressable style={styles.payInfoAdd} onPress={() => setDiscountDropOpen(true)}>
+                    <Text style={styles.payInfoAddTxt}>🏷 Добавить скидку</Text>
+                  </Pressable>
+                )
+              )}
+
+              {/* Баллы */}
+              {loyaltyModel === 'points' && loyaltyConfig.allow_spend && forClient && (forClient.balance||0) > 0 && (
+                <View style={styles.payPointsRow}>
+                  <Text style={styles.payInfoIcon}>★</Text>
                   <TextInput
-                    style={styles.mixedPayInput}
-                    placeholder="0"
-                    placeholderTextColor={colors.muted}
+                    style={styles.payPointsInput}
                     keyboardType="numeric"
-                    value={mixedCash}
-                    onChangeText={handleMixedCashChange}
-                  />
-                  <Text style={styles.mixedPayUnit}>₽</Text>
-                </View>
-                <View style={styles.mixedPayRow}>
-                  <Text style={styles.mixedPayLabel}>Картой</Text>
-                  <TextInput
-                    style={styles.mixedPayInput}
-                    placeholder="0"
+                    value={pointsToSpend}
+                    onChangeText={v => setPointsToSpend(v)}
+                    placeholder={`0 из ${forClient.balance}`}
                     placeholderTextColor={colors.muted}
-                    keyboardType="numeric"
-                    value={mixedCard}
-                    onChangeText={handleMixedCardChange}
                   />
-                  <Text style={styles.mixedPayUnit}>₽</Text>
+                  {pointsDiscount > 0 && <Text style={[styles.payInfoSub, { color: colors.greenLight }]}>−{pointsDiscount} ₽</Text>}
                 </View>
+              )}
+
+              {/* Способ оплаты */}
+              <Text style={styles.payMethodsLabel}>Способ оплаты</Text>
+              <View style={styles.payMethodsRow}>
+                {payMethods.map(m => (
+                  <Pressable
+                    key={m.id}
+                    style={[styles.payMethodChip, payMethod === m.name && styles.payMethodChipActive]}
+                    onPress={() => setPayMethod(m.name)}
+                  >
+                    {m.icon ? <Text style={styles.payMethodChipIcon}>{m.icon}</Text> : null}
+                    <Text style={[styles.payMethodChipTxt, payMethod === m.name && { color: colors.greenLight }]}>{m.name}</Text>
+                  </Pressable>
+                ))}
               </View>
-            )}
 
-            {/* Кнопки */}
-            <View style={{ gap: 8, marginTop: 16 }}>
-              <Pressable
-                style={({ pressed }) => [styles.payConfirmBtn, pressed && { opacity: 0.88 }]}
-                onPress={() => { setPrePayOpen(false); confirmPay(); }}
-              >
-                <Text style={styles.payConfirmText}>Принять оплату · {total} ₽</Text>
-              </Pressable>
-              <Pressable style={styles.prePayCancelBtn} onPress={() => setPrePayOpen(false)}>
-                <Text style={styles.prePayCancelText}>Вернуться к заказу</Text>
-              </Pressable>
+              {/* Смешанная */}
+              {payMethods.find(m => m.name === payMethod)?.type === 'mixed' && (
+                <View style={styles.mixedPayBox}>
+                  <View style={styles.mixedPayRow}>
+                    <Text style={styles.mixedPayLabel}>Наличными</Text>
+                    <TextInput style={styles.mixedPayInput} placeholder="0" placeholderTextColor={colors.muted} keyboardType="numeric" value={mixedCash} onChangeText={handleMixedCashChange} />
+                    <Text style={styles.mixedPayUnit}>₽</Text>
+                  </View>
+                  <View style={styles.mixedPayRow}>
+                    <Text style={styles.mixedPayLabel}>Картой</Text>
+                    <TextInput style={styles.mixedPayInput} placeholder="0" placeholderTextColor={colors.muted} keyboardType="numeric" value={mixedCard} onChangeText={handleMixedCardChange} />
+                    <Text style={styles.mixedPayUnit}>₽</Text>
+                  </View>
+                </View>
+              )}
+
+              {/* Принять */}
+              <View style={{ flex: 1, justifyContent: 'flex-end', gap: 8 }}>
+                <Pressable
+                  style={({ pressed }) => [styles.payConfirmBtn, pressed && { opacity: 0.88 }]}
+                  onPress={() => { setPrePayOpen(false); confirmPay(); }}
+                >
+                  <Text style={styles.payConfirmText}>Принять оплату · {total} ₽</Text>
+                </Pressable>
+                <Pressable style={styles.prePayCancelBtn} onPress={() => setPrePayOpen(false)}>
+                  <Text style={styles.prePayCancelText}>Вернуться к заказу</Text>
+                </Pressable>
+              </View>
             </View>
+
           </View>
         </View>
       </Modal>
@@ -1648,6 +1620,45 @@ const styles = StyleSheet.create({
   mixedPayLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, width: 80 },
   mixedPayInput: { flex: 1, padding: 10, backgroundColor: '#0e0f11', borderRadius: 10, borderWidth: 1, borderColor: colors.border, color: colors.text, fontFamily: fonts.family, fontSize: 16, textAlign: 'right' },
   mixedPayUnit: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, width: 16 },
+
+  /* ── Горизонтальная модалка оплаты ── */
+  paySheetRoot:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
+  paySheet:        { flexDirection: 'row', width: '80%', height: '72%', backgroundColor: '#0e0f11', borderRadius: 24, borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', overflow: 'hidden' },
+  payLeft:         { flex: 1, padding: 24, borderRightWidth: 1, borderRightColor: 'rgba(74,77,84,0.2)' },
+  payLeftHead:     { marginBottom: 16 },
+  paySheetTitle:   { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text },
+  paySheetSub:     { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
+  payOrderItem:    { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 9, alignItems: 'center' },
+  payOrderItemDiv: { borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.15)' },
+  payOrderName:    { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, flex: 1, marginRight: 8 },
+  payOrderPrice:   { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
+  payLeftTotal:    { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(74,77,84,0.25)', gap: 4 },
+  payTotalRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  payTotalRowLbl:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+  payTotalRowVal:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
+  payTotalBigLbl:  { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
+  payTotalBigVal:  { fontFamily: fonts.family, fontSize: 26, fontWeight: '800', color: colors.text },
+  payDivider:      { width: 1, backgroundColor: 'rgba(74,77,84,0.2)' },
+  payRight:        { flex: 1, padding: 24, gap: 10 },
+  payRightHead:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  payCloseBtn:     { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(74,77,84,0.25)', alignItems: 'center', justifyContent: 'center' },
+  payCloseTxt:     { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
+  payInfoRow:      { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: 'rgba(74,77,84,0.1)', borderRadius: 12 },
+  payInfoIcon:     { fontSize: 15 },
+  payInfoVal:      { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, flex: 1 },
+  payInfoSub:      { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
+  payInfoX:        { fontFamily: fonts.familySemibold, fontSize: 13, color: 'rgba(74,77,84,0.6)' },
+  payInfoAdd:      { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', borderStyle: 'dashed' },
+  payInfoAddTxt:   { fontFamily: fonts.familySemibold, fontSize: 13, color: 'rgba(74,77,84,0.6)' },
+  payPointsRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4, paddingHorizontal: 12, backgroundColor: 'rgba(74,77,84,0.1)', borderRadius: 12 },
+  payPointsInput:  { flex: 1, fontFamily: fonts.family, fontSize: 13, color: colors.text, paddingVertical: 6 },
+  payMethodsLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
+  payMethodsRow:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  payMethodChip:   { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(74,77,84,0.35)', backgroundColor: '#07080a' },
+  payMethodChipActive: { borderColor: 'rgba(61,158,146,0.5)', backgroundColor: 'rgba(61,158,146,0.08)' },
+  payMethodChipIcon:   { fontSize: 14, marginRight: 4 },
+  payMethodChipTxt:    { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+
   payConfirmBtn: { marginTop: 16, paddingVertical: 16, borderRadius: 16, backgroundColor: 'rgba(61,158,146,0.85)', alignItems: 'center' },
   payConfirmText: { fontFamily: fonts.family, fontSize: 16, fontWeight: '700', color: '#fff' },
 
