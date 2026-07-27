@@ -919,7 +919,8 @@ export default function KassaScreen({ navigation, route }) {
                 </Pressable>
               </View>
 
-              {/* Клиент */}
+              <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            {/* Клиент */}
               {forClient ? (
                 <View style={styles.payInfoRow}>
                   <Text style={styles.payInfoIcon}>👤</Text>
@@ -1002,8 +1003,9 @@ export default function KassaScreen({ navigation, route }) {
                 </View>
               )}
 
-              {/* Принять */}
-              <View style={{ flex: 1, justifyContent: 'flex-end', gap: 8 }}>
+              </ScrollView>
+            {/* Принять */}
+              <View style={{ gap: 8, paddingTop: 8 }}>
                 <Pressable
                   style={({ pressed }) => [styles.payConfirmBtn, pressed && { opacity: 0.88 }]}
                   onPress={() => { setPrePayOpen(false); confirmPay(); }}
