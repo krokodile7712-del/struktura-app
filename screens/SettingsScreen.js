@@ -1671,7 +1671,7 @@ export default function SettingsScreen({ navigation }) {
       const profile = getBusinessProfile();
       const biz = await upsertBusiness(bookingSlug, profile?.business_name, profile?.business_type, {});
       if (biz) {
-        const products = getAllProducts ? getAllProducts() : [];
+        const products = getAllProductsAdmin();
         await syncServicesToSupabase(biz.id, products);
         Alert.alert('Синхронизировано', `Меню обновлено: ${products.length} позиций`);
       }
