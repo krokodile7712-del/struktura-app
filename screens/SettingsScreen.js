@@ -1356,10 +1356,6 @@ export default function SettingsScreen({ navigation }) {
             {bookingConnected ? (
               <>
                 <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
-                  <Text style={styles.bizFieldLabel}>Статус</Text>
-                  <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.greenLight }}>● Подключено</Text>
-                </View>
-                <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
                   <Text style={styles.bizFieldLabel}>Ссылка</Text>
                   <Text style={{ fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, flex: 1, textAlign: 'right' }} numberOfLines={1}>
                     struktura.app/book/{bookingSlug}
