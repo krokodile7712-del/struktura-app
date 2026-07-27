@@ -1335,9 +1335,11 @@ export default function SettingsScreen({ navigation }) {
               </View>
             </View>
             <View style={styles.bizFieldRow}>
-              <Text style={styles.bizFieldLabel}>Слот записи (мин)</Text>
+              <Text style={styles.bizFieldLabel}>
+                {bizDraft.businessType === 'cafe' ? 'Интервал слотов (мин)' : 'Длительность услуги (мин)'}
+              </Text>
               <View style={{ flexDirection: 'row', gap: 6 }}>
-                {['30', '60', '90', '120'].map(d => (
+                {(bizDraft.businessType === 'cafe' ? ['15', '30', '45', '60'] : ['30', '60', '90', '120']).map(d => (
                   <Pressable key={d}
                     style={[styles.typeChip, bizDraft.slotDuration === d && styles.typeChipActive]}
                     onPress={() => setBizDraft(dr => ({ ...dr, slotDuration: d }))}>
