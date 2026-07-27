@@ -858,7 +858,7 @@ export default function KassaScreen({ navigation, route }) {
               disabled={order.length===0}
             >
               <Text style={styles.v2PayTxt}>
-                {order.length===0 ? 'Выберите товар' : `Оплатить  ${total} ₽`}
+                {order.length===0 ? 'Выберите товар' : `К оплате  ${total} ₽`}
               </Text>
             </Pressable>
 
@@ -986,15 +986,59 @@ export default function KassaScreen({ navigation, route }) {
               </View>
             </ScrollView>
 
+            {/* Способ оплаты */}
+            <Text style={styles.prePayLabel}>💳 Способ оплаты</Text>
+            <View style={styles.payMethodsList}>
+              {payMethods.map(m => (
+                <Pressable
+                  key={m.id}
+                  style={[styles.payMethodRow, payMethod === m.name && styles.payMethodRowActive]}
+                  onPress={() => setPayMethod(m.name)}
+                >
+                  {m.icon ? <Text style={styles.payMethodIcon}>{m.icon}</Text> : null}
+                  <Text style={[styles.payMethodName, payMethod === m.name && { color: colors.greenLight }]}>{m.name}</Text>
+                  {payMethod === m.name && <Text style={styles.payMethodCheck}>✓</Text>}
+                </Pressable>
+              ))}
+            </View>
+
+            {/* Смешанная оплата */}
+            {payMethods.find(m => m.name === payMethod)?.type === 'mixed' && (
+              <View style={styles.mixedPayBox}>
+                <View style={styles.mixedPayRow}>
+                  <Text style={styles.mixedPayLabel}>Наличными</Text>
+                  <TextInput
+                    style={styles.mixedPayInput}
+                    placeholder="0"
+                    placeholderTextColor={colors.muted}
+                    keyboardType="numeric"
+                    value={mixedCash}
+                    onChangeText={handleMixedCashChange}
+                  />
+                  <Text style={styles.mixedPayUnit}>₽</Text>
+                </View>
+                <View style={styles.mixedPayRow}>
+                  <Text style={styles.mixedPayLabel}>Картой</Text>
+                  <TextInput
+                    style={styles.mixedPayInput}
+                    placeholder="0"
+                    placeholderTextColor={colors.muted}
+                    keyboardType="numeric"
+                    value={mixedCard}
+                    onChangeText={handleMixedCardChange}
+                  />
+                  <Text style={styles.mixedPayUnit}>₽</Text>
+                </View>
+              </View>
+            )}
+
             {/* Кнопки */}
             <View style={{ gap: 8, marginTop: 16 }}>
               <Pressable
-                style={({ pressed }) => [styles.payBtn, pressed && { opacity: 0.88 }]}
-                onPress={() => { setPrePayOpen(false); openPayModal(); }}
+                style={({ pressed }) => [styles.payConfirmBtn, pressed && { opacity: 0.88 }]}
+                onPress={() => { setPrePayOpen(false); confirmPay(); }}
               >
-                <Text style={styles.payBtnIcon}>💰</Text>
-                <Text style={styles.payBtnText}>К выбору способа оплаты</Text>
-                <Text style={styles.payBtnTotal}>{total} ₽</Text>
+                <Text style={styles.payConfirmText}>Принять оплату · {total} ₽</Text>
               </Pressable>
               <Pressable style={styles.prePayCancelBtn} onPress={() => setPrePayOpen(false)}>
                 <Text style={styles.prePayCancelText}>Вернуться к заказу</Text>
