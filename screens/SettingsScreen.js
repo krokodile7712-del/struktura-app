@@ -1655,6 +1655,7 @@ export default function SettingsScreen({ navigation }) {
   };
 
   const connectBooking = async () => {
+    Alert.alert('', 'Подключение...');
     try {
       const profile = getBusinessProfile();
       const name = profile?.business_name || 'Мой бизнес';
