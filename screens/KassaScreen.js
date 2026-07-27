@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { LogBox } from 'react-native';
-LogBox.ignoreLogs(['Text strings must be rendered']);
+LogBox.ignoreLogs(['Text strings must be rendered', 'Each child in a list', 'VirtualizedLists']);
 import SwipeableRow from '../components/SwipeableRow';
 import { useToast } from '../components/Toast';
 import { useFocusEffect } from '@react-navigation/native';
@@ -763,7 +763,7 @@ export default function KassaScreen({ navigation, route }) {
                           <Text style={styles.v2QtyBtnTxt}>+</Text>
                         </Pressable>
                       </View>
-                      <Text style={styles.v2ItemPrice}>{(item.price*(item.quantity||1)).toFixed(0)} ₽</Text>
+                      <Text style={styles.v2ItemPrice}>{`${(item.price*(item.quantity||1)).toFixed(0)} ₽`}</Text>
                     </View>
                     {/* Модификаторы */}
                     {(item.modifiers||[]).length > 0 && (
@@ -825,9 +825,9 @@ export default function KassaScreen({ navigation, route }) {
             {/* Итого */}
             <View style={styles.v2Total}>
               <Text style={styles.v2TotalLabel}>
-                {order.reduce((s,i)=>s+(i.quantity||1),0)} поз.
+                {`${order.reduce((s,i)=>s+(i.quantity||1),0)} поз.`}
               </Text>
-              <Text style={styles.v2TotalAmt}>{total} ₽</Text>
+              <Text style={styles.v2TotalAmt}>{`${total} ₽`}</Text>
             </View>
 
             {/* Иконки-действия */}
