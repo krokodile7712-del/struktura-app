@@ -130,6 +130,8 @@ export default function SettingsScreen({ navigation }) {
   React.useEffect(() => {
     if (selectedSection === 'business' && profile) {
       setBizDraft({
+        businessType:  profile.business_type  || 'cafe',
+        slotDuration:  String(profile.slot_duration || '60'),
         businessName:  profile.business_name  || '',
         logoUrl:       profile.logo_base64    || profile.logo_url || '',
         city:          profile.city           || '',
@@ -158,6 +160,8 @@ export default function SettingsScreen({ navigation }) {
     try {
       updateBusinessProfile({
         businessName:  bizDraft.businessName,
+        businessType:  bizDraft.businessType,
+        slotDuration:  parseInt(bizDraft.slotDuration) || 60,
         logoBase64:    bizDraft.logoUrl,
         city:          bizDraft.city,
         phone:         bizDraft.phone,
@@ -1305,6 +1309,78 @@ export default function SettingsScreen({ navigation }) {
                 <TextInput color={colors.text} style={[styles.bizInput, { width: 70, textAlign: 'center' }]} value={bizDraft.hoursFrom} onChangeText={v => setBizDraft(d => ({ ...d, hoursFrom: v }))} placeholder="09:00" placeholderTextColor={colors.muted} keyboardType="numbers-and-punctuation" />
                 <Text style={{ color: colors.muted }}>—</Text>
                 <TextInput color={colors.text} style={[styles.bizInput, { width: 70, textAlign: 'center' }]} value={bizDraft.hoursTo} onChangeText={v => setBizDraft(d => ({ ...d, hoursTo: v }))} placeholder="21:00" placeholderTextColor={colors.muted} keyboardType="numbers-and-punctuation" />
+              </View>
+            </View>
+          </View>
+
+          {/* ОНЛАЙН ЗАПИСЬ */}
+          <Text style={styles.bizGroupLabel}>Онлайн запись</Text>
+          <View style={styles.menuCard}>
+            {/* Тип бизнеса */}
+            <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
+              <Text style={styles.bizFieldLabel}>Тип бизнеса</Text>
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                {[
+                  { key: 'cafe',       label: 'Кафе/Ресторан' },
+                  { key: 'services',   label: 'Услуги' },
+                  { key: 'production', label: 'Производство' },
+                ].map(t => (
+                  <Pressable key={t.key}
+                    style={[styles.typeChip, bizDraft.businessType === t.key && styles.typeChipActive]}
+                    onPress={() => setBizDraft(d => ({ ...d, businessType: t.key }))}>
+                    <Text style={[styles.typeChipTxt, bizDraft.businessType === t.key && styles.typeChipTxtActive]}>
+                      {t.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+            {/* Длительность слота */}
+            <View style={styles.bizFieldRow}>
+              <Text style={styles.bizFieldLabel}>Слот записи (мин)</Text>
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                {['30', '60', '90', '120'].map(d => (
+                  <Pressable key={d}
+                    style={[styles.typeChip, bizDraft.slotDuration === d && styles.typeChipActive]}
+                    onPress={() => setBizDraft(dr => ({ ...dr, slotDuration: d }))}>
+                    <Text style={[styles.typeChipTxt, bizDraft.slotDuration === d && styles.typeChipTxtActive]}>{d}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          </View>
+
+          {/* ОНЛАЙН ЗАПИСЬ */}
+          <Text style={styles.bizGroupLabel}>Онлайн запись</Text>
+          <View style={styles.menuCard}>
+            <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
+              <Text style={styles.bizFieldLabel}>Тип бизнеса</Text>
+              <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
+                {[
+                  { key: 'cafe',       label: 'Кафе' },
+                  { key: 'services',   label: 'Услуги' },
+                  { key: 'production', label: 'Производство' },
+                ].map(t => (
+                  <Pressable key={t.key}
+                    style={[styles.typeChip, bizDraft.businessType === t.key && styles.typeChipActive]}
+                    onPress={() => setBizDraft(d => ({ ...d, businessType: t.key }))}>
+                    <Text style={[styles.typeChipTxt, bizDraft.businessType === t.key && styles.typeChipTxtActive]}>
+                      {t.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+            <View style={styles.bizFieldRow}>
+              <Text style={styles.bizFieldLabel}>Слот записи (мин)</Text>
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                {['30', '60', '90', '120'].map(d => (
+                  <Pressable key={d}
+                    style={[styles.typeChip, bizDraft.slotDuration === d && styles.typeChipActive]}
+                    onPress={() => setBizDraft(dr => ({ ...dr, slotDuration: d }))}>
+                    <Text style={[styles.typeChipTxt, bizDraft.slotDuration === d && styles.typeChipTxtActive]}>{d}</Text>
+                  </Pressable>
+                ))}
               </View>
             </View>
           </View>
@@ -2747,6 +2823,10 @@ const styles = StyleSheet.create({
   receiptItem:    { fontFamily: fonts.familyRegular, fontSize: 13, color: '#222' },
   receiptTotal:   { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: '#111' },
   receiptFooter:  { fontFamily: fonts.familyRegular, fontSize: 11, color: '#888', textAlign: 'center', marginTop: 4 },
+  typeChip:       { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(74,77,84,0.35)', backgroundColor: '#07080a' },
+  typeChipActive: { borderColor: 'rgba(61,158,146,0.5)', backgroundColor: 'rgba(61,158,146,0.1)' },
+  typeChipTxt:    { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
+  typeChipTxtActive: { color: colors.greenLight },
   bizGroupLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginTop: 20, marginBottom: 8, marginLeft: 2 },
   bizFieldRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, gap: 12 },
   bizFieldLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, width: 140 },
