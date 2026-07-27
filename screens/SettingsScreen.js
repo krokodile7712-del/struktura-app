@@ -1345,18 +1345,14 @@ export default function SettingsScreen({ navigation }) {
                 ))}
               </View>
             </View>
-            {/* Кнопка подключения */}
-            {!bookingConnected ? (
-              <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
-                <Text style={styles.bizFieldLabel}>Статус</Text>
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  style={{ paddingVertical: 10, paddingHorizontal: 18, borderRadius: 10, backgroundColor: 'rgba(61,158,146,0.15)', borderWidth: 1, borderColor: 'rgba(61,158,146,0.4)' }}
-                  onPress={connectBooking}>
-                  <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.greenLight }}>Подключить →</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
+            {/* Статус подключения */}
+            <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
+              <Text style={styles.bizFieldLabel}>Статус</Text>
+              <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: bookingConnected ? colors.greenLight : colors.muted }}>
+                {bookingConnected ? '● Подключено' : '○ Не подключено'}
+              </Text>
+            </View>
+            {bookingConnected ? (
               <>
                 <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
                   <Text style={styles.bizFieldLabel}>Статус</Text>
@@ -1405,6 +1401,15 @@ export default function SettingsScreen({ navigation }) {
               </View>
             </View>}
           </View>
+
+          {!bookingConnected && (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={{ marginTop: 10, paddingVertical: 14, borderRadius: 14, backgroundColor: colors.greenLight, alignItems: 'center' }}
+              onPress={connectBooking}>
+              <Text style={{ fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff' }}>Подключить онлайн запись</Text>
+            </TouchableOpacity>
+          )}
 
           {/* ЧЕК */}
           <Text style={styles.bizGroupLabel}>Чек и печать</Text>
