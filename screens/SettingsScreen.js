@@ -89,6 +89,10 @@ export default function SettingsScreen({ navigation }) {
   const { width: SW } = useWindowDimensions();
   const isPhone = SW < 600;
   const [selectedSection, setSelectedSection] = useState('menu');
+  const [qrModal, setQrModal] = useState(false);
+  const [bookingConnected, setBookingConnected] = useState(false);
+  const [bookingSlug, setBookingSlug] = useState('');
+  const [syncing, setSyncing] = useState(false);
   const [menuSearch, setMenuSearch]   = useState('');
   const [stockSearch, setStockSearch]   = useState('');
   const [bizDraft, setBizDraft]         = useState(null);
