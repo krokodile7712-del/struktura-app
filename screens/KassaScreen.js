@@ -1623,7 +1623,7 @@ const styles = StyleSheet.create({
 
   /* ── Горизонтальная модалка оплаты ── */
   paySheetRoot:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
-  paySheet:        { flexDirection: 'row', width: '80%', height: '72%', backgroundColor: '#0e0f11', borderRadius: 24, borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', overflow: 'hidden' },
+  paySheet:        { flexDirection: 'row', width: '62%', height: '58%', backgroundColor: '#0e0f11', borderRadius: 24, borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', overflow: 'hidden' },
   payLeft:         { flex: 1, padding: 24, borderRightWidth: 1, borderRightColor: 'rgba(74,77,84,0.2)' },
   payLeftHead:     { marginBottom: 16 },
   paySheetTitle:   { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text },
