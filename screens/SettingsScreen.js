@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Share, Animated, LayoutAnimation, Platform, Alert, BackHandler, useWindowDimensions, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Share, Animated, LayoutAnimation, Platform, Alert, BackHandler, useWindowDimensions, Dimensions, Image } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
