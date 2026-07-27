@@ -337,7 +337,7 @@ export default function SalesScreen({ navigation }) {
                     const isReturn = order.status === 'returned';
                     return (
                       <View key={order.id}>
-                        {/* Строка заказа */}
+                        {/* Строка заказа — вся информация видна сразу */}
                         <Pressable
                           style={({ pressed }) => [
                             styles.orderRow,
@@ -345,9 +345,11 @@ export default function SalesScreen({ navigation }) {
                             pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
                             isReturn && { opacity: 0.5 },
                           ]}
-                          onPress={() => toggleOrder(order.id)}
+                          onPress={() => isAdmin ? toggleOrder(order.id) : null}
                         >
-                          <View style={{ flex: 1 }}>
+                          {/* Левая часть: время + состав + мета */}
+                          <View style={{ flex: 1, gap: 3 }}>
+                            {/* Строка 1: время + бейдж возврата */}
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                               <Text style={styles.orderTime}>{fmtTime(order.created_at)}</Text>
                               {isReturn && (
@@ -355,57 +357,56 @@ export default function SalesScreen({ navigation }) {
                                   <Text style={styles.returnBadgeTxt}>↩ возврат</Text>
                                 </View>
                               )}
+                              {order.note ? (
+                                <Text style={styles.orderNote} numberOfLines={1}>📝 {order.note}</Text>
+                              ) : null}
                             </View>
-                            {order.note ? (
-                              <Text style={styles.orderNote} numberOfLines={1}>📝 {order.note}</Text>
-                            ) : null}
-                          </View>
-                          <Text style={styles.orderMethod}>{methodIcon(order.method)}</Text>
-                          <Text style={[styles.orderTotal, isReturn && { color: colors.redLight }]}>
-                            {isReturn ? '−' : ''}{fmt(order.total)} ₽
-                          </Text>
-                          <Text style={styles.orderArrow}>{isExp ? '▲' : '›'}</Text>
-                        </Pressable>
-
-                        {/* Раскрытые детали */}
-                        {isExp && (
-                          <View style={[styles.detail, idx < dayOrders.length - 1 && styles.rowDiv]}>
-                            {/* Состав */}
-                            {items.map((item, i) => (
-                              <View key={i} style={styles.detailRow}>
-                                <Text style={styles.detailName} numberOfLines={2}>
-                                  {item.name}
-                                  {item.size ? ` ${item.size}` : ''}
-                                  {item.quantity > 1 ? ` ×${item.quantity}` : ''}
-                                </Text>
-                                <Text style={styles.detailPrice}>{fmt(item.price)} ₽</Text>
-                              </View>
-                            ))}
-
-                            {/* Мета-информация */}
-                            <View style={styles.metaRow}>
-                              {order.method ? <Text style={styles.metaTxt}>{methodIcon(order.method)} {order.method}</Text> : null}
-                              {order.cashier_name ? <Text style={styles.metaTxt}>👤 {order.cashier_name}</Text> : null}
-                              {order.client_name  ? <Text style={styles.metaTxt}>⭐ {order.client_name}</Text>  : null}
-                            </View>
-
-                            {/* Действия */}
-                            {isAdmin && !isReturn && (
-                              <View style={styles.actionRow}>
-                                <Pressable style={styles.actionBtn}
-                                  onPress={() => setReturnTarget(order)}>
-                                  <Text style={styles.actionBtnTxt}>↩ Возврат</Text>
-                                </Pressable>
-                                <Pressable style={styles.actionBtn}
-                                  onPress={() => openEdit(order)}>
-                                  <Text style={styles.actionBtnTxt}>✎ Изменить</Text>
-                                </Pressable>
-                                <Pressable style={[styles.actionBtn, styles.actionBtnDanger]}
-                                  onPress={() => setDeleteTarget(order)}>
-                                  <Text style={[styles.actionBtnTxt, { color: colors.redLight }]}>✕ Удалить</Text>
-                                </Pressable>
+                            {/* Строка 2: состав заказа */}
+                            <Text style={styles.orderItems} numberOfLines={1}>
+                              {items.length > 0
+                                ? items.slice(0, 3).map(i =>
+                                    `${i.name}${i.size ? ` ${i.size}` : ''}${i.quantity > 1 ? ` ×${i.quantity}` : ''}`
+                                  ).join(' · ') + (items.length > 3 ? ` +${items.length - 3}` : '')
+                                : '—'
+                              }
+                            </Text>
+                            {/* Строка 3: кассир + клиент */}
+                            {(order.cashier_name || order.client_name) && (
+                              <View style={{ flexDirection: 'row', gap: 10 }}>
+                                {order.cashier_name ? <Text style={styles.metaTxt}>👤 {order.cashier_name}</Text> : null}
+                                {order.client_name  ? <Text style={styles.metaTxt}>⭐ {order.client_name}</Text>  : null}
                               </View>
                             )}
+                          </View>
+
+                          {/* Правая часть: метод + сумма + шеврон */}
+                          <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                            <Text style={[styles.orderTotal, isReturn && { color: colors.redLight }]}>
+                              {isReturn ? '−' : ''}{fmt(order.total)} ₽
+                            </Text>
+                            <Text style={styles.orderMethod}>{methodIcon(order.method)} {order.method}</Text>
+                          </View>
+                          {isAdmin && (
+                            <Text style={[styles.orderArrow, isExp && styles.orderArrowOpen]}>›</Text>
+                          )}
+                        </Pressable>
+
+                        {/* Аккордеон — только действия */}
+                        {isExp && isAdmin && (
+                          <View style={[styles.actionsPanel, idx < dayOrders.length - 1 && styles.rowDiv]}>
+                            {!isReturn && (
+                              <>
+                                <Pressable style={styles.actionBtn} onPress={() => setReturnTarget(order)}>
+                                  <Text style={styles.actionBtnTxt}>↩ Возврат</Text>
+                                </Pressable>
+                                <Pressable style={styles.actionBtn} onPress={() => openEdit(order)}>
+                                  <Text style={styles.actionBtnTxt}>✎ Изменить</Text>
+                                </Pressable>
+                              </>
+                            )}
+                            <Pressable style={[styles.actionBtn, styles.actionBtnDanger]} onPress={() => setDeleteTarget(order)}>
+                              <Text style={[styles.actionBtnTxt, { color: colors.redLight }]}>✕ Удалить</Text>
+                            </Pressable>
                           </View>
                         )}
                       </View>
@@ -572,7 +573,10 @@ const styles = StyleSheet.create({
   rowDiv:    { borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.2)' },
 
   // Строка заказа
-  orderRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 14, gap: 8 },
+  orderRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, gap: 8 },
+  orderItems:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+  orderArrowOpen: { transform: [{ rotate: '90deg' }] },
+  actionsPanel:{ flexDirection: 'row', gap: 8, padding: 12, paddingHorizontal: 14, backgroundColor: 'rgba(74,77,84,0.06)' },
   orderTime:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
   orderNote:   { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
   orderMethod: { fontSize: 16 },
