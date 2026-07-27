@@ -1316,43 +1316,6 @@ export default function SettingsScreen({ navigation }) {
           {/* ОНЛАЙН ЗАПИСЬ */}
           <Text style={styles.bizGroupLabel}>Онлайн запись</Text>
           <View style={styles.menuCard}>
-            {/* Тип бизнеса */}
-            <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
-              <Text style={styles.bizFieldLabel}>Тип бизнеса</Text>
-              <View style={{ flexDirection: 'row', gap: 6 }}>
-                {[
-                  { key: 'cafe',       label: 'Кафе/Ресторан' },
-                  { key: 'services',   label: 'Услуги' },
-                  { key: 'production', label: 'Производство' },
-                ].map(t => (
-                  <Pressable key={t.key}
-                    style={[styles.typeChip, bizDraft.businessType === t.key && styles.typeChipActive]}
-                    onPress={() => setBizDraft(d => ({ ...d, businessType: t.key }))}>
-                    <Text style={[styles.typeChipTxt, bizDraft.businessType === t.key && styles.typeChipTxtActive]}>
-                      {t.label}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-            {/* Длительность слота */}
-            <View style={styles.bizFieldRow}>
-              <Text style={styles.bizFieldLabel}>Слот записи (мин)</Text>
-              <View style={{ flexDirection: 'row', gap: 6 }}>
-                {['30', '60', '90', '120'].map(d => (
-                  <Pressable key={d}
-                    style={[styles.typeChip, bizDraft.slotDuration === d && styles.typeChipActive]}
-                    onPress={() => setBizDraft(dr => ({ ...dr, slotDuration: d }))}>
-                    <Text style={[styles.typeChipTxt, bizDraft.slotDuration === d && styles.typeChipTxtActive]}>{d}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-          </View>
-
-          {/* ОНЛАЙН ЗАПИСЬ */}
-          <Text style={styles.bizGroupLabel}>Онлайн запись</Text>
-          <View style={styles.menuCard}>
             <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
               <Text style={styles.bizFieldLabel}>Тип бизнеса</Text>
               <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
