@@ -1639,8 +1639,10 @@ export default function SettingsScreen({ navigation }) {
 
 
   const connectBooking = async () => {
+    console.log('[BOOKING] connectBooking called');
     try {
       const profile = getBusinessProfile();
+      console.log('[BOOKING] profile:', JSON.stringify(profile));
       const name = profile?.business_name || 'Мой бизнес';
       const type = profile?.business_type || 'cafe';
       const slug = name.toLowerCase()
@@ -1654,6 +1656,7 @@ export default function SettingsScreen({ navigation }) {
         timeSlotsEnabled: profile?.time_slots_enabled !== false,
       };
       const biz = await upsertBusiness(slug, name, type, settings);
+      console.log('[BOOKING] biz result:', JSON.stringify(biz));
       if (biz) {
         setBookingSlug(slug);
         setBookingConnected(true);
@@ -1661,7 +1664,7 @@ export default function SettingsScreen({ navigation }) {
       } else {
         Alert.alert('Ошибка', 'Не удалось подключить. Проверьте интернет.');
       }
-    } catch (e) { console.error(e); Alert.alert('Ошибка', e.message); }
+    } catch (e) { console.error('[BOOKING ERROR]', e); Alert.alert('Ошибка', String(e.message || e)); }
   };
 
   const syncMenu = async () => {
