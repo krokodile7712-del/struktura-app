@@ -821,6 +821,7 @@ export default function SettingsScreen({ navigation }) {
     {/* Скролл закрывает поиск */}
     <Pressable
       style={{ flex: 1 }}
+      pointerEvents="box-none"
       onPress={() => menuSearchOpen && (setMenuSearchOpen(false), setMenuSearch(''))}
     >
     <ScrollView
