@@ -1,7 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import {
-  View, Text, StyleSheet, Pressable, ScrollView, Animated,
-} from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
@@ -9,62 +7,272 @@ import StatsBar from '../components/StatsBar';
 import ShiftBanner from '../components/ShiftBanner';
 import {
   getOpenShift, getBusinessProfile, getTerms, pluralizeRu,
-  getDashboardStats, getPayMethods,
+  getDashboardStats, getRecentOrders, getOrderItems,
+  getAllStockItems, getExpenses, getRoleNames,
 } from '../db/queries';
-import { getRoleNames } from '../db/queries';
-import { getSession, getHomeRoute } from '../db/session';
+import { getBookings } from '../db/supabase';
+import { getSession } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
 
-const getMenuItems = (terms, bookingActive) => [
-  {
-    key: 'Sales',
-    label: pluralizeRu(terms.order),
-    sub: 'История продаж',
-    hint: 'Все транзакции, возвраты и поиск по чекам',
-  },
-  {
-    key: 'Reports',
-    label: 'Отчётность',
-    sub: 'P&L · графики',
-    hint: 'Прибыль, расходы, динамика по дням',
-  },
-  {
-    key: 'Stock',
-    label: 'Склад',
-    sub: 'Остатки · закупки',
-    hint: 'Текущие остатки, пороги и движение товара',
-  },
-  {
-    key: 'Expenses',
-    label: 'Расходы',
-    sub: 'Затраты за день',
-    hint: 'Фиксируйте ежедневные траты бизнеса',
-  },
-  {
-    key: bookingActive ? 'Bookings' : 'Settings',
-    label: 'Записи',
-    sub: bookingActive ? 'Онлайн бронирование' : 'Не подключено',
-    hint: bookingActive
-      ? 'Входящие заявки от клиентов через форму'
-      : 'Подключите онлайн запись в Настройках',
-    inactive: !bookingActive,
-  },
-  {
-    key: 'Settings',
-    label: 'Настройки',
-    sub: 'Профиль · модули',
-    hint: 'Бизнес, сотрудники, оплата, лояльность',
-  },
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Доброе утро';
+  if (h < 17) return 'Добрый день';
+  return 'Добрый вечер';
+}
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+// ─── Панели разделов ──────────────────────────────────────────────────────────
+
+function DashPanel({ stats, name }) {
+  return (
+    <ScrollView contentContainerStyle={styles.panelContent}>
+      <Text style={styles.panelGreeting}>{getGreeting()}{name ? `, ${name}` : ''}</Text>
+      <Text style={styles.panelSub}>Сводка за сегодня</Text>
+      <View style={styles.statsGrid}>
+        {[
+          { label: 'Выручка', value: `${stats.revenueToday || 0} ₽` },
+          { label: 'Заказов', value: stats.ordersToday || 0 },
+          { label: 'Средний чек', value: `${stats.avgCheck || 0} ₽` },
+          { label: 'Прибыль', value: `${stats.profit || 0} ₽`, hi: (stats.profit||0) >= 0 },
+        ].map((s, i) => (
+          <View key={i} style={styles.statCard}>
+            <Text style={[styles.statVal, s.hi !== undefined && { color: s.hi ? colors.green : colors.red }]}>{s.value}</Text>
+            <Text style={styles.statLbl}>{s.label}</Text>
+          </View>
+        ))}
+      </View>
+      <Text style={styles.panelHint}>Выберите раздел слева для подробной информации</Text>
+    </ScrollView>
+  );
+}
+
+function SalesPanel({ navigation }) {
+  const [orders, setOrders] = useState([]);
+  useEffect(() => {
+    try { setOrders(getRecentOrders(20)); } catch(_) {}
+  }, []);
+
+  return (
+    <ScrollView contentContainerStyle={styles.panelContent}>
+      <View style={styles.panelHeader}>
+        <Text style={styles.panelTitle}>Продажи</Text>
+        <Pressable style={styles.panelOpenBtn} onPress={() => navigation.navigate('Sales')}>
+          <Text style={styles.panelOpenTxt}>Все →</Text>
+        </Pressable>
+      </View>
+      {orders.length === 0 ? (
+        <Text style={styles.emptyTxt}>Нет заказов</Text>
+      ) : (
+        <View style={styles.listCard}>
+          {orders.map((o, idx) => (
+            <View key={o.id} style={[styles.listRow, idx < orders.length-1 && styles.listRowDiv]}>
+              <Text style={styles.listTime}>{fmtDate(o.created_at)}</Text>
+              <Text style={[styles.listName, { flex: 1 }]} numberOfLines={1}>{o.client_name || '—'}</Text>
+              <Text style={styles.listVal}>{o.total} ₽</Text>
+            </View>
+          ))}
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+function ReportsPanel({ navigation, stats }) {
+  return (
+    <ScrollView contentContainerStyle={styles.panelContent}>
+      <View style={styles.panelHeader}>
+        <Text style={styles.panelTitle}>Отчётность</Text>
+        <Pressable style={styles.panelOpenBtn} onPress={() => navigation.navigate('Reports')}>
+          <Text style={styles.panelOpenTxt}>Открыть →</Text>
+        </Pressable>
+      </View>
+      <View style={styles.listCard}>
+        {[
+          { label: 'Выручка сегодня', value: `${stats.revenueToday || 0} ₽` },
+          { label: 'Расходы', value: `${stats.expenses || 0} ₽` },
+          { label: 'Прибыль', value: `${stats.profit || 0} ₽` },
+          { label: 'Средний чек', value: `${stats.avgCheck || 0} ₽` },
+          { label: 'Заказов', value: stats.ordersToday || 0 },
+        ].map((r, i, arr) => (
+          <View key={i} style={[styles.listRow, i < arr.length-1 && styles.listRowDiv]}>
+            <Text style={[styles.listName, { flex: 1 }]}>{r.label}</Text>
+            <Text style={styles.listVal}>{r.value}</Text>
+          </View>
+        ))}
+      </View>
+    </ScrollView>
+  );
+}
+
+function StockPanel({ navigation }) {
+  const [items, setItems] = useState([]);
+  useEffect(() => {
+    try { setItems(getAllStockItems().sort((a,b) => (a['остаток']||0) - (b['остаток']||0)).slice(0, 15)); } catch(_) {}
+  }, []);
+  return (
+    <ScrollView contentContainerStyle={styles.panelContent}>
+      <View style={styles.panelHeader}>
+        <Text style={styles.panelTitle}>Склад</Text>
+        <Pressable style={styles.panelOpenBtn} onPress={() => navigation.navigate('Stock')}>
+          <Text style={styles.panelOpenTxt}>Открыть →</Text>
+        </Pressable>
+      </View>
+      {items.length === 0 ? <Text style={styles.emptyTxt}>Склад пуст</Text> : (
+        <View style={styles.listCard}>
+          {items.map((it, idx) => {
+            const low = it.threshold && (it['остаток']||0) <= it.threshold;
+            return (
+              <View key={it.id} style={[styles.listRow, idx < items.length-1 && styles.listRowDiv]}>
+                <Text style={[styles.listName, { flex: 1 }]} numberOfLines={1}>{it.name}</Text>
+                <Text style={[styles.listVal, low && { color: colors.red }]}>
+                  {it['остаток'] || 0} {it.unit}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+function ExpensesPanel({ navigation }) {
+  const [items, setItems] = useState([]);
+  const today = new Date().toISOString().slice(0,10);
+  useEffect(() => {
+    try { setItems(getExpenses(today, today) || []); } catch(_) {}
+  }, []);
+  const total = items.reduce((s,e) => s + (e.amount||0), 0);
+  return (
+    <ScrollView contentContainerStyle={styles.panelContent}>
+      <View style={styles.panelHeader}>
+        <Text style={styles.panelTitle}>Расходы</Text>
+        <Pressable style={styles.panelOpenBtn} onPress={() => navigation.navigate('Expenses')}>
+          <Text style={styles.panelOpenTxt}>Открыть →</Text>
+        </Pressable>
+      </View>
+      <Text style={styles.bigNum}>{total} ₽</Text>
+      <Text style={styles.panelSub}>за сегодня</Text>
+      {items.length > 0 && (
+        <View style={[styles.listCard, { marginTop: 16 }]}>
+          {items.map((e, idx) => (
+            <View key={e.id} style={[styles.listRow, idx < items.length-1 && styles.listRowDiv]}>
+              <Text style={[styles.listName, { flex: 1 }]} numberOfLines={1}>{e.name || e.category}</Text>
+              <Text style={styles.listVal}>{e.amount} ₽</Text>
+            </View>
+          ))}
+        </View>
+      )}
+      {items.length === 0 && <Text style={styles.emptyTxt}>Расходов за сегодня нет</Text>}
+    </ScrollView>
+  );
+}
+
+function BookingsPanel({ navigation, bookingActive }) {
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    if (!bookingActive) return;
+    setLoading(true);
+    const profile = getBusinessProfile();
+    getBookings(null, null, profile?.booking_slug)
+      .then(d => setBookings((d||[]).filter(b => b.status === 'pending').slice(0,10)))
+      .catch(()=>{})
+      .finally(() => setLoading(false));
+  }, [bookingActive]);
+
+  if (!bookingActive) return (
+    <View style={styles.panelContent}>
+      <Text style={styles.panelTitle}>Записи</Text>
+      <Text style={styles.emptyTxt}>Онлайн запись не подключена</Text>
+      <Pressable style={styles.panelOpenBtn} onPress={() => navigation.navigate('Settings')}>
+        <Text style={styles.panelOpenTxt}>Подключить в Настройках →</Text>
+      </Pressable>
+    </View>
+  );
+
+  return (
+    <ScrollView contentContainerStyle={styles.panelContent}>
+      <View style={styles.panelHeader}>
+        <Text style={styles.panelTitle}>Записи</Text>
+        <Pressable style={styles.panelOpenBtn} onPress={() => navigation.navigate('Bookings')}>
+          <Text style={styles.panelOpenTxt}>Все →</Text>
+        </Pressable>
+      </View>
+      {loading ? <ActivityIndicator color={colors.orange} /> :
+       bookings.length === 0 ? <Text style={styles.emptyTxt}>Новых записей нет</Text> : (
+        <View style={styles.listCard}>
+          {bookings.map((b, idx) => (
+            <View key={b.id} style={[styles.listRow, idx < bookings.length-1 && styles.listRowDiv]}>
+              <Text style={styles.listTime}>{b.time_start?.slice(0,5) || '—'}</Text>
+              <Text style={[styles.listName, { flex: 1 }]} numberOfLines={1}>{b.client_name}</Text>
+              <Text style={[styles.listVal, { color: colors.amber }]}>Новая</Text>
+            </View>
+          ))}
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+function SettingsPanel({ navigation }) {
+  const links = [
+    { label: 'Профиль бизнеса', section: 'profile' },
+    { label: 'Сотрудники', section: 'employees' },
+    { label: 'Оплата и скидки', section: 'payment' },
+    { label: 'Лояльность', section: 'loyalty' },
+    { label: 'Онлайн запись', section: 'profile' },
+  ];
+  return (
+    <ScrollView contentContainerStyle={styles.panelContent}>
+      <View style={styles.panelHeader}>
+        <Text style={styles.panelTitle}>Настройки</Text>
+        <Pressable style={styles.panelOpenBtn} onPress={() => navigation.navigate('Settings')}>
+          <Text style={styles.panelOpenTxt}>Открыть →</Text>
+        </Pressable>
+      </View>
+      <View style={styles.listCard}>
+        {links.map((l, idx) => (
+          <Pressable key={l.label} style={[styles.listRow, idx < links.length-1 && styles.listRowDiv]}
+            onPress={() => navigation.navigate('Settings')}>
+            <Text style={[styles.listName, { flex: 1 }]}>{l.label}</Text>
+            <Text style={styles.listArrow}>›</Text>
+          </Pressable>
+        ))}
+      </View>
+    </ScrollView>
+  );
+}
+
+// ─── Главный компонент ────────────────────────────────────────────────────────
+
+import { useEffect } from 'react';
+
+const SECTIONS = [
+  { key: 'dash',     label: 'Обзор' },
+  { key: 'Sales',    label: 'Продажи' },
+  { key: 'Reports',  label: 'Отчётность' },
+  { key: 'Stock',    label: 'Склад' },
+  { key: 'Expenses', label: 'Расходы' },
+  { key: 'Bookings', label: 'Записи' },
+  { key: 'Settings', label: 'Настройки' },
 ];
 
 export default function AdminScreen({ navigation }) {
   const [profile, setProfile]         = useState(null);
-  const [terms, setTerms]             = useState({ order: 'Заказ', client: 'Клиент', item: 'Товар', category: 'Категория' });
+  const [terms, setTerms]             = useState({ order: 'Заказ', client: 'Клиент' });
   const [stats, setStats]             = useState({});
   const [hasShift, setHasShift]       = useState(false);
   const [modules, setModules]         = useState({});
-  const [roleNames, setRoleNames]     = useState({ admin: 'Администратор', barista: 'Сотрудник' });
+  const [roleNames, setRoleNames]     = useState({ admin: 'Администратор' });
   const [bookingActive, setBookingActive] = useState(false);
+  const [active, setActive]           = useState('dash');
 
   const loadStats = useCallback(() => {
     try {
@@ -81,116 +289,75 @@ export default function AdminScreen({ navigation }) {
 
   useFocusEffect(useCallback(() => { loadStats(); }, [loadStats]));
 
-  const menuItems = getMenuItems(terms, bookingActive);
-
-  const handleSelect = (item) => {
-    navigation.navigate(item.key);
-  };
-
   const session = getSession();
-  const isAdmin = session?.role === 'admin';
+
+  const renderRight = () => {
+    switch(active) {
+      case 'Sales':    return <SalesPanel navigation={navigation} />;
+      case 'Reports':  return <ReportsPanel navigation={navigation} stats={stats} />;
+      case 'Stock':    return <StockPanel navigation={navigation} />;
+      case 'Expenses': return <ExpensesPanel navigation={navigation} />;
+      case 'Bookings': return <BookingsPanel navigation={navigation} bookingActive={bookingActive} />;
+      case 'Settings': return <SettingsPanel navigation={navigation} />;
+      default:         return <DashPanel stats={stats} name={session?.name?.split(' ')[0]} />;
+    }
+  };
 
   return (
     <View style={styles.root}>
       <TopBar title={roleNames.admin || 'Администратор'} navigation={navigation} activeScreen="Admin" />
       {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift')} />}
-      <StatsBar
-        stats={stats}
-        modules={modules}
+      <StatsBar stats={stats} modules={modules}
         onShiftPress={() => navigation.navigate('ShiftClose')}
-        onStockPress={() => navigation.navigate('Stock')}
-      />
+        onStockPress={() => navigation.navigate('Stock')} />
 
       <View style={styles.layout}>
-
-        {/* ── Левая панель ── */}
+        {/* Левая панель */}
         <View style={styles.leftPanel}>
-          {/* Название бизнеса */}
           <View style={styles.bizHeader}>
-            <Text style={styles.bizName} numberOfLines={1}>
-              {profile?.business_name || 'Мой бизнес'}
-            </Text>
-            {profile?.city ? (
-              <Text style={styles.bizCity}>{profile.city}</Text>
-            ) : null}
+            <Text style={styles.bizName} numberOfLines={1}>{profile?.business_name || 'Мой бизнес'}</Text>
+            {profile?.city ? <Text style={styles.bizCity}>{profile.city}</Text> : null}
           </View>
 
-          {/* Новый заказ — главное CTA */}
-          <Pressable
-            style={({ pressed }) => [styles.ctaBtn, pressed && { opacity: 0.85 }]}
-            onPress={() => navigation.navigate('Kassa')}
-          >
+          <Pressable style={({ pressed }) => [styles.ctaBtn, pressed && { opacity: 0.85 }]}
+            onPress={() => navigation.navigate('Kassa')}>
             <Text style={styles.ctaLabel}>Новый {terms.order?.toLowerCase()}</Text>
             <Text style={styles.ctaSub}>Открыть кассу</Text>
           </Pressable>
 
-          {/* Разделитель */}
           <View style={styles.divider} />
 
-          {/* Меню */}
-          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-            {menuItems.map((item) => {
-              const isActive = false;
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {SECTIONS.map(s => {
+              const isActive = active === s.key;
+              if (s.key === 'Bookings' && !bookingActive) return (
+                <Pressable key={s.key}
+                  style={[styles.menuItem, styles.menuItemInactive]}
+                  onPress={() => setActive(s.key)}>
+                  <Text style={styles.menuLabelInactive}>{s.label}</Text>
+                  <Text style={styles.menuSub}>Не подключено</Text>
+                </Pressable>
+              );
               return (
-                <Pressable
-                  key={item.key + item.label}
-                  style={({ pressed }) => [
-                    styles.menuItem,
-                    isActive && styles.menuItemActive,
-                    pressed && { backgroundColor: 'rgba(245,240,232,0.04)' },
-                    item.inactive && { opacity: 0.45 },
-                  ]}
-                  onPress={() => handleSelect(item)}
-                >
+                <Pressable key={s.key}
+                  style={({ pressed }) => [styles.menuItem, isActive && styles.menuItemActive, pressed && { backgroundColor: 'rgba(245,240,232,0.04)' }]}
+                  onPress={() => setActive(s.key)}>
                   {isActive && <View style={styles.activeBar} />}
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.menuLabel, isActive && styles.menuLabelActive]}>
-                      {item.label}
-                    </Text>
-                    <Text style={styles.menuSub}>{item.sub}</Text>
-                  </View>
-                  <Text style={[styles.menuArrow, isActive && styles.menuArrowActive]}>›</Text>
+                  <Text style={[styles.menuLabel, isActive && styles.menuLabelActive]}>{s.label}</Text>
                 </Pressable>
               );
             })}
 
             <View style={styles.divider} />
-
-            <Pressable
-              style={({ pressed }) => [styles.menuItem, pressed && { opacity: 0.6 }]}
-              onPress={() => navigation.navigate('Login')}
-            >
-              <Text style={[styles.menuLabel, { color: colors.muted, fontSize: 13 }]}>
-                Сменить аккаунт
-              </Text>
+            <Pressable style={styles.menuItem} onPress={() => navigation.navigate('Login')}>
+              <Text style={[styles.menuLabel, { color: colors.muted, fontSize: 13 }]}>Сменить аккаунт</Text>
             </Pressable>
           </ScrollView>
         </View>
 
-        {/* ── Правая панель ── */}
+        {/* Правая панель */}
         <View style={styles.rightPanel}>
-          <View style={styles.dashWrap}>
-            <Text style={styles.dashGreeting}>
-              {getGreeting()}, {getSession()?.name?.split(' ')[0] || 'добро пожаловать'}
-            </Text>
-            <Text style={styles.dashSub}>Сводка за сегодня</Text>
-
-            <View style={styles.statsGrid}>
-              {[
-                { label: 'Выручка', value: `${stats.revenueToday || 0} ₽` },
-                { label: 'Заказов', value: stats.ordersToday || 0 },
-                { label: 'Средний чек', value: `${stats.avgCheck || 0} ₽` },
-                { label: 'Прибыль', value: `${stats.profit || 0} ₽`, color: (stats.profit || 0) >= 0 ? colors.green : colors.red },
-              ].map((s, i) => (
-                <View key={i} style={styles.statCard}>
-                  <Text style={[styles.statVal, s.color ? { color: s.color } : {}]}>{s.value}</Text>
-                  <Text style={styles.statLbl}>{s.label}</Text>
-                </View>
-              ))}
-            </View>
-
-            <Text style={styles.tapHint}>Нажмите на раздел слева для перехода</Text>
-          </View>
+          {renderRight()}
         </View>
       </View>
 
@@ -199,81 +366,54 @@ export default function AdminScreen({ navigation }) {
   );
 }
 
-function getGreeting() {
-  const h = new Date().getHours();
-  if (h < 12) return 'Доброе утро';
-  if (h < 17) return 'Добрый день';
-  return 'Добрый вечер';
-}
-
-function SectionPreview({ item, stats }) {
-  const previews = {
-    Sales:    [{ label: 'Заказов сегодня', value: stats.ordersToday || 0 }, { label: 'Выручка', value: `${stats.revenueToday || 0} ₽` }],
-    Reports:  [{ label: 'Прибыль за период', value: `${stats.profit || 0} ₽` }, { label: 'Расходы', value: `${stats.expenses || 0} ₽` }],
-    Stock:    [{ label: 'Позиций на складе', value: stats.stockItems || 0 }, { label: 'Мало на складе', value: stats.stockLow || 0 }],
-    Expenses: [{ label: 'Расходы сегодня', value: `${stats.expensesToday || 0} ₽` }, { label: 'За месяц', value: `${stats.expensesMonth || 0} ₽` }],
-    Bookings: [{ label: 'Новых записей', value: stats.bookingsPending || 0 }, { label: 'На сегодня', value: stats.bookingsToday || 0 }],
-    Settings: [{ label: 'Версия', value: '1.0' }, { label: 'Модулей включено', value: Object.values(stats.modules || {}).filter(Boolean).length || '—' }],
-  };
-
-  const rows = previews[item.key] || [];
-  return (
-    <View style={{ gap: 12, marginVertical: 16 }}>
-      {rows.map((r, i) => (
-        <View key={i} style={styles.previewRow}>
-          <Text style={styles.previewRowLbl}>{r.label}</Text>
-          <Text style={styles.previewRowVal}>{r.value}</Text>
-        </View>
-      ))}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  root:       { flex: 1, backgroundColor: colors.bg },
-  layout:     { flex: 1, flexDirection: 'row' },
+  root:        { flex: 1, backgroundColor: colors.bg },
+  layout:      { flex: 1, flexDirection: 'row' },
 
-  // Левая панель
-  leftPanel:  { width: 260, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface },
-  bizHeader:  { padding: 20, paddingBottom: 12 },
-  bizName:    { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text },
-  bizCity:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
+  leftPanel:   { width: 220, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface },
+  bizHeader:   { padding: 18, paddingBottom: 10 },
+  bizName:     { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.text },
+  bizCity:     { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
 
-  ctaBtn:     { marginHorizontal: 12, marginBottom: 16, padding: 16, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
-  ctaLabel:   { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: '#fff', textTransform: 'capitalize' },
-  ctaSub:     { fontFamily: fonts.familyRegular, fontSize: 11, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
+  ctaBtn:      { marginHorizontal: 12, marginBottom: 12, padding: 14, borderRadius: 12, backgroundColor: colors.orange, alignItems: 'center' },
+  ctaLabel:    { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: '#fff', textTransform: 'capitalize' },
+  ctaSub:      { fontFamily: fonts.familyRegular, fontSize: 10, color: 'rgba(255,255,255,0.7)', marginTop: 1 },
 
-  divider:    { height: 1, backgroundColor: colors.border, marginHorizontal: 12, marginVertical: 4 },
+  divider:     { height: 1, backgroundColor: colors.border, marginHorizontal: 12, marginVertical: 4 },
 
-  menuItem:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, position: 'relative' },
+  menuItem:       { paddingVertical: 12, paddingHorizontal: 16, position: 'relative' },
   menuItemActive: { backgroundColor: 'rgba(245,240,232,0.06)' },
-  activeBar:  { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
-  menuLabel:  { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.textDim },
-  menuLabelActive: { color: colors.text },
-  menuSub:    { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
-  menuArrow:  { fontSize: 18, color: colors.muted },
-  menuArrowActive: { color: colors.text },
+  menuItemInactive:{ paddingVertical: 12, paddingHorizontal: 16, opacity: 0.45 },
+  activeBar:      { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
+  menuLabel:      { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
+  menuLabelActive:{ color: colors.text },
+  menuLabelInactive:{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
+  menuSub:        { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, marginTop: 1 },
 
-  // Правая панель
-  rightPanel: { flex: 1, backgroundColor: colors.bg },
-  dashWrap:   { flex: 1, padding: 32, justifyContent: 'center' },
-  dashGreeting: { fontFamily: fonts.family, fontSize: 26, fontWeight: '800', color: colors.text, marginBottom: 6 },
-  dashSub:    { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginBottom: 32 },
+  rightPanel:  { flex: 1, backgroundColor: colors.bg },
 
-  statsGrid:  { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 32 },
-  statCard:   { flex: 1, minWidth: '45%', backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 20 },
-  statVal:    { fontFamily: fonts.family, fontSize: 28, fontWeight: '800', color: colors.text, marginBottom: 6 },
-  statLbl:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
+  panelContent:{ padding: 24, paddingBottom: 40 },
+  panelHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+  panelTitle:  { fontFamily: fonts.family, fontSize: 24, fontWeight: '800', color: colors.text },
+  panelOpenBtn:{ paddingVertical: 7, paddingHorizontal: 14, borderRadius: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
+  panelOpenTxt:{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
+  panelGreeting:{ fontFamily: fonts.family, fontSize: 24, fontWeight: '800', color: colors.text, marginBottom: 4 },
+  panelSub:    { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginBottom: 24 },
+  panelHint:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 24, opacity: 0.6 },
 
-  previewWrap:    { flex: 1, padding: 32 },
-  previewTitle:   { fontFamily: fonts.family, fontSize: 30, fontWeight: '800', color: colors.text, marginBottom: 8 },
-  previewHint:    { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, lineHeight: 21 },
-  previewRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
-  previewRowLbl:  { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
-  previewRowVal:  { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.text },
+  statsGrid:   { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },
+  statCard:    { flex: 1, minWidth: '44%', backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, padding: 18 },
+  statVal:     { fontFamily: fonts.family, fontSize: 26, fontWeight: '800', color: colors.text, marginBottom: 4 },
+  statLbl:     { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.8 },
 
-  openBtn:    { marginTop: 24, paddingVertical: 16, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
-  openBtnTxt: { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: '#fff' },
+  listCard:    { backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  listRow:     { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, gap: 10 },
+  listRowDiv:  { borderBottomWidth: 1, borderBottomColor: colors.border },
+  listTime:    { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, width: 40 },
+  listName:    { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
+  listVal:     { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
+  listArrow:   { fontSize: 18, color: colors.muted },
 
-  tapHint:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 16, opacity: 0.6 },
+  bigNum:      { fontFamily: fonts.family, fontSize: 48, fontWeight: '800', color: colors.text, marginBottom: 4 },
+  emptyTxt:    { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', marginTop: 32 },
 });
