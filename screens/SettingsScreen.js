@@ -1373,11 +1373,12 @@ export default function SettingsScreen({ navigation }) {
                     onPress={() => setQrModal(true)}>
                     <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.greenLight }}>📷 QR код</Text>
                   </Pressable>
-                  <Pressable
+                  <TouchableOpacity
+                    activeOpacity={0.7}
                     style={{ flex: 1, marginLeft: 8, paddingVertical: 10, borderRadius: 10, backgroundColor: 'rgba(74,77,84,0.15)', alignItems: 'center' }}
-                    onPress={syncMenu}>
+                    onPress={() => syncMenu()}>
                     <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted }}>{syncing ? '⏳...' : '🔄 Меню'}</Text>
-                  </Pressable>
+                  </TouchableOpacity>
                   <Pressable
                     style={{ flex: 1, marginLeft: 8, paddingVertical: 10, borderRadius: 10, backgroundColor: 'rgba(200,50,50,0.12)', alignItems: 'center' }}
                     onPress={() => { setBookingConnected(false); setBookingSlug(''); }}>
