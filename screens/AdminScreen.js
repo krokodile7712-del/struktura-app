@@ -62,6 +62,7 @@ export default function AdminScreen({ navigation }) {
       const p = getBusinessProfile();
       setProfile(p);
       setModules(p?.modules || {});
+      setBookingActive(!!(p?.booking_slug));
       setShiftOpen(!!getOpenShift());
       setTerms(getTerms());
       setRoleNames(getRoleNames());
