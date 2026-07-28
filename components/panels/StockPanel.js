@@ -11,8 +11,8 @@ import {
   getCurrentLocationId, setCurrentLocationId,
   getBusinessProfile, updateStockThreshold,
 } from '../../db/queries';
-import { getDb } from '../db/database';
-import { getHomeRoute, can } from '../../db/session';
+import { getDb } from '../../db/database';
+import { can } from '../../db/session';
 import { colors, fonts, spacing } from '../../constants/theme';
 import { useToast } from '../Toast';
 
