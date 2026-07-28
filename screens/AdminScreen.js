@@ -65,7 +65,6 @@ export default function AdminScreen({ navigation }) {
   const [modules, setModules]         = useState({});
   const [roleNames, setRoleNames]     = useState({ admin: 'Администратор', barista: 'Сотрудник' });
   const [bookingActive, setBookingActive] = useState(false);
-  const [selected, setSelected]       = useState(null);
 
   const loadStats = useCallback(() => {
     try {
@@ -85,11 +84,7 @@ export default function AdminScreen({ navigation }) {
   const menuItems = getMenuItems(terms, bookingActive);
 
   const handleSelect = (item) => {
-    if (item.key === selected?.key) {
-      navigation.navigate(item.key);
-    } else {
-      setSelected(item);
-    }
+    navigation.navigate(item.key);
   };
 
   const session = getSession();
@@ -135,7 +130,7 @@ export default function AdminScreen({ navigation }) {
           {/* Меню */}
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
             {menuItems.map((item) => {
-              const isActive = selected?.key === item.key;
+              const isActive = false;
               return (
                 <Pressable
                   key={item.key + item.label}
@@ -174,51 +169,28 @@ export default function AdminScreen({ navigation }) {
 
         {/* ── Правая панель ── */}
         <View style={styles.rightPanel}>
-          {selected ? (
-            /* Превью выбранного раздела */
-            <View style={styles.previewWrap}>
-              <Text style={styles.previewTitle}>{selected.label}</Text>
-              <Text style={styles.previewHint}>{selected.hint}</Text>
+          <View style={styles.dashWrap}>
+            <Text style={styles.dashGreeting}>
+              {getGreeting()}, {getSession()?.name?.split(' ')[0] || 'добро пожаловать'}
+            </Text>
+            <Text style={styles.dashSub}>Сводка за сегодня</Text>
 
-              <View style={styles.divider} />
-
-              {/* Статистика по разделу */}
-              <SectionPreview item={selected} stats={stats} />
-
-              <Pressable
-                style={({ pressed }) => [styles.openBtn, pressed && { opacity: 0.85 }]}
-                onPress={() => navigation.navigate(selected.key)}
-              >
-                <Text style={styles.openBtnTxt}>Открыть {selected.label} →</Text>
-              </Pressable>
-
-              <Text style={styles.tapHint}>Нажмите ещё раз на раздел слева или на кнопку выше</Text>
+            <View style={styles.statsGrid}>
+              {[
+                { label: 'Выручка', value: `${stats.revenueToday || 0} ₽` },
+                { label: 'Заказов', value: stats.ordersToday || 0 },
+                { label: 'Средний чек', value: `${stats.avgCheck || 0} ₽` },
+                { label: 'Прибыль', value: `${stats.profit || 0} ₽`, color: (stats.profit || 0) >= 0 ? colors.green : colors.red },
+              ].map((s, i) => (
+                <View key={i} style={styles.statCard}>
+                  <Text style={[styles.statVal, s.color ? { color: s.color } : {}]}>{s.value}</Text>
+                  <Text style={styles.statLbl}>{s.label}</Text>
+                </View>
+              ))}
             </View>
-          ) : (
-            /* Дашборд по умолчанию */
-            <View style={styles.dashWrap}>
-              <Text style={styles.dashGreeting}>
-                {getGreeting()}, {getSession()?.name?.split(' ')[0] || 'добро пожаловать'}
-              </Text>
-              <Text style={styles.dashSub}>Выберите раздел слева</Text>
 
-              <View style={styles.statsGrid}>
-                {[
-                  { label: 'Выручка сегодня', value: `${stats.revenueToday || 0} ₽`, color: colors.text },
-                  { label: 'Заказов за смену', value: stats.ordersToday || 0, color: colors.text },
-                  { label: 'Средний чек', value: `${stats.avgCheck || 0} ₽`, color: colors.text },
-                  { label: 'Прибыль', value: `${stats.profit || 0} ₽`, color: stats.profit >= 0 ? colors.green : colors.red },
-                ].map((s, i) => (
-                  <View key={i} style={styles.statCard}>
-                    <Text style={[styles.statVal, { color: s.color }]}>{s.value}</Text>
-                    <Text style={styles.statLbl}>{s.label}</Text>
-                  </View>
-                ))}
-              </View>
-
-              <Text style={styles.tapHint}>Нажмите на раздел слева чтобы посмотреть детали</Text>
-            </View>
-          )}
+            <Text style={styles.tapHint}>Нажмите на раздел слева для перехода</Text>
+          </View>
         </View>
       </View>
 
