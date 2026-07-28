@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, TouchableOpacity, Modal, TextInput, Share, Animated, LayoutAnimation, Platform, Alert, BackHandler, useWindowDimensions, Dimensions, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, TouchableOpacity, Modal, TextInput, Share, Animated, LayoutAnimation, Platform, Alert, BackHandler, useWindowDimensions, Dimensions, Image, Clipboard } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
@@ -1355,12 +1355,18 @@ export default function SettingsScreen({ navigation }) {
             </View>
             {bookingConnected ? (
               <>
-                <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
+                <TouchableOpacity
+                  style={[styles.bizFieldRow, styles.menuRowDiv]}
+                  onPress={() => {
+                    const link = `https://krokodile7712-del.github.io/struktura-booking/?slug=${bookingSlug}`;
+                    Clipboard.setString(link);
+                    Alert.alert('Скопировано', link);
+                  }}>
                   <Text style={styles.bizFieldLabel}>Ссылка</Text>
-                  <Text style={{ fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, flex: 1, textAlign: 'right' }} numberOfLines={1}>
-                    struktura.app/book/{bookingSlug}
+                  <Text style={{ fontFamily: fonts.familyRegular, fontSize: 11, color: colors.greenLight, flex: 1, textAlign: 'right' }} numberOfLines={1}>
+                    .../{bookingSlug} 📋
                   </Text>
-                </View>
+                </TouchableOpacity>
                 <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
                   <Pressable
                     style={{ flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: 'rgba(61,158,146,0.1)', alignItems: 'center' }}
