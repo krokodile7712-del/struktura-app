@@ -1372,6 +1372,11 @@ export default function SettingsScreen({ navigation }) {
                     onPress={syncMenu}>
                     <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted }}>{syncing ? '⏳...' : '🔄 Меню'}</Text>
                   </Pressable>
+                  <Pressable
+                    style={{ flex: 1, marginLeft: 8, paddingVertical: 10, borderRadius: 10, backgroundColor: 'rgba(200,50,50,0.12)', alignItems: 'center' }}
+                    onPress={() => { setBookingConnected(false); setBookingSlug(''); }}>
+                    <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.redLight }}>↺ Сбросить</Text>
+                  </Pressable>
                 </View>
               </>
             ) : null}
