@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, Animated } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
@@ -93,6 +93,17 @@ export default function AdminScreen({ navigation }) {
   const [roleNames, setRoleNames]     = useState({ admin: 'Администратор' });
   const [bookingActive, setBookingActive] = useState(false);
   const [active, setActive]           = useState('dash');
+  const animWidth = useState(new Animated.Value(220))[0];
+
+  const setActiveAnimated = (key) => {
+    setActive(key);
+    Animated.spring(animWidth, {
+      toValue: key === 'Settings' ? 52 : 220,
+      useNativeDriver: false,
+      tension: 80,
+      friction: 12,
+    }).start();
+  };
 
   const loadStats = useCallback(() => {
     try {
@@ -133,17 +144,19 @@ export default function AdminScreen({ navigation }) {
 
       <View style={styles.layout}>
         {/* Левая панель */}
-        <View style={styles.leftPanel}>
+        <Animated.View style={[styles.leftPanel, { width: animWidth }]}>
           <View style={styles.bizHeader}>
-            <Text style={styles.bizName} numberOfLines={1}>{profile?.business_name || 'Мой бизнес'}</Text>
-            {profile?.city ? <Text style={styles.bizCity}>{profile.city}</Text> : null}
+            {active !== 'Settings' && <Text style={styles.bizName} numberOfLines={1}>{profile?.business_name || 'Мой бизнес'}</Text>}
+{active !== 'Settings' && profile?.city ? <Text style={styles.bizCity}>{profile.city}</Text> : null}
           </View>
 
-          <Pressable style={({ pressed }) => [styles.ctaBtn, pressed && { opacity: 0.85 }]}
-            onPress={() => navigation.navigate('Kassa')}>
-            <Text style={styles.ctaLabel}>Новый {terms.order?.toLowerCase()}</Text>
-            <Text style={styles.ctaSub}>Открыть кассу</Text>
-          </Pressable>
+          {active !== 'Settings' && (
+            <Pressable style={({ pressed }) => [styles.ctaBtn, pressed && { opacity: 0.85 }]}
+              onPress={() => navigation.navigate('Kassa')}>
+              <Text style={styles.ctaLabel}>Новый {terms.order?.toLowerCase()}</Text>
+              <Text style={styles.ctaSub}>Открыть кассу</Text>
+            </Pressable>
+          )}
 
           <View style={styles.divider} />
 
@@ -153,7 +166,7 @@ export default function AdminScreen({ navigation }) {
               if (s.key === 'Bookings' && !bookingActive) return (
                 <Pressable key={s.key}
                   style={[styles.menuItem, styles.menuItemInactive]}
-                  onPress={() => setActive(s.key)}>
+                  onPress={() => setActiveAnimated(s.key)}>
                   <Text style={styles.menuLabelInactive}>{s.label}</Text>
                   <Text style={styles.menuSub}>Не подключено</Text>
                 </Pressable>
@@ -161,9 +174,11 @@ export default function AdminScreen({ navigation }) {
               return (
                 <Pressable key={s.key}
                   style={({ pressed }) => [styles.menuItem, isActive && styles.menuItemActive, pressed && { backgroundColor: 'rgba(245,240,232,0.04)' }]}
-                  onPress={() => setActive(s.key)}>
+                  onPress={() => setActiveAnimated(s.key)}>
                   {isActive && <View style={styles.activeBar} />}
-                  <Text style={[styles.menuLabel, isActive && styles.menuLabelActive]}>{s.label}</Text>
+                  {active !== 'Settings'
+                    ? <Text style={[styles.menuLabel, isActive && styles.menuLabelActive]}>{s.label}</Text>
+                    : <View style={[styles.menuDot, isActive && styles.menuDotActive]} />}
                 </Pressable>
               );
             })}
@@ -173,7 +188,7 @@ export default function AdminScreen({ navigation }) {
               <Text style={[styles.menuLabel, { color: colors.muted, fontSize: 13 }]}>Сменить аккаунт</Text>
             </Pressable>
           </ScrollView>
-        </View>
+        </Animated.View>
 
         {/* Правая панель */}
         <View style={styles.rightPanel}>
@@ -190,7 +205,7 @@ const styles = StyleSheet.create({
   root:        { flex: 1, backgroundColor: colors.bg },
   layout:      { flex: 1, flexDirection: 'row' },
 
-  leftPanel:   { width: 220, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface },
+  leftPanel:   { borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface, overflow: 'hidden' },
   bizHeader:   { padding: 18, paddingBottom: 10 },
   bizName:     { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.text },
   bizCity:     { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
@@ -209,6 +224,8 @@ const styles = StyleSheet.create({
   menuLabelActive:{ color: colors.text },
   menuLabelInactive:{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   menuSub:        { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, marginTop: 1 },
+  menuDot:        { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.border, marginVertical: 2 },
+  menuDotActive:  { backgroundColor: colors.orange },
 
   rightPanel:  { flex: 1, backgroundColor: colors.bg },
 
