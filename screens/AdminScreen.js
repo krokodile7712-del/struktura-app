@@ -1,99 +1,103 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Image, StyleSheet, ScrollView, Pressable, Dimensions } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import {
+  View, Text, StyleSheet, Pressable, ScrollView, Animated,
+} from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
-import ShiftBanner from '../components/ShiftBanner';
 import BottomBar from '../components/BottomBar';
 import StatsBar from '../components/StatsBar';
-import { getBusinessProfile, getOpenShift, getTerms, pluralizeRu, getRoleNames, getDashboardStats } from '../db/queries';
-import { can } from '../db/session';
+import ShiftBanner from '../components/ShiftBanner';
+import {
+  getOpenShift, getBusinessProfile, getTerms, pluralizeRu,
+  getDashboardStats, getPayMethods,
+} from '../db/queries';
+import { getRoleNames } from '../db/queries';
+import { getSession, getHomeRoute } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
 
-// Адаптивное количество колонок
-function useColumns() {
-  const [cols, setCols] = useState(() => {
-    const w = Dimensions.get('window').width;
-    if (w < 480) return 2;
-    if (w < 700) return 3;
-    if (w < 960) return 4;
-    return 5;
-  });
-  useEffect(() => {
-    const sub = Dimensions.addEventListener('change', ({ window }) => {
-      if (window.width < 480)      setCols(2);
-      else if (window.width < 700) setCols(3);
-      else if (window.width < 960) setCols(4);
-      else                         setCols(5);
-    });
-    return () => sub?.remove();
-  }, []);
-  return cols;
-}
-
-const ACCENT = {
-  action:  { border: 'rgba(122,158,82,0.5)',  bg: 'rgba(122,158,82,0.10)', icon: '#a8c878' },
-  pay:     { border: 'rgba(61,95,168,0.5)',   bg: 'rgba(61,95,168,0.10)',  icon: '#7a9be8' },
-  success: { border: 'rgba(61,158,146,0.5)',  bg: 'rgba(61,158,146,0.10)', icon: '#4ec0b2' },
-  default: { border: 'rgba(74,77,84,0.5)',    bg: 'rgba(20,22,24,0.9)',    icon: '#8a8d94' },
-  danger:  { border: 'rgba(160,16,32,0.5)',   bg: 'rgba(160,16,32,0.10)', icon: '#e05555' },
-};
-
-const getMenuItems = (terms) => [
-  { icon: '📊', label: pluralizeRu(terms.order), sub: 'История продаж',    screen: 'Sales',    variant: 'success' },
-  { icon: '📈', label: 'Отчётность',  sub: 'P&L · графики',               screen: 'Reports',  variant: 'success' },
-  { icon: '📦', label: 'Склад',       sub: 'Остатки · закупки',            screen: 'Stock',    variant: 'default', module: 'stock' },
-  { icon: '💸', label: 'Расходы',     sub: 'Затраты за день',              screen: 'Expenses', variant: 'danger'  },
-  { icon: '📅', label: 'Записи',       sub: null,                           screen: 'Bookings', variant: 'default', booking: true },
-  { icon: '⚙️', label: 'Настройки',   sub: 'Профиль · модули',             screen: 'Settings', variant: 'pay'     },
+const getMenuItems = (terms, bookingActive) => [
+  {
+    key: 'Sales',
+    label: pluralizeRu(terms.order),
+    sub: 'История продаж',
+    hint: 'Все транзакции, возвраты и поиск по чекам',
+  },
+  {
+    key: 'Reports',
+    label: 'Отчётность',
+    sub: 'P&L · графики',
+    hint: 'Прибыль, расходы, динамика по дням',
+  },
+  {
+    key: 'Stock',
+    label: 'Склад',
+    sub: 'Остатки · закупки',
+    hint: 'Текущие остатки, пороги и движение товара',
+  },
+  {
+    key: 'Expenses',
+    label: 'Расходы',
+    sub: 'Затраты за день',
+    hint: 'Фиксируйте ежедневные траты бизнеса',
+  },
+  {
+    key: bookingActive ? 'Bookings' : 'Settings',
+    label: 'Записи',
+    sub: bookingActive ? 'Онлайн бронирование' : 'Не подключено',
+    hint: bookingActive
+      ? 'Входящие заявки от клиентов через форму'
+      : 'Подключите онлайн запись в Настройках',
+    inactive: !bookingActive,
+  },
+  {
+    key: 'Settings',
+    label: 'Настройки',
+    sub: 'Профиль · модули',
+    hint: 'Бизнес, сотрудники, оплата, лояльность',
+  },
 ];
 
 export default function AdminScreen({ navigation }) {
-  const [modules, setModules]     = useState({});
+  const [profile, setProfile]         = useState(null);
+  const [terms, setTerms]             = useState({ order: 'Заказ', client: 'Клиент', item: 'Товар', category: 'Категория' });
+  const [stats, setStats]             = useState({});
+  const [hasShift, setHasShift]       = useState(false);
+  const [modules, setModules]         = useState({});
+  const [roleNames, setRoleNames]     = useState({ admin: 'Администратор', barista: 'Сотрудник' });
   const [bookingActive, setBookingActive] = useState(false);
-  const [shiftOpen, setShiftOpen] = useState(false);
-  const [terms, setTerms]         = useState({ item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' });
-  const [roleNames, setRoleNames] = useState({ barista: 'Сотрудник', admin: 'Администратор' });
-  const [hasShift, setHasShift] = useState(true);
-  const [stats, setStats]         = useState(null);
-  const [profile, setProfile]     = useState(null);
-  const cols = useColumns();
+  const [selected, setSelected]       = useState(null);
 
-  const loadStats = () => {
+  const loadStats = useCallback(() => {
     try {
       const p = getBusinessProfile();
       setProfile(p);
       setModules(p?.modules || {});
       setBookingActive(!!(p?.booking_slug));
-      setShiftOpen(!!getOpenShift());
+      setHasShift(!!getOpenShift());
       setTerms(getTerms());
       setRoleNames(getRoleNames());
       setStats(getDashboardStats());
-      setHasShift(!!getOpenShift());
     } catch (e) { console.error(e); }
+  }, []);
+
+  useFocusEffect(useCallback(() => { loadStats(); }, [loadStats]));
+
+  const menuItems = getMenuItems(terms, bookingActive);
+
+  const handleSelect = (item) => {
+    if (item.key === selected?.key) {
+      navigation.navigate(item.key);
+    } else {
+      setSelected(item);
+    }
   };
 
-  useEffect(() => {
-    loadStats();
-    const unsub = navigation.addListener('focus', loadStats);
-    return unsub;
-  }, [navigation]);
-
-  const visibleItems = getMenuItems(terms).filter(item => {
-    if (item.module && modules[item.module] === false) return false;
-    if (item.hideWhenShiftOpen && shiftOpen) return false;
-    return true;
-  });
-
-  const logoUri = profile?.logo_url || 'https://i.ibb.co/hRZxPz8b/19-20260514150523.png';
-
-  // Ширина плитки с учётом отступов
-  const screenW   = Dimensions.get('window').width;
-  const gridPad   = spacing.lg * 2;
-  const gap       = 10;
-  const tileWidth = Math.floor((Math.min(screenW, 1100) - gridPad - gap * (cols - 1)) / cols);
+  const session = getSession();
+  const isAdmin = session?.role === 'admin';
 
   return (
-    <View style={{ flex: 1 }}>
-      <TopBar title={roleNames.admin} navigation={navigation} activeScreen="Admin" />
+    <View style={styles.root}>
+      <TopBar title={roleNames.admin || 'Администратор'} navigation={navigation} activeScreen="Admin" />
       {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift')} />}
       <StatsBar
         stats={stats}
@@ -102,195 +106,202 @@ export default function AdminScreen({ navigation }) {
         onStockPress={() => navigation.navigate('Stock')}
       />
 
-      <ScrollView contentContainerStyle={styles.inner}>
+      <View style={styles.layout}>
 
-        {/* Логотип */}
-        <View style={styles.logoWrap}>
-          <Image
-            source={{ uri: logoUri }}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-          {profile?.business_name ? (
-            <Text style={styles.bizName}>{profile.business_name}</Text>
-          ) : null}
-        </View>
-
-        {/* Hero — Новый заказ */}
-        <Pressable
-          style={({ pressed }) => [
-            styles.hero,
-            pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] },
-          ]}
-          onPress={() => navigation.navigate('Kassa')}
-          accessibilityLabel={`Новый ${terms.order.toLowerCase()}`}
-        >
-          <Text style={styles.heroIcon}>🏪</Text>
-          <View>
-            <Text style={styles.heroLabel}>Новый {terms.order.toLowerCase()}</Text>
-            <Text style={styles.heroSub}>Касса · добавить позиции и оплатить</Text>
+        {/* ── Левая панель ── */}
+        <View style={styles.leftPanel}>
+          {/* Название бизнеса */}
+          <View style={styles.bizHeader}>
+            <Text style={styles.bizName} numberOfLines={1}>
+              {profile?.business_name || 'Мой бизнес'}
+            </Text>
+            {profile?.city ? (
+              <Text style={styles.bizCity}>{profile.city}</Text>
+            ) : null}
           </View>
-          <Text style={styles.heroArrow}>›</Text>
-        </Pressable>
 
-        {/* Список действий */}
-        <View style={styles.list}>
-          {visibleItems.map((item, idx) => (
+          {/* Новый заказ — главное CTA */}
+          <Pressable
+            style={({ pressed }) => [styles.ctaBtn, pressed && { opacity: 0.85 }]}
+            onPress={() => navigation.navigate('Kassa')}
+          >
+            <Text style={styles.ctaLabel}>Новый {terms.order?.toLowerCase()}</Text>
+            <Text style={styles.ctaSub}>Открыть кассу</Text>
+          </Pressable>
+
+          {/* Разделитель */}
+          <View style={styles.divider} />
+
+          {/* Меню */}
+          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+            {menuItems.map((item) => {
+              const isActive = selected?.key === item.key;
+              return (
+                <Pressable
+                  key={item.key + item.label}
+                  style={({ pressed }) => [
+                    styles.menuItem,
+                    isActive && styles.menuItemActive,
+                    pressed && { backgroundColor: 'rgba(245,240,232,0.04)' },
+                    item.inactive && { opacity: 0.45 },
+                  ]}
+                  onPress={() => handleSelect(item)}
+                >
+                  {isActive && <View style={styles.activeBar} />}
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.menuLabel, isActive && styles.menuLabelActive]}>
+                      {item.label}
+                    </Text>
+                    <Text style={styles.menuSub}>{item.sub}</Text>
+                  </View>
+                  <Text style={[styles.menuArrow, isActive && styles.menuArrowActive]}>›</Text>
+                </Pressable>
+              );
+            })}
+
+            <View style={styles.divider} />
+
             <Pressable
-              key={item.screen}
-              style={({ pressed }) => [
-                styles.listItem,
-                idx < visibleItems.length - 1 && styles.listItemDiv,
-                pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
-              ]}
-              onPress={() => {
-                if (item.booking) {
-                  navigation.navigate(bookingActive ? 'Bookings' : 'Settings');
-                } else {
-                  navigation.navigate(item.screen);
-                }
-              }}
+              style={({ pressed }) => [styles.menuItem, pressed && { opacity: 0.6 }]}
+              onPress={() => navigation.navigate('Login')}
             >
-              <Text style={styles.listIcon}>{item.icon}</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.listLabel}>{item.label}</Text>
-                {item.sub ? <Text style={styles.listSub}>{item.sub}</Text> : null}
-              </View>
-              <Text style={styles.listArrow}>›</Text>
+              <Text style={[styles.menuLabel, { color: colors.muted, fontSize: 13 }]}>
+                Сменить аккаунт
+              </Text>
             </Pressable>
-          ))}
+          </ScrollView>
         </View>
 
-        {/* Сменить аккаунт */}
-        <Pressable style={styles.switchBtn} onPress={() => navigation.navigate('Login')}>
-          <Text style={styles.switchBtnText}>🔄 Сменить аккаунт</Text>
-        </Pressable>
+        {/* ── Правая панель ── */}
+        <View style={styles.rightPanel}>
+          {selected ? (
+            /* Превью выбранного раздела */
+            <View style={styles.previewWrap}>
+              <Text style={styles.previewTitle}>{selected.label}</Text>
+              <Text style={styles.previewHint}>{selected.hint}</Text>
 
-      </ScrollView>
+              <View style={styles.divider} />
+
+              {/* Статистика по разделу */}
+              <SectionPreview item={selected} stats={stats} />
+
+              <Pressable
+                style={({ pressed }) => [styles.openBtn, pressed && { opacity: 0.85 }]}
+                onPress={() => navigation.navigate(selected.key)}
+              >
+                <Text style={styles.openBtnTxt}>Открыть {selected.label} →</Text>
+              </Pressable>
+
+              <Text style={styles.tapHint}>Нажмите ещё раз на раздел слева или на кнопку выше</Text>
+            </View>
+          ) : (
+            /* Дашборд по умолчанию */
+            <View style={styles.dashWrap}>
+              <Text style={styles.dashGreeting}>
+                {getGreeting()}, {getSession()?.name?.split(' ')[0] || 'добро пожаловать'}
+              </Text>
+              <Text style={styles.dashSub}>Выберите раздел слева</Text>
+
+              <View style={styles.statsGrid}>
+                {[
+                  { label: 'Выручка сегодня', value: `${stats.revenueToday || 0} ₽`, color: colors.text },
+                  { label: 'Заказов за смену', value: stats.ordersToday || 0, color: colors.text },
+                  { label: 'Средний чек', value: `${stats.avgCheck || 0} ₽`, color: colors.text },
+                  { label: 'Прибыль', value: `${stats.profit || 0} ₽`, color: stats.profit >= 0 ? colors.green : colors.red },
+                ].map((s, i) => (
+                  <View key={i} style={styles.statCard}>
+                    <Text style={[styles.statVal, { color: s.color }]}>{s.value}</Text>
+                    <Text style={styles.statLbl}>{s.label}</Text>
+                  </View>
+                ))}
+              </View>
+
+              <Text style={styles.tapHint}>Нажмите на раздел слева чтобы посмотреть детали</Text>
+            </View>
+          )}
+        </View>
+      </View>
 
       <BottomBar navigation={navigation} activeTab="Kassa" />
     </View>
   );
 }
 
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Доброе утро';
+  if (h < 17) return 'Добрый день';
+  return 'Добрый вечер';
+}
+
+function SectionPreview({ item, stats }) {
+  const previews = {
+    Sales:    [{ label: 'Заказов сегодня', value: stats.ordersToday || 0 }, { label: 'Выручка', value: `${stats.revenueToday || 0} ₽` }],
+    Reports:  [{ label: 'Прибыль за период', value: `${stats.profit || 0} ₽` }, { label: 'Расходы', value: `${stats.expenses || 0} ₽` }],
+    Stock:    [{ label: 'Позиций на складе', value: stats.stockItems || 0 }, { label: 'Мало на складе', value: stats.stockLow || 0 }],
+    Expenses: [{ label: 'Расходы сегодня', value: `${stats.expensesToday || 0} ₽` }, { label: 'За месяц', value: `${stats.expensesMonth || 0} ₽` }],
+    Bookings: [{ label: 'Новых записей', value: stats.bookingsPending || 0 }, { label: 'На сегодня', value: stats.bookingsToday || 0 }],
+    Settings: [{ label: 'Версия', value: '1.0' }, { label: 'Модулей включено', value: Object.values(stats.modules || {}).filter(Boolean).length || '—' }],
+  };
+
+  const rows = previews[item.key] || [];
+  return (
+    <View style={{ gap: 12, marginVertical: 16 }}>
+      {rows.map((r, i) => (
+        <View key={i} style={styles.previewRow}>
+          <Text style={styles.previewRowLbl}>{r.label}</Text>
+          <Text style={styles.previewRowVal}>{r.value}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  inner: {
-    padding: spacing.lg,
-    paddingBottom: 20,
-    maxWidth: 1100,
-    width: '100%',
-    alignSelf: 'center',
-  },
+  root:       { flex: 1, backgroundColor: colors.bg },
+  layout:     { flex: 1, flexDirection: 'row' },
 
-  // Логотип
-  logoWrap: {
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
-  logo: {
-    width: 160,
-    height: 80,
-    marginBottom: 6,
-  },
-  bizName: {
-    fontFamily: fonts.familySemibold,
-    fontSize: 13,
-    color: colors.muted,
-    letterSpacing: 3,
-    textTransform: 'uppercase',
-  },
+  // Левая панель
+  leftPanel:  { width: 260, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface },
+  bizHeader:  { padding: 20, paddingBottom: 12 },
+  bizName:    { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text },
+  bizCity:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
 
-  // Hero кнопка
-  hero: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    paddingVertical: 18,
-    paddingHorizontal: 22,
-    borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: 'rgba(122,158,82,0.6)',
-    backgroundColor: 'rgba(122,158,82,0.12)',
-    marginBottom: 14,
-  },
-  heroIcon: {
-    fontSize: 32,
-  },
-  heroLabel: {
-    fontFamily: fonts.family,
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#c8e890',
-    textTransform: 'capitalize',
-  },
-  heroSub: {
-    fontFamily: fonts.familyRegular,
-    fontSize: 12,
-    color: 'rgba(200,232,144,0.6)',
-    marginTop: 2,
-  },
-  heroArrow: {
-    fontFamily: fonts.family,
-    fontSize: 28,
-    color: 'rgba(200,232,144,0.5)',
-    marginLeft: 'auto',
-  },
+  ctaBtn:     { marginHorizontal: 12, marginBottom: 16, padding: 16, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
+  ctaLabel:   { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: '#fff', textTransform: 'capitalize' },
+  ctaSub:     { fontFamily: fonts.familyRegular, fontSize: 11, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
 
-  // Сетка плиток
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 14,
-  },
-  tile: {
-    aspectRatio: 1,
-    borderRadius: 14,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 10,
-    gap: 6,
-    marginBottom: 10,
-  },
-  tileIcon: {
-    fontSize: 26,
-  },
-  tileLabel: {
-    fontFamily: fonts.familySemibold,
-    fontSize: 10,
-    color: colors.text,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    textAlign: 'center',
-  },
-  tileSub: {
-    fontFamily: fonts.familyRegular,
-    fontSize: 8,
-    color: colors.muted,
-    textAlign: 'center',
-    lineHeight: 11,
-  },
+  divider:    { height: 1, backgroundColor: colors.border, marginHorizontal: 12, marginVertical: 4 },
 
-  // Кнопка смены аккаунта
-  list:        { backgroundColor: '#0b0c0f', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', overflow: 'hidden', marginBottom: 14 },
-  listItem:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, gap: 12 },
-  listItemDiv: { borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.2)' },
-  listIcon:    { fontSize: 18, width: 24, textAlign: 'center', opacity: 0.7 },
-  listLabel:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
-  listSub:     { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 1 },
-  listArrow:   { fontSize: 18, color: 'rgba(74,77,84,0.4)' },
-  switchBtn: {
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(74,77,84,0.35)',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  switchBtnText: {
-    fontFamily: fonts.familySemibold,
-    fontSize: 12,
-    color: colors.muted,
-    letterSpacing: 1,
-  },
+  menuItem:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, position: 'relative' },
+  menuItemActive: { backgroundColor: 'rgba(245,240,232,0.06)' },
+  activeBar:  { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
+  menuLabel:  { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.textDim },
+  menuLabelActive: { color: colors.text },
+  menuSub:    { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
+  menuArrow:  { fontSize: 18, color: colors.muted },
+  menuArrowActive: { color: colors.text },
+
+  // Правая панель
+  rightPanel: { flex: 1, backgroundColor: colors.bg },
+  dashWrap:   { flex: 1, padding: 32, justifyContent: 'center' },
+  dashGreeting: { fontFamily: fonts.family, fontSize: 26, fontWeight: '800', color: colors.text, marginBottom: 6 },
+  dashSub:    { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginBottom: 32 },
+
+  statsGrid:  { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 32 },
+  statCard:   { flex: 1, minWidth: '45%', backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 20 },
+  statVal:    { fontFamily: fonts.family, fontSize: 28, fontWeight: '800', color: colors.text, marginBottom: 6 },
+  statLbl:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
+
+  previewWrap:    { flex: 1, padding: 32 },
+  previewTitle:   { fontFamily: fonts.family, fontSize: 30, fontWeight: '800', color: colors.text, marginBottom: 8 },
+  previewHint:    { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, lineHeight: 21 },
+  previewRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
+  previewRowLbl:  { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
+  previewRowVal:  { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.text },
+
+  openBtn:    { marginTop: 24, paddingVertical: 16, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
+  openBtnTxt: { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: '#fff' },
+
+  tapHint:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 16, opacity: 0.6 },
 });
