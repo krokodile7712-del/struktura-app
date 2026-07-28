@@ -12,6 +12,7 @@ import {
 } from '../db/queries';
 import { getBookings } from '../db/supabase';
 import { getSession } from '../db/session';
+import SalesPanel from '../components/panels/SalesPanel';
 import { colors, fonts, spacing } from '../constants/theme';
 
 function getGreeting() {
@@ -52,30 +53,7 @@ function DashPanel({ stats, name }) {
   );
 }
 
-function SalesPanel() {
-  const [orders, setOrders] = useState([]);
-  useEffect(() => {
-    try { setOrders(getRecentOrders(50)); } catch(_) {}
-  }, []);
-  const total = orders.reduce((s,o) => s + (o.total||0), 0);
-  return (
-    <ScrollView contentContainerStyle={styles.panelContent}>
-      <Text style={styles.panelTitle}>Продажи</Text>
-      <Text style={styles.panelSub}>{orders.length} заказов · {total} ₽</Text>
-      {orders.length === 0 ? <Text style={styles.emptyTxt}>Нет заказов</Text> : (
-        <View style={styles.listCard}>
-          {orders.map((o, idx) => (
-            <View key={o.id} style={[styles.listRow, idx < orders.length-1 && styles.listRowDiv]}>
-              <Text style={styles.listTime}>{fmtDate(o.created_at)}</Text>
-              <Text style={[styles.listName, { flex: 1 }]} numberOfLines={1}>{o.client_name || '—'}</Text>
-              <Text style={styles.listVal}>{o.total} ₽</Text>
-            </View>
-          ))}
-        </View>
-      )}
-    </ScrollView>
-  );
-}
+// SalesPanel — импортирован из components/panels/SalesPanel.js
 
 function ReportsPanel({ stats }) {
   return (
