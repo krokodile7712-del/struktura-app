@@ -30,12 +30,19 @@ export async function syncServicesToSupabase(businessId, products) {
 }
 
 // Получает записи для этого бизнеса
-export async function getBookings(businessId, date) {
+export async function getBookings(businessId, date, slug) {
   try {
+    // Если передан slug — сначала получаем businessId
+    let bizId = businessId;
+    if (!bizId && slug) {
+      const { data: biz } = await supabase.from('businesses').select('id').eq('slug', slug).single();
+      bizId = biz?.id;
+    }
+    if (!bizId) return [];
     let query = supabase
       .from('bookings')
       .select('*, services(name, price, duration_min)')
-      .eq('business_id', businessId)
+      .eq('business_id', bizId)
       .order('date', { ascending: true })
       .order('time_start', { ascending: true });
     if (date) query = query.eq('date', date);

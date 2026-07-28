@@ -26,6 +26,7 @@ import KassaScreen from './screens/KassaScreen';
 import ShiftScreen from './screens/ShiftScreen';
 import ShiftCloseScreen from './screens/ShiftCloseScreen';
 import SalesScreen from './screens/SalesScreen';
+import BookingsScreen from './screens/BookingsScreen';
 import StockScreen from './screens/StockScreen';
 import RegScreen from './screens/RegScreen';
 import RegResultScreen from './screens/RegResultScreen';

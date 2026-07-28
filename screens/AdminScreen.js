@@ -42,11 +42,13 @@ const getMenuItems = (terms) => [
   { icon: '📈', label: 'Отчётность',  sub: 'P&L · графики',               screen: 'Reports',  variant: 'success' },
   { icon: '📦', label: 'Склад',       sub: 'Остатки · закупки',            screen: 'Stock',    variant: 'default', module: 'stock' },
   { icon: '💸', label: 'Расходы',     sub: 'Затраты за день',              screen: 'Expenses', variant: 'danger'  },
+  { icon: '📅', label: 'Записи',       sub: null,                           screen: 'Bookings', variant: 'default', booking: true },
   { icon: '⚙️', label: 'Настройки',   sub: 'Профиль · модули',             screen: 'Settings', variant: 'pay'     },
 ];
 
 export default function AdminScreen({ navigation }) {
   const [modules, setModules]     = useState({});
+  const [bookingActive, setBookingActive] = useState(false);
   const [shiftOpen, setShiftOpen] = useState(false);
   const [terms, setTerms]         = useState({ item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' });
   const [roleNames, setRoleNames] = useState({ barista: 'Сотрудник', admin: 'Администратор' });
@@ -140,7 +142,13 @@ export default function AdminScreen({ navigation }) {
                 idx < visibleItems.length - 1 && styles.listItemDiv,
                 pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
               ]}
-              onPress={() => navigation.navigate(item.screen)}
+              onPress={() => {
+                if (item.booking) {
+                  navigation.navigate(bookingActive ? 'Bookings' : 'Settings');
+                } else {
+                  navigation.navigate(item.screen);
+                }
+              }}
             >
               <Text style={styles.listIcon}>{item.icon}</Text>
               <View style={{ flex: 1 }}>
