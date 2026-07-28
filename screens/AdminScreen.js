@@ -52,23 +52,17 @@ function DashPanel({ stats, name }) {
   );
 }
 
-function SalesPanel({ navigation }) {
+function SalesPanel() {
   const [orders, setOrders] = useState([]);
   useEffect(() => {
-    try { setOrders(getRecentOrders(20)); } catch(_) {}
+    try { setOrders(getRecentOrders(50)); } catch(_) {}
   }, []);
-
+  const total = orders.reduce((s,o) => s + (o.total||0), 0);
   return (
     <ScrollView contentContainerStyle={styles.panelContent}>
-      <View style={styles.panelHeader}>
-        <Text style={styles.panelTitle}>Продажи</Text>
-        <Pressable style={styles.panelOpenBtn} onPress={() => navigation.navigate('Sales')}>
-          <Text style={styles.panelOpenTxt}>Все →</Text>
-        </Pressable>
-      </View>
-      {orders.length === 0 ? (
-        <Text style={styles.emptyTxt}>Нет заказов</Text>
-      ) : (
+      <Text style={styles.panelTitle}>Продажи</Text>
+      <Text style={styles.panelSub}>{orders.length} заказов · {total} ₽</Text>
+      {orders.length === 0 ? <Text style={styles.emptyTxt}>Нет заказов</Text> : (
         <View style={styles.listCard}>
           {orders.map((o, idx) => (
             <View key={o.id} style={[styles.listRow, idx < orders.length-1 && styles.listRowDiv]}>
@@ -83,15 +77,10 @@ function SalesPanel({ navigation }) {
   );
 }
 
-function ReportsPanel({ navigation, stats }) {
+function ReportsPanel({ stats }) {
   return (
     <ScrollView contentContainerStyle={styles.panelContent}>
-      <View style={styles.panelHeader}>
-        <Text style={styles.panelTitle}>Отчётность</Text>
-        <Pressable style={styles.panelOpenBtn} onPress={() => navigation.navigate('Reports')}>
-          <Text style={styles.panelOpenTxt}>Открыть →</Text>
-        </Pressable>
-      </View>
+      <Text style={styles.panelTitle}>Отчётность</Text>
       <View style={styles.listCard}>
         {[
           { label: 'Выручка сегодня', value: `${stats.revenueToday || 0} ₽` },
@@ -110,19 +99,14 @@ function ReportsPanel({ navigation, stats }) {
   );
 }
 
-function StockPanel({ navigation }) {
+function StockPanel() {
   const [items, setItems] = useState([]);
   useEffect(() => {
-    try { setItems(getAllStockItems().sort((a,b) => (a['остаток']||0) - (b['остаток']||0)).slice(0, 15)); } catch(_) {}
+    try { setItems(getAllStockItems().sort((a,b) => (a['остаток']||0) - (b['остаток']||0))); } catch(_) {}
   }, []);
   return (
     <ScrollView contentContainerStyle={styles.panelContent}>
-      <View style={styles.panelHeader}>
-        <Text style={styles.panelTitle}>Склад</Text>
-        <Pressable style={styles.panelOpenBtn} onPress={() => navigation.navigate('Stock')}>
-          <Text style={styles.panelOpenTxt}>Открыть →</Text>
-        </Pressable>
-      </View>
+      <Text style={styles.panelTitle}>Склад</Text>
       {items.length === 0 ? <Text style={styles.emptyTxt}>Склад пуст</Text> : (
         <View style={styles.listCard}>
           {items.map((it, idx) => {
@@ -142,7 +126,7 @@ function StockPanel({ navigation }) {
   );
 }
 
-function ExpensesPanel({ navigation }) {
+function ExpensesPanel() {
   const [items, setItems] = useState([]);
   const today = new Date().toISOString().slice(0,10);
   useEffect(() => {
@@ -151,12 +135,7 @@ function ExpensesPanel({ navigation }) {
   const total = items.reduce((s,e) => s + (e.amount||0), 0);
   return (
     <ScrollView contentContainerStyle={styles.panelContent}>
-      <View style={styles.panelHeader}>
-        <Text style={styles.panelTitle}>Расходы</Text>
-        <Pressable style={styles.panelOpenBtn} onPress={() => navigation.navigate('Expenses')}>
-          <Text style={styles.panelOpenTxt}>Открыть →</Text>
-        </Pressable>
-      </View>
+      <Text style={styles.panelTitle}>Расходы</Text>
       <Text style={styles.bigNum}>{total} ₽</Text>
       <Text style={styles.panelSub}>за сегодня</Text>
       {items.length > 0 && (
@@ -199,12 +178,7 @@ function BookingsPanel({ navigation, bookingActive }) {
 
   return (
     <ScrollView contentContainerStyle={styles.panelContent}>
-      <View style={styles.panelHeader}>
-        <Text style={styles.panelTitle}>Записи</Text>
-        <Pressable style={styles.panelOpenBtn} onPress={() => navigation.navigate('Bookings')}>
-          <Text style={styles.panelOpenTxt}>Все →</Text>
-        </Pressable>
-      </View>
+      <Text style={styles.panelTitle}>Записи</Text>
       {loading ? <ActivityIndicator color={colors.orange} /> :
        bookings.length === 0 ? <Text style={styles.emptyTxt}>Новых записей нет</Text> : (
         <View style={styles.listCard}>
@@ -221,29 +195,26 @@ function BookingsPanel({ navigation, bookingActive }) {
   );
 }
 
-function SettingsPanel({ navigation }) {
-  const links = [
-    { label: 'Профиль бизнеса', section: 'profile' },
-    { label: 'Сотрудники', section: 'employees' },
-    { label: 'Оплата и скидки', section: 'payment' },
-    { label: 'Лояльность', section: 'loyalty' },
-    { label: 'Онлайн запись', section: 'profile' },
+function SettingsPanel() {
+  const profile = getBusinessProfile();
+  const rows = [
+    { label: 'Название', value: profile?.business_name || '—' },
+    { label: 'Город', value: profile?.city || '—' },
+    { label: 'Телефон', value: profile?.phone || '—' },
+    { label: 'Адрес', value: profile?.address || '—' },
+    { label: 'ИНН', value: profile?.inn || '—' },
+    { label: 'Часы работы', value: profile?.work_hours_from ? `${profile.work_hours_from} — ${profile.work_hours_to}` : '—' },
   ];
   return (
     <ScrollView contentContainerStyle={styles.panelContent}>
-      <View style={styles.panelHeader}>
-        <Text style={styles.panelTitle}>Настройки</Text>
-        <Pressable style={styles.panelOpenBtn} onPress={() => navigation.navigate('Settings')}>
-          <Text style={styles.panelOpenTxt}>Открыть →</Text>
-        </Pressable>
-      </View>
+      <Text style={styles.panelTitle}>Настройки</Text>
+      <Text style={styles.panelSub}>Профиль бизнеса</Text>
       <View style={styles.listCard}>
-        {links.map((l, idx) => (
-          <Pressable key={l.label} style={[styles.listRow, idx < links.length-1 && styles.listRowDiv]}
-            onPress={() => navigation.navigate('Settings')}>
-            <Text style={[styles.listName, { flex: 1 }]}>{l.label}</Text>
-            <Text style={styles.listArrow}>›</Text>
-          </Pressable>
+        {rows.map((r, i) => (
+          <View key={r.label} style={[styles.listRow, i < rows.length-1 && styles.listRowDiv]}>
+            <Text style={[styles.listName, { color: colors.muted, width: 120 }]}>{r.label}</Text>
+            <Text style={[styles.listName, { flex: 1 }]} numberOfLines={1}>{r.value}</Text>
+          </View>
         ))}
       </View>
     </ScrollView>
@@ -293,12 +264,12 @@ export default function AdminScreen({ navigation }) {
 
   const renderRight = () => {
     switch(active) {
-      case 'Sales':    return <SalesPanel navigation={navigation} />;
-      case 'Reports':  return <ReportsPanel navigation={navigation} stats={stats} />;
-      case 'Stock':    return <StockPanel navigation={navigation} />;
-      case 'Expenses': return <ExpensesPanel navigation={navigation} />;
+      case 'Sales':    return <SalesPanel />;
+      case 'Reports':  return <ReportsPanel stats={stats} />;
+      case 'Stock':    return <StockPanel />;
+      case 'Expenses': return <ExpensesPanel />;
       case 'Bookings': return <BookingsPanel navigation={navigation} bookingActive={bookingActive} />;
-      case 'Settings': return <SettingsPanel navigation={navigation} />;
+      case 'Settings': return <SettingsPanel />;
       default:         return <DashPanel stats={stats} name={session?.name?.split(' ')[0]} />;
     }
   };
