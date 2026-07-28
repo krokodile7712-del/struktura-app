@@ -2645,6 +2645,16 @@ export function getClientById(id) {
 
 export function addToFiscalQueue(orderId) {
   const db = getDb();
+  // Создаём таблицу если не существует
+  db.execSync(`CREATE TABLE IF NOT EXISTS fiscal_queue (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id INTEGER NOT NULL,
+    status TEXT DEFAULT 'pending',
+    error_msg TEXT DEFAULT '',
+    created_at TEXT DEFAULT (datetime('now')),
+    sent_at TEXT DEFAULT ''
+  )`);
+  try { db.execSync(`ALTER TABLE orders ADD COLUMN receipt_status TEXT DEFAULT 'pending'`); } catch(_) {}
   // Не добавляем дубли
   const exists = db.getFirstSync(`SELECT id FROM fiscal_queue WHERE order_id = ?`, [orderId]);
   if (exists) return;
@@ -2674,5 +2684,6 @@ export function updateFiscalStatus(orderId, status, errorMsg) {
 
 export function getFiscalStatus(orderId) {
   const db = getDb();
+  try { db.execSync(`CREATE TABLE IF NOT EXISTS fiscal_queue (id INTEGER PRIMARY KEY AUTOINCREMENT, order_id INTEGER NOT NULL, status TEXT DEFAULT 'pending', error_msg TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')), sent_at TEXT DEFAULT '')`); } catch(_) {}
   return db.getFirstSync(`SELECT status FROM fiscal_queue WHERE order_id = ?`, [orderId]);
 }
