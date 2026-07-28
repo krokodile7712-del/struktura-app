@@ -8,18 +8,13 @@ import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import EmptyState from '../components/EmptyState';
 import DatePicker from '../components/DatePicker';
-import { addToFiscalQueue, updateFiscalStatus, getFiscalStatus } from '../db/queries';
 import { useFocusEffect } from '@react-navigation/native';
-import { addToFiscalQueue, updateFiscalStatus, getFiscalStatus } from '../db/queries';
 import {
   getRecentOrders, getOrderItems, deleteOrder, updateOrder,
   returnOrder, getTerms, pluralizeRu, getPayMethods,
 } from '../db/queries';
-import { addToFiscalQueue, updateFiscalStatus, getFiscalStatus } from '../db/queries';
 import { useToast } from '../components/Toast';
-import { addToFiscalQueue, updateFiscalStatus, getFiscalStatus } from '../db/queries';
 import { getSession, getHomeRoute } from '../db/session';
-import { addToFiscalQueue, updateFiscalStatus, getFiscalStatus } from '../db/queries';
 import { colors, fonts } from '../constants/theme';
 
 // ─── Утилиты ────────────────────────────────────────────────────────────────
