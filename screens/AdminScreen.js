@@ -184,8 +184,13 @@ export default function AdminScreen({ navigation }) {
             })}
 
             <View style={styles.divider} />
-            <Pressable style={styles.menuItem} onPress={() => navigation.navigate('Login')}>
-              <Text style={[styles.menuLabel, { color: colors.muted, fontSize: 13 }]}>Сменить аккаунт</Text>
+            <Pressable
+              style={({ pressed }) => [styles.menuItem, styles.logoutBtn, pressed && { opacity: 0.6 }]}
+              onPress={() => navigation.navigate('Login')}>
+              <Text style={styles.logoutIcon}>⎋</Text>
+              {active !== 'Settings' && (
+                <Text style={styles.logoutLabel}>Сменить аккаунт</Text>
+              )}
             </Pressable>
           </ScrollView>
         </Animated.View>
@@ -225,6 +230,9 @@ const styles = StyleSheet.create({
   menuLabelInactive:{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   menuSub:        { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, marginTop: 1 },
   menuDot:        { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.border, marginVertical: 2 },
+  logoutBtn:      { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14 },
+  logoutIcon:     { fontSize: 18, color: colors.muted, width: 20, textAlign: 'center' },
+  logoutLabel:    { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
   menuDotActive:  { backgroundColor: colors.orange },
 
   rightPanel:  { flex: 1, backgroundColor: colors.bg },
