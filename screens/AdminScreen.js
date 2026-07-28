@@ -14,6 +14,7 @@ import { getBookings } from '../db/supabase';
 import { getSession } from '../db/session';
 import SalesPanel from '../components/panels/SalesPanel';
 import ReportsPanel from '../components/panels/ReportsPanel';
+import StockPanel from '../components/panels/StockPanel';
 import { colors, fonts, spacing } from '../constants/theme';
 
 function getGreeting() {
@@ -58,32 +59,7 @@ function DashPanel({ stats, name }) {
 
 // ReportsPanel импортирован из components/panels/ReportsPanel.js
 
-function StockPanel() {
-  const [items, setItems] = useState([]);
-  useEffect(() => {
-    try { setItems(getAllStockItems().sort((a,b) => (a['остаток']||0) - (b['остаток']||0))); } catch(_) {}
-  }, []);
-  return (
-    <ScrollView contentContainerStyle={styles.panelContent}>
-      <Text style={styles.panelTitle}>Склад</Text>
-      {items.length === 0 ? <Text style={styles.emptyTxt}>Склад пуст</Text> : (
-        <View style={styles.listCard}>
-          {items.map((it, idx) => {
-            const low = it.threshold && (it['остаток']||0) <= it.threshold;
-            return (
-              <View key={it.id} style={[styles.listRow, idx < items.length-1 && styles.listRowDiv]}>
-                <Text style={[styles.listName, { flex: 1 }]} numberOfLines={1}>{it.name}</Text>
-                <Text style={[styles.listVal, low && { color: colors.red }]}>
-                  {it['остаток'] || 0} {it.unit}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
-      )}
-    </ScrollView>
-  );
-}
+// StockPanel импортирован из components/panels/StockPanel.js
 
 function ExpensesPanel() {
   const [items, setItems] = useState([]);
