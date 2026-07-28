@@ -47,7 +47,7 @@ export default function StockPanel() {
   const [stockCats, setStockCats]   = useState([]);
   const [catModal2, setCatModal2]   = useState(null); // {oldName, newName}
 
-  useFocusEffect(useCallback(() => {
+  useEffect(() => {
     try {
       const profile = getBusinessProfile();
       const locOn = profile?.modules?.locations === true;
@@ -61,7 +61,7 @@ export default function StockPanel() {
       setStock(allStock);
       setStockCats([...new Set(allStock.map(s => s.category || 'Без категории'))].sort());
     } catch (e) { console.error(e); }
-  }, []));
+  }, []);
 
   const reload = () => { try { setStock(getAllStock()); } catch (_) {} };
 
