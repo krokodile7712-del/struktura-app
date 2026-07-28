@@ -196,7 +196,7 @@ export default function ReportsPanel() {
   }, [getRange, compare]);
 
   const [picker, setPicker] = useState(null); // 'from' | 'to'
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useEffect(() => { load(); }, [load]);
 
   if (!can('view_reports')) return (
     <View style={{ flex: 1 }}>
