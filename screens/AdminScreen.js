@@ -100,8 +100,8 @@ export default function AdminScreen({ navigation }) {
     Animated.spring(animWidth, {
       toValue: key === 'Settings' ? 52 : 220,
       useNativeDriver: false,
-      tension: 80,
-      friction: 12,
+      tension: 40,
+      friction: 10,
     }).start();
   };
 
