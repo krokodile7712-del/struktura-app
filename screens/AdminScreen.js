@@ -16,6 +16,8 @@ import SalesPanel from '../components/panels/SalesPanel';
 import ReportsPanel from '../components/panels/ReportsPanel';
 import StockPanel from '../components/panels/StockPanel';
 import ExpensesPanel from '../components/panels/ExpensesPanel';
+import BookingsPanel from '../components/panels/BookingsPanel';
+import SettingsPanel from '../components/panels/SettingsPanel';
 import { colors, fonts, spacing } from '../constants/theme';
 
 function getGreeting() {
@@ -64,73 +66,9 @@ function DashPanel({ stats, name }) {
 
 // ExpensesPanel импортирован из components/panels/ExpensesPanel.js
 
-function BookingsPanel({ navigation, bookingActive }) {
-  const [bookings, setBookings] = useState([]);
-  const [loading, setLoading] = useState(false);
-  useEffect(() => {
-    if (!bookingActive) return;
-    setLoading(true);
-    const profile = getBusinessProfile();
-    getBookings(null, null, profile?.booking_slug)
-      .then(d => setBookings((d||[]).filter(b => b.status === 'pending').slice(0,10)))
-      .catch(()=>{})
-      .finally(() => setLoading(false));
-  }, [bookingActive]);
+// BookingsPanel импортирован из components/panels/BookingsPanel.js
 
-  if (!bookingActive) return (
-    <View style={styles.panelContent}>
-      <Text style={styles.panelTitle}>Записи</Text>
-      <Text style={styles.emptyTxt}>Онлайн запись не подключена</Text>
-      <Pressable style={styles.panelOpenBtn} onPress={() => navigation.navigate('Settings')}>
-        <Text style={styles.panelOpenTxt}>Подключить в Настройках →</Text>
-      </Pressable>
-    </View>
-  );
-
-  return (
-    <ScrollView contentContainerStyle={styles.panelContent}>
-      <Text style={styles.panelTitle}>Записи</Text>
-      {loading ? <ActivityIndicator color={colors.orange} /> :
-       bookings.length === 0 ? <Text style={styles.emptyTxt}>Новых записей нет</Text> : (
-        <View style={styles.listCard}>
-          {bookings.map((b, idx) => (
-            <View key={b.id} style={[styles.listRow, idx < bookings.length-1 && styles.listRowDiv]}>
-              <Text style={styles.listTime}>{b.time_start?.slice(0,5) || '—'}</Text>
-              <Text style={[styles.listName, { flex: 1 }]} numberOfLines={1}>{b.client_name}</Text>
-              <Text style={[styles.listVal, { color: colors.amber }]}>Новая</Text>
-            </View>
-          ))}
-        </View>
-      )}
-    </ScrollView>
-  );
-}
-
-function SettingsPanel() {
-  const profile = getBusinessProfile();
-  const rows = [
-    { label: 'Название', value: profile?.business_name || '—' },
-    { label: 'Город', value: profile?.city || '—' },
-    { label: 'Телефон', value: profile?.phone || '—' },
-    { label: 'Адрес', value: profile?.address || '—' },
-    { label: 'ИНН', value: profile?.inn || '—' },
-    { label: 'Часы работы', value: profile?.work_hours_from ? `${profile.work_hours_from} — ${profile.work_hours_to}` : '—' },
-  ];
-  return (
-    <ScrollView contentContainerStyle={styles.panelContent}>
-      <Text style={styles.panelTitle}>Настройки</Text>
-      <Text style={styles.panelSub}>Профиль бизнеса</Text>
-      <View style={styles.listCard}>
-        {rows.map((r, i) => (
-          <View key={r.label} style={[styles.listRow, i < rows.length-1 && styles.listRowDiv]}>
-            <Text style={[styles.listName, { color: colors.muted, width: 120 }]}>{r.label}</Text>
-            <Text style={[styles.listName, { flex: 1 }]} numberOfLines={1}>{r.value}</Text>
-          </View>
-        ))}
-      </View>
-    </ScrollView>
-  );
-}
+// SettingsPanel импортирован из components/panels/SettingsPanel.js
 
 // ─── Главный компонент ────────────────────────────────────────────────────────
 
@@ -179,7 +117,7 @@ export default function AdminScreen({ navigation }) {
       case 'Reports':  return <ReportsPanel />;
       case 'Stock':    return <StockPanel />;
       case 'Expenses': return <ExpensesPanel />;
-      case 'Bookings': return <BookingsPanel navigation={navigation} bookingActive={bookingActive} />;
+      case 'Bookings': return <BookingsPanel />;
       case 'Settings': return <SettingsPanel />;
       default:         return <DashPanel stats={stats} name={session?.name?.split(' ')[0]} />;
     }
