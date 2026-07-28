@@ -1669,7 +1669,7 @@ export default function SettingsScreen({ navigation }) {
       const profile = getBusinessProfile();
       const name = profile?.business_name || 'Мой бизнес';
       const type = profile?.business_type || 'cafe';
-      const slug = (transliterate(name) || 'business').substring(0, 20) + '-' + Date.now().toString().slice(-4);
+      const slug = (transliterate(name) || 'business').substring(0, 30).replace(/-+$/,'');
       const settings = {
         hoursFrom: profile?.work_hours_from || '09:00',
         hoursTo: profile?.work_hours_to || '21:00',

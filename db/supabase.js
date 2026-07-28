@@ -66,9 +66,29 @@ export async function updateBookingStatus(bookingId, status) {
 // Регистрирует или обновляет бизнес в Supabase
 export async function upsertBusiness(slug, name, type, settings) {
   try {
+    // Проверяем существует ли slug
+    const { data: existing } = await supabase
+      .from('businesses')
+      .select('*')
+      .eq('slug', slug)
+      .single();
+
+    if (existing) {
+      // Обновляем настройки существующего
+      const { data, error } = await supabase
+        .from('businesses')
+        .update({ name, type, settings })
+        .eq('slug', slug)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    }
+
+    // Создаём новый
     const { data, error } = await supabase
       .from('businesses')
-      .upsert({ slug, name, type, settings }, { onConflict: 'slug' })
+      .insert({ slug, name, type, settings })
       .select()
       .single();
     if (error) throw error;
