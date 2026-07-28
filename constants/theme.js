@@ -1,122 +1,106 @@
-// ─── ПАЛИТРА "СТРУКТУРА" ───
+// ─── ПАЛИТРА «СТРУКТУРА» — тёплая тёмная тема ───────────────────────────────
 export const colors = {
-  bg: '#060608',
-  surface: '#0e0f11',
-  surface2: '#141618',
-  surface3: '#1a1c20',
-  border: '#252830',
-  borderHi: '#363a42',
-  borderLo: '#181a1e',
-  text: '#ddd8d0',
-  textDim: '#8a8d94',
-  muted: '#4a4d54',
+  // Фоны
+  bg:       '#171513',   // основной фон
+  surface:  '#211e1c',   // поверхность карточек
+  surface2: '#2b2925',   // приподнятые элементы
+  surface3: '#322f2b',   // ещё уровень выше
 
-  olive: '#7a9e52',
-  oliveLight: '#96bf64',
-  oliveGlow: 'rgba(122,158,82,0.4)',
+  // Разделители и бордеры
+  border:   '#403c37',   // основной разделитель
+  borderHi: '#504a44',   // подсвеченный
+  borderLo: '#2b2925',   // приглушённый
 
-  blue: '#3d5fa8',
-  blueLight: '#5278c8',
-  blueGlow: 'rgba(61,95,168,0.4)',
+  // Текст
+  text:    '#F5F0E8',    // основной (тёплый белый)
+  textDim: '#A89F96',    // второстепенный
+  muted:   '#6B6560',    // подсказки, плейсхолдеры
 
-  red: '#a01020',
-  redLight: '#c42535',
-  redGlow: 'rgba(160,16,32,0.45)',
+  // Акценты
+  indigo:       '#8B7FD4',               // индиго — основной акцент
+  indigoLight:  '#A599E8',
+  indigoGlow:   'rgba(139,127,212,0.3)',
 
-  green: '#3d9e92',
-  greenLight: '#4ec0b2',
-  greenGlow: 'rgba(61,158,146,0.4)',
+  orange:       '#F0A050',               // оранжевый — CTA
+  orangeLight:  '#F5B870',
+  orangeGlow:   'rgba(240,160,80,0.3)',
 
-  purple: '#8a4eaa',
-  purpleLight: '#a860cc',
-  purpleGlow: 'rgba(138,78,170,0.4)',
+  amber:        '#D4AF6A',               // янтарный — бейджи, уведомления
+  amberLight:   '#E0C280',
+  amberGlow:    'rgba(212,175,106,0.3)',
 
-  metalHi: 'rgba(255,255,255,0.13)',
-  metalMid: 'rgba(255,255,255,0.06)',
-  metalLo: 'rgba(0,0,0,0.75)',
+  green:        '#7BAF8E',               // премиальный зелёный — успех
+  greenLight:   '#8FC4A0',
+  greenGlow:    'rgba(123,175,142,0.3)',
+
+  // Статусы
+  red:          '#D95F5F',               // ошибки, отмена
+  redLight:     '#E87878',
+  redGlow:      'rgba(217,95,95,0.35)',
+
+  warning:      '#E8864A',               // предупреждения
+  warningLight: '#F0A060',
+
+  // Устаревшие алиасы (для обратной совместимости)
+  olive:        '#7BAF8E',
+  oliveLight:   '#8FC4A0',
+  oliveGlow:    'rgba(123,175,142,0.3)',
+  blue:         '#8B7FD4',
+  blueLight:    '#A599E8',
+  blueGlow:     'rgba(139,127,212,0.3)',
+  purple:       '#8B7FD4',
+  purpleLight:  '#A599E8',
+  purpleGlow:   'rgba(139,127,212,0.3)',
+
+  metalHi:  'rgba(255,255,255,0.09)',
+  metalMid: 'rgba(255,255,255,0.04)',
+  metalLo:  'rgba(0,0,0,0.6)',
 };
 
-// ─── РАЗМЕРЫ И ОТСТУПЫ ───
+// ─── РАЗМЕРЫ И ОТСТУПЫ ───────────────────────────────────────────────────────
 export const spacing = {
-  xs: 4,
-  sm: 8,
-  md: 14,
-  lg: 20,
-  xl: 28,
+  xs: 4, sm: 8, md: 14, lg: 20, xl: 28,
 };
 
 export const radius = {
-  sm: 10,
-  md: 14,
-  lg: 18,
-  xl: 20,
+  sm: 10, md: 14, lg: 18, xl: 20,
 };
 
-// ─── ТИПОГРАФИКА ───
+// ─── ТИПОГРАФИКА ─────────────────────────────────────────────────────────────
 export const fonts = {
-  family: 'AnekDevanagari_700Bold',
-  familyRegular: 'AnekDevanagari_400Regular',
+  family:         'AnekDevanagari_700Bold',
+  familyRegular:  'AnekDevanagari_400Regular',
   familySemibold: 'AnekDevanagari_600SemiBold',
 };
 
-// ─── ГРАДИЕНТЫ ДЛЯ МЕТАЛЛИЧЕСКИХ ПОВЕРХНОСТЕЙ ───
-// Используются с expo-linear-gradient: <LinearGradient colors={gradients.metalBase} ... />
-export const gradients = {
-  // Базовая металлическая поверхность (кнопки, карточки)
-  metalBase: ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.02)', 'rgba(0,0,0,0.18)'],
-  metalBaseLocations: [0, 0.35, 1],
-
-  // Карточка
-  cardSurface: ['rgba(255,255,255,0.055)', 'rgba(255,255,255,0.01)', 'rgba(0,0,0,0.12)'],
-  cardSurfaceLocations: [0, 0.4, 1],
-
-  // Цветные подсветки кнопок (накладываются вторым слоем)
-  oliveGlow: ['rgba(122,158,82,0.28)', 'rgba(122,158,82,0.08)', 'rgba(0,0,0,0.2)'],
-  blueGlow: ['rgba(61,95,168,0.28)', 'rgba(61,95,168,0.1)', 'rgba(0,0,0,0.2)'],
-  greenGlow: ['rgba(61,158,146,0.28)', 'rgba(61,158,146,0.1)', 'rgba(0,0,0,0.2)'],
-  redGlow: ['rgba(160,16,32,0.32)', 'rgba(160,16,32,0.12)', 'rgba(0,0,0,0.2)'],
-  purpleGlow: ['rgba(138,78,170,0.28)', 'rgba(138,78,170,0.1)', 'rgba(0,0,0,0.2)'],
-  glowLocations: [0, 0.4, 1],
-
-  // Фоновый "дышащий" градиент экрана (радиальные через несколько View)
-  bgSpots: {
-    olive: 'rgba(122,158,82,0.14)',
-    blue: 'rgba(61,95,168,0.14)',
-    green: 'rgba(61,158,146,0.12)',
-    purple: 'rgba(138,78,170,0.07)',
-  },
-};
-
-// ─── ТЕНИ (объём) ───
-// React Native поддерживает только один shadow на View, поэтому "многослойность"
-// достигается через elevation + вложенные View с разными тенями.
+// ─── ТЕНИ ────────────────────────────────────────────────────────────────────
 export const shadows = {
   card: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.55,
-    shadowRadius: 24,
-    elevation: 14,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 12,
   },
   button: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-    elevation: 10,
-  },
-  buttonPressed: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowRadius: 12,
+    elevation: 8,
   },
   glow: (glowColor) => ({
     shadowColor: glowColor,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 18,
-    elevation: 10,
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    elevation: 8,
   }),
+};
+
+export const gradients = {
+  metalBase: ['rgba(255,255,255,0.07)', 'rgba(255,255,255,0.01)', 'rgba(0,0,0,0.12)'],
+  metalBaseLocations: [0, 0.35, 1],
+  cardSurface: ['rgba(255,255,255,0.04)', 'rgba(255,255,255,0.01)', 'rgba(0,0,0,0.08)'],
+  cardSurfaceLocations: [0, 0.4, 1],
 };
