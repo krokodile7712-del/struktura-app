@@ -2640,3 +2640,39 @@ export function getClientById(id) {
   try { db.execSync(`ALTER TABLE clients ADD COLUMN notes TEXT DEFAULT ''`); } catch (_) {}
   return db.getFirstSync(`SELECT * FROM clients WHERE id = ?`, [id]) || null;
 }
+
+// ─── Фискализация ────────────────────────────────────────────────────────────
+
+export function addToFiscalQueue(orderId) {
+  const db = getDb();
+  // Не добавляем дубли
+  const exists = db.getFirstSync(`SELECT id FROM fiscal_queue WHERE order_id = ?`, [orderId]);
+  if (exists) return;
+  db.runSync(`INSERT INTO fiscal_queue (order_id, status) VALUES (?, 'pending')`, [orderId]);
+}
+
+export function getFiscalQueue(status) {
+  const db = getDb();
+  const where = status ? `WHERE fq.status = '${status}'` : '';
+  return db.getAllSync(`
+    SELECT fq.*, o.total, o.method, o.created_at as order_date
+    FROM fiscal_queue fq
+    LEFT JOIN orders o ON o.id = fq.order_id
+    ${where}
+    ORDER BY fq.created_at DESC
+  `);
+}
+
+export function updateFiscalStatus(orderId, status, errorMsg) {
+  const db = getDb();
+  db.runSync(
+    `UPDATE fiscal_queue SET status = ?, error_msg = ?, sent_at = datetime('now') WHERE order_id = ?`,
+    [status, errorMsg || '', orderId]
+  );
+  db.runSync(`UPDATE orders SET receipt_status = ? WHERE id = ?`, [status, orderId]);
+}
+
+export function getFiscalStatus(orderId) {
+  const db = getDb();
+  return db.getFirstSync(`SELECT status FROM fiscal_queue WHERE order_id = ?`, [orderId]);
+}

@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { addToFiscalQueue, updateFiscalStatus, getFiscalStatus } from '../db/queries';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
   Modal, TextInput, Alert,
@@ -7,13 +8,18 @@ import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import EmptyState from '../components/EmptyState';
 import DatePicker from '../components/DatePicker';
+import { addToFiscalQueue, updateFiscalStatus, getFiscalStatus } from '../db/queries';
 import { useFocusEffect } from '@react-navigation/native';
+import { addToFiscalQueue, updateFiscalStatus, getFiscalStatus } from '../db/queries';
 import {
   getRecentOrders, getOrderItems, deleteOrder, updateOrder,
   returnOrder, getTerms, pluralizeRu, getPayMethods,
 } from '../db/queries';
+import { addToFiscalQueue, updateFiscalStatus, getFiscalStatus } from '../db/queries';
 import { useToast } from '../components/Toast';
+import { addToFiscalQueue, updateFiscalStatus, getFiscalStatus } from '../db/queries';
 import { getSession, getHomeRoute } from '../db/session';
+import { addToFiscalQueue, updateFiscalStatus, getFiscalStatus } from '../db/queries';
 import { colors, fonts } from '../constants/theme';
 
 // ─── Утилиты ────────────────────────────────────────────────────────────────
@@ -397,6 +403,18 @@ export default function SalesScreen({ navigation }) {
                           <View style={[styles.actionsPanel, idx < dayOrders.length - 1 && styles.rowDiv]}>
                             {!isReturn && (
                               <>
+                                <Pressable style={styles.actionBtn}
+                                  onPress={() => {
+                                    const st = getFiscalStatus(order.id);
+                                    if (st?.status === 'sent') {
+                                      Alert.alert('Чек', 'Чек уже отправлен');
+                                    } else {
+                                      addToFiscalQueue(order.id);
+                                      Alert.alert('📄 Чек', 'Добавлен в очередь на отправку.\nЧек будет отправлен после подключения кассы.');
+                                    }
+                                  }}>
+                                  <Text style={styles.actionBtnTxt}>📄 Чек</Text>
+                                </Pressable>
                                 <Pressable style={styles.actionBtn} onPress={() => setReturnTarget(order)}>
                                   <Text style={styles.actionBtnTxt}>↩ Возврат</Text>
                                 </Pressable>

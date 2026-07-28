@@ -139,6 +139,8 @@ export default function SettingsScreen({ navigation }) {
   React.useEffect(() => {
     if (selectedSection === 'business' && profile) {
       setBizDraft({
+        taxSystem:     profile.tax_system      || 'usn_income',
+        vatRate:       profile.vat_rate        || 'none',
         businessType:  profile.business_type  || 'cafe',
         timeSlotsEnabled: profile.time_slots_enabled !== false,
         slotDuration:  String(profile.slot_duration || '60'),
@@ -170,6 +172,8 @@ export default function SettingsScreen({ navigation }) {
     try {
       updateBusinessProfile({
         businessName:  bizDraft.businessName,
+        taxSystem:         bizDraft.taxSystem,
+        vatRate:           bizDraft.vatRate,
         businessType:      bizDraft.businessType,
         timeSlotsEnabled:  bizDraft.timeSlotsEnabled !== false,
         slotDuration:      parseInt(bizDraft.slotDuration) || 60,
@@ -1419,6 +1423,47 @@ export default function SettingsScreen({ navigation }) {
               <Text style={{ fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff' }}>Подключить онлайн запись</Text>
             </TouchableOpacity>
           )}
+
+          {/* ФНС */}
+          <Text style={styles.bizGroupLabel}>Касса и ФНС</Text>
+          <View style={styles.menuCard}>
+            <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
+              <Text style={styles.bizFieldLabel}>СНО</Text>
+              <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                {[
+                  { key: 'usn_income',         label: 'УСН доход' },
+                  { key: 'usn_income_outcome',  label: 'УСН доход-расход' },
+                  { key: 'osn',                 label: 'ОСНО' },
+                  { key: 'envd',                label: 'ЕНВД' },
+                  { key: 'esn',                 label: 'ЕСН' },
+                  { key: 'patent',              label: 'Патент' },
+                ].map(t => (
+                  <TouchableOpacity key={t.key}
+                    style={[styles.typeChip, { marginBottom: 4 }, bizDraft.taxSystem === t.key && styles.typeChipActive]}
+                    onPress={() => setBizDraft(d => ({ ...d, taxSystem: t.key }))}>
+                    <Text style={[styles.typeChipTxt, bizDraft.taxSystem === t.key && styles.typeChipTxtActive]}>{t.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+            <View style={styles.bizFieldRow}>
+              <Text style={styles.bizFieldLabel}>НДС по умолчанию</Text>
+              <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                {[
+                  { key: 'none', label: 'Без НДС' },
+                  { key: 'vat0', label: '0%' },
+                  { key: 'vat10', label: '10%' },
+                  { key: 'vat20', label: '20%' },
+                ].map(t => (
+                  <TouchableOpacity key={t.key}
+                    style={[styles.typeChip, bizDraft.vatRate === t.key && styles.typeChipActive]}
+                    onPress={() => setBizDraft(d => ({ ...d, vatRate: t.key }))}>
+                    <Text style={[styles.typeChipTxt, bizDraft.vatRate === t.key && styles.typeChipTxtActive]}>{t.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </View>
 
           {/* ЧЕК */}
           <Text style={styles.bizGroupLabel}>Чек и печать</Text>
