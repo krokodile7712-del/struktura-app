@@ -15,6 +15,7 @@ import { getSession } from '../db/session';
 import SalesPanel from '../components/panels/SalesPanel';
 import ReportsPanel from '../components/panels/ReportsPanel';
 import StockPanel from '../components/panels/StockPanel';
+import ExpensesPanel from '../components/panels/ExpensesPanel';
 import { colors, fonts, spacing } from '../constants/theme';
 
 function getGreeting() {
@@ -61,32 +62,7 @@ function DashPanel({ stats, name }) {
 
 // StockPanel импортирован из components/panels/StockPanel.js
 
-function ExpensesPanel() {
-  const [items, setItems] = useState([]);
-  const today = new Date().toISOString().slice(0,10);
-  useEffect(() => {
-    try { setItems(getExpenses(today, today) || []); } catch(_) {}
-  }, []);
-  const total = items.reduce((s,e) => s + (e.amount||0), 0);
-  return (
-    <ScrollView contentContainerStyle={styles.panelContent}>
-      <Text style={styles.panelTitle}>Расходы</Text>
-      <Text style={styles.bigNum}>{total} ₽</Text>
-      <Text style={styles.panelSub}>за сегодня</Text>
-      {items.length > 0 && (
-        <View style={[styles.listCard, { marginTop: 16 }]}>
-          {items.map((e, idx) => (
-            <View key={e.id} style={[styles.listRow, idx < items.length-1 && styles.listRowDiv]}>
-              <Text style={[styles.listName, { flex: 1 }]} numberOfLines={1}>{e.name || e.category}</Text>
-              <Text style={styles.listVal}>{e.amount} ₽</Text>
-            </View>
-          ))}
-        </View>
-      )}
-      {items.length === 0 && <Text style={styles.emptyTxt}>Расходов за сегодня нет</Text>}
-    </ScrollView>
-  );
-}
+// ExpensesPanel импортирован из components/panels/ExpensesPanel.js
 
 function BookingsPanel({ navigation, bookingActive }) {
   const [bookings, setBookings] = useState([]);
