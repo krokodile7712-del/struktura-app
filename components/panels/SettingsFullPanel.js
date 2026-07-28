@@ -22,7 +22,7 @@ import {
   getTerms, getRoleNames, pluralizeRu, genitivePluralRu, genitiveSingularRu,
   exportAllData,
 } from '../../db/queries';
-import { canConvert, conversionFactor } from '../constants/units';
+import { canConvert, conversionFactor } from '../../constants/units';
 import { getDb } from '../../db/database';
 import Hint from '../Hint';
 import InfoTip from '../InfoTip';
