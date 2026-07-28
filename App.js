@@ -134,6 +134,7 @@ export default function App() {
             <Stack.Screen name="Shift"       component={ShiftScreen} />
             <Stack.Screen name="ShiftClose"  component={ShiftCloseScreen} />
             <Stack.Screen name="Sales"       component={SalesScreen} />
+            <Stack.Screen name="Bookings"    component={BookingsScreen} />
             <Stack.Screen name="Stock"       component={StockScreen} />
             <Stack.Screen name="Reg"         component={RegScreen} />
             <Stack.Screen name="RegResult"   component={RegResultScreen} />
