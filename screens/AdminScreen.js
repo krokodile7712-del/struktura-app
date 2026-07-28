@@ -17,7 +17,7 @@ import ReportsPanel from '../components/panels/ReportsPanel';
 import StockPanel from '../components/panels/StockPanel';
 import ExpensesPanel from '../components/panels/ExpensesPanel';
 import BookingsPanel from '../components/panels/BookingsPanel';
-import SettingsPanel from '../components/panels/SettingsPanel';
+import SettingsFullPanel from '../components/panels/SettingsFullPanel';
 import { colors, fonts, spacing } from '../constants/theme';
 
 function getGreeting() {
@@ -118,7 +118,7 @@ export default function AdminScreen({ navigation }) {
       case 'Stock':    return <StockPanel />;
       case 'Expenses': return <ExpensesPanel />;
       case 'Bookings': return <BookingsPanel />;
-      case 'Settings': return <SettingsPanel />;
+      case 'Settings': return <SettingsFullPanel />;
       default:         return <DashPanel stats={stats} name={session?.name?.split(' ')[0]} />;
     }
   };
