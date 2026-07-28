@@ -135,10 +135,10 @@ export default function SalesPanel() {
 
   // Метрики
   const total    = filtered.reduce((s,o) => s + o.total, 0);
-  const cash     = filtered.filter(o => (o.method_type||'').includes('cash') || o.method==='Наличные').reduce((s,o)=>s+o.total,0);
-  const card     = filtered.filter(o => (o.method_type||'').includes('card') || o.method==='Карта').reduce((s,o)=>s+o.total,0);
-  const qr       = filtered.filter(o => (o.method||'').toLowerCase().includes('qr') || (o.method||'').toLowerCase().includes('сбп') || (o.method||'').toLowerCase().includes('sbp')).reduce((s,o)=>s+o.total,0);
-  const mixed    = filtered.filter(o => (o.method||'').toLowerCase().includes('смеш') || (o.method_type||'').includes('mixed')).reduce((s,o)=>s+o.total,0);
+  const cash  = filtered.filter(o => (o.method_type||'').includes('cash') || o.method==='Наличные').reduce((s,o)=>s+o.total,0);
+  const card  = filtered.filter(o => (o.method_type||'').includes('card') || o.method==='Карта').reduce((s,o)=>s+o.total,0);
+  const qr    = filtered.filter(o => /qr|сбп|sbp/i.test(o.method||'')).reduce((s,o)=>s+o.total,0);
+  const mixed = filtered.filter(o => /смеш|mixed/i.test(o.method||'')).reduce((s,o)=>s+o.total,0);
   const avgCheck = filtered.length > 0 ? Math.round(total / filtered.length) : 0;
 
   // Статистика
@@ -276,4 +276,338 @@ export default function SalesPanel() {
           {card > 0 && (<><View style={styles.summarySep} /><View style={styles.summaryItem}><Text style={styles.summaryVal}>{fmt(card)} ₽</Text><Text style={styles.summaryLbl}>Карта</Text></View></>)}
           {qr > 0 && (<><View style={styles.summarySep} /><View style={styles.summaryItem}><Text style={styles.summaryVal}>{fmt(qr)} ₽</Text><Text style={styles.summaryLbl}>QR / СБП</Text></View></>)}
           {mixed > 0 && (<><View style={styles.summarySep} /><View style={styles.summaryItem}><Text style={styles.summaryVal}>{fmt(mixed)} ₽</Text><Text style={styles.summaryLbl}>Смешанная</Text></View></>)}
-        
+        </View>
+      )}
+
+      {/* Статистика */}
+      {filtered.length > 0 && (
+        <Pressable style={styles.statsToggle} onPress={() => setShowStats(v => !v)}>
+          <Text style={styles.statsToggleTxt}>{showStats ? '▲' : '▼'} Статистика</Text>
+        </Pressable>
+      )}
+      {showStats && (
+        <View style={styles.statsBar}>
+          <View style={styles.statItem}>
+            <Text style={styles.statVal}>{fmt(avgCheck)} ₽</Text>
+            <Text style={styles.statLbl}>Средний чек</Text>
+          </View>
+          <View style={styles.summarySep} />
+          <View style={styles.statItem}>
+            <Text style={styles.statVal}>{peakHour}</Text>
+            <Text style={styles.statLbl}>Пиковый час</Text>
+          </View>
+        </View>
+      )}
+
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
+        {filtered.length === 0 ? (
+          <EmptyState icon="📊" title="Заказов нет"
+            text="За выбранный период заказов не найдено." />
+        ) : (
+          grouped.map(([date, dayOrders]) => {
+            const dayTotal = dayOrders.reduce((s,o) => s+o.total, 0);
+            return (
+              <View key={date} style={styles.dayGroup}>
+                {/* Заголовок дня */}
+                <View style={styles.dayHead}>
+                  <Text style={styles.dayDate}>{fmtDateShort(date)}</Text>
+                  <View style={styles.dayLine} />
+                  <Text style={styles.daySum}>{fmt(dayTotal)} ₽ · {dayOrders.length} зак.</Text>
+                </View>
+
+                {/* Карточка заказов */}
+                <View style={styles.card}>
+                  {dayOrders.map((order, idx) => {
+                    const isExp    = expanded === order.id;
+                    const items    = itemsMap[order.id] || [];
+                    const isReturn = order.status === 'returned';
+                    return (
+                      <View key={order.id}>
+                        {/* Строка заказа — вся информация видна сразу */}
+                        <Pressable
+                          style={({ pressed }) => [
+                            styles.orderRow,
+                            idx < dayOrders.length - 1 && !isExp && styles.rowDiv,
+                            pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
+                            isReturn && { opacity: 0.5 },
+                          ]}
+                          onPress={() => isAdmin ? toggleOrder(order.id) : null}
+                        >
+                          {/* Левая часть: время + состав + мета */}
+                          <View style={{ flex: 1, gap: 3 }}>
+                            {/* Строка 1: время + бейдж возврата */}
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                              <Text style={styles.orderTime}>{fmtTime(order.created_at)}</Text>
+                              {isReturn && (
+                                <View style={styles.returnBadge}>
+                                  <Text style={styles.returnBadgeTxt}>↩ возврат</Text>
+                                </View>
+                              )}
+                              {order.note ? (
+                                <Text style={styles.orderNote} numberOfLines={1}>📝 {order.note}</Text>
+                              ) : null}
+                            </View>
+                            {/* Строка 2: состав заказа */}
+                            <Text style={styles.orderItems} numberOfLines={1}>
+                              {items.length > 0
+                                ? items.slice(0, 3).map(i =>
+                                    `${i.name}${i.size ? ` ${i.size}` : ''}${i.quantity > 1 ? ` ×${i.quantity}` : ''}`
+                                  ).join(' · ') + (items.length > 3 ? ` +${items.length - 3}` : '')
+                                : '—'
+                              }
+                            </Text>
+                            {/* Строка 3: кассир + клиент */}
+                            {(order.cashier_name || order.client_name) && (
+                              <View style={{ flexDirection: 'row', gap: 10 }}>
+                                {order.cashier_name ? <Text style={styles.metaTxt}>👤 {order.cashier_name}</Text> : null}
+                                {order.client_name  ? <Text style={styles.metaTxt}>⭐ {order.client_name}</Text>  : null}
+                              </View>
+                            )}
+                          </View>
+
+                          {/* Правая часть: метод + сумма + шеврон */}
+                          <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                            <Text style={[styles.orderTotal, isReturn && { color: colors.redLight }]}>
+                              {isReturn ? '−' : ''}{fmt(order.total)} ₽
+                            </Text>
+                            <Text style={styles.orderMethod}>{methodIcon(order.method)} {order.method}</Text>
+                          </View>
+                          {isAdmin && (
+                            <Text style={[styles.orderArrow, isExp && styles.orderArrowOpen]}>›</Text>
+                          )}
+                        </Pressable>
+
+                        {/* Аккордеон — только действия */}
+                        {isExp && isAdmin && (
+                          <View style={[styles.actionsPanel, idx < dayOrders.length - 1 && styles.rowDiv]}>
+                            {!isReturn && (
+                              <>
+                                <Pressable style={styles.actionBtn}
+                                  onPress={() => {
+                                    const st = getFiscalStatus(order.id);
+                                    if (st?.status === 'sent') {
+                                      Alert.alert('Чек', 'Чек уже отправлен');
+                                    } else {
+                                      addToFiscalQueue(order.id);
+                                      Alert.alert('📄 Чек', 'Добавлен в очередь на отправку.\nЧек будет отправлен после подключения кассы.');
+                                    }
+                                  }}>
+                                  <Text style={styles.actionBtnTxt}>📄 Чек</Text>
+                                </Pressable>
+                                <Pressable style={styles.actionBtn} onPress={() => setReturnTarget(order)}>
+                                  <Text style={styles.actionBtnTxt}>↩ Возврат</Text>
+                                </Pressable>
+                                <Pressable style={styles.actionBtn} onPress={() => openEdit(order)}>
+                                  <Text style={styles.actionBtnTxt}>✎ Изменить</Text>
+                                </Pressable>
+                              </>
+                            )}
+                            <Pressable style={[styles.actionBtn, styles.actionBtnDanger]} onPress={() => setDeleteTarget(order)}>
+                              <Text style={[styles.actionBtnTxt, { color: colors.redLight }]}>✕ Удалить</Text>
+                            </Pressable>
+                          </View>
+                        )}
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            );
+          })
+        )}
+      </ScrollView>
+
+      {/* Редактирование */}
+      <Modal visible={!!editOrder} transparent animationType="fade" onRequestClose={() => setEditOrder(null)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setEditOrder(null)} />
+          <View style={styles.modalBox}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Редактировать заказ #{editOrder?.id}</Text>
+              <Pressable onPress={() => setEditOrder(null)} hitSlop={14} style={styles.modalClose}>
+                <Text style={styles.modalCloseTxt}>✕</Text>
+              </Pressable>
+            </View>
+            <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
+              <Text style={styles.fieldLabel}>Сумма, ₽</Text>
+              <TextInput color={colors.text} style={styles.input} value={editTotal} onChangeText={setEditTotal} keyboardType="numeric" placeholderTextColor={colors.muted} />
+              <Text style={styles.fieldLabel}>Способ оплаты</Text>
+              <View style={styles.card}>
+                {allMethods.map((m, idx) => (
+                  <Pressable key={m.id || m.name}
+                    style={[styles.orderRow, idx < allMethods.length-1 && styles.rowDiv]}
+                    onPress={() => setEditMethod(m.name)}>
+                    <Text style={[styles.detailName, { flex: 1 }]}>{m.name}</Text>
+                    <View style={[styles.checkbox, editMethod === m.name && styles.checkboxOn]}>
+                      {editMethod === m.name && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
+              <Pressable style={({ pressed }) => [styles.confirmBtn, { marginTop: 16 }, pressed && { opacity: 0.88 }]}
+                onPress={confirmEdit}>
+                <Text style={styles.confirmBtnTxt}>Сохранить</Text>
+              </Pressable>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Возврат */}
+      <Modal visible={!!returnTarget} transparent animationType="fade" onRequestClose={() => setReturnTarget(null)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setReturnTarget(null)} />
+          <View style={[styles.modalBox, { maxHeight: 280 }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>↩ Оформить возврат</Text>
+              <Pressable onPress={() => setReturnTarget(null)} hitSlop={14} style={styles.modalClose}>
+                <Text style={styles.modalCloseTxt}>✕</Text>
+              </Pressable>
+            </View>
+            <View style={{ padding: 20 }}>
+              <Text style={styles.detailName}>
+                Заказ #{returnTarget?.id} на сумму {fmt(returnTarget?.total)} ₽ будет помечен как возвращённый. Остатки на складе восстановятся.
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+                <Pressable style={[styles.confirmBtn, { flex: 1, backgroundColor: 'rgba(74,77,84,0.3)' }]}
+                  onPress={() => setReturnTarget(null)}>
+                  <Text style={styles.confirmBtnTxt}>Отмена</Text>
+                </Pressable>
+                <Pressable style={[styles.confirmBtn, { flex: 1, backgroundColor: 'rgba(160,16,32,0.8)' }]}
+                  onPress={confirmReturn}>
+                  <Text style={styles.confirmBtnTxt}>↩ Подтвердить</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Удаление */}
+      <Modal visible={!!deleteTarget} transparent animationType="fade" onRequestClose={() => setDeleteTarget(null)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setDeleteTarget(null)} />
+          <View style={[styles.modalBox, { maxHeight: 240 }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Удалить заказ #{deleteTarget?.id}?</Text>
+              <Pressable onPress={() => setDeleteTarget(null)} hitSlop={14} style={styles.modalClose}>
+                <Text style={styles.modalCloseTxt}>✕</Text>
+              </Pressable>
+            </View>
+            <View style={{ padding: 20 }}>
+              <Text style={styles.detailName}>Это действие нельзя отменить.</Text>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+                <Pressable style={[styles.confirmBtn, { flex: 1, backgroundColor: 'rgba(74,77,84,0.3)' }]}
+                  onPress={() => setDeleteTarget(null)}>
+                  <Text style={styles.confirmBtnTxt}>Отмена</Text>
+                </Pressable>
+                <Pressable style={[styles.confirmBtn, { flex: 1, backgroundColor: 'rgba(160,16,32,0.8)' }]}
+                  onPress={confirmDelete}>
+                  <Text style={styles.confirmBtnTxt}>Удалить</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <DatePicker visible={picker === 'from'} value={dateFrom}
+        onChange={v => { setDateFrom(v); setPicker('to'); }}
+        onClose={() => setPicker(null)} title="Начало периода" />
+      <DatePicker visible={picker === 'to'} value={dateTo}
+        onChange={v => { setDateTo(v); setPicker(null); load(); }}
+        onClose={() => setPicker(null)} title="Конец периода" />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  inner: { padding: 16, paddingBottom: 24 },
+
+  // Периоды
+  chipBar:   { maxHeight: 46, borderBottomWidth: 1, borderBottomColor: colors.border },
+  chipInner: { paddingHorizontal: 16, paddingVertical: 8, gap: 8, alignItems: 'center' },
+  chip:      { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', backgroundColor: '#07080a' },
+  chipActive:{ borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.12)' },
+  chipText:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
+  chipTextActive: { color: colors.greenLight },
+
+  // Фильтры
+  filterRow:   { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border, gap: 8 },
+  filterChip:  { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(74,77,84,0.35)', backgroundColor: '#07080a' },
+  filterChipActive: { borderColor: 'rgba(61,95,168,0.6)', backgroundColor: 'rgba(61,95,168,0.1)' },
+  filterText:  { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
+  filterTextActive: { color: '#8da9e6' },
+  searchInput: { flex: 1, padding: 8, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 10, color: colors.text, fontSize: 13, fontFamily: fonts.family },
+  badgeBtn:    { width: 32, height: 32, borderRadius: 10, backgroundColor: '#0e0f11', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', alignItems: 'center', justifyContent: 'center' },
+  badgeTxt:    { fontSize: 14, color: colors.muted },
+
+  // Итоги
+  summaryBar:  { flexDirection: 'row', paddingVertical: 10, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: '#07080a' },
+  summaryItem: { flex: 1, alignItems: 'center' },
+  summaryVal:  { fontFamily: fonts.family, fontSize: 13, fontWeight: '800', color: colors.text },
+  summaryLbl:  { fontFamily: fonts.familyRegular, fontSize: 9, color: colors.muted, marginTop: 1, textTransform: 'uppercase', letterSpacing: 0.5 },
+  summarySep:  { width: 1, backgroundColor: 'rgba(74,77,84,0.3)', marginVertical: 4 },
+
+  // Статистика
+  statsToggle:  { paddingVertical: 6, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: '#07080a' },
+  statsToggleTxt:{ fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textAlign: 'center' },
+  statsBar:     { flexDirection: 'row', paddingVertical: 10, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: '#07080a' },
+  statItem:     { flex: 1, alignItems: 'center' },
+  statVal:      { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
+  statLbl:      { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, marginTop: 2 },
+
+  // Группы
+  dayGroup: { marginBottom: 12 },
+  dayHead:  { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  dayDate:  { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: colors.text },
+  dayLine:  { flex: 1, height: 1, backgroundColor: 'rgba(74,77,84,0.25)' },
+  daySum:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+
+  // Карточка
+  card:      { backgroundColor: '#0b0c0f', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', overflow: 'hidden' },
+  rowDiv:    { borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.2)' },
+
+  // Строка заказа
+  orderRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, gap: 8 },
+  orderItems:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+  orderArrowOpen: { transform: [{ rotate: '90deg' }] },
+  actionsPanel:{ flexDirection: 'row', gap: 8, padding: 12, paddingHorizontal: 14, backgroundColor: 'rgba(74,77,84,0.06)' },
+  orderTime:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
+  orderNote:   { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
+  orderMethod: { fontSize: 12, color: colors.textDim, fontFamily: fonts.familyRegular },
+  orderTotal:  { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: colors.text },
+  orderArrow:  { fontSize: 16, color: 'rgba(74,77,84,0.5)', width: 16, textAlign: 'center' },
+  returnBadge: { paddingVertical: 2, paddingHorizontal: 8, borderRadius: 8, backgroundColor: 'rgba(160,16,32,0.12)', borderWidth: 1, borderColor: 'rgba(160,16,32,0.3)' },
+  returnBadgeTxt: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.redLight },
+
+  // Детали
+  detail:      { paddingHorizontal: 14, paddingVertical: 10, backgroundColor: 'rgba(255,255,255,0.015)' },
+  detailRow:   { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
+  detailName:  { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, flex: 1 },
+  detailPrice: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
+  metaRow:     { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(74,77,84,0.2)' },
+  metaTxt:     { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+
+  // Действия
+  actionRow:    { flexDirection: 'row', gap: 8, marginTop: 10 },
+  actionBtn:    { flex: 1, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(74,77,84,0.35)', backgroundColor: '#07080a', alignItems: 'center' },
+  actionBtnDanger: { borderColor: 'rgba(160,16,32,0.3)', backgroundColor: 'rgba(160,16,32,0.05)' },
+  actionBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
+
+  // Чекбокс
+  checkbox:    { width: 24, height: 24, borderRadius: 8, borderWidth: 1.5, borderColor: 'rgba(74,77,84,0.5)', alignItems: 'center', justifyContent: 'center' },
+  checkboxOn:  { backgroundColor: colors.greenLight, borderColor: colors.greenLight },
+
+  // Модалки
+  modalRoot:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modalBox:      { width: '48%', maxHeight: '85%', backgroundColor: '#0e0f11', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(74,77,84,0.5)', overflow: 'hidden' },
+  modalHeader:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.3)' },
+  modalTitle:    { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.text, flex: 1, marginRight: 12 },
+  modalClose:    { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(74,77,84,0.25)', alignItems: 'center', justifyContent: 'center' },
+  modalCloseTxt: { fontSize: 13, color: colors.text, fontFamily: fonts.familySemibold },
+  fieldLabel:    { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 14 },
+  input:         { padding: 13, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', borderRadius: 12, color: colors.text, fontSize: 15, fontFamily: fonts.family },
+  confirmBtn:    { paddingVertical: 14, borderRadius: 14, backgroundColor: 'rgba(61,158,146,0.85)', alignItems: 'center' },
+  confirmBtnTxt: { fontFamily: fonts.family, fontSize: 14, fontWeight: '700', color: '#fff' },
+});
