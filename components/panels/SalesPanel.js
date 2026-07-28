@@ -587,7 +587,7 @@ const styles = StyleSheet.create({
   actionsPanel:{ flexDirection: 'row', gap: 8, padding: 12, paddingHorizontal: 14, backgroundColor: 'rgba(74,77,84,0.06)' },
   orderTime:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
   orderNote:   { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
-  orderMethod: { fontSize: 16 },
+  orderMethod: { fontSize: 12, color: colors.textDim, fontFamily: fonts.familyRegular },
   orderTotal:  { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: colors.text },
   orderArrow:  { fontSize: 16, color: 'rgba(74,77,84,0.5)', width: 16, textAlign: 'center' },
   returnBadge: { paddingVertical: 2, paddingHorizontal: 8, borderRadius: 8, backgroundColor: 'rgba(160,16,32,0.12)', borderWidth: 1, borderColor: 'rgba(160,16,32,0.3)' },
