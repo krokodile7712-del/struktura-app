@@ -213,21 +213,17 @@ export default function ReportsPanel() {
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar
-        title="Отчётность"
-        onBack={() => navigation.navigate(getHomeRoute())}
-        rightElement={
-          <Pressable
-            style={styles.exportBtn}
-            onPress={async () => {
-              try { const d = exportAllData(); await Share.share({ message: d, title: 'Отчёт СТРУКТУРА' }); }
-              catch (_) {}
-            }}
-          >
-            <Text style={styles.exportBtnText}>↑ Экспорт</Text>
-          </Pressable>
-        }
-      />
+      <View style={{ flexDirection: 'row', justifyContent: 'flex-end', padding: 8, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        <Pressable
+          style={styles.exportBtn}
+          onPress={async () => {
+            try { const d = exportAllData(); await Share.share({ message: d, title: 'Отчёт СТРУКТУРА' }); }
+            catch (_) {}
+          }}
+        >
+          <Text style={styles.exportBtnText}>↑ Экспорт</Text>
+        </Pressable>
+      </View>
 
       {/* Сводка */}
       <SummaryBar pnl={pnl} />
