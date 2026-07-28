@@ -13,6 +13,7 @@ import {
 import { getBookings } from '../db/supabase';
 import { getSession } from '../db/session';
 import SalesPanel from '../components/panels/SalesPanel';
+import ReportsPanel from '../components/panels/ReportsPanel';
 import { colors, fonts, spacing } from '../constants/theme';
 
 function getGreeting() {
@@ -55,27 +56,7 @@ function DashPanel({ stats, name }) {
 
 // SalesPanel — импортирован из components/panels/SalesPanel.js
 
-function ReportsPanel({ stats }) {
-  return (
-    <ScrollView contentContainerStyle={styles.panelContent}>
-      <Text style={styles.panelTitle}>Отчётность</Text>
-      <View style={styles.listCard}>
-        {[
-          { label: 'Выручка сегодня', value: `${stats.revenueToday || 0} ₽` },
-          { label: 'Расходы', value: `${stats.expenses || 0} ₽` },
-          { label: 'Прибыль', value: `${stats.profit || 0} ₽` },
-          { label: 'Средний чек', value: `${stats.avgCheck || 0} ₽` },
-          { label: 'Заказов', value: stats.ordersToday || 0 },
-        ].map((r, i, arr) => (
-          <View key={i} style={[styles.listRow, i < arr.length-1 && styles.listRowDiv]}>
-            <Text style={[styles.listName, { flex: 1 }]}>{r.label}</Text>
-            <Text style={styles.listVal}>{r.value}</Text>
-          </View>
-        ))}
-      </View>
-    </ScrollView>
-  );
-}
+// ReportsPanel импортирован из components/panels/ReportsPanel.js
 
 function StockPanel() {
   const [items, setItems] = useState([]);
@@ -243,7 +224,7 @@ export default function AdminScreen({ navigation }) {
   const renderRight = () => {
     switch(active) {
       case 'Sales':    return <SalesPanel />;
-      case 'Reports':  return <ReportsPanel stats={stats} />;
+      case 'Reports':  return <ReportsPanel />;
       case 'Stock':    return <StockPanel />;
       case 'Expenses': return <ExpensesPanel />;
       case 'Bookings': return <BookingsPanel navigation={navigation} bookingActive={bookingActive} />;
