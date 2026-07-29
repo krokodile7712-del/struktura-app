@@ -2,9 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TextInput,
   Pressable, KeyboardAvoidingView, Platform, Alert,
-  BackHandler, Image,
+  BackHandler, Image, Animated,
 } from 'react-native';
-import MetalButton from '../components/MetalButton';
 import { setSetting, updateBusinessProfile, getBusinessProfile, BUSINESS_PRESETS, addUser } from '../db/queries';
 import { colors, fonts, spacing } from '../constants/theme';
 
@@ -114,6 +113,8 @@ export default function OnboardingScreen({ navigation }) {
   const [empPin2, setEmpPin2]         = useState('');
   // Общее
   const [errors, setErrors]           = useState({});
+  const slideAnim = useState(new Animated.Value(0))[0];
+  const fadeAnim  = useState(new Animated.Value(1))[0];
 
   // Back handler — возврат на предыдущий шаг
   useEffect(() => {
@@ -141,11 +142,25 @@ export default function OnboardingScreen({ navigation }) {
     return Object.keys(errs).length === 0;
   };
 
+  const animateStep = (direction, cb) => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 0, duration: 150, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: direction * -30, duration: 150, useNativeDriver: true }),
+    ]).start(() => {
+      cb();
+      slideAnim.setValue(direction * 30);
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }),
+        Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 12, useNativeDriver: true }),
+      ]).start();
+    });
+  };
+
   const next = () => {
     if (!validate()) return;
-    setStep(s => Math.min(STEPS.length - 1, s + 1));
+    animateStep(1, () => setStep(s => Math.min(STEPS.length - 1, s + 1)));
   };
-  const back = () => setStep(s => Math.max(0, s - 1));
+  const back = () => animateStep(-1, () => setStep(s => Math.max(0, s - 1)));
 
 
 
@@ -220,6 +235,7 @@ export default function OnboardingScreen({ navigation }) {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
         {/* ── ШАГ 1: Бизнес ── */}
         {step === 0 && (
           <View style={styles.content}>
@@ -471,12 +487,12 @@ export default function OnboardingScreen({ navigation }) {
               </Pressable>
             ))}
 
-            <MetalButton
-              title="Начать работу →"
-              variant="action"
+            <Pressable
+              style={[styles.nextBtn, { marginTop: 16, paddingVertical: 18 }]}
               onPress={() => finish()}
-              style={{ marginTop: 16 }}
-            />
+            >
+              <Text style={styles.nextBtnText}>Начать работу</Text>
+            </Pressable>
           </View>
         )}
 
@@ -504,6 +520,7 @@ export default function OnboardingScreen({ navigation }) {
             <Text style={styles.skipText}>Пропустить настройку</Text>
           </Pressable>
         )}
+        </Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -530,10 +547,10 @@ function SummaryRow({ icon, label, value }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   progressTrack: { height: 3, backgroundColor: 'rgba(74,77,84,0.3)', overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: colors.greenLight, borderRadius: 2 },
+  progressFill: { height: '100%', backgroundColor: colors.orange, borderRadius: 2 },
   dotsRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, paddingVertical: 14 },
   dot: { width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(74,77,84,0.3)', alignItems: 'center', justifyContent: 'center' },
-  dotActive: { backgroundColor: colors.greenLight },
+  dotActive: { backgroundColor: colors.orange },
   dotCheck: { fontSize: 10, color: '#fff', fontWeight: '800' },
 
   scroll: { padding: spacing.lg, paddingBottom: 40, maxWidth: 600, width: '100%', alignSelf: 'center' },
@@ -547,7 +564,7 @@ const styles = StyleSheet.create({
   logoSection: { alignItems: 'center', marginBottom: 8 },
   logoPreviewWrap: { alignItems: 'center', gap: 6 },
   logoPreview: { width: 100, height: 100, borderRadius: 16 },
-  logoPlaceholder: { width: 100, height: 100, borderRadius: 16, borderWidth: 1.5, borderColor: 'rgba(61,158,146,0.3)', borderStyle: 'dashed', backgroundColor: 'rgba(61,158,146,0.04)', alignItems: 'center', justifyContent: 'center', gap: 4 },
+  logoPlaceholder: { width: 100, height: 100, borderRadius: 16, borderWidth: 1.5, borderColor: 'rgba(240,160,80,0.3)', borderStyle: 'dashed', backgroundColor: 'rgba(240,160,80,0.04)', alignItems: 'center', justifyContent: 'center', gap: 4 },
   logoPlaceholderIcon: { fontSize: 24 },
   logoPlaceholderText: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
   logoPlaceholderSub: { fontFamily: fonts.familyRegular, fontSize: 9, color: colors.muted, textAlign: 'center', paddingHorizontal: 8 },
@@ -556,7 +573,7 @@ const styles = StyleSheet.create({
 
   // Поля
   fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginTop: 16, marginBottom: 6 },
-  input: { padding: 14, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 15, fontFamily: fonts.family, marginBottom: 4 },
+  input: { padding: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 15, fontFamily: fonts.family, marginBottom: 4 },
   inputError: { borderColor: colors.redLight },
   fieldErr: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.redLight, marginBottom: 4 },
   hint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, lineHeight: 18, marginTop: 4 },
@@ -565,40 +582,40 @@ const styles = StyleSheet.create({
   hoursDash: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
 
   // Пресеты типа бизнеса
-  presetCard: { borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0f', padding: 16, marginBottom: 10, gap: 8 },
-  presetCardActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.06)' },
+  presetCard: { borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 16, marginBottom: 10, gap: 8 },
+  presetCardActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.06)' },
   presetHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   presetIcon: { fontSize: 26 },
   presetLabel: { flex: 1, fontFamily: fonts.family, fontSize: 16, fontWeight: '700', color: colors.text },
-  presetLabelActive: { color: colors.greenLight },
+  presetLabelActive: { color: colors.orange },
   presetCheck: { fontSize: 18, color: colors.muted },
   presetDesc: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, lineHeight: 19 },
   presetTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   presetTag: { paddingVertical: 3, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: '#07080a' },
-  presetTagActive: { borderColor: 'rgba(61,158,146,0.4)', backgroundColor: 'rgba(61,158,146,0.08)' },
+  presetTagActive: { borderColor: 'rgba(240,160,80,0.4)', backgroundColor: 'rgba(240,160,80,0.08)' },
   presetTagText: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
-  presetTagTextActive: { color: colors.greenLight },
+  presetTagTextActive: { color: colors.orange },
 
   // Терминология
-  termBlock: { marginBottom: 20, padding: 16, backgroundColor: '#0b0c0f', borderRadius: 16, borderWidth: 1, borderColor: colors.border },
+  termBlock: { marginBottom: 20, padding: 16, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border },
   termHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 12 },
   termIcon: { fontSize: 22, marginTop: 2 },
   termTitle: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, marginBottom: 3 },
   termDesc: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, lineHeight: 17 },
   termPresets: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
   termChip: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: '#07080a' },
-  termChipActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.1)' },
+  termChipActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.08)' },
   termChipText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
-  termChipTextActive: { color: colors.greenLight },
+  termChipTextActive: { color: colors.orange },
   termInput: { marginTop: 4, marginBottom: 0, fontSize: 14 },
 
   // Финальный экран
   doneHeader: { alignItems: 'center', marginBottom: 20 },
   doneLogo: { width: 100, height: 100, borderRadius: 20, marginBottom: 14 },
-  doneLogoPlaceholder: { width: 100, height: 100, borderRadius: 20, backgroundColor: '#0e0f11', borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  doneLogoPlaceholder: { width: 100, height: 100, borderRadius: 20, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
   doneTitle: { fontFamily: fonts.family, fontSize: 26, fontWeight: '800', color: colors.text, textAlign: 'center' },
   doneCity: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 4 },
-  doneSummary: { padding: 16, backgroundColor: '#0b0c0f', borderRadius: 16, borderWidth: 1, borderColor: colors.border, marginBottom: 20, gap: 8 },
+  doneSummary: { padding: 16, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, marginBottom: 20, gap: 8 },
   summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   summaryIcon: { fontSize: 16, width: 22, textAlign: 'center' },
   summaryLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, width: 100 },
@@ -606,17 +623,17 @@ const styles = StyleSheet.create({
 
   // Следующие шаги
   nextStepsTitle: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 2, marginBottom: 10 },
-  nextStepRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, paddingHorizontal: 14, backgroundColor: '#0b0c0f', borderRadius: 14, borderWidth: 1, borderColor: colors.border, marginBottom: 8 },
+  nextStepRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, paddingHorizontal: 14, backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, marginBottom: 8 },
   nextStepIcon: { fontSize: 20, width: 28, textAlign: 'center' },
   nextStepLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, marginBottom: 2 },
   nextStepSub: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
-  nextStepArrow: { fontFamily: fonts.family, fontSize: 20, color: colors.greenLight },
+  nextStepArrow: { fontFamily: fonts.family, fontSize: 20, color: colors.orange },
 
   // Навигация
   navRow: { flexDirection: 'row', gap: 12, marginTop: 28 },
   backBtn: { flex: 1, paddingVertical: 14, borderRadius: 14, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
   backBtnText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
-  nextBtn: { flex: 2, paddingVertical: 14, borderRadius: 14, backgroundColor: 'rgba(61,158,146,0.85)', alignItems: 'center' },
+  nextBtn: { flex: 2, paddingVertical: 14, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
   nextBtnText: { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff' },
   skipBtn: { alignItems: 'center', paddingVertical: 16, marginTop: 6 },
   skipText: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textDecorationLine: 'underline' },
