@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, Animated, Modal, Easing, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, Animated, Modal, Dimensions } from 'react-native';
 import TopBar from '../components/TopBar';
 import { getOpenShift, getShiftSummary, closeShift, getTerms, pluralizeRu, getPayMethods } from '../db/queries';
 import { useToast } from '../components/Toast';
@@ -48,16 +48,19 @@ export default function ShiftCloseScreen({ navigation }) {
     ]).start();
   }, []);
 
-  const animateCounter = (setter, target, delay, duration = 1200) => {
-    const anim = new Animated.Value(0);
-    anim.addListener(({ value }) => setter(Math.round(value)));
-    Animated.timing(anim, {
-      toValue: target,
-      duration,
-      delay,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: false,
-    }).start();
+  const animateCounter = (setter, target, delay, duration = 1000) => {
+    setTimeout(() => {
+      const steps = 40;
+      const interval = duration / steps;
+      let step = 0;
+      const timer = setInterval(() => {
+        step++;
+        const progress = step / steps;
+        const eased = 1 - Math.pow(1 - progress, 3);
+        setter(Math.round(target * eased));
+        if (step >= steps) { clearInterval(timer); setter(target); }
+      }, interval);
+    }, delay);
   };
 
   const showResultModal = (s) => {
