@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, SafeAreaView, TextInput, TouchableWithoutFeedback } from 'react-native';
+import { useRef } from 'react';
 import { getUserByPin, getBusinessProfile, getUserPermissions } from '../db/queries';
 import { setSession, setPermissions } from '../db/session';
 import { colors, fonts } from '../constants/theme';
@@ -10,6 +11,7 @@ export default function LoginScreen({ navigation }) {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [shake, setShake] = useState(false);
+  const inputRef = useRef(null);
 
   const businessName = (() => {
     try { return getBusinessProfile()?.business_name || 'СТРУКТУРА'; } catch { return 'СТРУКТУРА'; }
@@ -51,7 +53,26 @@ export default function LoginScreen({ navigation }) {
   ];
 
   return (
+    <TouchableWithoutFeedback onPress={() => inputRef.current?.focus()}>
     <SafeAreaView style={styles.root}>
+      {/* Скрытый ввод для клавиатуры */}
+      <TextInput
+        ref={inputRef}
+        style={styles.hiddenInput}
+        value={pin}
+        onChangeText={v => {
+          const digits = v.replace(/\D/g, '').slice(0, PIN_LENGTH);
+          setPin(digits);
+          setError('');
+          if (digits.length === PIN_LENGTH) {
+            setTimeout(() => tryLogin(digits), 120);
+          }
+        }}
+        keyboardType="number-pad"
+        maxLength={PIN_LENGTH}
+        autoFocus
+        caretHidden
+      />
 
       {/* Шапка */}
       <View style={styles.header}>
@@ -109,6 +130,7 @@ export default function LoginScreen({ navigation }) {
       </Text>
 
     </SafeAreaView>
+    </TouchableWithoutFeedback>
   );
 }
 
@@ -144,4 +166,5 @@ const styles = StyleSheet.create({
   keyBackTxt:{ fontSize: 22, color: colors.muted },
 
   hint:      { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'center', maxWidth: 280, lineHeight: 18 },
+  hiddenInput: { position: 'absolute', width: 0, height: 0, opacity: 0 },
 });
