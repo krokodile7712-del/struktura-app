@@ -35,8 +35,33 @@ function fmtDate(iso) {
 // ─── Панели разделов ──────────────────────────────────────────────────────────
 
 function DashPanel({ stats, name, navigation }) {
+  const [stockOpen, setStockOpen] = useState(false);
   return (
     <ScrollView contentContainerStyle={styles.panelContent}>
+      {stats.lowStockCount > 0 && (
+        <Pressable
+          style={[styles.stockBanner, stockOpen && styles.stockBannerOpen]}
+          onPress={() => setStockOpen(v => !v)}
+        >
+          <View style={styles.stockBannerRow}>
+            <Text style={styles.stockBannerTxt}>
+              Мало на складе: {stats.lowStockCount} поз.
+            </Text>
+            <Text style={styles.stockBannerChevron}>{stockOpen ? '▲' : '▼'}</Text>
+          </View>
+          {stockOpen && (
+            <Pressable onPress={() => navigation.navigate('Stock')}>
+              {(stats.lowStockItems || []).map((it, i) => (
+                <Text key={i} style={styles.stockBannerItem}>
+                  · {it.name} — {it['остаток']} {it.unit}
+                </Text>
+              ))}
+              <Text style={styles.stockBannerLink}>Перейти на склад →</Text>
+            </Pressable>
+          )}
+        </Pressable>
+      )}
+
       <Text style={styles.panelGreeting}>{getGreeting()}{name ? `, ${name}` : ''}</Text>
       <Text style={styles.panelSub}>Сводка за сегодня</Text>
 
@@ -56,16 +81,8 @@ function DashPanel({ stats, name, navigation }) {
         ))}
       </View>
 
-      {stats.lowStockCount > 0 && (
-        <View style={styles.warnCard}>
-          <Text style={styles.warnTxt}>Мало на складе: {stats.lowStockCount} поз.</Text>
-          {(stats.lowStockItems || []).map((it, i) => (
-            <Text key={i} style={styles.warnItem}>· {it.name} — {it['остаток']} {it.unit}</Text>
-          ))}
-        </View>
-      )}
-
       {stats.shift && (
+        <View style={styles.shiftSep} />
         <Pressable
           style={({ pressed }) => [styles.shiftCloseBtn, pressed && { opacity: 0.85 }]}
           onPress={() => navigation.navigate('ShiftClose')}
@@ -284,9 +301,14 @@ const styles = StyleSheet.create({
   bigNum:      { fontFamily: fonts.family, fontSize: 48, fontWeight: '800', color: colors.text, marginBottom: 4 },
   emptyTxt:    { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', marginTop: 32 },
   tapHint:     { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 24, opacity: 0.6 },
-  warnCard:    { backgroundColor: 'rgba(217,95,95,0.08)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(217,95,95,0.3)', padding: 14, marginBottom: 16 },
-  warnTxt:     { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.red, marginBottom: 6 },
-  warnItem:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.red, opacity: 0.8, marginTop: 2 },
+  stockBanner:     { backgroundColor: 'rgba(217,95,95,0.06)', borderBottomWidth: 1, borderColor: 'rgba(217,95,95,0.25)', padding: 10, paddingHorizontal: 16, marginBottom: 16 },
+  stockBannerOpen: { backgroundColor: 'rgba(217,95,95,0.09)' },
+  stockBannerRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  stockBannerTxt:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.red },
+  stockBannerChevron: { fontSize: 10, color: colors.red, opacity: 0.7 },
+  stockBannerItem: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.red, opacity: 0.8, marginTop: 4 },
+  stockBannerLink: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.red, marginTop: 8, textDecorationLine: 'underline' },
+  shiftSep:    { height: 1, backgroundColor: colors.border, marginVertical: 16 },
   shiftCloseBtn: { backgroundColor: 'rgba(217,95,95,0.07)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(217,95,95,0.3)', padding: 16, marginTop: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   shiftCloseTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red, marginBottom: 3 },
   shiftCloseSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
