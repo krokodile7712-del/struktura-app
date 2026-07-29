@@ -1,11 +1,10 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
-  TextInput, Modal, Alert,
+  TextInput, Modal, Alert, Animated,
 } from 'react-native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import EmptyState from '../components/EmptyState';
 import Toggle from '../components/Toggle';
 import InfoTip from '../components/InfoTip';
 import { useFocusEffect } from '@react-navigation/native';
@@ -23,1011 +22,805 @@ import { getDb } from '../db/database';
 import { getHomeRoute } from '../db/session';
 import { colors, fonts } from '../constants/theme';
 
-const fmt = n => (n || 0).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+const fmt = n => (n||0).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
-// ─── Модалка товара ───────────────────────────────────────────────────────────
-function ProductModal({ product, variants, techCards, stock, categories, allModGroups, onClose, onSave, onDelete }) {
+// ─── Правая панель редактирования товара ─────────────────────────────────────
+function ProductEditor({ product, onSave, onDelete, onToggleActive, stock, categories, allModGroups, onClose }) {
+  const isNew = !product?.id;
+
   const [name, setName]           = useState(product?.name || '');
   const [category, setCategory]   = useState(product?.category || (categories[0] || ''));
   const [active, setActive]       = useState(product?.active !== 0);
-  const [vars, setVars]           = useState(
-    variants.length > 0
-      ? variants.map(v => ({ id: v.id, label: v.label || v.size || '', price: String(v.price || ''), ings: techCards[v.id] || [] }))
-      : [{ id: null, label: '', price: String(product?.price || ''), ings: [] }]
-  );
-  const [selGroups, setSelGroups] = useState(() => {
-    try { return product?.id ? (getProductModifierGroups(product.id).map(g => Number(g.id))) : []; } catch { return []; }
+  const [vars, setVars]           = useState(() => {
+    try {
+      const v = isNew ? [] : getProductVariants(product.id);
+      const tc = {};
+      v.forEach(vi => { try { tc[vi.id] = getCostCardForVariant(vi.id); } catch(_) {} });
+      return v.length > 0
+        ? v.map(vi => ({ id: vi.id, label: vi.label || vi.size || '', price: String(vi.price || ''), ings: tc[vi.id] || [] }))
+        : [{ id: null, label: '', price: String(product?.price || ''), ings: [] }];
+    } catch { return [{ id: null, label: '', price: '', ings: [] }]; }
   });
-  const [ingPicker, setIngPicker] = useState(null); // varIndex
+  const [selGroups, setSelGroups] = useState(() => {
+    try { return product?.id ? getProductModifierGroups(product.id).map(g => Number(g.id)) : []; } catch { return []; }
+  });
+  const [ingPicker, setIngPicker] = useState(null);
   const [ingSearch, setIngSearch] = useState('');
+  const [expandedVar, setExpandedVar] = useState(0);
 
-  const filteredStock = stock.filter(s =>
-    !ingSearch.trim() || s.name.toLowerCase().includes(ingSearch.toLowerCase())
-  );
+  const slideAnim = useState(new Animated.Value(20))[0];
+  const fadeAnim  = useState(new Animated.Value(0))[0];
 
-  const addVariant = () => setVars(v => [...v, { id: null, label: '', price: '', ings: [] }]);
-  const removeVariant = (i) => setVars(v => v.filter((_,j) => j !== i));
-  const setVarField = (i, field, val) => setVars(v => v.map((r,j) => j===i ? {...r,[field]:val} : r));
-  const addIngredient = (varIdx, stockItem) => {
-    setVars(v => v.map((r,j) => j===varIdx ? {
-      ...r,
-      ings: [...r.ings, { name: stockItem.name, amount: '', unit: stockItem.unit, price_per_unit: String(stockItem.avg_price || stockItem.last_price || '') }]
-    } : r));
-    setIngPicker(null);
-    setIngSearch('');
-  };
-  const removeIng = (varIdx, ingIdx) => setVars(v => v.map((r,j) => j===varIdx ? { ...r, ings: r.ings.filter((_,k)=>k!==ingIdx) } : r));
-  const setIngField = (varIdx, ingIdx, field, val) => setVars(v => v.map((r,j) => j===varIdx ? {
-    ...r, ings: r.ings.map((ing,k) => k===ingIdx ? {...ing,[field]:val} : ing)
-  } : r));
+  useEffect(() => {
+    slideAnim.setValue(20); fadeAnim.setValue(0);
+    Animated.parallel([
+      Animated.timing(fadeAnim,  { toValue: 1, duration: 280, useNativeDriver: true }),
+      Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 12, useNativeDriver: true }),
+    ]).start();
+  }, [product?.id]);
 
-  const save = () => {
+  const addVariant   = () => setVars(v => [...v, { id: null, label: '', price: '', ings: [] }]);
+  const removeVariant= (i) => setVars(v => v.filter((_,j) => j !== i));
+  const setVarField  = (i, f, val) => setVars(v => v.map((r,j) => j===i ? {...r,[f]:val} : r));
+  const addIng       = (vi, s) => { setVars(v => v.map((r,j) => j===vi ? { ...r, ings: [...r.ings, { name: s.name, amount: '', unit: s.unit, price_per_unit: String(s.avg_price || s.last_price || '') }] } : r)); setIngPicker(null); setIngSearch(''); };
+  const removeIng    = (vi, ii) => setVars(v => v.map((r,j) => j===vi ? { ...r, ings: r.ings.filter((_,k)=>k!==ii) } : r));
+  const setIngField  = (vi, ii, f, val) => setVars(v => v.map((r,j) => j===vi ? { ...r, ings: r.ings.map((ing,k) => k===ii ? {...ing,[f]:val} : ing) } : r));
+
+  const handleSave = () => {
     if (!name.trim()) { Alert.alert('Введите название товара'); return; }
     onSave({ name: name.trim(), category, active, vars, selGroups });
   };
 
-  return (
-    <View style={styles.modalBox}>
-      {/* Заголовок */}
-      <View style={styles.modalHeader}>
-        <Text style={styles.modalTitle}>{product?.id ? 'Редактировать' : 'Новый товар'}</Text>
-        <Pressable onPress={onClose} hitSlop={14} style={styles.closeBtn}>
-          <Text style={styles.closeTxt}>✕</Text>
-        </Pressable>
-      </View>
+  const filteredStock = stock.filter(s => !ingSearch.trim() || s.name.toLowerCase().includes(ingSearch.toLowerCase()));
 
-      <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 12 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+  const totalCost = (v) => v.ings.reduce((s, ing) => s + (parseFloat(ing.amount)||0) * (parseFloat(ing.price_per_unit)||0), 0);
+  const margin    = (v) => { const c = totalCost(v); const p = parseFloat(v.price)||0; return p > 0 && c > 0 ? Math.round((1 - c/p)*100) : null; };
+
+  return (
+    <Animated.View style={[{ flex: 1 }, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+      <ScrollView contentContainerStyle={styles.editorContent} keyboardShouldPersistTaps="handled">
+
+        {/* Шапка */}
+        <View style={styles.editorHeader}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.editorTitle}>{isNew ? 'Новый товар' : name || 'Товар'}</Text>
+            {!isNew && <Text style={styles.editorSub}>{category}</Text>}
+          </View>
+          {!isNew && (
+            <View style={styles.activeToggleRow}>
+              <Text style={styles.activeLabel}>{active ? 'Активен' : 'Неактивен'}</Text>
+              <Toggle value={active} onValueChange={setActive} size="sm" />
+            </View>
+          )}
+        </View>
+
+        <View style={styles.editorDivider} />
 
         {/* Название */}
-        <Text style={styles.fieldLabel}>Название</Text>
-        <TextInput color={colors.text} style={styles.input} value={name} onChangeText={setName} placeholder="Название товара" placeholderTextColor={colors.muted} />
+        <Text style={styles.fieldLabel}>Название товара <Text style={{ color: colors.orange }}>*</Text></Text>
+        <TextInput
+          style={styles.input}
+          color={colors.text}
+          value={name}
+          onChangeText={setName}
+          placeholder="Латте, Круассан, Услуга..."
+          placeholderTextColor={colors.muted}
+          autoFocus={isNew}
+        />
 
         {/* Категория */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, marginBottom: 8 }}>
-          <Text style={[styles.fieldLabel, { marginTop: 0, marginBottom: 0 }]}>Категория</Text>
-          <InfoTip title="Категория" text="Категория помогает группировать товары в списке и в кассе. Например: Напитки, Услуги, Еда. Клиент её не видит — это только для вас." />
+        <View style={styles.labelRow}>
+          <Text style={styles.fieldLabel}>Категория</Text>
+          <InfoTip title="Категория" text="Группирует товары в списке и в кассе. Клиент её не видит." />
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
           {categories.map(cat => (
-            <Pressable key={cat}
-              style={[styles.catChip, category === cat && styles.catChipActive]}
-              onPress={() => setCategory(cat)}>
-              <Text style={[styles.catChipTxt, category === cat && styles.catChipTxtActive]}>{cat}</Text>
+            <Pressable key={cat} style={[styles.chip, category === cat && styles.chipActive]} onPress={() => setCategory(cat)}>
+              <Text style={[styles.chipTxt, category === cat && styles.chipTxtActive]}>{cat}</Text>
             </Pressable>
           ))}
         </ScrollView>
 
         {/* Варианты и цены */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16, marginBottom: 8 }}>
+        <View style={styles.labelRow}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-            <Text style={[styles.fieldLabel, { marginTop: 0, marginBottom: 0 }]}>
-              {vars.length > 1 ? 'Размеры / Виды' : 'Цена продажи'}
-            </Text>
-            <InfoTip title="Размеры и виды" text="Если товар продаётся в одном варианте — просто введите цену. Если есть размеры (S/M/L) или виды (сырник с джемом / без) — нажмите «Добавить размер»." />
+            <Text style={styles.fieldLabel}>{vars.length > 1 ? 'Размеры / Виды' : 'Цена продажи'}</Text>
+            <InfoTip title="Размеры" text="Один вариант — просто введите цену. Несколько — добавьте S/M/L или виды." />
           </View>
-          <Pressable onPress={addVariant} style={styles.addVarBtn}>
-            <Text style={styles.addVarTxt}>+ Добавить размер</Text>
+          <Pressable style={styles.addVarBtn} onPress={addVariant}>
+            <Text style={styles.addVarTxt}>+ Размер</Text>
           </Pressable>
         </View>
 
-        {vars.map((v, vi) => (
-          <View key={vi} style={[styles.varBlock, vi > 0 && { marginTop: 12 }]}>
-            <View style={styles.varRow}>
-              {vars.length > 1 && (
-                <TextInput color={colors.text} style={[styles.input, { flex: 1, marginRight: 8 }]}
-                  value={v.label} onChangeText={val => setVarField(vi, 'label', val)}
-                  placeholder="Название варианта (S, L…)" placeholderTextColor={colors.muted} />
-              )}
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <TextInput color={colors.text} style={[styles.input, { width: 90, textAlign: 'center' }]}
-                  keyboardType="numeric" value={v.price} onChangeText={val => setVarField(vi, 'price', val)}
-                  placeholder="0" placeholderTextColor={colors.muted} />
-                <Text style={{ color: colors.muted, fontFamily: fonts.familySemibold }}>₽</Text>
+        {vars.map((v, vi) => {
+          const cost   = totalCost(v);
+          const mrg    = margin(v);
+          const isOpen = expandedVar === vi;
+          return (
+            <View key={vi} style={styles.varCard}>
+              {/* Строка варианта */}
+              <View style={styles.varRow}>
                 {vars.length > 1 && (
-                  <Pressable onPress={() => removeVariant(vi)} hitSlop={10}>
-                    <Text style={{ color: colors.muted, fontSize: 18 }}>✕</Text>
-                  </Pressable>
+                  <TextInput style={[styles.input, { flex: 1 }]} color={colors.text}
+                    value={v.label} onChangeText={val => setVarField(vi, 'label', val)}
+                    placeholder="S, M, L..." placeholderTextColor={colors.muted} />
                 )}
-              </View>
-            </View>
-            {/* Себестоимость варианта */}
-            {(() => {
-              const cost = v.ings.reduce((s, ing) =>
-                s + (parseFloat(ing.amount) || 0) * (parseFloat(ing.price_per_unit) || 0), 0);
-              const price = parseFloat(v.price) || 0;
-              const margin = price > 0 && cost > 0 ? Math.round((1 - cost / price) * 100) : null;
-              if (cost <= 0) return null;
-              return (
-                <View style={styles.costRow}>
-                  <Text style={styles.costLabel}>Себестоимость</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Text style={styles.costValue}>{cost.toFixed(2)} ₽</Text>
-                    {margin !== null && (
-                      <View style={[styles.marginBadge, { backgroundColor: margin >= 50 ? 'rgba(240,160,80,0.1)' : margin >= 30 ? 'rgba(122,158,82,0.12)' : 'rgba(160,16,32,0.1)' }]}>
-                        <Text style={[styles.marginText, { color: margin >= 50 ? colors.orange : margin >= 30 ? '#7a9e52' : colors.red }]}>
-                          {margin}% маржа
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-              );
-            })()}
-
-            {/* Техкарта варианта */}
-            <View style={styles.techBlock}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                <Text style={styles.techTitle}>Что списывается со склада{v.ings.length > 0 ? ` (${v.ings.length})` : ''}</Text>
-                <InfoTip title="Списание со склада" text="При каждой продаже этого товара указанные позиции автоматически спишутся со склада. Например: кофе 18г, молоко 150мл. Цена позиций подтягивается из последней закупки." />
-                {v.ings.length > 0 && <Text style={[styles.techTitle, { color: 'rgba(240,160,80,0.5)', fontSize: 10, marginLeft: 'auto' }]}>цена из закупок</Text>}
-              </View>
-              {v.ings.map((ing, ii) => (
-                <View key={ii} style={styles.ingRow}>
-                  <Text style={styles.ingName} numberOfLines={1}>{ing.name}</Text>
-                  <TextInput color={colors.text} style={styles.ingInput}
-                    keyboardType="numeric" value={ing.amount}
-                    onChangeText={val => setIngField(vi, ii, 'amount', val)}
+                <View style={styles.priceRow}>
+                  <TextInput style={[styles.input, { width: 90, textAlign: 'center' }]} color={colors.text}
+                    keyboardType="numeric" value={v.price} onChangeText={val => setVarField(vi, 'price', val)}
                     placeholder="0" placeholderTextColor={colors.muted} />
-                  <Text style={styles.ingUnit}>{ing.unit}</Text>
-                  <TextInput color={colors.text} style={[styles.ingInput, { width: 60 }]}
-                    keyboardType="numeric" value={ing.price_per_unit}
-                    onChangeText={val => setIngField(vi, ii, 'price_per_unit', val)}
-                    placeholder={ing.price_per_unit ? ing.price_per_unit : 'авто'} placeholderTextColor={colors.muted} />
-                  <Text style={styles.ingUnit}>₽</Text>
-                  <Pressable onPress={() => removeIng(vi, ii)} hitSlop={10}>
-                    <Text style={{ color: colors.muted, fontSize: 16 }}>✕</Text>
-                  </Pressable>
+                  <Text style={styles.currencyTxt}>₽</Text>
+                  {mrg !== null && (
+                    <View style={[styles.marginBadge, { backgroundColor: mrg >= 50 ? 'rgba(123,175,142,0.12)' : mrg >= 30 ? 'rgba(123,175,142,0.08)' : 'rgba(217,95,95,0.1)' }]}>
+                      <Text style={[styles.marginTxt, { color: mrg >= 30 ? colors.green : colors.red }]}>{mrg}%</Text>
+                    </View>
+                  )}
+                  {vars.length > 1 && (
+                    <Pressable onPress={() => removeVariant(vi)} hitSlop={10}>
+                      <Text style={{ color: colors.muted, fontSize: 18 }}>✕</Text>
+                    </Pressable>
+                  )}
                 </View>
-              ))}
-              <Pressable style={styles.addIngBtn} onPress={() => setIngPicker(vi)}>
-                <Text style={styles.addIngTxt}>+ Добавить из склада</Text>
+              </View>
+
+              {/* Техкарта */}
+              <Pressable style={styles.techToggle} onPress={() => setExpandedVar(isOpen ? -1 : vi)}>
+                <Text style={styles.techToggleTxt}>
+                  Техкарта{v.ings.length > 0 ? ` · ${v.ings.length} поз. · ${cost.toFixed(2)} ₽` : ' · не задана'}
+                </Text>
+                <Text style={[styles.chevron, isOpen && styles.chevronOpen]}>›</Text>
               </Pressable>
-              {v.ings.length === 0 && (
-                <Text style={styles.ingHint}>Не обязательно — нужно только для автосписания и расчёта маржи</Text>
+
+              {isOpen && (
+                <View style={styles.techBody}>
+                  {v.ings.map((ing, ii) => (
+                    <View key={ii} style={styles.ingRow}>
+                      <Text style={styles.ingName} numberOfLines={1}>{ing.name}</Text>
+                      <TextInput style={styles.ingInput} color={colors.text}
+                        keyboardType="numeric" value={ing.amount}
+                        onChangeText={val => setIngField(vi, ii, 'amount', val)}
+                        placeholder="0" placeholderTextColor={colors.muted} />
+                      <Text style={styles.ingUnit}>{ing.unit}</Text>
+                      <TextInput style={[styles.ingInput, { width: 58 }]} color={colors.text}
+                        keyboardType="numeric" value={ing.price_per_unit}
+                        onChangeText={val => setIngField(vi, ii, 'price_per_unit', val)}
+                        placeholder="авто" placeholderTextColor={colors.muted} />
+                      <Text style={styles.ingUnit}>₽</Text>
+                      <Pressable onPress={() => removeIng(vi, ii)} hitSlop={10}>
+                        <Text style={{ color: colors.muted, fontSize: 16 }}>✕</Text>
+                      </Pressable>
+                    </View>
+                  ))}
+                  <Pressable style={styles.addIngBtn} onPress={() => setIngPicker(vi)}>
+                    <Text style={styles.addIngTxt}>+ Добавить из склада</Text>
+                  </Pressable>
+                  {v.ings.length === 0 && (
+                    <Text style={styles.ingHint}>Не обязательно — нужно для автосписания и расчёта маржи</Text>
+                  )}
+                </View>
               )}
             </View>
-          </View>
-        ))}
+          );
+        })}
 
         {/* Модификаторы */}
         {allModGroups && allModGroups.length > 0 && (
           <>
-            <Text style={[styles.fieldLabel, { marginTop: 20, marginBottom: 4 }]}>Предлагать при заказе</Text>
-            <Text style={[styles.productSub, { marginBottom: 10, paddingHorizontal: 2 }]}>
-              Включите что кассир увидит при добавлении этого товара в заказ
-            </Text>
-            <View style={styles.groupCard}>
+            <View style={styles.labelRow}>
+              <Text style={styles.fieldLabel}>Предлагать при заказе</Text>
+              <InfoTip title="Модификаторы" text="Кассир увидит эти варианты при добавлении товара в заказ." />
+            </View>
+            <View style={styles.modsCard}>
               {allModGroups.map((g, idx) => {
                 const on = selGroups.includes(Number(g.id));
                 return (
                   <Pressable key={g.id}
-                    style={({ pressed }) => [styles.productRow, idx < allModGroups.length-1 && styles.rowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
-                    onPress={() => setSelGroups(prev =>
-                      prev.includes(Number(g.id)) ? prev.filter(id => id !== Number(g.id)) : [...prev, Number(g.id)]
-                    )}>
+                    style={[styles.modRow, idx < allModGroups.length-1 && styles.modRowDiv]}
+                    onPress={() => setSelGroups(s => on ? s.filter(x=>x!==Number(g.id)) : [...s, Number(g.id)])}>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.productName, on && { color: colors.orange }]}>{g.name}</Text>
-                      <Text style={styles.productSub}>
-                        {g.options?.map(o => `${o.name}${o.price_delta > 0 ? ` +${o.price_delta}₽` : ''}`).join(' · ')}
-                      </Text>
+                      <Text style={styles.modName}>{g.name}</Text>
+                      <Text style={styles.modSub}>{g.mode === 'replace' ? 'Замена' : 'Добавление'}</Text>
                     </View>
-                    <View style={[styles.checkbox, on && styles.checkboxOn]}>
-                      {on && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
+                    <View style={[styles.modCheck, on && styles.modCheckActive]}>
+                      {on && <Text style={styles.modCheckMark}>✓</Text>}
                     </View>
                   </Pressable>
                 );
               })}
             </View>
-            {selGroups.length > 0 && (
-              <Text style={[styles.productSub, { marginTop: 6, paddingHorizontal: 2, color: colors.orange }]}>
-                ✓ При заказе кассир увидит выбор: {allModGroups.filter(g => selGroups.includes(Number(g.id))).map(g => g.name).join(', ')}
-              </Text>
-            )}
           </>
         )}
 
-        {/* Активен */}
-        <View style={styles.activeRow}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Text style={styles.activeLabel}>Продаётся сейчас</Text>
-          <InfoTip title="Продаётся сейчас" text="Если выключить — товар пропадёт из кассы но не удалится. Удобно для сезонных позиций или когда закончился ингредиент." />
-        </View>
-          <Toggle value={active} onValueChange={setActive} size="sm" />
-        </View>
-
         {/* Кнопки */}
-        <Pressable style={({ pressed }) => [styles.confirmBtn, { marginTop: 20 }, pressed && { opacity: 0.88 }]} onPress={save}>
-          <Text style={styles.confirmBtnTxt}>Сохранить</Text>
+        <Pressable style={styles.saveBtn} onPress={handleSave}>
+          <Text style={styles.saveBtnTxt}>{isNew ? 'Создать товар' : 'Сохранить изменения'}</Text>
         </Pressable>
 
-        {product?.id && (
-          <Pressable style={styles.deleteBtn} onPress={() => onDelete(product.id)}>
-            <Text style={styles.deleteBtnTxt}>Убрать из меню навсегда</Text>
-          </Pressable>
+        {!isNew && (
+          <View style={styles.dangerRow}>
+            <Pressable style={styles.deactivateBtn} onPress={() => { onToggleActive(product); }}>
+              <Text style={styles.deactivateTxt}>{active ? 'Деактивировать' : 'Активировать'}</Text>
+            </Pressable>
+            <Pressable style={styles.deleteBtn} onPress={() => {
+              Alert.alert('Удалить товар?', `«${product.name}» будет удалён.`, [
+                { text: 'Отмена' },
+                { text: 'Удалить', style: 'destructive', onPress: () => onDelete(product.id) }
+              ]);
+            }}>
+              <Text style={styles.deleteTxt}>Удалить</Text>
+            </Pressable>
+          </View>
         )}
+
       </ScrollView>
 
       {/* Пикер ингредиентов */}
-      {ingPicker !== null && (
-        <Modal visible transparent animationType="fade" onRequestClose={() => setIngPicker(null)}>
-          <View style={styles.pickerRoot}>
-            <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setIngPicker(null)} />
-            <View style={styles.pickerBox}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Выбрать ингредиент</Text>
-                <Pressable onPress={() => setIngPicker(null)} hitSlop={14} style={styles.closeBtn}>
-                  <Text style={styles.closeTxt}>✕</Text>
+      <Modal visible={ingPicker !== null} transparent animationType="fade" onRequestClose={() => setIngPicker(null)}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setIngPicker(null)} />
+          <View style={styles.ingPickerBox}>
+            <Text style={styles.ingPickerTitle}>Выбрать из склада</Text>
+            <TextInput style={styles.ingPickerSearch} color={colors.text}
+              value={ingSearch} onChangeText={setIngSearch}
+              placeholder="Поиск..." placeholderTextColor={colors.muted} autoFocus />
+            <ScrollView style={{ flex: 1 }}>
+              {filteredStock.map(s => (
+                <Pressable key={s.id} style={styles.ingPickerRow} onPress={() => addIng(ingPicker, s)}>
+                  <Text style={styles.ingPickerName}>{s.name}</Text>
+                  <Text style={styles.ingPickerUnit}>{s.unit}</Text>
                 </Pressable>
-              </View>
-              <View style={{ padding: 12 }}>
-                <TextInput color={colors.text} style={styles.input} value={ingSearch} onChangeText={setIngSearch}
-                  placeholder="Поиск..." placeholderTextColor={colors.muted} autoFocus />
-              </View>
-              <ScrollView keyboardShouldPersistTaps="handled">
-                {filteredStock.map((s, idx) => (
-                  <Pressable key={s.id}
-                    style={({ pressed }) => [styles.stockRow, idx < filteredStock.length-1 && styles.rowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
-                    onPress={() => addIngredient(ingPicker, s)}>
-                    <Text style={[styles.ingName, { flex: 1 }]}>{s.name}</Text>
-                    <Text style={styles.ingUnit}>{s.остаток} {s.unit}</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-              <Pressable style={[styles.confirmBtn, { margin: 12 }]} onPress={() => setIngPicker(null)}>
-                <Text style={styles.confirmBtnTxt}>Готово</Text>
-              </Pressable>
-            </View>
+              ))}
+              {filteredStock.length === 0 && (
+                <Text style={styles.ingPickerEmpty}>Ничего не найдено</Text>
+              )}
+            </ScrollView>
           </View>
-        </Modal>
-      )}
-    </View>
+        </View>
+      </Modal>
+    </Animated.View>
   );
 }
 
-// ─── Главный экран ────────────────────────────────────────────────────────────
+// ─── Главный экран ─────────────────────────────────────────────────────────────
 export default function ProductsScreen({ navigation }) {
-  const [products, setProducts]   = useState([]);
-  const [stock, setStock]         = useState([]);
+  const [tab, setTab]               = useState('products'); // products | modifiers
+  const [products, setProducts]     = useState([]);
+  const [stock, setStock]           = useState([]);
   const [categories, setCategories] = useState([]);
-  const [search, setSearch]       = useState('');
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [tab, setTab]             = useState('products');
-  const [catOrderModal, setCatOrderModal] = useState(false);
-  const [catOrder, setCatOrder]     = useState([]); // 'products' | 'modifiers'
-  const [modGroups, setModGroups] = useState([]);
-  const [groupModal, setGroupModal] = useState(null); // {id,name,selectionType,options}
-  const [stockPicker, setStockPicker] = useState(null); // { optIdx }
-  const [prodSearch, setProdSearch] = useState('');
-  const [openProdCats, setOpenProdCats] = useState({});
-  const [stockPickerSearch, setStockPickerSearch] = useState('');
-  const [openCats, setOpenCats]   = useState({});
-  const [modal, setModal]         = useState(null); // { product, variants, techCards }
+  const [catOrder, setCatOrder]     = useState([]);
+  const [modGroups, setModGroups]   = useState([]);
+  const [search, setSearch]         = useState('');
+  const [selected, setSelected]     = useState(null);      // {id, name, ...} | 'new'
+  const [expandedCats, setExpandedCats] = useState({});
+  const [orderModal, setOrderModal] = useState(false);
+  const [orderDraft, setOrderDraft] = useState([]);
+  const [groupModal, setGroupModal] = useState(null);      // null | group obj
 
   const load = useCallback(() => {
     try {
-      deleteOldCostCards();
-      cleanOrphanCostIngredients();
-      setProducts(getAllProductsAdmin());
-      setModGroups(getAllModifierGroups());
-      setCatOrder(getCategoryOrder());
+      const prods = getAllProductsAdmin();
+      setProducts(prods);
       setStock(getAllStock());
-      const cats = getCategories ? getCategories() : [];
-      setCategories(cats.length ? cats : ['Кофе', 'Допы', 'Прочее']);
-    } catch (e) { console.error(e); }
+      const cats = getCategories();
+      setCategories(cats);
+      const ord = getCategoryOrder();
+      setCatOrder(ord.length > 0 ? ord : cats);
+      setModGroups(getAllModifierGroups());
+      // Раскрываем все категории по умолчанию
+      const exp = {};
+      cats.forEach(c => { exp[c] = true; });
+      setExpandedCats(exp);
+    } catch(e) { console.error(e); }
   }, []);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const openProduct = (product) => {
-    const variants = product?.id ? (getProductVariants(product.id) || []) : [];
-    const techCards = {};
-    for (const v of variants) {
-      const card = getCostCardForVariant(v.id);
-      if (card) techCards[v.id] = card.ingredients.map(i => ({
-        ...i, amount: String(i.amount), price_per_unit: String(i.price_per_unit || '')
-      }));
-    }
-    // Всегда берём свежие модификаторы из БД
-    const freshModGroups = getAllModifierGroups();
-    setModGroups(freshModGroups);
-    setModal({ product, variants, techCards, freshModGroups });
-  };
-
-  const handleSave = ({ name, category, active, vars, selGroups }) => {
+  const handleSave = (data) => {
     try {
-      const db = getDb();
-      let productId = modal.product?.id;
-
-      if (!productId) {
-        const res = db.runSync(
-          `INSERT INTO products (name, category, price, active) VALUES (?, ?, ?, 1)`,
-          [name, category, parseFloat(vars[0]?.price) || 0]
-        );
-        productId = Number(res.lastInsertRowId);
+      let pid = selected?.id;
+      if (!pid) {
+        pid = insertProduct({ name: data.name, category: data.category, price: parseFloat(data.vars[0]?.price)||0, active: 1 });
       } else {
-        db.runSync(`UPDATE products SET name=?, category=?, active=? WHERE id=?`,
-          [name, category, active ? 1 : 0, productId]);
+        const db = getDb();
+        db.runSync(`UPDATE products SET name=?, category=?, active=? WHERE id=?`, [data.name, data.category, data.active ? 1 : 0, pid]);
       }
-
-      const savedVariants = upsertProductVariants(Number(productId), vars.map(v => ({
-        id: v.id ? Number(v.id) : null,
-        label: String(v.label || ''),
-        price: String(v.price || '0'),
-      })));
-
-      const prices = vars.map(v => parseFloat(v.price) || 0).filter(p => p > 0);
-      if (prices.length > 0) {
-        db.runSync(`UPDATE products SET price=? WHERE id=?`, [Math.min(...prices), productId]);
-      }
-
-      savedVariants.forEach((sv, i) => {
-        if (!sv?.id) return;
-        const ings = (vars[i]?.ings || [])
-          .filter(r => r.name && parseFloat(r.amount) > 0)
-          .map(r => ({ name: r.name, amount: parseFloat(r.amount), unit: r.unit, pricePerUnit: parseFloat(r.price_per_unit) || 0, factor: 1 }));
-        saveCostCardForVariant(Number(sv.id), ings);
+      upsertProductVariants(pid, data.vars.map(v => ({ id: v.id, label: v.label, size: v.label, price: parseFloat(v.price)||0 })));
+      // Техкарты
+      const newVars = getProductVariants(pid);
+      newVars.forEach((v, i) => {
+        const ings = data.vars[i]?.ings || [];
+        saveCostCardForVariant(v.id, ings.map(ing => ({ ...ing, amount: parseFloat(ing.amount)||0, price_per_unit: parseFloat(ing.price_per_unit)||0 })));
       });
-
-      // Сохраняем привязку модификаторов
-      if (selGroups !== undefined) {
-        try { setProductModifierGroups(productId, selGroups); } catch(_) {}
-      }
+      // Модификаторы
+      setProductModifierGroups(pid, data.selGroups);
       load();
-      setModal(null);
-    } catch (e) { console.error(e); Alert.alert('Ошибка сохранения', String(e.message || e)); }
+      setSelected(null);
+    } catch(e) { Alert.alert('Ошибка', e.message); }
   };
 
   const handleDelete = (id) => {
-    Alert.alert('Удалить товар?', 'Техкарты и варианты будут удалены. Продажи сохранятся.', [
-      { text: 'Отмена', style: 'cancel' },
-      { text: 'Удалить', style: 'destructive', onPress: () => {
-        try { deleteProduct(id); load(); setModal(null); } catch (e) { console.error(e); }
-      }},
-    ]);
+    try {
+      cleanOrphanCostIngredients(id);
+      deleteOldCostCards(id);
+      deleteProduct(id);
+      load();
+      setSelected(null);
+    } catch(e) { Alert.alert('Ошибка', e.message); }
   };
 
-  // Фильтрация и группировка
-  const filtered = products.filter(p =>
-    !search.trim() || p.name.toLowerCase().includes(search.toLowerCase())
-  );
-  const rawCats = [...new Set(filtered.map(p => p.category || 'Без категории'))];
-  const cats = catOrder.length > 0
-    ? [...catOrder.filter(c => rawCats.includes(c)), ...rawCats.filter(c => !catOrder.includes(c))]
-    : rawCats.sort();
-  const allCats = [...new Set(products.map(p => p.category || 'Без категории'))].sort();
+  const handleToggleActive = (p) => {
+    try { setProductActive(p.id, !p.active); load(); setSelected(null); } catch(e) {}
+  };
+
+  // Группируем по категориям
+  const filtered = search.trim()
+    ? products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
+    : products;
+
+  const catGroups = (catOrder.length > 0 ? catOrder : categories).map(cat => ({
+    cat,
+    items: filtered.filter(p => p.category === cat),
+  })).filter(g => g.items.length > 0);
+
+  // Модификаторы - сохранение
+  const saveGroup = (data) => {
+    try {
+      if (data.id) { updateModifierGroup(data.id, data); }
+      else { insertModifierGroup(data); }
+      load(); setGroupModal(null);
+    } catch(e) { Alert.alert('Ошибка', e.message); }
+  };
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={styles.root}>
       <TopBar
         title="Товары"
         onBack={() => navigation.navigate(getHomeRoute())}
         rightElement={
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <Pressable style={styles.addBtn} onPress={() => setCatOrderModal(true)} hitSlop={8}>
-              <Text style={[styles.addBtnTxt, { fontSize: 16 }]}>⇅</Text>
-            </Pressable>
-            <Pressable style={styles.addBtn} onPress={() => openProduct(null)} hitSlop={8}>
-              <Text style={styles.addBtnTxt}>＋</Text>
-            </Pressable>
+            {tab === 'products' && (
+              <>
+                <Pressable style={styles.headerBtn} onPress={() => { setOrderDraft([...catOrder]); setOrderModal(true); }}>
+                  <Text style={styles.headerBtnTxt}>⇅</Text>
+                </Pressable>
+                <Pressable style={styles.addBtn} onPress={() => setSelected('new')}>
+                  <Text style={styles.addBtnTxt}>+ Товар</Text>
+                </Pressable>
+              </>
+            )}
+            {tab === 'modifiers' && (
+              <Pressable style={styles.addBtn} onPress={() => setGroupModal({ name: '', mode: 'add' })}>
+                <Text style={styles.addBtnTxt}>+ Группа</Text>
+              </Pressable>
+            )}
           </View>
         }
       />
 
-      {/* Вкладки */}
-      <View style={styles.tabBar}>
-        <Pressable style={[styles.tabBtn, tab === 'products' && styles.tabBtnActive]} onPress={() => setTab('products')}>
-          <Text style={[styles.tabTxt, tab === 'products' && styles.tabTxtActive]}>Товары</Text>
-        </Pressable>
-        <Pressable style={[styles.tabBtn, tab === 'modifiers' && styles.tabBtnActive]} onPress={() => setTab('modifiers')}>
-          <Text style={[styles.tabTxt, tab === 'modifiers' && styles.tabTxtActive]}>Модификаторы</Text>
-        </Pressable>
-      </View>
+      <View style={styles.layout}>
 
-      {/* Поиск */}
-      {tab === 'products' && <View style={styles.searchBar}>
-        {searchOpen ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-            <TextInput color={colors.text} style={[styles.searchInput, { flex: 1 }]}
-              value={search} onChangeText={setSearch}
-              placeholder="Поиск товара..." placeholderTextColor={colors.muted} autoFocus />
-            <Pressable onPress={() => { setSearchOpen(false); setSearch(''); }} hitSlop={10} style={styles.badgeBtn}>
-              <Text style={styles.badgeTxt}>✕</Text>
-            </Pressable>
+        {/* ── Левая панель ── */}
+        <View style={styles.left}>
+          {/* Вкладки */}
+          <View style={styles.tabBar}>
+            {[{ key: 'products', label: 'Товары' }, { key: 'modifiers', label: 'Модификаторы' }].map(t => (
+              <Pressable key={t.key} style={[styles.tabBtn, tab === t.key && styles.tabBtnActive]} onPress={() => { setTab(t.key); setSelected(null); }}>
+                <Text style={[styles.tabTxt, tab === t.key && styles.tabTxtActive]}>{t.label}</Text>
+              </Pressable>
+            ))}
           </View>
-        ) : (
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flex: 1 }}>
-            <Text style={styles.searchPlaceholder}>{products.length} позиций</Text>
-            <Pressable onPress={() => setSearchOpen(true)} hitSlop={10} style={styles.badgeBtn}>
-              <Text style={styles.badgeTxt}>🔍</Text>
-            </Pressable>
-          </View>
-        )}
-      </View>}
 
-      {tab === 'modifiers' && (
-        <View style={styles.searchBar}>
-          <Pressable style={styles.addBtn} onPress={() => { setGroupModal({ id: null, name: '', selectionType: 'single', selProducts: [], options: [] }); setProdSearch(''); setOpenProdCats({}); }} >
-            <Text style={styles.addBtnTxt}>＋</Text>
-          </Pressable>
-          <Text style={[styles.searchPlaceholder, { flex: 1, marginLeft: 10 }]}>Группы модификаторов</Text>
-        </View>
-      )}
-
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
-        {tab === 'modifiers' && (
-          <>
-            {modGroups.length === 0 ? (
-              <EmptyState icon="🧂" title="Нет групп" text="Нажмите ＋ чтобы создать первую группу модификаторов — например Сироп или Альт. молоко." />
-            ) : (
-              <View style={styles.groupCard}>
-                {modGroups.map((g, idx) => (
-                  <Pressable key={g.id}
-                    style={({ pressed }) => [styles.productRow, idx < modGroups.length-1 && styles.rowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
-                    onPress={() => {
-                    // Загружаем к каким товарам привязана группа
-                    const linkedProductIds = (() => {
-                      try {
-                        const db = getDb();
-                        return db.getAllSync('SELECT product_id FROM product_modifier_groups WHERE group_id = ?', [g.id]).map(r => Number(r.product_id));
-                      } catch(_) { return []; }
-                    })();
-                    setGroupModal({ id: g.id, name: g.name, selectionType: g.selection_type || 'single', selProducts: linkedProductIds, options: (g.options || []).map(o => ({ ...o, price_delta: String(o.price_delta || ''), deductAmount: String(o.deduct_amount || ''), ingrToDeduct: o.ingr_to_deduct || '', ingrToReplace: o.ingr_to_replace || '', mode: o.ingr_to_replace ? 'replace' : 'add' })) });
-                  }}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.productName}>{g.name}</Text>
-                      <Text style={styles.productSub}>
-                        {g.selection_type === 'multiple' ? 'Выбор нескольких' : 'Выбор одного'}
-                        {g.options?.length > 0 ? ` · ${g.options.map(o => `${o.name}${o.price_delta > 0 ? ` +${o.price_delta}₽` : ''}`).join(', ')}` : ''}
-                      </Text>
-                    </View>
-                    <Text style={styles.productArrow}>›</Text>
-                  </Pressable>
-                ))}
+          {tab === 'products' && (
+            <>
+              {/* Поиск */}
+              <View style={styles.searchWrap}>
+                <TextInput style={styles.searchInput} color={colors.text}
+                  value={search} onChangeText={setSearch}
+                  placeholder="Поиск товара..." placeholderTextColor={colors.muted} />
               </View>
-            )}
-          </>
-        )}
 
-        {tab === 'products' && (products.length === 0 ? (
-          <EmptyState icon="🛍" title="Товаров нет" text="Нажмите ＋ чтобы добавить первый товар. Укажите название, цену — и можно принимать заказы. Техкарту (для учёта склада) можно добавить позже." />
-        ) : filtered.length === 0 ? (
-          <EmptyState icon="🔍" title="Ничего не найдено" text={`Нет товаров по запросу «${search}»`} />
-        ) : (
-          <View style={styles.allCatsCard}>
-          {cats.map((cat, catIdx) => {
-            const catProducts = filtered.filter(p => (p.category || 'Без категории') === cat);
-            const isOpen = openCats[cat] === true;
-            return (
-              <View key={cat}>
-                {catIdx > 0 && <View style={styles.catDivider} />}
-                <Pressable
-                  style={({ pressed }) => [styles.catHead, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
-                  onPress={() => setOpenCats(p => ({ ...p, [cat]: !isOpen }))}
-                >
-                  <Text style={styles.catTitle}>{cat}</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Text style={styles.catCount}>{catProducts.length} поз.</Text>
-                    <Text style={[styles.catChevron, isOpen && styles.catChevronOpen]}>›</Text>
+              {/* Список по категориям */}
+              <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+                {catGroups.length === 0 ? (
+                  <View style={styles.emptyWrap}>
+                    <Text style={styles.emptyTxt}>{search ? 'Ничего не найдено' : 'Нет товаров'}</Text>
+                    <Text style={styles.emptyHint}>Нажмите «+ Товар» чтобы добавить</Text>
                   </View>
-                </Pressable>
-
-                {isOpen && (
-                  <View style={styles.catInner}>
-                    {catProducts.map((p, idx) => {
-                      const hasVariants = p.variant_count > 1;
-                      const displayPrice = p.min_price || p.price;
-                      const priceLabel = hasVariants ? `от ${fmt(displayPrice)} ₽` : displayPrice > 0 ? `${fmt(displayPrice)} ₽` : 'цена не задана';
-                      return (
-                        <Pressable key={p.id}
-                          style={({ pressed }) => [
-                            styles.productRow,
-                            idx < catProducts.length - 1 && styles.rowDiv,
-                            pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
-                            !p.active && { opacity: 0.45 },
-                          ]}
-                          onPress={() => openProduct(p)}
-                        >
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.productName}>{p.name}</Text>
-                            <Text style={styles.productSub}>
-                              {p.cost_card_count > 0 ? '🧾 есть техкарта' : '🧾 нет техкарты'}
-                            </Text>
-                          </View>
-                          <View style={{ alignItems: 'flex-end' }}>
-                            <Text style={[styles.productPrice, !p.price && styles.productPriceNone]}>{priceLabel}</Text>
-
-                            {!p.active && <Text style={styles.inactiveBadge}>неакт.</Text>}
-                          </View>
-                          <Text style={styles.productArrow}>›</Text>
+                ) : (
+                  catGroups.map(({ cat, items }) => {
+                    const isOpen = expandedCats[cat] !== false;
+                    return (
+                      <View key={cat}>
+                        <Pressable style={styles.catHeader} onPress={() => setExpandedCats(e => ({ ...e, [cat]: !isOpen }))}>
+                          <Text style={styles.catLabel}>{cat}</Text>
+                          <Text style={styles.catCount}>{items.length}</Text>
+                          <Text style={[styles.catChevron, isOpen && styles.catChevronOpen]}>›</Text>
                         </Pressable>
-                      );
-                    })}
-                  </View>
+                        {isOpen && items.map(p => {
+                          const isActive = selected?.id === p.id;
+                          return (
+                            <Pressable
+                              key={p.id}
+                              style={({ pressed }) => [
+                                styles.productRow,
+                                isActive && styles.productRowActive,
+                                !p.active && { opacity: 0.45 },
+                                pressed && { backgroundColor: 'rgba(245,240,232,0.03)' },
+                              ]}
+                              onPress={() => setSelected(p)}
+                            >
+                              {isActive && <View style={styles.activeBar} />}
+                              <View style={{ flex: 1 }}>
+                                <Text style={[styles.productName, isActive && styles.productNameActive]} numberOfLines={1}>{p.name}</Text>
+                                <Text style={styles.productPrice}>{fmt(p.price)} ₽</Text>
+                              </View>
+                              {!p.active && <Text style={styles.inactiveDot}>●</Text>}
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    );
+                  })
                 )}
-              </View>
-            );
-          })}
-          </View>
-        ))}
-      </ScrollView>
+              </ScrollView>
+            </>
+          )}
+
+          {tab === 'modifiers' && (
+            <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ padding: 12, gap: 10 }}>
+              {modGroups.length === 0 ? (
+                <View style={styles.emptyWrap}>
+                  <Text style={styles.emptyTxt}>Нет групп</Text>
+                  <Text style={styles.emptyHint}>Нажмите «+ Группа» чтобы создать</Text>
+                </View>
+              ) : modGroups.map(g => (
+                <Pressable key={g.id} style={styles.modGroupCard} onPress={() => setGroupModal(g)}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.modGroupName}>{g.name}</Text>
+                    <Text style={styles.modGroupSub}>{g.mode === 'replace' ? 'Замена' : 'Добавление'}</Text>
+                  </View>
+                  <Text style={styles.modGroupArrow}>›</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
+        </View>
+
+        {/* ── Правая панель ── */}
+        <View style={styles.right}>
+          {selected ? (
+            <ProductEditor
+              key={selected === 'new' ? 'new' : selected.id}
+              product={selected === 'new' ? null : selected}
+              onSave={handleSave}
+              onDelete={handleDelete}
+              onToggleActive={handleToggleActive}
+              onClose={() => setSelected(null)}
+              stock={stock}
+              categories={categories}
+              allModGroups={modGroups}
+            />
+          ) : (
+            <View style={styles.emptyRight}>
+              <Text style={styles.emptyRightTxt}>
+                {tab === 'products' ? 'Выберите товар слева или нажмите «+ Товар»' : 'Выберите группу модификаторов'}
+              </Text>
+            </View>
+          )}
+        </View>
+      </View>
 
       <BottomBar navigation={navigation} activeTab="Kassa" />
 
-
       {/* Модалка порядка категорий */}
-      <Modal visible={catOrderModal} transparent animationType="fade" onRequestClose={() => setCatOrderModal(false)}>
-        <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCatOrderModal(false)} />
-          <View style={[styles.modalBox, { width: '40%', maxHeight: '80%' }]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Порядок категорий</Text>
-              <Pressable onPress={() => setCatOrderModal(false)} hitSlop={14} style={styles.closeBtn}>
-                <Text style={styles.closeTxt}>✕</Text>
-              </Pressable>
-            </View>
-            <ScrollView contentContainerStyle={{ padding: 16 }}>
-              <Text style={[styles.productSub, { marginBottom: 12 }]}>
-                Порядок в кассе и в списке товаров
-              </Text>
-              {(() => {
-                const allCats = [...new Set(products.map(p => p.category || 'Без категории'))];
-                const ordered = catOrder.length > 0
-                  ? [...catOrder.filter(c => allCats.includes(c)), ...allCats.filter(c => !catOrder.includes(c))]
-                  : allCats.sort();
-                return (
-                  <View style={styles.groupCard}>
-                    {ordered.map((cat, idx) => (
-                      <View key={cat} style={[styles.productRow, idx < ordered.length-1 && styles.rowDiv]}>
-                        <Text style={[styles.productName, { flex: 1 }]}>{cat}</Text>
-                        <View style={{ flexDirection: 'row', gap: 8 }}>
-                          <Pressable
-                            style={[styles.addVarBtn, idx === 0 && { opacity: 0.3 }]}
-                            disabled={idx === 0}
-                            onPress={() => {
-                              const arr = [...ordered];
-                              [arr[idx-1], arr[idx]] = [arr[idx], arr[idx-1]];
-                              setCatOrder(arr);
-                              saveCategoryOrder(arr);
-                            }}
-                          >
-                            <Text style={styles.addVarTxt}>↑</Text>
-                          </Pressable>
-                          <Pressable
-                            style={[styles.addVarBtn, idx === ordered.length-1 && { opacity: 0.3 }]}
-                            disabled={idx === ordered.length-1}
-                            onPress={() => {
-                              const arr = [...ordered];
-                              [arr[idx], arr[idx+1]] = [arr[idx+1], arr[idx]];
-                              setCatOrder(arr);
-                              saveCategoryOrder(arr);
-                            }}
-                          >
-                            <Text style={styles.addVarTxt}>↓</Text>
-                          </Pressable>
-                        </View>
-                      </View>
-                    ))}
+      <Modal visible={orderModal} transparent animationType="fade" onRequestClose={() => setOrderModal(false)}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setOrderModal(false)} />
+          <View style={styles.orderModalBox}>
+            <Text style={styles.orderModalTitle}>Порядок категорий</Text>
+            <Text style={styles.orderModalHint}>Порядок влияет на отображение в кассе</Text>
+            <ScrollView>
+              {orderDraft.map((cat, idx) => (
+                <View key={cat} style={styles.orderRow}>
+                  <Text style={styles.orderRowTxt}>{cat}</Text>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    {idx > 0 && (
+                      <Pressable style={styles.orderBtn} onPress={() => {
+                        const d = [...orderDraft];
+                        [d[idx-1], d[idx]] = [d[idx], d[idx-1]];
+                        setOrderDraft(d);
+                      }}>
+                        <Text style={styles.orderBtnTxt}>↑</Text>
+                      </Pressable>
+                    )}
+                    {idx < orderDraft.length-1 && (
+                      <Pressable style={styles.orderBtn} onPress={() => {
+                        const d = [...orderDraft];
+                        [d[idx], d[idx+1]] = [d[idx+1], d[idx]];
+                        setOrderDraft(d);
+                      }}>
+                        <Text style={styles.orderBtnTxt}>↓</Text>
+                      </Pressable>
+                    )}
                   </View>
-                );
-              })()}
+                </View>
+              ))}
             </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Пикер позиции склада для модификатора */}
-      <Modal visible={!!stockPicker} transparent animationType="slide" onRequestClose={() => setStockPicker(null)}>
-        <View style={styles.pickerSheet}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setStockPicker(null)} />
-          <View style={styles.pickerBox}>
-            <View style={styles.pickerHandle} />
-            <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle}>Выбрать из склада</Text>
-              <Pressable onPress={() => setStockPicker(null)} hitSlop={12} style={styles.closeBtn}>
-                <Text style={styles.closeTxt}>✕</Text>
-              </Pressable>
-            </View>
-            <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
-              <TextInput color={colors.text} style={styles.searchInput}
-                value={stockPickerSearch} onChangeText={setStockPickerSearch}
-                placeholder="Поиск..." placeholderTextColor={colors.muted} autoFocus />
-            </View>
-            <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 320 }}>
-              <View style={[styles.groupCard, { margin: 16, marginTop: 0 }]}>
-                {stock.filter(s => !stockPickerSearch || s.name.toLowerCase().includes(stockPickerSearch.toLowerCase()))
-                  .map((s, idx, arr) => (
-                  <Pressable key={s.id}
-                    style={({ pressed }) => [styles.productRow, idx < arr.length-1 && styles.rowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.04)' }]}
-                    onPress={() => {
-                      if (stockPicker !== null) {
-                        const { optIdx, field } = stockPicker;
-                        setGroupModal(m => ({ ...m, options: m.options.map((o,i) => i===optIdx
-                          ? field === 'replace'
-                            ? { ...o, ingrToReplace: s.name }
-                            : { ...o, ingrToDeduct: s.name, deductUnit: s.unit }
-                          : o
-                        )}));
-                      }
-                      setStockPicker(null);
-                      setStockPickerSearch('');
-                    }}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.productName}>{s.name}</Text>
-                      <Text style={styles.productSub}>{s['остаток']} {s.unit} на складе</Text>
-                    </View>
-                    <Text style={styles.productArrow}>›</Text>
-                  </Pressable>
-                ))}
-              </View>
-            </ScrollView>
+            <Pressable style={styles.saveBtn} onPress={() => { saveCategoryOrder(orderDraft); setCatOrder(orderDraft); setOrderModal(false); }}>
+              <Text style={styles.saveBtnTxt}>Сохранить порядок</Text>
+            </Pressable>
           </View>
         </View>
       </Modal>
 
       {/* Модалка группы модификаторов */}
-      <Modal visible={!!groupModal} transparent animationType="fade" onRequestClose={() => setGroupModal(null)}>
-        <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setGroupModal(null)} />
-          {groupModal && (
-            <View style={[styles.modalBox, { width: '50%' }]}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>{groupModal.id ? 'Группа модификаторов' : 'Новая группа'}</Text>
-                <Pressable onPress={() => setGroupModal(null)} hitSlop={14} style={styles.closeBtn}>
-                  <Text style={styles.closeTxt}>✕</Text>
-                </Pressable>
-              </View>
-              <ScrollView contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled">
-
-                {/* Название */}
-                <Text style={styles.fieldLabel}>Название группы</Text>
-                <TextInput color={colors.text} style={styles.input}
-                  value={groupModal.name}
-                  onChangeText={v => setGroupModal(m => ({ ...m, name: v }))}
-                  placeholder="Например: Сироп, Альт. молоко, Топпинг"
-                  placeholderTextColor={colors.muted} />
-
-                {/* Тип выбора */}
-                <Text style={styles.fieldLabel}>Тип выбора</Text>
-                <View style={styles.groupCard}>
-                  {[
-                    { key: 'single',   label: 'Один вариант',      sub: 'Клиент выбирает один из списка' },
-                    { key: 'multiple', label: 'Несколько вариантов', sub: 'Можно выбрать несколько сразу' },
-                  ].map((t, idx) => (
-                    <Pressable key={t.key}
-                      style={[styles.productRow, idx === 0 && styles.rowDiv]}
-                      onPress={() => setGroupModal(m => ({ ...m, selectionType: t.key }))}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.productName}>{t.label}</Text>
-                        <Text style={styles.productSub}>{t.sub}</Text>
-                      </View>
-                      <View style={[styles.checkbox, groupModal.selectionType === t.key && styles.checkboxOn]}>
-                        {groupModal.selectionType === t.key && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
-                      </View>
-                    </Pressable>
-                  ))}
-                </View>
-
-                {/* Варианты */}
-                <Text style={styles.fieldLabel}>Варианты</Text>
-                {groupModal.options.map((opt, idx) => (
-                  <View key={idx} style={styles.optCard}>
-                    {/* Строка 1: название + цена + удалить */}
-                    <View style={styles.optRow}>
-                      <TextInput color={colors.text}
-                        style={[styles.input, { flex: 1, marginBottom: 0, marginRight: 8, padding: 10 }]}
-                        value={opt.name} placeholder="Название (напр: Овсяное молоко)"
-                        placeholderTextColor={colors.muted}
-                        onChangeText={v => setGroupModal(m => ({ ...m, options: m.options.map((o,i) => i===idx ? {...o, name: v} : o) }))} />
-                      <TextInput color={colors.text}
-                        style={[styles.input, { width: 64, marginBottom: 0, padding: 10, textAlign: 'center' }]}
-                        value={String(opt.price_delta || '')} placeholder="+0"
-                        placeholderTextColor={colors.muted} keyboardType="numeric"
-                        onChangeText={v => setGroupModal(m => ({ ...m, options: m.options.map((o,i) => i===idx ? {...o, price_delta: v} : o) }))} />
-                      <Text style={styles.optUnit}>₽</Text>
-                      <Pressable onPress={() => setGroupModal(m => ({ ...m, options: m.options.filter((_,i) => i!==idx) }))} hitSlop={12}>
-                        <Text style={{ color: colors.border, fontSize: 18 }}>✕</Text>
-                      </Pressable>
-                    </View>
-
-                    {/* Строка 2: режим */}
-                    <View style={styles.optModeRow}>
-                      {[{key:'add',label:'＋ Добавление'},{key:'replace',label:'↔ Замена'}].map(mode => (
-                        <Pressable key={mode.key}
-                          style={[styles.modeBtn, (opt.mode||'add') === mode.key && styles.modeBtnActive]}
-                          onPress={() => setGroupModal(m => ({ ...m, options: m.options.map((o,i) => i===idx ? {...o, mode: mode.key} : o) }))}>
-                          <Text style={[styles.modeBtnTxt, (opt.mode||'add') === mode.key && styles.modeBtnTxtActive]}>{mode.label}</Text>
-                        </Pressable>
-                      ))}
-                    </View>
-
-                    {/* Строка 3: склад */}
-                    {(opt.mode||'add') === 'replace' && (
-                      <View style={styles.optStockRow}>
-                        <Text style={styles.optLabel}>Заменить:</Text>
-                        <Pressable style={[styles.input, { flex: 1, marginBottom: 0, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 10 }]}
-                          onPress={() => setStockPicker({ optIdx: idx, field: 'replace' })}>
-                          <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: opt.ingrToReplace ? colors.text : colors.muted }}>
-                            {opt.ingrToReplace || 'Выбрать ингредиент →'}
-                          </Text>
-                          <Text style={{ color: colors.muted }}>📦</Text>
-                        </Pressable>
-                      </View>
-                    )}
-                    <View style={styles.optStockRow}>
-                      <Text style={styles.optLabel}>{(opt.mode||'add') === 'replace' ? 'На:' : 'Из склада:'}</Text>
-                      <Pressable style={[styles.input, { flex: 1, marginBottom: 0, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 10 }]}
-                        onPress={() => setStockPicker({ optIdx: idx, field: 'deduct' })}>
-                        <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: opt.ingrToDeduct ? colors.text : colors.muted }}>
-                          {opt.ingrToDeduct || 'Выбрать из склада →'}
-                        </Text>
-                        <Text style={{ color: colors.muted }}>📦</Text>
-                      </Pressable>
-                      <TextInput color={colors.text}
-                        style={[styles.input, { width: 60, marginBottom: 0, marginLeft: 8, padding: 10, textAlign: 'center' }]}
-                        value={String(opt.deductAmount || '')} placeholder="0"
-                        placeholderTextColor={colors.muted} keyboardType="numeric"
-                        onChangeText={v => setGroupModal(m => ({ ...m, options: m.options.map((o,i) => i===idx ? {...o, deductAmount: v} : o) }))} />
-                      <Text style={styles.optUnit}>{opt.deductUnit || 'мл'}</Text>
-                    </View>
-                  </View>
-                ))}
-                <Pressable style={styles.addIngBtn}
-                  onPress={() => setGroupModal(m => ({ ...m, options: [...m.options, { name: '', price_delta: '' }] }))}>
-                  <Text style={styles.addIngTxt}>+ Добавить вариант</Text>
-                </Pressable>
-
-                {/* Для каких товаров */}
-                <Text style={styles.fieldLabel}>Для каких товаров</Text>
-                <Text style={[styles.productSub, { marginBottom: 10 }]}>Модификатор появится в кассе при заказе этих товаров</Text>
-                {products.length === 0 ? (
-                  <Text style={styles.productSub}>Сначала добавьте товары в разделе Товары</Text>
-                ) : (() => {
-                  const filtered = products.filter(p => !prodSearch.trim() || p.name.toLowerCase().includes(prodSearch.toLowerCase()));
-                  const rawCats = [...new Set(filtered.map(p => p.category || 'Без категории'))];
-  const cats = catOrder.length > 0
-    ? [...catOrder.filter(c => rawCats.includes(c)), ...rawCats.filter(c => !catOrder.includes(c))]
-    : rawCats.sort();
-                  const selProds = groupModal.selProducts || [];
-                  const selCount = products.filter(p => selProds.includes(Number(p.id))).length;
-                  return (
-                    <>
-                      {/* Поиск */}
-                      <View style={styles.optStockRow}>
-                        <TextInput color={colors.text} style={[styles.input, { flex: 1, marginBottom: 8 }]}
-                          value={prodSearch} onChangeText={setProdSearch}
-                          placeholder="Поиск товара..." placeholderTextColor={colors.muted} />
-                      </View>
-                      {selCount > 0 && (
-                        <Text style={[styles.productSub, { marginBottom: 8, color: colors.orange }]}>
-                          ✓ Выбрано: {selCount} товар(ов)
-                        </Text>
-                      )}
-                      {/* Аккордеон по категориям */}
-                      <View style={{ gap: 4 }}>
-                        {cats.map((cat, catIdx) => {
-                          const catProds = filtered.filter(p => (p.category || 'Без категории') === cat);
-                          const isOpen = openProdCats[cat] === true;
-                          const catSelected = catProds.filter(p => selProds.includes(Number(p.id))).length;
-                          return (
-                            <View key={cat}>
-                              {/* Заголовок секции — uppercase серый */}
-                              <Text style={styles.modCatLabel}>{cat.toUpperCase()}</Text>
-                              {/* Карточка */}
-                              <View style={styles.modCatCard}>
-                                <Pressable
-                                  style={({ pressed }) => [styles.modCatHead, pressed && { backgroundColor: 'rgba(255,255,255,0.04)' }]}
-                                  onPress={() => setOpenProdCats(p => ({ ...p, [cat]: !isOpen }))}>
-                                  <Text style={styles.modCatTitle}>
-                                    {catSelected > 0 ? `${catSelected} из ${catProds.length} выбрано` : `${catProds.length} товар(ов)`}
-                                  </Text>
-                                  <Text style={[styles.catChevron, isOpen && styles.catChevronOpen]}>›</Text>
-                                </Pressable>
-                                {isOpen && catProds.map((p, idx) => {
-                                  const on = selProds.includes(Number(p.id));
-                                  return (
-                                    <Pressable key={p.id}
-                                      style={({ pressed }) => [styles.modProdRow, idx < catProds.length-1 && styles.rowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
-                                      onPress={() => setGroupModal(m => ({
-                                        ...m,
-                                        selProducts: on
-                                          ? (m.selProducts||[]).filter(id => id !== Number(p.id))
-                                          : [...(m.selProducts||[]), Number(p.id)]
-                                      }))}>
-                                      <Text style={[styles.productName, { flex: 1 }, on && { color: colors.orange }]}>{p.name}</Text>
-                                      <View style={[styles.checkbox, on && styles.checkboxOn]}>
-                                        {on && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
-                                      </View>
-                                    </Pressable>
-                                  );
-                                })}
-                              </View>
-                            </View>
-                          );
-                        })}
-                      </View>
-                    </>
-                  );
-                })()}
-
-                {/* Сохранить */}
-                <Pressable style={({ pressed }) => [styles.confirmBtn, { marginTop: 16 }, pressed && { opacity: 0.88 }]}
-                  onPress={() => {
-                    if (!groupModal.name.trim()) return;
-                    try {
-                      const opts = groupModal.options.filter(o => o.name.trim());
-                      if (groupModal.id) {
-                        updateModifierGroup(groupModal.id, { name: groupModal.name, selectionType: groupModal.selectionType });
-                        // Пересоздаём опции
-                        opts.forEach(o => {
-                          if (o.id) updateModifierOption(o.id, { name: o.name, priceDelta: parseFloat(o.price_delta)||0, ingrToReplace: o.ingrToReplace||'', ingrToDeduct: o.ingrToDeduct||'', deductAmount: parseFloat(o.deductAmount)||0, deductUnit: o.deductUnit||'' });
-                          else insertModifierOption({ groupId: groupModal.id, name: o.name, priceDelta: parseFloat(o.price_delta)||0, ingrToReplace: o.ingrToReplace||'', ingrToDeduct: o.ingrToDeduct||'', deductAmount: parseFloat(o.deductAmount)||0, deductUnit: o.deductUnit||'' });
-                        });
-                      } else {
-                        const res = insertModifierGroup({ name: groupModal.name, selectionType: groupModal.selectionType });
-                        opts.forEach(o => insertModifierOption({ groupId: res.lastInsertRowId || res, name: o.name, priceDelta: parseFloat(o.price_delta)||0, ingrToReplace: o.ingrToReplace||'', ingrToDeduct: o.ingrToDeduct||'', deductAmount: parseFloat(o.deductAmount)||0, deductUnit: o.deductUnit||'' }));
-                      }
-                      // Сохраняем привязку к товарам
-                      const db2 = getDb();
-                      const gId = groupModal.id || Number(db2.getFirstSync('SELECT last_insert_rowid() as id')?.id);
-                      (groupModal.selProducts || []).forEach(pid => {
-                        try {
-                          const exists = db2.getFirstSync('SELECT id FROM product_modifier_groups WHERE product_id = ? AND group_id = ?', [pid, groupModal.id || gId]);
-                          if (!exists) db2.runSync('INSERT INTO product_modifier_groups (product_id, group_id) VALUES (?, ?)', [pid, groupModal.id || gId]);
-                        } catch(_) {}
-                      });
-                      // Удаляем отвязанные товары
-                      db2.runSync('DELETE FROM product_modifier_groups WHERE group_id = ?', [groupModal.id || gId]);
-                      (groupModal.selProducts || []).forEach(pid => {
-                        try { db2.runSync('INSERT INTO product_modifier_groups (product_id, group_id) VALUES (?, ?)', [pid, groupModal.id || gId]); } catch(_) {}
-                      });
-                      load();
-                      setGroupModal(null);
-                    } catch(e) { console.error(e); }
-                  }}>
-                  <Text style={styles.confirmBtnTxt}>Сохранить</Text>
-                </Pressable>
-
-                {groupModal.id && (
-                  <Pressable style={styles.deleteBtn}
-                    onPress={() => { deleteModifierGroup(groupModal.id); load(); setGroupModal(null); }}>
-                    <Text style={styles.deleteBtnTxt}>Удалить группу</Text>
-                  </Pressable>
-                )}
-              </ScrollView>
-            </View>
-          )}
-        </View>
-      </Modal>
-
-      {/* Модалка товара */}
-      <Modal visible={!!modal} transparent animationType="fade" onRequestClose={() => setModal(null)}>
-        <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setModal(null)} />
-          {modal && (
-            <ProductModal
-              product={modal.product}
-              variants={modal.variants}
-              techCards={modal.techCards}
-              stock={stock}
-              categories={allCats.length ? allCats : ['Кофе', 'Допы', 'Прочее']}
-              allModGroups={modal.freshModGroups || modGroups}
-              onClose={() => setModal(null)}
-              onSave={handleSave}
-              onDelete={handleDelete}
-            />
-          )}
-        </View>
-      </Modal>
+      {groupModal !== null && (
+        <ModGroupModal
+          group={groupModal}
+          onSave={saveGroup}
+          onDelete={(id) => { try { deleteModifierGroup(id); load(); setGroupModal(null); } catch(e) {} }}
+          onClose={() => setGroupModal(null)}
+          stock={stock}
+        />
+      )}
     </View>
   );
 }
 
+// ─── Модалка группы модификаторов ────────────────────────────────────────────
+function ModGroupModal({ group, onSave, onDelete, onClose, stock }) {
+  const isNew = !group?.id;
+  const [name, setName]       = useState(group?.name || '');
+  const [mode, setMode]       = useState(group?.mode || 'add');
+  const [options, setOptions] = useState(() => {
+    try { return group?.id ? (getAllModifierGroups().find(g=>g.id===group.id)?.options || []) : []; } catch { return []; }
+  });
+  const [ingPicker, setIngPicker] = useState(null);
+  const [ingSearch, setIngSearch] = useState('');
+
+  const addOption = () => setOptions(o => [...o, { id: null, name: '', price: '', ingr_to_replace: '' }]);
+  const removeOpt = (i) => setOptions(o => o.filter((_,j)=>j!==i));
+  const setOptField = (i, f, val) => setOptions(o => o.map((r,j)=>j===i?{...r,[f]:val}:r));
+
+  const handleSave = () => {
+    if (!name.trim()) { Alert.alert('Введите название группы'); return; }
+    const data = { ...group, name: name.trim(), mode, options };
+    if (data.id) {
+      try {
+        updateModifierGroup(data.id, { name: data.name, mode: data.mode });
+        options.forEach(opt => {
+          const optData = { name: opt.name, price: parseFloat(opt.price)||0, group_id: data.id, ingr_to_replace: opt.ingr_to_replace||'' };
+          if (opt.id) updateModifierOption(opt.id, optData);
+          else insertModifierOption(optData);
+        });
+      } catch(e) { Alert.alert('Ошибка', e.message); return; }
+    }
+    onSave(data);
+  };
+
+  const filteredStock = stock.filter(s => !ingSearch.trim() || s.name.toLowerCase().includes(ingSearch.toLowerCase()));
+
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+        <View style={styles.groupModalBox}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{isNew ? 'Новая группа' : group.name}</Text>
+            <Pressable onPress={onClose} hitSlop={14} style={styles.closeBtn}>
+              <Text style={styles.closeTxt}>✕</Text>
+            </Pressable>
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
+
+            <Text style={styles.fieldLabel}>Название группы</Text>
+            <TextInput style={styles.input} color={colors.text} value={name}
+              onChangeText={setName} placeholder="Молоко, Топпинг, Размер..." placeholderTextColor={colors.muted} autoFocus={isNew} />
+
+            <Text style={styles.fieldLabel}>Режим</Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 4 }}>
+              {[{ key: 'add', label: 'Добавление' }, { key: 'replace', label: 'Замена' }].map(m => (
+                <Pressable key={m.key} style={[styles.chip, mode === m.key && styles.chipActive]} onPress={() => setMode(m.key)}>
+                  <Text style={[styles.chipTxt, mode === m.key && styles.chipTxtActive]}>{m.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <Text style={styles.ingHint}>
+              {mode === 'add' ? 'Добавляется к товару за доп. плату' : 'Заменяет ингредиент (напр. тип молока)'}
+            </Text>
+
+            <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Варианты</Text>
+            {options.map((opt, i) => (
+              <View key={i} style={[styles.varCard, { marginBottom: 8 }]}>
+                <View style={styles.varRow}>
+                  <TextInput style={[styles.input, { flex: 1 }]} color={colors.text}
+                    value={opt.name} onChangeText={val => setOptField(i, 'name', val)} placeholder="Название варианта" placeholderTextColor={colors.muted} />
+                  <TextInput style={[styles.input, { width: 70, textAlign: 'center' }]} color={colors.text}
+                    keyboardType="numeric" value={opt.price} onChangeText={val => setOptField(i, 'price', val)} placeholder="0" placeholderTextColor={colors.muted} />
+                  <Text style={styles.currencyTxt}>₽</Text>
+                  <Pressable onPress={() => removeOpt(i)} hitSlop={10}>
+                    <Text style={{ color: colors.muted, fontSize: 18 }}>✕</Text>
+                  </Pressable>
+                </View>
+                {mode === 'replace' && (
+                  <Pressable style={styles.addIngBtn} onPress={() => setIngPicker(i)}>
+                    <Text style={styles.addIngTxt}>{opt.ingr_to_replace ? `Заменяет: ${opt.ingr_to_replace}` : '+ Что заменяет'}</Text>
+                  </Pressable>
+                )}
+              </View>
+            ))}
+            <Pressable style={styles.addIngBtn} onPress={addOption}>
+              <Text style={styles.addIngTxt}>+ Добавить вариант</Text>
+            </Pressable>
+
+            <Pressable style={[styles.saveBtn, { marginTop: 20 }]} onPress={handleSave}>
+              <Text style={styles.saveBtnTxt}>{isNew ? 'Создать группу' : 'Сохранить'}</Text>
+            </Pressable>
+            {!isNew && (
+              <Pressable style={[styles.deleteBtn, { marginTop: 8, flex: 0 }]} onPress={() => {
+                Alert.alert('Удалить группу?', '', [{ text: 'Отмена' }, { text: 'Удалить', style: 'destructive', onPress: () => onDelete(group.id) }]);
+              }}>
+                <Text style={styles.deleteTxt}>Удалить группу</Text>
+              </Pressable>
+            )}
+          </ScrollView>
+
+          <Modal visible={ingPicker !== null} transparent animationType="fade" onRequestClose={() => setIngPicker(null)}>
+            <View style={styles.modalOverlay}>
+              <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setIngPicker(null)} />
+              <View style={styles.ingPickerBox}>
+                <Text style={styles.ingPickerTitle}>Что заменяет</Text>
+                <TextInput style={styles.ingPickerSearch} color={colors.text}
+                  value={ingSearch} onChangeText={setIngSearch} placeholder="Поиск..." placeholderTextColor={colors.muted} autoFocus />
+                <ScrollView>
+                  {filteredStock.map(s => (
+                    <Pressable key={s.id} style={styles.ingPickerRow} onPress={() => { setOptField(ingPicker, 'ingr_to_replace', s.name); setIngPicker(null); setIngSearch(''); }}>
+                      <Text style={styles.ingPickerName}>{s.name}</Text>
+                      <Text style={styles.ingPickerUnit}>{s.unit}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            </View>
+          </Modal>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 const styles = StyleSheet.create({
-  inner: { padding: 16, paddingBottom: 24 },
+  root:   { flex: 1, backgroundColor: colors.bg },
+  layout: { flex: 1, flexDirection: 'row' },
 
-  allCatsCard: { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', marginBottom: 12 },
-  catInner:    { borderTopWidth: 1, borderTopColor: colors.border },
-  optCard:     { backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, padding: 12, marginBottom: 8 },
-  optRow:      { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
-  optModeRow:  { flexDirection: 'row', gap: 8, marginBottom: 10 },
-  optStockRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
-  optLabel:    { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, width: 72 },
-  optUnit:     { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
-  modeBtn:     { flex: 1, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(74,77,84,0.35)', alignItems: 'center', backgroundColor: colors.surface2 },
-  modeBtnActive:   { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.08)' },
-  modeBtnTxt:      { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
-  modeBtnTxtActive:{ color: colors.orange },
-  modCatLabel:  { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, paddingHorizontal: 4, paddingBottom: 4, paddingTop: 8 },
-  modCatCard:   { backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
-  modCatHead:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 14, backgroundColor: 'rgba(74,77,84,0.08)' },
-  modCatTitle:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
-  modProdRow:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, gap: 10 },
-  pickerSheet:  { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.65)', padding: 20 },
-  pickerBox:    { width: '50%', maxHeight: '75%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
-  pickerHandle: { display: 'none' },
-  pickerHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
-  pickerTitle:  { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text },
-  checkbox:    { width: 24, height: 24, borderRadius: 8, borderWidth: 1.5, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  checkboxOn:  { backgroundColor: colors.orange, borderColor: colors.orange },
-  tabBar:      { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border },
-  tabBtn:      { flex: 1, paddingVertical: 12, alignItems: 'center' },
-  tabBtnActive:{ borderBottomWidth: 2, borderBottomColor: colors.orange },
-  tabTxt:      { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
-  tabTxtActive:{ color: colors.orange },
-  addBtn:    { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
-  addBtnTxt: { fontSize: 20, color: colors.orange, lineHeight: 26 },
+  // Левая панель
+  left:   { width: 280, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface },
 
-  searchBar:         { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
-  searchInput:       { padding: 8, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 10, color: colors.text, fontSize: 13, fontFamily: fonts.family },
-  searchPlaceholder: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
-  badgeBtn:          { width: 32, height: 32, borderRadius: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  badgeTxt:          { fontSize: 14, color: colors.muted },
+  tabBar: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border },
+  tabBtn: { flex: 1, paddingVertical: 13, alignItems: 'center' },
+  tabBtnActive: { borderBottomWidth: 2, borderBottomColor: colors.orange },
+  tabTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  tabTxtActive: { color: colors.orange },
 
-  catGroup:        { marginBottom: 4 },
-  catHead:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 13, paddingHorizontal: 16, borderRadius: 0 },
-  catDivider:      { height: 1, backgroundColor: colors.border, marginHorizontal: 16 },
-  catTitle:        { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
-  catCount:        { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
-  catChevron:      { fontSize: 20, color: colors.muted, transform: [{ rotate: '90deg' }] },
-  catChevronOpen:  { transform: [{ rotate: '-90deg' }] },
+  searchWrap: { padding: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
+  searchInput:{ backgroundColor: colors.surface2, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 12, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 13 },
 
-  groupCard:    { backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
-  productRow:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 14, gap: 8 },
-  rowDiv:       { borderBottomWidth: 1, borderBottomColor: colors.border },
-  productName:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
-  productSub:   { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
-  productPrice: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
-  productPriceNone: { color: colors.muted, fontStyle: 'italic', fontSize: 11 },
-  productArrow: { fontSize: 18, color: colors.border },
-  inactiveBadge:{ fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted },
-  productCost:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.orange },
+  catHeader:  { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
+  catLabel:   { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, flex: 1 },
+  catCount:   { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginRight: 6 },
+  catChevron: { fontSize: 16, color: colors.muted, transform: [{ rotate: '90deg' }] },
+  catChevronOpen: { transform: [{ rotate: '-90deg' }] },
 
-  // Модалка
-  modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: 16 },
-  modalBox:  { width: '52%', maxHeight: '90%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', padding: 18, borderBottomWidth: 1, borderBottomColor: colors.border },
-  modalTitle:  { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.text, flex: 1 },
-  closeBtn:    { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(74,77,84,0.25)', alignItems: 'center', justifyContent: 'center' },
-  closeTxt:    { fontSize: 13, color: colors.text, fontFamily: fonts.familySemibold },
+  productRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: colors.borderLo, position: 'relative' },
+  productRowActive: { backgroundColor: 'rgba(240,160,80,0.06)' },
+  activeBar:     { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
+  productName:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
+  productNameActive: { color: colors.orange },
+  productPrice:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
+  inactiveDot:   { fontSize: 8, color: colors.muted, opacity: 0.5 },
 
-  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 16 },
-  input:      { padding: 12, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 14, fontFamily: fonts.family, marginBottom: 4 },
+  modGroupCard:  { backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 14, flexDirection: 'row', alignItems: 'center' },
+  modGroupName:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
+  modGroupSub:   { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
+  modGroupArrow: { fontSize: 18, color: colors.muted },
 
-  catChip:       { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface2 },
-  catChipActive: { borderColor: 'rgba(240,160,80,0.6)', backgroundColor: 'rgba(240,160,80,0.1)' },
-  catChipTxt:    { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
-  catChipTxtActive: { color: colors.orange },
+  emptyWrap: { padding: 32, alignItems: 'center' },
+  emptyTxt:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
+  emptyHint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 6, opacity: 0.7 },
 
-  addVarBtn: { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', backgroundColor: 'rgba(240,160,80,0.08)' },
-  addVarTxt: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.orange },
+  // Правая панель
+  right:      { flex: 1, backgroundColor: colors.bg },
+  emptyRight: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
+  emptyRightTxt: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', opacity: 0.6 },
 
-  varBlock: { backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 12 },
-  varRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  // Редактор товара
+  editorContent: { padding: 24, paddingBottom: 40 },
+  editorHeader:  { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 4 },
+  editorTitle:   { fontFamily: fonts.family, fontSize: 24, fontWeight: '800', color: colors.text },
+  editorSub:     { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 2 },
+  editorDivider: { height: 1, backgroundColor: colors.border, marginBottom: 20 },
+  activeToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  activeLabel:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
 
-  techBlock:  { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10, marginTop: 4 },
-  techTitle:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, marginBottom: 8 },
-  ingRow:     { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  fieldLabel:  { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 16 },
+  labelRow:    { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, marginBottom: 8 },
+  input:       { paddingVertical: 12, paddingHorizontal: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 14 },
+
+  chip:        { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  chipActive:  { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.08)' },
+  chipTxt:     { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  chipTxtActive:{ color: colors.orange },
+
+  addVarBtn:   { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  addVarTxt:   { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
+
+  varCard:    { backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, marginBottom: 10, overflow: 'hidden' },
+  varRow:     { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 8 },
+  priceRow:   { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  currencyTxt:{ fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
+  marginBadge:{ paddingVertical: 3, paddingHorizontal: 7, borderRadius: 8 },
+  marginTxt:  { fontFamily: fonts.familySemibold, fontSize: 11 },
+
+  techToggle: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 12, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface2 },
+  techToggleTxt: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, flex: 1 },
+  chevron:    { fontSize: 16, color: colors.muted, transform: [{ rotate: '90deg' }] },
+  chevronOpen:{ transform: [{ rotate: '-90deg' }] },
+
+  techBody:   { padding: 12, borderTopWidth: 1, borderTopColor: colors.border },
+  ingRow:     { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
   ingName:    { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.text, flex: 1 },
-  ingInput:   { width: 70, padding: 6, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 8, color: colors.text, fontFamily: fonts.family, fontSize: 13, textAlign: 'center' },
-  ingUnit:    { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
-  addIngBtn:  { paddingVertical: 8, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.borderLo, marginTop: 4 },
-  addIngTxt:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.orange },
+  ingInput:   { width: 52, paddingVertical: 7, paddingHorizontal: 8, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 8, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 12, textAlign: 'center' },
+  ingUnit:    { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, width: 28 },
+  ingHint:    { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, fontStyle: 'italic', marginTop: 4, opacity: 0.8 },
 
-  costRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, paddingHorizontal: 2, borderTopWidth: 1, borderTopColor: colors.borderLo, marginTop: 4 },
-  costLabel:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
-  costValue:   { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
-  marginBadge: { paddingVertical: 2, paddingHorizontal: 8, borderRadius: 8 },
-  marginText:  { fontFamily: fonts.familySemibold, fontSize: 11 },
-  activeRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.border },
-  activeLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
+  addIngBtn:  { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: colors.border, alignSelf: 'flex-start', marginTop: 4 },
+  addIngTxt:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
 
-  confirmBtn:    { paddingVertical: 14, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
-  confirmBtnTxt: { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff' },
-  deleteBtn:     { paddingVertical: 14, alignItems: 'center', marginTop: 8 },
-  deleteBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red },
+  modsCard:   { backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  modRow:     { flexDirection: 'row', alignItems: 'center', padding: 13, gap: 10 },
+  modRowDiv:  { borderBottomWidth: 1, borderBottomColor: colors.border },
+  modName:    { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
+  modSub:     { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
+  modCheck:   { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  modCheckActive: { borderColor: colors.orange, backgroundColor: colors.orange },
+  modCheckMark:   { fontFamily: fonts.familySemibold, fontSize: 12, color: '#fff' },
 
-  pickerRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  pickerBox:  { width: 340, maxHeight: '75%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
-  stockRow:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 16 },
+  saveBtn:    { backgroundColor: colors.orange, borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginTop: 20 },
+  saveBtnTxt: { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: '#fff' },
+
+  dangerRow:     { flexDirection: 'row', gap: 10, marginTop: 10 },
+  deactivateBtn: { flex: 1, paddingVertical: 13, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center' },
+  deactivateTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  deleteBtn:     { flex: 1, paddingVertical: 13, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(217,95,95,0.4)', backgroundColor: 'rgba(217,95,95,0.07)', alignItems: 'center' },
+  deleteTxt:     { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.red },
+
+  // Шапки и кнопки
+  headerBtn:  { width: 34, height: 34, borderRadius: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  headerBtnTxt:{ fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
+  addBtn:     { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, backgroundColor: 'rgba(240,160,80,0.12)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)' },
+  addBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
+
+  // Модалки
+  modalOverlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  ingPickerBox:  { width: '60%', maxHeight: '70%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', padding: 0 },
+  ingPickerTitle:{ fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, padding: 16, paddingBottom: 8 },
+  ingPickerSearch:{ margin: 12, marginTop: 0, backgroundColor: colors.surface2, borderRadius: 10, padding: 11, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 14, borderWidth: 1, borderColor: colors.border },
+  ingPickerRow:  { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
+  ingPickerName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, flex: 1 },
+  ingPickerUnit: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+  ingPickerEmpty:{ fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center', padding: 24 },
+
+  orderModalBox:   { width: '45%', maxHeight: '70%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, padding: 24 },
+  orderModalTitle: { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.text, marginBottom: 4 },
+  orderModalHint:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginBottom: 16 },
+  orderRow:  { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+  orderRowTxt:{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, flex: 1 },
+  orderBtn:  { width: 32, height: 32, borderRadius: 8, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  orderBtnTxt:{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
+
+  groupModalBox: { width: '55%', maxHeight: '85%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  modalHeader:   { flexDirection: 'row', alignItems: 'center', padding: 18, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface2 },
+  modalTitle:    { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.text, flex: 1 },
+  closeBtn:      { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  closeTxt:      { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
 });
