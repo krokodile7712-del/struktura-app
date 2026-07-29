@@ -42,7 +42,7 @@ function SectionAccordion({ sectionKey, selectedSection, children }) {
 
 // LayoutAnimation работает автоматически в New Architecture
 
-export default function SettingsFullPanel() {
+export default function SettingsFullPanel({ navigation }) {
   // ── Данные ──
   const [products, setProducts]             = useState([]);
   const [users, setUsers]                   = useState([]);
@@ -1572,7 +1572,7 @@ export default function SettingsFullPanel() {
           <View style={styles.menuCard}>
             <Pressable
               style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
-              onPress={() => { setSetting('onboarding_done', ''); Alert.alert('Онбординг сброшен', 'Перезапустите приложение для прохождения онбординга заново.'); }}
+              onPress={() => { setSetting('onboarding_done', ''); clearSession?.(); navigation?.navigate('Onboarding'); }}
             >
               <Text style={{ fontSize: 20, marginRight: 12 }}>🚀</Text>
               <View style={{ flex: 1 }}>

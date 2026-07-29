@@ -129,7 +129,7 @@ export default function AdminScreen({ navigation }) {
       case 'Stock':    return <StockPanel />;
       case 'Expenses': return <ExpensesPanel />;
       case 'Bookings': return <BookingsPanel />;
-      case 'Settings': return <SettingsFullPanel />;
+      case 'Settings': return <SettingsFullPanel navigation={navigation} />;
       default:         return <DashPanel stats={stats} name={session?.name?.split(' ')[0]} />;
     }
   };
