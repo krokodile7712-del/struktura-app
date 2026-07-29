@@ -68,7 +68,7 @@ function SummaryBar({ pnl }) {
       </View>
       <View style={styles.summarySep} />
       <View style={styles.summaryItem}>
-        <Text style={[styles.summaryVal, { color: pnl.netProfit >= 0 ? colors.greenLight : colors.redLight }]}>
+        <Text style={[styles.summaryVal, { color: pnl.netProfit >= 0 ? colors.orange : colors.red }]}>
           {pnl.netProfit >= 0 ? '+' : ''}{fmt(pnl.netProfit)} ₽
         </Text>
         <Text style={styles.summaryLbl}>Прибыль</Text>
@@ -90,7 +90,7 @@ function MetricRow({ label, value, sub, color, delta, tip, isLast }) {
       <View style={{ alignItems: 'flex-end' }}>
         <Text style={[styles.metricValue, color && { color }]}>{value}</Text>
         {delta && (
-          <Text style={[styles.deltaText, { color: delta.value >= 0 ? colors.greenLight : colors.redLight }]}>
+          <Text style={[styles.deltaText, { color: delta.value >= 0 ? colors.orange : colors.red }]}>
             {delta.label}
           </Text>
         )}
@@ -114,7 +114,7 @@ function HeatMap({ data }) {
         const opacity = 0.1 + pct * 0.85;
         return (
           <View key={h} style={styles.heatCell}>
-            <View style={[styles.heatBar, { opacity, backgroundColor: colors.greenLight }]} />
+            <View style={[styles.heatBar, { opacity, backgroundColor: colors.orange }]} />
             {parseInt(h) % 3 === 0 && <Text style={styles.heatLabel}>{h}</Text>}
           </View>
         );
@@ -123,7 +123,7 @@ function HeatMap({ data }) {
   );
 }
 
-function BarChart({ data, valueKey = 'total', labelKey = 'label', color = colors.greenLight, unit = '₽' }) {
+function BarChart({ data, valueKey = 'total', labelKey = 'label', color = colors.orange, unit = '₽' }) {
   if (!data || data.length === 0) return <Text style={styles.emptyHint}>Нет данных</Text>;
   const max = Math.max(...data.map(d => d[valueKey] || 0), 1);
   return (
@@ -276,7 +276,7 @@ export default function ReportsPanel() {
           <View style={styles.card}>
             <MetricRow label="Выручка" value={`${fmt(pnl.revenue)} ₽`}
               sub={`${pnl.orderCount} заказов · ср. чек ${fmt(pnl.avgCheck)} ₽`}
-              color={colors.greenLight}
+              color={colors.orange}
               delta={compare && pnlPrev ? fmtDelta(pnl.revenue, pnlPrev.revenue) : null}
               tip="Сумма всех оплаченных заказов за период." />
             <MetricRow label="Себестоимость" value={`${fmt(pnl.cogs)} ₽`}
@@ -285,7 +285,7 @@ export default function ReportsPanel() {
               tip="Затраты на ингредиенты по техкартам." />
             <MetricRow label="Валовая прибыль" value={`${fmt(pnl.grossProfit)} ₽`}
               sub={`Маржа ${pnl.grossMarginPct}%`}
-              color={pnl.grossProfit >= 0 ? colors.greenLight : colors.redLight}
+              color={pnl.grossProfit >= 0 ? colors.orange : colors.red}
               delta={compare && pnlPrev ? fmtDelta(pnl.grossProfit, pnlPrev.grossProfit) : null}
               tip="Выручка − Себестоимость. До учёта расходов." />
             <MetricRow label="Расходы" value={`${fmt(pnl.expenses)} ₽`}
@@ -301,14 +301,14 @@ export default function ReportsPanel() {
               <Text style={styles.netLabel}>Чистая прибыль</Text>
               <InfoTip title="Чистая прибыль" text="Выручка − Себестоимость − Расходы." />
             </View>
-            <Text style={[styles.netValue, { color: pnl.netProfit >= 0 ? colors.greenLight : colors.redLight }]}>
+            <Text style={[styles.netValue, { color: pnl.netProfit >= 0 ? colors.orange : colors.red }]}>
               {pnl.netProfit >= 0 ? '+' : ''}{fmt(pnl.netProfit)} ₽
             </Text>
             <Text style={styles.netSub}>Чистая маржа: {pnl.netMarginPct}%</Text>
             {compare && pnlPrev && (
               <View style={[styles.menuRowDiv, { marginTop: 12, paddingTop: 12, flexDirection: 'row', justifyContent: 'space-between' }]}>
                 <Text style={styles.compareLabel}>Предыдущий период</Text>
-                <Text style={[styles.metricValue, { color: pnlPrev.netProfit >= 0 ? colors.greenLight : colors.redLight }]}>
+                <Text style={[styles.metricValue, { color: pnlPrev.netProfit >= 0 ? colors.orange : colors.red }]}>
                   {pnlPrev.netProfit >= 0 ? '+' : ''}{fmt(pnlPrev.netProfit)} ₽
                 </Text>
               </View>
@@ -346,14 +346,14 @@ export default function ReportsPanel() {
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Управленческий P&L</Text>
             {[
-              { label: 'Выручка',               val: pnlFull.revenue,          color: colors.greenLight },
-              { label: '− Себестоимость',        val: -pnlFull.cogs,            color: colors.redLight },
-              { label: '= Валовая прибыль',      val: pnlFull.grossProfit,      bold: true, color: pnlFull.grossProfit >= 0 ? colors.greenLight : colors.redLight },
+              { label: 'Выручка',               val: pnlFull.revenue,          color: colors.orange },
+              { label: '− Себестоимость',        val: -pnlFull.cogs,            color: colors.red },
+              { label: '= Валовая прибыль',      val: pnlFull.grossProfit,      bold: true, color: pnlFull.grossProfit >= 0 ? colors.orange : colors.red },
               { label: '− Прямые расходы',       val: -pnlFull.expenses,        color: '#e0a040' },
               { label: '− Накладные расходы',    val: -pnlFull.overheadTotal,   color: '#e0a040' },
               { label: '− Зарплата',             val: -pnlFull.salaryTotal,     color: '#e0a040' },
               { label: '− Амортизация',          val: -pnlFull.deprTotal,       color: '#e0a040' },
-              { label: '= Чистая прибыль',       val: pnlFull.fullNetProfit,    bold: true, color: pnlFull.fullNetProfit >= 0 ? colors.greenLight : colors.redLight },
+              { label: '= Чистая прибыль',       val: pnlFull.fullNetProfit,    bold: true, color: pnlFull.fullNetProfit >= 0 ? colors.orange : colors.red },
             ].map((row, i, arr) => (
               <View key={i} style={[styles.metricRow, i < arr.length - 1 && styles.menuRowDiv]}>
                 <Text style={[styles.metricLabel, row.bold && { fontFamily: fonts.familySemibold, color: colors.text }]}>{row.label}</Text>
@@ -362,8 +362,8 @@ export default function ReportsPanel() {
                 </Text>
               </View>
             ))}
-            <View style={[styles.netSummaryBox, { backgroundColor: pnlFull.fullNetProfit >= 0 ? 'rgba(61,158,146,0.08)' : 'rgba(160,16,32,0.08)' }]}>
-              <Text style={[styles.netValue, { color: pnlFull.fullNetProfit >= 0 ? colors.greenLight : colors.redLight }]}>
+            <View style={[styles.netSummaryBox, { backgroundColor: pnlFull.fullNetProfit >= 0 ? rgba(240,160,80,0.08) : 'rgba(160,16,32,0.08)' }]}>
+              <Text style={[styles.netValue, { color: pnlFull.fullNetProfit >= 0 ? colors.orange : colors.red }]}>
                 {pnlFull.fullNetProfit >= 0 ? '+' : ''}{fmt(pnlFull.fullNetProfit)} ₽
               </Text>
               <Text style={styles.netSub}>Полная чистая маржа: {pnlFull.fullNetMarginPct}%</Text>
@@ -385,9 +385,9 @@ export default function ReportsPanel() {
                     {m.benchmark && <Text style={styles.metricSub}>Норма: {m.benchmark}</Text>}
                   </View>
                   <View style={{ alignItems: 'flex-end', flexDirection: 'row', gap: 8 }}>
-                    <Text style={[styles.metricValue, { color: m.ok ? colors.greenLight : m.warn ? colors.redLight : colors.text }]}>{m.value}</Text>
-                    {m.ok   && <Text style={{ fontFamily: fonts.familySemibold, fontSize: 11, color: colors.greenLight }}>✓</Text>}
-                    {m.warn && <Text style={{ fontFamily: fonts.familySemibold, fontSize: 11, color: colors.redLight }}>⚠️</Text>}
+                    <Text style={[styles.metricValue, { color: m.ok ? colors.orange : m.warn ? colors.red : colors.text }]}>{m.value}</Text>
+                    {m.ok   && <Text style={{ fontFamily: fonts.familySemibold, fontSize: 11, color: colors.orange }}>✓</Text>}
+                    {m.warn && <Text style={{ fontFamily: fonts.familySemibold, fontSize: 11, color: colors.red }}>⚠️</Text>}
                   </View>
                 </View>
               ))}
@@ -419,7 +419,7 @@ export default function ReportsPanel() {
         {tab === 'charts' && (<>
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Выручка по дням</Text>
-            <BarChart data={revenueByDay} valueKey="total" labelKey="label" color={colors.greenLight} unit="₽" />
+            <BarChart data={revenueByDay} valueKey="total" labelKey="label" color={colors.orange} unit="₽" />
           </View>
 
           <View style={[styles.card, { marginTop: 10 }]}>
@@ -485,34 +485,34 @@ const styles = StyleSheet.create({
   inner: { padding: 16, paddingBottom: 24 },
 
   // Сводка
-  summaryBar: { flexDirection: 'row', paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: '#07080a' },
+  summaryBar: { flexDirection: 'row', paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface2 },
   summaryItem: { flex: 1, alignItems: 'center' },
   summaryVal:  { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: colors.text },
   summaryLbl:  { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.8 },
-  summarySep:  { width: 1, backgroundColor: 'rgba(74,77,84,0.3)', marginVertical: 4 },
+  summarySep:  { width: 1, backgroundColor: colors.border, marginVertical: 4 },
 
   // Период
   periodBar:   { maxHeight: 48, borderBottomWidth: 1, borderBottomColor: colors.border },
   periodInner: { paddingHorizontal: 16, paddingVertical: 8, gap: 8, alignItems: 'center' },
-  periodChip:  { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', backgroundColor: '#07080a' },
+  periodChip:  { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', backgroundColor: colors.surface2 },
   periodChipActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.12)' },
   periodChipText:   { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
-  periodChipTextActive: { color: colors.greenLight },
+  periodChipTextActive: { color: colors.orange },
 
   // Табы
   tabSection: { borderBottomWidth: 1, borderBottomColor: colors.border },
   tabBar:     { flexDirection: 'row' },
   tabBtn:     { flex: 1, paddingVertical: 13, alignItems: 'center' },
-  tabBtnActive: { borderBottomWidth: 2, borderBottomColor: colors.greenLight },
+  tabBtnActive: { borderBottomWidth: 2, borderBottomColor: colors.orange },
   tabBtnText:   { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
-  tabBtnTextActive: { color: colors.greenLight },
+  tabBtnTextActive: { color: colors.orange },
   compareRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 8 },
   compareLabel: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
 
   // Карточки
-  card:        { backgroundColor: '#0b0c0f', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', overflow: 'hidden' },
+  card:        { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   cardTitle:   { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, padding: 14, paddingBottom: 10 },
-  menuRowDiv:  { borderTopWidth: 1, borderTopColor: 'rgba(74,77,84,0.2)' },
+  menuRowDiv:  { borderTopWidth: 1, borderTopColor: colors.border },
 
   // Метрики
   metricRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14 },
@@ -537,7 +537,7 @@ const styles = StyleSheet.create({
   // Бар-чарт
   barRow:   { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, gap: 8, marginBottom: 6 },
   barLabel: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, width: 70, textAlign: 'right' },
-  barTrack: { flex: 1, height: 16, backgroundColor: '#07080a', borderRadius: 8, overflow: 'hidden' },
+  barTrack: { flex: 1, height: 16, backgroundColor: colors.surface2, borderRadius: 8, overflow: 'hidden' },
   barFill:  { height: '100%', borderRadius: 8 },
   barValue: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.text, width: 65, textAlign: 'right' },
 
@@ -545,8 +545,8 @@ const styles = StyleSheet.create({
   emptyHint:{ fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center', padding: 20 },
 
   // Экспорт
-  exportBtn:     { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(61,158,146,0.4)', backgroundColor: 'rgba(61,158,146,0.08)' },
-  exportBtnText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.greenLight },
+  exportBtn:     { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(61,158,146,0.4)', backgroundColor: rgba(240,160,80,0.08) },
+  exportBtnText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.orange },
 
   // Модалка
   modalRoot:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center' },
@@ -556,7 +556,7 @@ const styles = StyleSheet.create({
   modalCloseBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(74,77,84,0.25)', alignItems: 'center', justifyContent: 'center' },
   modalCloseTxt: { fontSize: 13, color: colors.text, fontFamily: fonts.familySemibold },
   fieldLabel:    { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 6, marginTop: 12 },
-  input:         { padding: 13, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 15, fontFamily: fonts.family },
-  confirmBtn:    { paddingVertical: 15, borderRadius: 14, backgroundColor: 'rgba(61,158,146,0.85)', alignItems: 'center' },
+  input:         { padding: 13, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 15, fontFamily: fonts.family },
+  confirmBtn:    { paddingVertical: 15, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
   confirmBtnText:{ fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff' },
 });
