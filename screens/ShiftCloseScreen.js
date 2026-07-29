@@ -67,7 +67,7 @@ export default function ShiftCloseScreen({ navigation }) {
     setShowResult(true);
     // Последовательная анимация
     Animated.timing(overlayAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
-    Animated.timing(titleAnim, { toValue: 1, duration: 600, delay: 300, easing: Easing.out(Easing.back(1.2)), useNativeDriver: true }).start();
+    Animated.timing(titleAnim, { toValue: 1, duration: 600, delay: 300, useNativeDriver: true }).start();
     Animated.spring(card1Anim, { toValue: 0, tension: 60, friction: 12, delay: 600, useNativeDriver: true }).start();
     Animated.spring(card2Anim, { toValue: 0, tension: 60, friction: 12, delay: 900, useNativeDriver: true }).start();
     Animated.spring(card3Anim, { toValue: 0, tension: 60, friction: 12, delay: 1200, useNativeDriver: true }).start();
