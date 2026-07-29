@@ -102,14 +102,14 @@ export default function ShiftCloseScreen({ navigation }) {
           {/* Карточки статистики */}
           <View style={styles.modalGrid}>
 
-            <Animated.View style={[styles.modalCard, styles.modalCardOrange, { transform: [{ translateY: card1Anim }], opacity: card1Anim.interpolate({ inputRange: [0, 60], outputRange: [1, 0] }) }]}>
+            <Animated.View style={[styles.modalCard, styles.modalCardOrange, { transform: [{ translateY: card1Anim }] }]}>
               <Text style={styles.modalCardLabel}>Выручка</Text>
               <Text style={[styles.modalCardVal, { color: colors.orange }]}>{fmt(summary?.total || 0)} ₽</Text>
               {summary.cash > 0 && <Text style={styles.modalCardSub}>Нал: {fmt(summary.cash)} ₽</Text>}
               {summary.card > 0 && <Text style={styles.modalCardSub}>Карта: {fmt(summary.card)} ₽</Text>}
             </Animated.View>
 
-            <Animated.View style={[styles.modalCard, { transform: [{ translateY: card2Anim }], opacity: card2Anim.interpolate({ inputRange: [0, 60], outputRange: [1, 0] }) }]}>
+            <Animated.View style={[styles.modalCard, { transform: [{ translateY: card2Anim }] }]}>
               <Text style={styles.modalCardLabel}>Заказов</Text>
               <Text style={styles.modalCardVal}>{summary?.orders || 0}</Text>
               <Text style={styles.modalCardSub}>
@@ -117,7 +117,7 @@ export default function ShiftCloseScreen({ navigation }) {
               </Text>
             </Animated.View>
 
-            <Animated.View style={[styles.modalCard, { transform: [{ translateY: card3Anim }], opacity: card3Anim.interpolate({ inputRange: [0, 60], outputRange: [1, 0] }) }]}>
+            <Animated.View style={[styles.modalCard, { transform: [{ translateY: card3Anim }] }]}>
               <Text style={styles.modalCardLabel}>Расходы</Text>
               <Text style={[styles.modalCardVal, { color: colors.red }]}>{fmt(summary?.expTotal || 0)} ₽</Text>
               <Text style={styles.modalCardSub}>
@@ -125,7 +125,7 @@ export default function ShiftCloseScreen({ navigation }) {
               </Text>
             </Animated.View>
 
-            <Animated.View style={[styles.modalCard, { transform: [{ translateY: card4Anim }], opacity: card4Anim.interpolate({ inputRange: [0, 60], outputRange: [1, 0] }) }]}>
+            <Animated.View style={[styles.modalCard, { transform: [{ translateY: card4Anim }] }]}>
               <Text style={styles.modalCardLabel}>Прибыль</Text>
               <Text style={[styles.modalCardVal, { color: ((summary?.total||0)-(summary?.expTotal||0)) >= 0 ? colors.green : colors.red }]}>
                 {((summary?.total||0)-(summary?.expTotal||0)) >= 0 ? '+' : ''}{fmt((summary?.total||0)-(summary?.expTotal||0))} ₽
