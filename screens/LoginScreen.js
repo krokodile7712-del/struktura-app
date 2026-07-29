@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, SafeAreaView, TextInput, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, StyleSheet, Pressable, TextInput, TouchableWithoutFeedback } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRef } from 'react';
 import { getUserByPin, getBusinessProfile, getUserPermissions } from '../db/queries';
 import { setSession, setPermissions } from '../db/session';
