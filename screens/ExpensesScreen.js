@@ -1,52 +1,44 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
-  TextInput, Modal, useWindowDimensions,
+  TextInput, Modal, Animated, FlatList,
 } from 'react-native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import EmptyState from '../components/EmptyState';
-import InfoTip from '../components/InfoTip';
 import { useFocusEffect } from '@react-navigation/native';
 import { getAllExpenses, insertExpense } from '../db/queries';
-import DatePicker from '../components/DatePicker';
 import { getHomeRoute, can } from '../db/session';
-import { colors, fonts, spacing } from '../constants/theme';
+import { colors, fonts } from '../constants/theme';
 
 const CATEGORIES = ['Аренда', 'Зарплата', 'Закупка', 'Коммуналка', 'Расходники', 'Реклама', 'Прочее'];
-
 const todayStr    = () => new Date().toISOString().slice(0, 10);
 const weekAgoStr  = () => { const d = new Date(); d.setDate(d.getDate()-6); return d.toISOString().slice(0,10); };
 const monthAgoStr = () => { const d = new Date(); d.setDate(d.getDate()-29); return d.toISOString().slice(0,10); };
-const fmtDate     = s => { if (!s) return ''; const [y,m,d] = s.split('-'); return `${d}.${m}`; };
-const fmt         = n => (n || 0).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+const fmt = n => (n || 0).toLocaleString('ru-RU');
+const fmtDate = s => { if (!s) return ''; const [y,m,d] = s.split('-'); return `${d}.${m}.${y.slice(2)}`; };
 
 const PERIODS = [
   { key: 'today', label: 'Сегодня', from: todayStr,    to: todayStr },
   { key: 'week',  label: 'Неделя',  from: weekAgoStr,  to: todayStr },
   { key: 'month', label: 'Месяц',   from: monthAgoStr, to: todayStr },
-  { key: 'custom',label: 'Свой',    from: monthAgoStr, to: todayStr },
 ];
 
 export default function ExpensesScreen({ navigation }) {
-  const { width: W } = useWindowDimensions();
-  const [period, setPeriod]       = useState('week');
-  const [customFrom, setCustomFrom] = useState(monthAgoStr());
-  const [customTo, setCustomTo]   = useState(todayStr());
-  const [showCustom, setShowCustom] = useState(false);
-  const [expenses, setExpenses]   = useState([]);
-  const [addModal, setAddModal]   = useState(false);
-  const [picker, setPicker]         = useState(null); // 'from' | 'to' | 'date'
+  const [period, setPeriod]         = useState('week');
+  const [expenses, setExpenses]     = useState([]);
+  const [addModal, setAddModal]     = useState(false);
+  const [category, setCategory]     = useState(CATEGORIES[0]);
+  const [amount, setAmount]         = useState('');
+  const [comment, setComment]       = useState('');
+  const amountRef = useRef(null);
 
-  // Форма добавления
-  const [category, setCategory]   = useState(CATEGORIES[0]);
-  const [amount, setAmount]       = useState('');
-  const [comment, setComment]     = useState('');
-  const [dateMode, setDateMode]   = useState('today');
-  const [customDate, setCustomDate] = useState(todayStr());
+  // Анимации
+  const fadeAnim  = useState(new Animated.Value(0))[0];
+  const slideAnim = useState(new Animated.Value(16))[0];
+  const btnScale  = useState(new Animated.Value(1))[0];
+  const modalAnim = useState(new Animated.Value(0))[0];
 
   const getRange = () => {
-    if (period === 'custom') return { from: customFrom, to: customTo };
     const p = PERIODS.find(p => p.key === period);
     return { from: p.from(), to: p.to() };
   };
@@ -55,345 +47,302 @@ export default function ExpensesScreen({ navigation }) {
     try {
       const { from, to } = getRange();
       const all = getAllExpenses();
-      setExpenses(all.filter(e => {
+      const filtered = all.filter(e => {
         const d = e.date?.slice(0,10) || '';
         return d >= from && d <= to;
-      }));
+      });
+      setExpenses(filtered.sort((a,b) => (b.date||'').localeCompare(a.date||'')));
     } catch(e) { console.error(e); }
-  }, [period, customFrom, customTo]);
+  }, [period]);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(useCallback(() => {
+    load();
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: true }),
+      Animated.spring(slideAnim, { toValue: 0, tension: 70, friction: 12, useNativeDriver: true }),
+    ]).start();
+  }, [load]));
 
-  const getNewDate = () => {
-    if (dateMode === 'today') return todayStr();
-    if (dateMode === 'yesterday') { const d = new Date(); d.setDate(d.getDate()-1); return d.toISOString().slice(0,10); }
-    return customDate;
+  const openModal = () => {
+    setAddModal(true);
+    modalAnim.setValue(0);
+    Animated.spring(modalAnim, { toValue: 1, tension: 60, friction: 12, useNativeDriver: true }).start(
+      () => setTimeout(() => amountRef.current?.focus(), 100)
+    );
   };
 
   const handleAdd = () => {
-    if (!amount || isNaN(parseFloat(amount))) return;
+    if (!amount || parseFloat(amount) <= 0) return;
     try {
-      insertExpense({ date: getNewDate(), category, amount: parseFloat(amount), comment: comment.trim() });
-      setAmount(''); setComment(''); setDateMode('today');
+      insertExpense({
+        category,
+        amount: parseFloat(amount),
+        comment: comment.trim(),
+        date: todayStr(),
+      });
+      setAmount('');
+      setComment('');
       setAddModal(false);
       load();
     } catch(e) { console.error(e); }
   };
 
-  // Группировка по категориям
-  const total = expenses.reduce((s,e) => s + e.amount, 0);
-  const grouped = CATEGORIES
-    .map(cat => ({ cat, items: expenses.filter(e => e.category === cat) }))
-    .filter(g => g.items.length > 0);
+  const animBtn = (to) => Animated.spring(btnScale, { toValue: to, useNativeDriver: true, tension: 200 }).start();
 
-  const { from, to } = getRange();
-  const rangeLabel = period === 'today' ? 'Сегодня'
-    : period === 'custom' ? `${fmtDate(from)} — ${fmtDate(to)}`
-    : PERIODS.find(p => p.key === period)?.label || '';
+  // Статистика
+  const total = expenses.reduce((s, e) => s + (e.amount || 0), 0);
+  const byCategory = CATEGORIES.map(cat => ({
+    cat,
+    sum: expenses.filter(e => e.category === cat).reduce((s,e) => s + (e.amount||0), 0),
+  })).filter(c => c.sum > 0).sort((a,b) => b.sum - a.sum);
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={styles.root}>
       <TopBar
         title="Расходы"
         onBack={() => navigation.navigate(getHomeRoute())}
-
+        rightElement={
+          can('add_expense') !== false && (
+            <Animated.View style={{ transform: [{ scale: btnScale }] }}>
+              <Pressable
+                style={styles.addBtn}
+                onPressIn={() => animBtn(0.92)}
+                onPressOut={() => animBtn(1)}
+                onPress={openModal}
+              >
+                <Text style={styles.addBtnTxt}>+ Расход</Text>
+              </Pressable>
+            </Animated.View>
+          )
+        }
       />
 
-      {/* Периоды */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}
-        style={styles.periodBar} contentContainerStyle={styles.periodInner}>
+      {/* Фильтры периода */}
+      <View style={styles.periodRow}>
         {PERIODS.map(p => (
           <Pressable
             key={p.key}
-            style={[styles.periodChip, period === p.key && styles.periodChipActive]}
-            onPress={() => {
-              if (p.key === 'custom') { setPeriod('custom'); setShowCustom(true); }
-              else { setPeriod(p.key); }
-            }}
+            style={[styles.periodBtn, period === p.key && styles.periodBtnActive]}
+            onPress={() => setPeriod(p.key)}
           >
-            <Text style={[styles.periodChipText, period === p.key && styles.periodChipTextActive]}>
-              {p.key === 'custom' && period === 'custom' ? `${fmtDate(customFrom)}—${fmtDate(customTo)}` : p.label}
+            <Text style={[styles.periodTxt, period === p.key && styles.periodTxtActive]}>
+              {p.label}
             </Text>
           </Pressable>
         ))}
-      </ScrollView>
+      </View>
 
-      {/* Итого */}
-      {expenses.length > 0 && (
-        <View style={styles.totalBar}>
-          <Text style={styles.totalLabel}>{rangeLabel}</Text>
-          <Text style={styles.totalValue}>{fmt(total)} ₽</Text>
+      <Animated.View style={[styles.layout, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+
+        {/* Левая колонка — сводка */}
+        <View style={styles.left}>
+          {/* Итого */}
+          <View style={styles.totalCard}>
+            <Text style={styles.totalLabel}>За период</Text>
+            <Text style={styles.totalVal}>{fmt(total)} ₽</Text>
+            <Text style={styles.totalSub}>{expenses.length} расходов</Text>
+          </View>
+
+          {/* По категориям */}
+          {byCategory.length > 0 && (
+            <View style={styles.catCard}>
+              <Text style={styles.catTitle}>По категориям</Text>
+              {byCategory.map((c, i) => (
+                <View key={c.cat} style={[styles.catRow, i < byCategory.length-1 && styles.catRowDiv]}>
+                  <Text style={styles.catName}>{c.cat}</Text>
+                  <View style={styles.catRight}>
+                    <Text style={styles.catVal}>{fmt(c.sum)} ₽</Text>
+                    <View style={[styles.catBar, { width: `${Math.round(c.sum / total * 100)}%` }]} />
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {byCategory.length === 0 && (
+            <View style={styles.hintCard}>
+              <Text style={styles.hintTitle}>Как использовать</Text>
+              <Text style={styles.hintText}>
+                Фиксируйте все затраты бизнеса — аренду, зарплаты, закупки. Это позволит видеть реальную прибыль в разделе Отчётность.
+              </Text>
+            </View>
+          )}
         </View>
-      )}
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
-        {expenses.length === 0 ? (
-          <EmptyState icon="💸" title="Нет расходов"
-            text={`За ${rangeLabel.toLowerCase()} расходов не найдено. Нажмите ＋ чтобы добавить.`} />
-        ) : (
-          grouped.map(g => {
-            const catTotal = g.items.reduce((s,e) => s + e.amount, 0);
-            return (
-              <View key={g.cat} style={styles.catGroup}>
-                {/* Заголовок категории */}
-                <View style={styles.catHeadRow}>
-                  <Text style={styles.catName}>{g.cat}</Text>
-                  <Text style={styles.catTotal}>{fmt(catTotal)} ₽</Text>
-                </View>
-                {/* Записи */}
-                <View style={styles.card}>
-                  {g.items.map((e, idx) => (
-                    <View key={e.id} style={[styles.expRow, idx < g.items.length - 1 && styles.rowDiv]}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.expComment} numberOfLines={1}>
-                          {e.comment || g.cat}
-                        </Text>
-                        <Text style={styles.expDate}>{fmtDate(e.date?.slice(0,10))}</Text>
-                      </View>
-                      <Text style={styles.expAmount}>{fmt(e.amount)} ₽</Text>
-                    </View>
-                  ))}
-                </View>
+        {/* Правая колонка — список */}
+        <FlatList
+          style={styles.right}
+          data={expenses}
+          keyExtractor={e => String(e.id)}
+          contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+          ListEmptyComponent={
+            <View style={styles.emptyWrap}>
+              <Text style={styles.emptyTxt}>Расходов за период нет</Text>
+              <Text style={styles.emptyHint}>Нажмите "+ Расход" вверху чтобы добавить</Text>
+            </View>
+          }
+          ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+          renderItem={({ item }) => (
+            <View style={styles.expenseCard}>
+              <View style={styles.expenseLeft}>
+                <Text style={styles.expenseCat}>{item.category}</Text>
+                {item.comment ? <Text style={styles.expenseComment}>{item.comment}</Text> : null}
+                <Text style={styles.expenseDate}>{fmtDate(item.date?.slice(0,10) || '')}</Text>
               </View>
-            );
-          })
-        )}
-      </ScrollView>
+              <Text style={styles.expenseAmt}>{fmt(item.amount)} ₽</Text>
+            </View>
+          )}
+        />
 
-      {can('add_expenses') && (
-        <Pressable style={styles.fab} onPress={() => setAddModal(true)}>
-          <Text style={styles.fabText}>＋ Добавить расход</Text>
-        </Pressable>
-      )}
-      <BottomBar navigation={navigation} activeTab="Kassa" />
+      </Animated.View>
 
       {/* Модалка добавления */}
-      <Modal visible={addModal} transparent animationType="fade" onRequestClose={() => setAddModal(false)}>
-        <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setAddModal(false)} />
-          <View style={styles.modalBox}>
-            <View style={styles.modalHeader}>
+      <Modal visible={addModal} transparent animationType="none" onRequestClose={() => setAddModal(false)}>
+        <Pressable style={styles.overlay} onPress={() => setAddModal(false)}>
+          <Animated.View
+            style={[styles.modalBox, {
+              opacity: modalAnim,
+              transform: [{ scale: modalAnim.interpolate({ inputRange: [0,1], outputRange: [0.94, 1] }) }],
+            }]}
+          >
+            <Pressable onPress={e => e.stopPropagation()}>
               <Text style={styles.modalTitle}>Новый расход</Text>
-              <Pressable onPress={() => setAddModal(false)} hitSlop={14} style={styles.modalCloseBtn}>
-                <Text style={styles.modalCloseTxt}>✕</Text>
-              </Pressable>
-            </View>
+              <Text style={styles.modalHint}>Укажите категорию, сумму и при необходимости комментарий</Text>
 
-            <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 8 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-
-              {/* Категория */}
+              {/* Категории */}
               <Text style={styles.fieldLabel}>Категория</Text>
-              <View style={styles.card}>
-                {CATEGORIES.map((cat, idx) => (
+              <View style={styles.catChips}>
+                {CATEGORIES.map(cat => (
                   <Pressable
                     key={cat}
-                    style={[styles.expRow, idx < CATEGORIES.length - 1 && styles.rowDiv]}
+                    style={[styles.catChip, category === cat && styles.catChipActive]}
                     onPress={() => setCategory(cat)}
                   >
-                    <Text style={[styles.expComment, { flex: 1 }]}>{cat}</Text>
-                    <View style={[styles.checkbox, category === cat && styles.checkboxOn]}>
-                      {category === cat && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
-                    </View>
+                    <Text style={[styles.catChipTxt, category === cat && styles.catChipTxtActive]}>{cat}</Text>
                   </Pressable>
                 ))}
               </View>
 
               {/* Сумма */}
-              <Text style={styles.fieldLabel}>Сумма, ₽</Text>
-              <TextInput
-                color={colors.text}
-                style={styles.amountInput}
-                value={amount}
-                onChangeText={setAmount}
-                keyboardType="numeric"
-                placeholder="0"
-                placeholderTextColor={colors.muted}
-                autoFocus
-              />
+              <Text style={styles.fieldLabel}>Сумма <Text style={{ color: colors.orange }}>*</Text></Text>
+              <View style={styles.amountWrap}>
+                <TextInput
+                  ref={amountRef}
+                  style={styles.amountInput}
+                  color={colors.text}
+                  placeholder="0"
+                  placeholderTextColor={colors.muted}
+                  keyboardType="numeric"
+                  value={amount}
+                  onChangeText={setAmount}
+                  returnKeyType="next"
+                />
+                <Text style={styles.amountCurrency}>₽</Text>
+              </View>
 
               {/* Комментарий */}
               <Text style={styles.fieldLabel}>Комментарий</Text>
               <TextInput
+                style={styles.commentInput}
                 color={colors.text}
-                style={styles.input}
+                placeholder="Необязательно — например, номер счёта или поставщик"
+                placeholderTextColor={colors.muted}
                 value={comment}
                 onChangeText={setComment}
-                placeholder="Необязательно"
-                placeholderTextColor={colors.muted}
+                returnKeyType="done"
+                onSubmitEditing={handleAdd}
               />
 
-              {/* Дата */}
-              <Text style={styles.fieldLabel}>Дата</Text>
-              <View style={styles.card}>
-                {[
-                  { key: 'today',     label: 'Сегодня'  },
-                  { key: 'yesterday', label: 'Вчера'    },
-                  { key: 'custom',    label: 'Другая'   },
-                ].map((d, idx) => (
-                  <Pressable
-                    key={d.key}
-                    style={[styles.expRow, idx < 2 && styles.rowDiv]}
-                    onPress={() => setDateMode(d.key)}
-                  >
-                    <Text style={[styles.expComment, { flex: 1 }]}>{d.label}</Text>
-                    <View style={[styles.checkbox, dateMode === d.key && styles.checkboxOn]}>
-                      {dateMode === d.key && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
-                    </View>
-                  </Pressable>
-                ))}
-              </View>
-              {dateMode === 'custom' && (
-                <Pressable style={[styles.input, { marginTop: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}
-                  onPress={() => setPicker('date')}>
-                  <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: customDate ? colors.text : colors.muted }}>
-                    {customDate ? customDate.split('-').reverse().join('.') : 'Выбрать дату'}
-                  </Text>
-                  <Text style={{ color: colors.muted }}>📅</Text>
+              {/* Кнопки */}
+              <View style={styles.modalBtns}>
+                <Pressable style={styles.cancelBtn} onPress={() => setAddModal(false)}>
+                  <Text style={styles.cancelTxt}>Отмена</Text>
                 </Pressable>
-              )}
-
-              {/* Сохранить */}
-              <Pressable
-                style={({ pressed }) => [styles.confirmBtn, !amount && styles.confirmBtnOff, { marginTop: 20 }, pressed && amount && { opacity: 0.88 }]}
-                onPress={handleAdd}
-                disabled={!amount}
-              >
-                <Text style={styles.confirmBtnText}>
-                  {amount ? `Добавить ${fmt(parseFloat(amount) || 0)} ₽` : 'Введите сумму'}
-                </Text>
-              </Pressable>
-            </ScrollView>
-          </View>
-        </View>
+                <Pressable
+                  style={[styles.saveBtn, (!amount || parseFloat(amount) <= 0) && { opacity: 0.5 }]}
+                  onPress={handleAdd}
+                >
+                  <Text style={styles.saveTxt}>Сохранить</Text>
+                </Pressable>
+              </View>
+            </Pressable>
+          </Animated.View>
+        </Pressable>
       </Modal>
 
-      {/* Модалка своего периода */}
-      <Modal visible={showCustom} transparent animationType="fade" onRequestClose={() => setShowCustom(false)}>
-        <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setShowCustom(false)} />
-          <View style={[styles.modalBox, { maxHeight: 320 }]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Свой период</Text>
-              <Pressable onPress={() => setShowCustom(false)} hitSlop={14} style={styles.modalCloseBtn}>
-                <Text style={styles.modalCloseTxt}>✕</Text>
-              </Pressable>
-            </View>
-            <View style={{ padding: 20, paddingTop: 8 }}>
-              <Text style={styles.fieldLabel}>Начало</Text>
-              <Pressable style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}
-                onPress={() => setPicker('from')}>
-                <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: customFrom ? colors.text : colors.muted }}>
-                  {customFrom ? customFrom.split('-').reverse().join('.') : 'Выбрать'}
-                </Text>
-                <Text style={{ color: colors.muted }}>📅</Text>
-              </Pressable>
-              <Text style={styles.fieldLabel}>Конец</Text>
-              <Pressable style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}
-                onPress={() => setPicker('to')}>
-                <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: customTo ? colors.text : colors.muted }}>
-                  {customTo ? customTo.split('-').reverse().join('.') : 'Выбрать'}
-                </Text>
-                <Text style={{ color: colors.muted }}>📅</Text>
-              </Pressable>
-              <Pressable style={({ pressed }) => [styles.confirmBtn, { marginTop: 16 }, pressed && { opacity: 0.88 }]}
-                onPress={() => { setShowCustom(false); load(); }}>
-                <Text style={styles.confirmBtnText}>Применить</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
-      <DatePicker
-        visible={picker === 'date'}
-        value={customDate}
-        onChange={setCustomDate}
-        onClose={() => setPicker(null)}
-        title="Дата расхода"
-      />
-      <DatePicker
-        visible={picker === 'from'}
-        value={customFrom}
-        onChange={v => { setCustomFrom(v); load(); }}
-        onClose={() => setPicker(null)}
-        title="Начало периода"
-      />
-      <DatePicker
-        visible={picker === 'to'}
-        value={customTo}
-        onChange={v => { setCustomTo(v); load(); }}
-        onClose={() => setPicker(null)}
-        title="Конец периода"
-      />
+      <BottomBar navigation={navigation} activeTab="Kassa" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  inner: { padding: 16, paddingBottom: 24 },
+  root:       { flex: 1, backgroundColor: colors.bg },
+  layout:     { flex: 1, flexDirection: 'row' },
 
-  // Шапка
-  fab: {
-    position: 'absolute',
-    bottom: 72,
-    left: 20,
-    right: 20,
-    paddingVertical: 15,
-    borderRadius: 16,
-    backgroundColor: 'rgba(61,158,146,0.9)',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  fabText: { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff' },
-  addBtn:     { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(61,158,146,0.15)', borderWidth: 1, borderColor: 'rgba(61,158,146,0.4)', alignItems: 'center', justifyContent: 'center' },
-  addBtnText: { fontSize: 20, color: colors.greenLight, lineHeight: 26 },
+  periodRow:  { flexDirection: 'row', padding: 12, gap: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
+  periodBtn:  { paddingVertical: 7, paddingHorizontal: 16, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  periodBtnActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.08)' },
+  periodTxt:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  periodTxtActive: { color: colors.orange },
 
-  // Периоды
-  periodBar:   { maxHeight: 48, borderBottomWidth: 1, borderBottomColor: colors.border },
-  periodInner: { paddingHorizontal: 16, paddingVertical: 8, gap: 8, alignItems: 'center' },
-  periodChip:  { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', backgroundColor: '#07080a' },
-  periodChipActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.12)' },
-  periodChipText:   { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
-  periodChipTextActive: { color: colors.greenLight },
+  // Левая колонка
+  left:       { width: 260, padding: 16, gap: 12, borderRightWidth: 1, borderRightColor: colors.border },
+  totalCard:  { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 18 },
+  totalLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8 },
+  totalVal:   { fontFamily: fonts.family, fontSize: 36, fontWeight: '800', color: colors.red, marginBottom: 4 },
+  totalSub:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
 
-  // Итого
-  totalBar:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: '#07080a' },
-  totalLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
-  totalValue: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text },
+  catCard:    { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 16 },
+  catTitle:   { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 12 },
+  catRow:     { paddingVertical: 10 },
+  catRowDiv:  { borderBottomWidth: 1, borderBottomColor: colors.border },
+  catName:    { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, marginBottom: 6 },
+  catRight:   { gap: 4 },
+  catVal:     { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+  catBar:     { height: 3, backgroundColor: colors.orange, borderRadius: 2, opacity: 0.7 },
 
-  // Группы
-  catGroup:   { marginBottom: 16 },
-  catHeadRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, paddingHorizontal: 2 },
-  catName:    { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text },
-  catTotal:   { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted },
+  hintCard:   { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 16 },
+  hintTitle:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, marginBottom: 8 },
+  hintText:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, lineHeight: 18 },
 
-  // Карточка
-  card:   { backgroundColor: '#0b0c0f', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', overflow: 'hidden' },
-  expRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 14 },
-  rowDiv: { borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.2)' },
-  expComment: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, marginBottom: 2 },
-  expDate:    { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
-  expAmount:  { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: colors.text },
+  // Правая колонка
+  right:      { flex: 1 },
+  emptyWrap:  { padding: 40, alignItems: 'center' },
+  emptyTxt:   { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted },
+  emptyHint:  { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 6, opacity: 0.7 },
 
-  // Чекбокс
-  checkbox:   { width: 24, height: 24, borderRadius: 8, borderWidth: 1.5, borderColor: 'rgba(74,77,84,0.5)', alignItems: 'center', justifyContent: 'center' },
-  checkboxOn: { backgroundColor: colors.greenLight, borderColor: colors.greenLight },
+  expenseCard: { backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  expenseLeft: { flex: 1, gap: 3 },
+  expenseCat:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
+  expenseComment: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+  expenseDate: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, opacity: 0.7 },
+  expenseAmt:  { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.red },
+
+  addBtn:     { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 10, backgroundColor: 'rgba(240,160,80,0.15)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)' },
+  addBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
 
   // Модалка
-  modalRoot:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  modalBox:      { width: '46%', maxHeight: '88%', backgroundColor: '#0e0f11', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(74,77,84,0.5)', overflow: 'hidden' },
-  modalHeader:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.3)' },
-  modalTitle:    { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text },
-  modalCloseBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(74,77,84,0.25)', alignItems: 'center', justifyContent: 'center' },
-  modalCloseTxt: { fontSize: 13, color: colors.text, fontFamily: fonts.familySemibold },
+  overlay:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  modalBox:   { width: '100%', maxWidth: 480, backgroundColor: colors.surface, borderRadius: 24, borderWidth: 1, borderColor: colors.border, padding: 28 },
+  modalTitle: { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.text, marginBottom: 6 },
+  modalHint:  { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginBottom: 20, lineHeight: 19 },
 
-  fieldLabel:  { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 16 },
-  amountInput: { padding: 14, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', borderRadius: 12, color: colors.text, fontSize: 28, fontFamily: fonts.family, fontWeight: '800', textAlign: 'center', marginBottom: 4 },
-  input:       { padding: 13, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', borderRadius: 12, color: colors.text, fontSize: 14, fontFamily: fonts.family },
-  confirmBtn:    { paddingVertical: 15, borderRadius: 14, backgroundColor: 'rgba(61,158,146,0.85)', alignItems: 'center' },
-  confirmBtnOff: { backgroundColor: 'rgba(74,77,84,0.3)' },
-  confirmBtnText:{ fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff' },
+  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 16 },
+  catChips:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  catChip:    { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface2 },
+  catChipActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.1)' },
+  catChipTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  catChipTxtActive: { color: colors.orange },
+
+  amountWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 16 },
+  amountInput:{ flex: 1, paddingVertical: 16, fontSize: 28, fontFamily: fonts.family, fontWeight: '800', color: colors.text, textAlign: 'center' },
+  amountCurrency: { fontFamily: fonts.familySemibold, fontSize: 20, color: colors.muted },
+
+  commentInput: { backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 13, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 14 },
+
+  modalBtns:  { flexDirection: 'row', gap: 10, marginTop: 24 },
+  cancelBtn:  { flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
+  cancelTxt:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
+  saveBtn:    { flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
+  saveTxt:    { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: '#fff' },
 });
