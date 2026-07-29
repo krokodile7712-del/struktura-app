@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, Pressable, FlatList, TextInput } from 'react-native';
+import { View, Text, StyleSheet, Pressable, FlatList, TextInput, Animated, Easing } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
@@ -40,6 +40,43 @@ export default function LoyaltyScreen({ navigation }) {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
+  // Анимации
+  const fadeAnim    = useState(new Animated.Value(0))[0];
+  const slideAnim   = useState(new Animated.Value(-20))[0];
+  const searchScale = useState(new Animated.Value(1))[0];
+  const btnPulse    = useState(new Animated.Value(1))[0];
+  const listFade    = useState(new Animated.Value(0))[0];
+
+  // Запускаем анимацию при загрузке
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+      Animated.spring(slideAnim, { toValue: 0, tension: 60, friction: 10, useNativeDriver: true }),
+    ]).start();
+    // Пульсация кнопки
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(btnPulse, { toValue: 1.03, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(btnPulse, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, []);
+
+  // Анимация списка при изменении запроса
+  useEffect(() => {
+    listFade.setValue(0);
+    Animated.timing(listFade, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+  }, [query, clients.length]);
+
+  const onSearchFocus = () => {
+    Animated.spring(searchScale, { toValue: 1.015, useNativeDriver: true, tension: 100, friction: 8 }).start();
+  };
+  const onSearchBlur = () => {
+    Animated.spring(searchScale, { toValue: 1, useNativeDriver: true, tension: 100, friction: 8 }).start();
+  };
+
   const filtered = query.trim().length > 0 ? searchClients(query) : clients;
   const info = MODEL_INFO[loyaltyModel] || MODEL_INFO.points;
 
@@ -51,15 +88,15 @@ export default function LoyaltyScreen({ navigation }) {
 
         {/* Левая колонка — информация */}
         <View style={styles.left}>
-          <View style={styles.modelCard}>
+          <Animated.View style={[styles.modelCard, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
             <Text style={styles.modelLabel}>Модель лояльности</Text>
             <Text style={styles.modelName}>{info.label}</Text>
             <Text style={styles.modelDesc}>{info.desc}</Text>
             <View style={styles.divider} />
             <Text style={styles.modelTip}>{info.tip}</Text>
-          </View>
+          </Animated.View>
 
-          <View style={styles.statRow}>
+          <Animated.View style={[styles.statRow, { opacity: fadeAnim }]}>
             <View style={styles.statBox}>
               <Text style={styles.statVal}>{clients.length}</Text>
               <Text style={styles.statLbl}>Клиентов</Text>
@@ -76,35 +113,40 @@ export default function LoyaltyScreen({ navigation }) {
               </Text>
               <Text style={styles.statLbl}>{loyaltyModel === 'subscription' ? 'Визитов выдано' : 'Баллов выдано'}</Text>
             </View>
-          </View>
+          </Animated.View>
 
           {/* Кнопка регистрации */}
+          <Animated.View style={{ transform: [{ scale: btnPulse }] }}>
           <Pressable
-            style={({ pressed }) => [styles.regBtn, pressed && { opacity: 0.85 }]}
+            style={({ pressed }) => [styles.regBtn, pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] }]}
             onPress={() => navigation.navigate('Reg')}
           >
             <Text style={styles.regBtnTxt}>Зарегистрировать клиента</Text>
             <Text style={styles.regBtnSub}>Новая карта лояльности</Text>
           </Pressable>
+          </Animated.View>
         </View>
 
         {/* Правая колонка — список клиентов */}
         <View style={styles.right}>
           {/* Поиск — прилеплен к верху */}
-          <View style={styles.searchWrap}>
+          <Animated.View style={[styles.searchWrap, { transform: [{ scale: searchScale }] }]}>
             <TextInput
               style={styles.searchInput}
               color={colors.text}
               value={query}
               onChangeText={setQuery}
+              onFocus={onSearchFocus}
+              onBlur={onSearchBlur}
               placeholder="Поиск по имени, телефону или коду..."
               placeholderTextColor={colors.muted}
               clearButtonMode="while-editing"
             />
-          </View>
+          </Animated.View>
 
           {/* Список */}
-          <FlatList
+          <Animated.FlatList
+            style={{ opacity: listFade }}
             data={filtered}
             keyExtractor={c => String(c.id)}
             contentContainerStyle={{ paddingBottom: 16 }}
@@ -121,9 +163,13 @@ export default function LoyaltyScreen({ navigation }) {
               </View>
             }
             ItemSeparatorComponent={() => <View style={styles.separator} />}
-            renderItem={({ item }) => (
+            renderItem={({ item }) => {
+              const rowScale = new Animated.Value(1);
+              return (
               <Pressable
-                style={({ pressed }) => [styles.clientRow, pressed && { backgroundColor: 'rgba(245,240,232,0.03)' }]}
+                style={({ pressed }) => [styles.clientRow, pressed && { backgroundColor: 'rgba(245,240,232,0.04)' }]}
+                onPressIn={() => Animated.spring(rowScale, { toValue: 0.98, useNativeDriver: true, tension: 200 }).start()}
+                onPressOut={() => Animated.spring(rowScale, { toValue: 1, useNativeDriver: true, tension: 200 }).start()}
                 onPress={() => navigation.navigate('ClientCard', { clientId: item.id })}
               >
                 <View style={styles.avatar}>
@@ -141,7 +187,8 @@ export default function LoyaltyScreen({ navigation }) {
                 <Text style={styles.clientVisits}>{item.visits || 0} визит.</Text>
                 <Text style={styles.chevron}>›</Text>
               </Pressable>
-            )}
+              );
+            }}
           />
         </View>
 
