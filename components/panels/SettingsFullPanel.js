@@ -1572,7 +1572,7 @@ export default function SettingsFullPanel() {
           <View style={styles.menuCard}>
             <Pressable
               style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
-              onPress={() => { setSetting('onboarding_done', ''); navigation.navigate('Onboarding'); }}
+              onPress={() => { setSetting('onboarding_done', ''); Alert.alert('Онбординг сброшен', 'Перезапустите приложение для прохождения онбординга заново.'); }}
             >
               <Text style={{ fontSize: 20, marginRight: 12 }}>🚀</Text>
               <View style={{ flex: 1 }}>
