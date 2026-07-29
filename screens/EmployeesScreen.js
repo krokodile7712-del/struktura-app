@@ -284,6 +284,7 @@ export default function EmployeesScreen({ navigation }) {
                 {/* Кнопки */}
                 <View style={styles.btnRow}>
                   {!isNew && (
+                    <>
                     <Pressable
                       style={[styles.toggleBtn, { borderColor: selected?.active ? 'rgba(217,95,95,0.4)' : 'rgba(123,175,142,0.4)' }]}
                       onPress={() => handleToggle(selected)}
@@ -298,6 +299,7 @@ export default function EmployeesScreen({ navigation }) {
                     >
                       <Text style={[styles.toggleTxt, { color: colors.red }]}>Удалить</Text>
                     </Pressable>
+                    </>
                   )}
                   <Pressable style={styles.saveBtn} onPress={handleSave}>
                     <Text style={styles.saveTxt}>{isNew ? 'Создать' : 'Сохранить'}</Text>
