@@ -34,17 +34,20 @@ function fmtDate(iso) {
 
 // ─── Панели разделов ──────────────────────────────────────────────────────────
 
-function DashPanel({ stats, name }) {
+function DashPanel({ stats, name, navigation }) {
   return (
     <ScrollView contentContainerStyle={styles.panelContent}>
       <Text style={styles.panelGreeting}>{getGreeting()}{name ? `, ${name}` : ''}</Text>
       <Text style={styles.panelSub}>Сводка за сегодня</Text>
+
       <View style={styles.statsGrid}>
         {[
           { label: 'Выручка', value: `${(stats.todayTotal || 0).toLocaleString('ru-RU')} ₽` },
           { label: 'Заказов', value: stats.todayOrders || 0 },
           { label: 'Средний чек', value: `${stats.todayOrders > 0 ? Math.round((stats.todayTotal||0) / stats.todayOrders).toLocaleString('ru-RU') : 0} ₽` },
           { label: 'Наличные', value: `${(stats.todayCash || 0).toLocaleString('ru-RU')} ₽` },
+          { label: 'Карта', value: `${(stats.todayCard || 0).toLocaleString('ru-RU')} ₽` },
+          { label: 'Смена открыта', value: stats.shiftDuration || '—' },
         ].map((s, i) => (
           <View key={i} style={styles.statCard}>
             <Text style={styles.statVal}>{s.value}</Text>
@@ -52,7 +55,30 @@ function DashPanel({ stats, name }) {
           </View>
         ))}
       </View>
-      <Text style={styles.panelHint}>Выберите раздел слева для подробной информации</Text>
+
+      {stats.lowStockCount > 0 && (
+        <View style={styles.warnCard}>
+          <Text style={styles.warnTxt}>Мало на складе: {stats.lowStockCount} поз.</Text>
+          {(stats.lowStockItems || []).map((it, i) => (
+            <Text key={i} style={styles.warnItem}>· {it.name} — {it['остаток']} {it.unit}</Text>
+          ))}
+        </View>
+      )}
+
+      {stats.shift && (
+        <Pressable
+          style={({ pressed }) => [styles.shiftCloseBtn, pressed && { opacity: 0.85 }]}
+          onPress={() => navigation.navigate('ShiftClose')}
+        >
+          <View>
+            <Text style={styles.shiftCloseTxt}>Закрыть смену</Text>
+            <Text style={styles.shiftCloseSub}>Открыта {stats.shiftDuration || ''} · {(stats.todayTotal||0).toLocaleString('ru-RU')} ₽</Text>
+          </View>
+          <Text style={{ fontSize: 18, color: colors.muted }}>›</Text>
+        </Pressable>
+      )}
+
+      <Text style={styles.tapHint}>Выберите раздел слева для подробной информации</Text>
     </ScrollView>
   );
 }
@@ -257,4 +283,11 @@ const styles = StyleSheet.create({
 
   bigNum:      { fontFamily: fonts.family, fontSize: 48, fontWeight: '800', color: colors.text, marginBottom: 4 },
   emptyTxt:    { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', marginTop: 32 },
+  tapHint:     { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 24, opacity: 0.6 },
+  warnCard:    { backgroundColor: 'rgba(217,95,95,0.08)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(217,95,95,0.3)', padding: 14, marginBottom: 16 },
+  warnTxt:     { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.red, marginBottom: 6 },
+  warnItem:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.red, opacity: 0.8, marginTop: 2 },
+  shiftCloseBtn: { backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, padding: 16, marginTop: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  shiftCloseTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, marginBottom: 3 },
+  shiftCloseSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
 });
