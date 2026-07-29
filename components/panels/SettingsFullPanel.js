@@ -27,7 +27,7 @@ import { getDb } from '../../db/database';
 import Hint from '../Hint';
 import InfoTip from '../InfoTip';
 import Toggle from '../Toggle';
-import { can } from '../../db/session';
+import { can, clearSession } from '../../db/session';
 import EmptyState from '../EmptyState';
 import { colors, fonts, spacing } from '../../constants/theme';
 import { upsertBusiness, syncServicesToSupabase } from '../../db/supabase';
