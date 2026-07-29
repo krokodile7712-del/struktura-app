@@ -1,86 +1,147 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
-import MetalCard from '../components/MetalCard';
-import MetalButton from '../components/MetalButton';
-import TopBar from '../components/TopBar';
-import Hint from '../components/Hint';
-import { getUserByPin, getOpenShift, getBusinessProfile, getUserPermissions } from '../db/queries';
+import { View, Text, StyleSheet, Pressable, SafeAreaView } from 'react-native';
+import { getUserByPin, getBusinessProfile, getUserPermissions } from '../db/queries';
 import { setSession, setPermissions } from '../db/session';
-import { colors, fonts, spacing } from '../constants/theme';
+import { colors, fonts } from '../constants/theme';
+
+const PIN_LENGTH = 4;
 
 export default function LoginScreen({ navigation }) {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
+  const [shake, setShake] = useState(false);
 
   const businessName = (() => {
     try { return getBusinessProfile()?.business_name || 'СТРУКТУРА'; } catch { return 'СТРУКТУРА'; }
   })();
 
-  const handleLogin = () => {
-    if (!pin.trim()) { setError('Введите PIN-код'); return; }
-    const user = getUserByPin(pin);
-    if (!user) {
-      setError('Неверный PIN-код. Попробуйте ещё раз или обратитесь к администратору.');
-      setPin('');
+  const handlePress = (val) => {
+    if (val === '⌫') {
+      setPin(p => p.slice(0, -1));
+      setError('');
       return;
     }
+    if (pin.length >= PIN_LENGTH) return;
+    const next = pin + val;
+    setPin(next);
     setError('');
-    setSession(user);
-    setPermissions(user.role === 'admin' ? null : getUserPermissions(user.id));
-    // Идём в основной экран — смену можно открыть позже
-    if (user.role === 'admin') {
-      navigation.navigate('Admin');
-    } else {
-      navigation.navigate('Dashboard');
+
+    if (next.length === PIN_LENGTH) {
+      setTimeout(() => tryLogin(next), 120);
     }
   };
 
+  const tryLogin = (code) => {
+    const user = getUserByPin(code);
+    if (!user) {
+      setError('Неверный PIN-код');
+      setPin('');
+      return;
+    }
+    setSession(user);
+    setPermissions(user.role === 'admin' ? null : getUserPermissions(user.id));
+    navigation.navigate(user.role === 'admin' ? 'Admin' : 'Dashboard');
+  };
+
+  const keys = [
+    ['1', '2', '3'],
+    ['4', '5', '6'],
+    ['7', '8', '9'],
+    ['', '0', '⌫'],
+  ];
+
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-      <TopBar title={businessName} />
-      <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
-        <Text style={styles.welcome}>👋 Добро пожаловать</Text>
-        <Text style={styles.welcomeSub}>Введите ваш персональный PIN-код для входа</Text>
+    <SafeAreaView style={styles.root}>
 
-        <MetalCard style={{ marginTop: 20 }}>
-          <Text style={styles.label}>PIN-код</Text>
-          <TextInput
-            style={styles.input}
-            secureTextEntry
-            keyboardType="number-pad"
-            maxLength={6}
-            placeholder="• • • •"
-            placeholderTextColor={colors.muted}
-            value={pin}
-            onChangeText={v => { setPin(v); setError(''); }}
-            autoFocus
+      {/* Шапка */}
+      <View style={styles.header}>
+        <Text style={styles.bizName}>{businessName}</Text>
+        <Text style={styles.prompt}>Введите PIN-код для входа</Text>
+      </View>
+
+      {/* Индикатор точек */}
+      <View style={styles.dotsRow}>
+        {Array.from({ length: PIN_LENGTH }).map((_, i) => (
+          <View
+            key={i}
+            style={[
+              styles.dot,
+              i < pin.length && styles.dotFilled,
+              error && styles.dotError,
+            ]}
           />
-          <Hint>PIN-код назначает администратор. Каждый сотрудник использует свой уникальный код.</Hint>
+        ))}
+      </View>
 
-          {error !== '' && <Text style={styles.error}>⚠️ {error}</Text>}
+      {/* Ошибка */}
+      <Text style={styles.errorTxt}>{error}</Text>
 
-          <MetalButton title="Войти →" variant="action" onPress={handleLogin} />
+      {/* Цифровой пад */}
+      <View style={styles.pad}>
+        {keys.map((row, ri) => (
+          <View key={ri} style={styles.padRow}>
+            {row.map((k, ki) => (
+              k === '' ? (
+                <View key={ki} style={styles.keyEmpty} />
+              ) : (
+                <Pressable
+                  key={ki}
+                  style={({ pressed }) => [
+                    styles.key,
+                    k === '⌫' && styles.keyBack,
+                    pressed && styles.keyPressed,
+                  ]}
+                  onPress={() => handlePress(k)}
+                >
+                  <Text style={[styles.keyTxt, k === '⌫' && styles.keyBackTxt]}>
+                    {k}
+                  </Text>
+                </Pressable>
+              )
+            ))}
+          </View>
+        ))}
+      </View>
 
-          <Text style={styles.footer}>
-            Забыли PIN-код? Обратитесь к администратору — он может изменить его в разделе «Сотрудники».
-          </Text>
-        </MetalCard>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      {/* Подсказка */}
+      <Text style={styles.hint}>
+        PIN-код назначает администратор в разделе Сотрудники
+      </Text>
+
+    </SafeAreaView>
   );
 }
 
+const KEY_SIZE = 80;
+
 const styles = StyleSheet.create({
-  inner: { padding: spacing.lg, paddingBottom: 80, maxWidth: 600, width: '100%', alignSelf: 'center' },
-  welcome: { fontFamily: fonts.family, fontSize: 24, fontWeight: '800', color: colors.text, marginTop: 24, textAlign: 'center' },
-  welcomeSub: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', marginTop: 6, marginBottom: 4 },
-  label: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 2, marginBottom: 10 },
-  input: {
-    width: '100%', padding: 18, backgroundColor: '#07080a',
-    borderWidth: 1, borderColor: colors.border, borderRadius: 14,
-    color: colors.text, fontSize: 28, marginBottom: 4,
-    textAlign: 'center', fontFamily: fonts.family, letterSpacing: 8,
+  root:      { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
+
+  header:    { alignItems: 'center', marginBottom: 48 },
+  bizName:   { fontFamily: fonts.family, fontSize: 28, fontWeight: '800', color: colors.text, letterSpacing: 0.5 },
+  prompt:    { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 8 },
+
+  dotsRow:   { flexDirection: 'row', gap: 18, marginBottom: 12 },
+  dot:       { width: 14, height: 14, borderRadius: 7, borderWidth: 2, borderColor: colors.border, backgroundColor: 'transparent' },
+  dotFilled: { backgroundColor: colors.orange, borderColor: colors.orange },
+  dotError:  { borderColor: colors.red, backgroundColor: colors.red },
+
+  errorTxt:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.red, height: 20, marginBottom: 32, textAlign: 'center' },
+
+  pad:       { gap: 12, marginBottom: 32 },
+  padRow:    { flexDirection: 'row', gap: 12 },
+
+  key:       {
+    width: KEY_SIZE, height: KEY_SIZE, borderRadius: KEY_SIZE / 2,
+    backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border,
+    alignItems: 'center', justifyContent: 'center',
   },
-  error: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.redLight, textAlign: 'center', marginBottom: 10, lineHeight: 18 },
-  footer: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 16, lineHeight: 18 },
+  keyPressed:{ backgroundColor: colors.surface2, transform: [{ scale: 0.94 }] },
+  keyBack:   { backgroundColor: 'transparent', borderColor: 'transparent' },
+  keyEmpty:  { width: KEY_SIZE, height: KEY_SIZE },
+  keyTxt:    { fontFamily: fonts.family, fontSize: 26, fontWeight: '700', color: colors.text },
+  keyBackTxt:{ fontSize: 22, color: colors.muted },
+
+  hint:      { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'center', maxWidth: 280, lineHeight: 18 },
 });
