@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, FlatList } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, FlatList, Animated } from 'react-native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import EmptyState from '../components/EmptyState';
@@ -126,7 +126,7 @@ function ClientCard({ client, onNewOrder, onSaved, loyaltyModel, loyaltyConfig }
       {client.phone ? (
         <Pressable style={styles.infoRow}>
           <Text style={styles.infoIcon}>📞</Text>
-          <Text style={[styles.infoTxt, { color: colors.greenLight }]}>{client.phone}</Text>
+          <Text style={[styles.infoTxt, { color: colors.indigo }]}>{client.phone}</Text>
         </Pressable>
       ) : null}
       {client.birth_date ? (
@@ -153,7 +153,7 @@ function ClientCard({ client, onNewOrder, onSaved, loyaltyModel, loyaltyConfig }
               style={styles.noteInput}
               value={notes}
               onChangeText={setNotes}
-              placeholder="Предпочтения, аллергии, особые пожелания..."
+              placeholder="Предпочтения, аллергии, особые пожелания..." // Подсказка кассиру перед заказом
               placeholderTextColor={colors.muted}
               multiline
               autoFocus
@@ -259,6 +259,18 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
   const [query, setQuery]       = useState('');
   const [clients, setClients]   = useState([]);
   const [selected, setSelected] = useState(null);
+  const cardAnim = useState(new Animated.Value(0))[0];
+  const cardSlide = useState(new Animated.Value(24))[0];
+
+  const selectClient = (c) => {
+    cardAnim.setValue(0);
+    cardSlide.setValue(24);
+    setSelected(c);
+    Animated.parallel([
+      Animated.timing(cardAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.spring(cardSlide, { toValue: 0, tension: 80, friction: 12, useNativeDriver: true }),
+    ]).start();
+  };
   const [terms, setTerms]       = useState({ client: 'Клиент', order: 'Заказ' });
   const [loyaltyModel, setLoyaltyModel] = useState('points');
   const [loyaltyConfig, setLoyaltyConfig] = useState({});
@@ -324,7 +336,7 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
                         isActive && styles.clientRowActive,
                         pressed && !isActive && { backgroundColor: 'rgba(255,255,255,0.03)' },
                       ]}
-                      onPress={() => setSelected(c)}
+                      onPress={() => selectClient(c)}
                     >
                       <View style={[styles.listAvatar, isActive && styles.listAvatarActive]}>
                         <Text style={[styles.listAvatarTxt, isActive && { color: '#fff' }]}>
@@ -349,6 +361,7 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
         {/* Правая колонка — карточка */}
         <View style={styles.cardCol}>
           {selected ? (
+            <Animated.View style={{ flex: 1, opacity: cardAnim, transform: [{ translateY: cardSlide }] }}>
             <ClientCard
               key={selected.id}
               client={selected}
@@ -357,6 +370,7 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
               onNewOrder={(c) => navigation.navigate('Kassa', { forClient: { id: c.id, fio: c.fio, code: c.code } })}
               onSaved={() => load()}
             />
+            </Animated.View>
           ) : (
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', opacity: 0.3 }}>
               <Text style={{ fontSize: 48 }}>👥</Text>
@@ -375,39 +389,39 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
 
 const styles = StyleSheet.create({
   layout:     { flex: 1, flexDirection: 'row' },
-  listCol:    { width: 280, borderRightWidth: 1, borderRightColor: 'rgba(74,77,84,0.2)', backgroundColor: '#07080a' },
-  cardCol:    { flex: 1, backgroundColor: colors.surface },
+  listCol:    { width: 280, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface },
+  cardCol:    { flex: 1, backgroundColor: colors.bg },
   searchWrap: { padding: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.2)' },
-  searchInput:{ backgroundColor: 'rgba(74,77,84,0.12)', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12, fontFamily: fonts.familyRegular, fontSize: 13, color: colors.text },
-  addBtn:     { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(61,158,146,0.15)', borderWidth: 1, borderColor: 'rgba(61,158,146,0.4)', alignItems: 'center', justifyContent: 'center' },
-  addBtnTxt:  { fontSize: 18, color: colors.greenLight, lineHeight: 24 },
+  searchInput:{ backgroundColor: colors.surface2, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 12, fontFamily: fonts.familyRegular, fontSize: 13, color: colors.text },
+  addBtn:     { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(240,160,80,0.15)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
+  addBtnTxt:  { fontSize: 18, color: colors.orange, lineHeight: 24 },
 
-  clientsCard:   { margin: 8, backgroundColor: '#0b0c0f', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', overflow: 'hidden' },
+  clientsCard:   { margin: 8, backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   clientRow:     { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 10, position: 'relative' },
   clientRowDiv:  { borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.15)' },
-  clientRowActive:{ backgroundColor: 'rgba(61,158,146,0.06)' },
-  clientName:    { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
+  clientRowActive:{ backgroundColor: 'rgba(240,160,80,0.07)' },
+  clientName:    { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
   clientSub:     { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
-  listAvatar:    { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(74,77,84,0.2)', alignItems: 'center', justifyContent: 'center' },
-  listAvatarActive:{ backgroundColor: colors.greenLight },
+  listAvatar:    { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  listAvatarActive:{ backgroundColor: colors.orange },
   listAvatarTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
-  activeBar:     { position: 'absolute', left: 0, top: '20%', bottom: '20%', width: 3, borderRadius: 2, backgroundColor: colors.greenLight },
+  activeBar:     { position: 'absolute', left: 0, top: '20%', bottom: '20%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
 
   // Карточка клиента
   cardHead:    { alignItems: 'center', marginBottom: 20 },
-  avatar:      { width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(61,158,146,0.15)', borderWidth: 2, borderColor: 'rgba(61,158,146,0.3)', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
-  avatarTxt:   { fontFamily: fonts.family, fontSize: 28, fontWeight: '800', color: colors.greenLight },
+  avatar:      { width: 76, height: 76, borderRadius: 38, backgroundColor: 'rgba(139,127,212,0.15)', borderWidth: 2, borderColor: 'rgba(139,127,212,0.35)', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  avatarTxt:   { fontFamily: fonts.family, fontSize: 28, fontWeight: '800', color: colors.indigo },
   cardName:    { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.text },
   cardCode:    { fontFamily: 'monospace', fontSize: 11, color: colors.muted, marginTop: 4 },
   birthday:    { fontFamily: fonts.familySemibold, fontSize: 13, color: '#f5c842', marginTop: 6 },
 
   balanceBox:  { alignItems: 'center', marginBottom: 20 },
-  balanceNum:  { fontFamily: fonts.family, fontSize: 52, fontWeight: '800', color: colors.greenLight },
+  balanceNum:  { fontFamily: fonts.family, fontSize: 52, fontWeight: '800', color: colors.text },
   balanceLbl:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
-  personalDiscount: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.greenLight, marginTop: 4 },
+  personalDiscount: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.orange, marginTop: 4 },
 
   statsRow:    { flexDirection: 'row', gap: 10, marginBottom: 16 },
-  statBox:     { flex: 1, backgroundColor: '#07090f', borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', borderRadius: 12, padding: 12, alignItems: 'center' },
+  statBox:     { flex: 1, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 14, padding: 14, alignItems: 'center' },
   statVal:     { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text },
   statLbl:     { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, textTransform: 'uppercase', marginTop: 3 },
 
@@ -419,28 +433,28 @@ const styles = StyleSheet.create({
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   sectionTitle:{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
   sectionAction:{ fontFamily: fonts.familySemibold, fontSize: 12, color: colors.greenLight },
-  noteInput:   { backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', borderRadius: 12, padding: 12, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 13, minHeight: 80, textAlignVertical: 'top' },
-  noteText:    { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.text, lineHeight: 20, backgroundColor: 'rgba(74,77,84,0.08)', borderRadius: 10, padding: 12 },
+  noteInput:   { backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 12, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 13, minHeight: 80, textAlignVertical: 'top' },
+  noteText:    { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.textDim, lineHeight: 20, backgroundColor: colors.surface2, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.border },
   notePlaceholder: { fontFamily: fonts.familyRegular, fontSize: 13, color: 'rgba(74,77,84,0.5)' },
 
-  btn:        { paddingVertical: 13, borderRadius: 14, backgroundColor: 'rgba(61,158,146,0.85)', alignItems: 'center' },
+  btn:        { paddingVertical: 14, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
   btnTxt:     { fontFamily: fonts.family, fontSize: 14, fontWeight: '700', color: '#fff' },
-  btnSec:     { paddingVertical: 13, borderRadius: 14, backgroundColor: 'rgba(74,77,84,0.18)', borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', alignItems: 'center' },
-  btnSecTxt:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
+  btnSec:     { paddingVertical: 14, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
+  btnSecTxt:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
 
-  editBox:    { marginTop: 16, padding: 16, backgroundColor: '#07080a', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', gap: 4 },
+  editBox:    { marginTop: 16, padding: 16, backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, gap: 4 },
   fieldLbl:   { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.2, marginTop: 10, marginBottom: 4 },
-  input:      { padding: 11, backgroundColor: '#0b0c0f', borderWidth: 1, borderColor: 'rgba(74,77,84,0.35)', borderRadius: 10, color: colors.text, fontFamily: fonts.family, fontSize: 14 },
+  input:      { padding: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 14 },
 
-  ordersCard:    { backgroundColor: '#0b0c0f', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', overflow: 'hidden' },
+  ordersCard:    { backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   orderRow:      { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 8 },
   orderDiv:      { borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.15)' },
   orderDate:     { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
   orderMethod:   { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
-  orderTotal:    { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
+  orderTotal:    { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
   orderChevron:  { fontSize: 18, color: 'rgba(74,77,84,0.4)', transform: [{ rotate: '90deg' }] },
   orderChevronOpen: { transform: [{ rotate: '-90deg' }] },
-  orderItems:    { backgroundColor: 'rgba(74,77,84,0.06)', paddingHorizontal: 12, paddingVertical: 8 },
+  orderItems:    { backgroundColor: colors.surface2, paddingHorizontal: 14, paddingVertical: 10 },
   orderItem:     { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
   orderItemName: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, flex: 1 },
   orderItemPrice:{ fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
