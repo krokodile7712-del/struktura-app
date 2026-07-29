@@ -42,7 +42,7 @@ function DashPanel({ stats, name }) {
       <Text style={styles.panelSub}>Сводка за сегодня</Text>
       <View style={styles.statsGrid}>
         {[
-          { label: 'Выручка', value: `${stats.revenueToday || 0} ₽` },
+          { label: 'Выручка', value: `${(stats.todayTotal || 0).toLocaleString('ru-RU')} ₽` },
           { label: 'Заказов', value: stats.ordersToday || 0 },
           { label: 'Средний чек', value: `${stats.avgCheck || 0} ₽` },
           { label: 'Прибыль', value: `${stats.profit || 0} ₽`, hi: (stats.profit||0) >= 0 },
