@@ -2493,7 +2493,7 @@ export function getBusinessMetrics(pnlFull, businessPreset) {
 
 export function deleteUser(id) {
   const db = getDb();
-  db.runSync(`UPDATE users SET active = 0 WHERE id = ?`, [id]);
+  db.runSync(`DELETE FROM users WHERE id = ?`, [id]);
 }
 
 // ─── Права доступа сотрудников ───────────────────────────────────────────────
