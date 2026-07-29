@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, Animated, Modal, Easing, Dimensions } from 'react-native';
 import TopBar from '../components/TopBar';
 import { getOpenShift, getShiftSummary, closeShift, getTerms, pluralizeRu, getPayMethods } from '../db/queries';
 import { useToast } from '../components/Toast';
@@ -16,7 +16,21 @@ export default function ShiftCloseScreen({ navigation }) {
   const [terms, setTerms]       = useState({ order: 'Заказ' });
   const [payMethods, setPayMethods] = useState([]);
 
+  const [showResult, setShowResult] = useState(false);
   const fadeAnim = useState(new Animated.Value(0))[0];
+
+  // Анимации для модалки результата
+  const overlayAnim   = useState(new Animated.Value(0))[0];
+  const titleAnim     = useState(new Animated.Value(0))[0];
+  const card1Anim     = useState(new Animated.Value(60))[0];
+  const card2Anim     = useState(new Animated.Value(60))[0];
+  const card3Anim     = useState(new Animated.Value(60))[0];
+  const card4Anim     = useState(new Animated.Value(60))[0];
+  const btnAnim       = useState(new Animated.Value(0))[0];
+  const [revenueVal, setRevenueVal] = useState(0);
+  const [ordersVal, setOrdersVal]   = useState(0);
+  const [profitVal, setProfitVal]   = useState(0);
+  const [expVal, setExpVal]         = useState(0);
   const slideAnim= useState(new Animated.Value(20))[0];
   const btnScale = useState(new Animated.Value(1))[0];
 
@@ -34,12 +48,42 @@ export default function ShiftCloseScreen({ navigation }) {
     ]).start();
   }, []);
 
+  const animateCounter = (setter, target, delay, duration = 1200) => {
+    const anim = new Animated.Value(0);
+    anim.addListener(({ value }) => setter(Math.round(value)));
+    Animated.timing(anim, {
+      toValue: target,
+      duration,
+      delay,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const showResultModal = (s) => {
+    setShowResult(true);
+    // Последовательная анимация
+    Animated.timing(overlayAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
+    Animated.timing(titleAnim, { toValue: 1, duration: 600, delay: 300, easing: Easing.out(Easing.back(1.2)), useNativeDriver: true }).start();
+    Animated.spring(card1Anim, { toValue: 0, tension: 60, friction: 12, delay: 600, useNativeDriver: true }).start();
+    Animated.spring(card2Anim, { toValue: 0, tension: 60, friction: 12, delay: 900, useNativeDriver: true }).start();
+    Animated.spring(card3Anim, { toValue: 0, tension: 60, friction: 12, delay: 1200, useNativeDriver: true }).start();
+    Animated.spring(card4Anim, { toValue: 0, tension: 60, friction: 12, delay: 1500, useNativeDriver: true }).start();
+    Animated.timing(btnAnim, { toValue: 1, duration: 500, delay: 1800, useNativeDriver: true }).start();
+    // Счётчики
+    animateCounter(setRevenueVal, s.total || 0, 700, 1400);
+    animateCounter(setOrdersVal, s.orders || 0, 1000, 1000);
+    animateCounter(setExpVal, s.expTotal || 0, 1300, 1000);
+    animateCounter(setProfitVal, (s.total || 0) - (s.expTotal || 0), 1600, 1000);
+  };
+
   const handleConfirm = () => {
     if (!summary) return;
     try {
       closeShift(summary.shift.id);
       setClosed(true);
       toast.show('Смена закрыта');
+      showResultModal(summary);
       Animated.spring(btnScale, { toValue: 0.95, useNativeDriver: true }).start(() =>
         Animated.spring(btnScale, { toValue: 1, useNativeDriver: true }).start()
       );
@@ -56,6 +100,71 @@ export default function ShiftCloseScreen({ navigation }) {
   const cashLabel = payMethods.find(m => m.type === 'cash')?.name || 'Наличные';
   const cardLabel = payMethods.filter(m => m.type === 'card').map(m => m.name).join(' / ') || 'Карта';
 
+  const { width: SW, height: SH } = Dimensions.get('window');
+
+  const ResultModal = () => (
+    <Modal visible={showResult} transparent animationType="none" statusBarTranslucent>
+      <Animated.View style={[styles.overlay, { opacity: overlayAnim }]}>
+        <View style={styles.modalBox}>
+
+          {/* Заголовок */}
+          <Animated.View style={[styles.modalHeader, {
+            opacity: titleAnim,
+            transform: [{ scale: titleAnim }],
+          }]}>
+            <Text style={styles.modalTitle}>День завершён</Text>
+            <Text style={styles.modalDate}>{new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</Text>
+          </Animated.View>
+
+          {/* Карточки статистики */}
+          <View style={styles.modalGrid}>
+
+            <Animated.View style={[styles.modalCard, styles.modalCardOrange, { transform: [{ translateY: card1Anim }], opacity: card1Anim.interpolate({ inputRange: [0, 60], outputRange: [1, 0] }) }]}>
+              <Text style={styles.modalCardLabel}>Выручка</Text>
+              <Text style={[styles.modalCardVal, { color: colors.orange }]}>{revenueVal.toLocaleString('ru-RU')} ₽</Text>
+              {summary.cash > 0 && <Text style={styles.modalCardSub}>Нал: {fmt(summary.cash)} ₽</Text>}
+              {summary.card > 0 && <Text style={styles.modalCardSub}>Карта: {fmt(summary.card)} ₽</Text>}
+            </Animated.View>
+
+            <Animated.View style={[styles.modalCard, { transform: [{ translateY: card2Anim }], opacity: card2Anim.interpolate({ inputRange: [0, 60], outputRange: [1, 0] }) }]}>
+              <Text style={styles.modalCardLabel}>Заказов</Text>
+              <Text style={styles.modalCardVal}>{ordersVal}</Text>
+              <Text style={styles.modalCardSub}>
+                Ср. чек: {summary.orders > 0 ? Math.round((summary.total || 0) / summary.orders).toLocaleString('ru-RU') : 0} ₽
+              </Text>
+            </Animated.View>
+
+            <Animated.View style={[styles.modalCard, { transform: [{ translateY: card3Anim }], opacity: card3Anim.interpolate({ inputRange: [0, 60], outputRange: [1, 0] }) }]}>
+              <Text style={styles.modalCardLabel}>Расходы</Text>
+              <Text style={[styles.modalCardVal, { color: colors.red }]}>{expVal.toLocaleString('ru-RU')} ₽</Text>
+              <Text style={styles.modalCardSub}>
+                {Object.keys(summary.expByCategory || {}).length} категор.
+              </Text>
+            </Animated.View>
+
+            <Animated.View style={[styles.modalCard, { transform: [{ translateY: card4Anim }], opacity: card4Anim.interpolate({ inputRange: [0, 60], outputRange: [1, 0] }) }]}>
+              <Text style={styles.modalCardLabel}>Прибыль</Text>
+              <Text style={[styles.modalCardVal, { color: profitVal >= 0 ? colors.green : colors.red }]}>
+                {profitVal >= 0 ? '+' : ''}{profitVal.toLocaleString('ru-RU')} ₽
+              </Text>
+              <Text style={styles.modalCardSub}>Выручка минус расходы</Text>
+            </Animated.View>
+
+          </View>
+
+          {/* Кнопка */}
+          <Animated.View style={{ opacity: btnAnim, transform: [{ translateY: btnAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
+            <Pressable style={styles.modalBtn} onPress={handleFinish}>
+              <Text style={styles.modalBtnTxt}>Завершить и выйти</Text>
+              <Text style={styles.modalBtnSub}>До следующего рабочего дня!</Text>
+            </Pressable>
+          </Animated.View>
+
+        </View>
+      </Animated.View>
+    </Modal>
+  );
+
   if (!summary) return (
     <View style={styles.root}>
       <TopBar title="Закрытие смены" onBack={() => navigation.navigate(getHomeRoute())} />
@@ -71,6 +180,7 @@ export default function ShiftCloseScreen({ navigation }) {
 
   return (
     <View style={styles.root}>
+      <ResultModal />
       <TopBar title="Конец рабочего дня" onBack={() => navigation.navigate(getHomeRoute())} />
       <ScrollView contentContainerStyle={styles.inner}>
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
@@ -241,6 +351,20 @@ const styles = StyleSheet.create({
   logoutBtn:  { backgroundColor: colors.surface2, borderRadius: 12, paddingVertical: 13, paddingHorizontal: 32, borderWidth: 1, borderColor: colors.border },
   logoutBtnTxt:{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
 
+  overlay:      { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  modalBox:     { width: '100%', maxWidth: 700, backgroundColor: colors.surface, borderRadius: 28, borderWidth: 1, borderColor: colors.border, padding: 32, gap: 24 },
+  modalHeader:  { alignItems: 'center' },
+  modalTitle:   { fontFamily: fonts.family, fontSize: 34, fontWeight: '800', color: colors.text, marginBottom: 6 },
+  modalDate:    { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
+  modalGrid:    { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  modalCard:    { flex: 1, minWidth: '45%', backgroundColor: colors.surface2, borderRadius: 18, borderWidth: 1, borderColor: colors.border, padding: 20 },
+  modalCardOrange: { borderColor: 'rgba(240,160,80,0.3)', backgroundColor: 'rgba(240,160,80,0.07)' },
+  modalCardLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8 },
+  modalCardVal:  { fontFamily: fonts.family, fontSize: 32, fontWeight: '800', color: colors.text, marginBottom: 6 },
+  modalCardSub:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+  modalBtn:     { backgroundColor: colors.orange, borderRadius: 16, paddingVertical: 18, alignItems: 'center' },
+  modalBtnTxt:  { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: '#fff' },
+  modalBtnSub:  { fontFamily: fonts.familyRegular, fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 3 },
   emptyTitle: { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.text, marginBottom: 8, textAlign: 'center' },
   emptyText:  { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', lineHeight: 21, marginBottom: 24 },
   backBtn:    { backgroundColor: colors.surface, borderRadius: 12, paddingVertical: 13, paddingHorizontal: 28, borderWidth: 1, borderColor: colors.border },
