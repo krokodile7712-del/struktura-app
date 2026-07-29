@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Alert, Animated } from 'react-native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import { getAllUsers, addUser, updateUser, toggleUserActive, getRoleNames } from '../db/queries';
+import { getAllUsers, addUser, updateUser, toggleUserActive, getRoleNames, deleteUser } from '../db/queries';
 import { useToast } from '../components/Toast';
 import { getHomeRoute } from '../db/session';
 import { colors, fonts } from '../constants/theme';
@@ -85,6 +85,28 @@ export default function EmployeesScreen({ navigation }) {
       load();
       setSelected(null);
     } catch(e) { setError(e.message || 'Ошибка сохранения'); }
+  };
+
+  const handleDelete = (u) => {
+    Alert.alert(
+      'Удалить сотрудника?',
+      `${u.name} будет удалён навсегда. Это действие нельзя отменить.`,
+      [
+        { text: 'Отмена', style: 'cancel' },
+        {
+          text: 'Удалить',
+          style: 'destructive',
+          onPress: () => {
+            try {
+              deleteUser(u.id);
+              load();
+              setSelected(null);
+              toast.show('Сотрудник удалён');
+            } catch(e) { Alert.alert('Ошибка', e.message); }
+          }
+        }
+      ]
+    );
   };
 
   const handleToggle = (u) => {
@@ -269,6 +291,12 @@ export default function EmployeesScreen({ navigation }) {
                       <Text style={[styles.toggleTxt, { color: selected?.active ? colors.red : colors.green }]}>
                         {selected?.active ? 'Деактивировать' : 'Активировать'}
                       </Text>
+                    </Pressable>
+                    <Pressable
+                      style={[styles.toggleBtn, { borderColor: 'rgba(217,95,95,0.5)', backgroundColor: 'rgba(217,95,95,0.07)' }]}
+                      onPress={() => handleDelete(selected)}
+                    >
+                      <Text style={[styles.toggleTxt, { color: colors.red }]}>Удалить</Text>
                     </Pressable>
                   )}
                   <Pressable style={styles.saveBtn} onPress={handleSave}>
