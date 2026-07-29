@@ -82,6 +82,7 @@ function DashPanel({ stats, name, navigation }) {
       </View>
 
       {stats.shift && (
+        <>
         <View style={styles.shiftSep} />
         <Pressable
           style={({ pressed }) => [styles.shiftCloseBtn, pressed && { opacity: 0.85 }]}
@@ -93,6 +94,7 @@ function DashPanel({ stats, name, navigation }) {
           </View>
           <Text style={{ fontSize: 18, color: colors.muted }}>›</Text>
         </Pressable>
+        </>
       )}
 
       <Text style={styles.tapHint}>Выберите раздел слева для подробной информации</Text>
