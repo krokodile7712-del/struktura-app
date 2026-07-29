@@ -1,308 +1,344 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Alert } from 'react-native';
-import MetalCard from '../components/MetalCard';
-import MetalButton from '../components/MetalButton';
+import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Alert, Animated } from 'react-native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import { getAllUsers, addUser, updateUser, toggleUserActive, getRoleNames } from '../db/queries';
-import Hint from '../components/Hint';
-import EmptyState from '../components/EmptyState';
-import SwipeableRow from '../components/SwipeableRow';
 import { useToast } from '../components/Toast';
-import { colors, fonts, spacing } from '../constants/theme';
-
+import { getHomeRoute } from '../db/session';
+import { colors, fonts } from '../constants/theme';
 
 const SALARY_TYPES = [
-  { key: 'shift',       label: 'За смену, ₽',        hint: 'Фиксированная сумма за каждую отработанную смену' },
-  { key: 'hourly',      label: 'Почасовая, ₽/час',   hint: 'Ставка × количество часов в смене' },
-  { key: 'revenue_pct', label: '% от выручки',        hint: 'Процент от всей выручки за смену сотрудника' },
-  { key: 'monthly',     label: 'Оклад в месяц, ₽',   hint: 'Месячный оклад ÷ 22 рабочих дня = стоимость смены' },
-  { key: 'profit_pct',  label: '% от прибыли смены', hint: 'Мотивационная ставка: процент от чистой прибыли за смену' },
+  { key: 'shift',       label: 'За смену',      hint: 'Фиксированная сумма за каждую смену' },
+  { key: 'hourly',      label: '₽ / час',        hint: 'Ставка × количество часов в смене' },
+  { key: 'revenue_pct', label: '% выручки',      hint: 'Процент от всей выручки за смену' },
+  { key: 'monthly',     label: 'Оклад',          hint: 'Месячный оклад ÷ 22 дня = смена' },
+  { key: 'profit_pct',  label: '% прибыли',      hint: 'Процент от чистой прибыли за смену' },
 ];
 
-const emptyModal = { id: null, name: '', pin: '', pinConfirm: '', role: 'barista', active: 1, salary_type: 'shift', salary_amount: '' };
+const empty = { id: null, name: '', pin: '', pinConfirm: '', role: 'barista', active: 1, salary_type: 'shift', salary_amount: '' };
 
 export default function EmployeesScreen({ navigation }) {
-  const [users, setUsers]     = useState([]);
+  const [users, setUsers]         = useState([]);
   const [roleNames, setRoleNames] = useState({ barista: 'Сотрудник', admin: 'Администратор' });
-  const [modal, setModal]     = useState(null);
-  const [error, setError]     = useState('');
-  const [showPin, setShowPin] = useState(false);
+  const [selected, setSelected]   = useState(null); // редактируемый юзер
+  const [draft, setDraft]         = useState(empty);
+  const [showPin, setShowPin]     = useState(false);
+  const [error, setError]         = useState('');
+  const [isNew, setIsNew]         = useState(false);
+  const toast = useToast();
+
+  const cardAnim  = useState(new Animated.Value(0))[0];
+  const cardSlide = useState(new Animated.Value(20))[0];
 
   useEffect(() => { load(); }, []);
 
-  const toast = useToast();
   const load = () => {
-    try {
-      setUsers(getAllUsers());
-      setRoleNames(getRoleNames());
-    } catch (e) { console.error(e); }
+    try { setUsers(getAllUsers()); setRoleNames(getRoleNames()); } catch(e) { console.error(e); }
   };
 
-  const openAdd = () => {
+  const selectUser = (u) => {
+    setSelected(u);
+    setDraft({ ...empty, ...u, pin: '', pinConfirm: '' });
     setError('');
-    setShowPin(false);
-    setModal({ ...emptyModal });
+    setIsNew(false);
+    cardAnim.setValue(0); cardSlide.setValue(20);
+    Animated.parallel([
+      Animated.timing(cardAnim, { toValue: 1, duration: 280, useNativeDriver: true }),
+      Animated.spring(cardSlide, { toValue: 0, tension: 80, friction: 12, useNativeDriver: true }),
+    ]).start();
   };
 
-  const openEdit = (user) => {
+  const openNew = () => {
+    setSelected({ id: null });
+    setDraft(empty);
     setError('');
-    setShowPin(false);
-    setModal({ id: user.id, name: user.name, pin: user.pin, pinConfirm: user.pin, role: user.role, active: user.active ?? 1, salary_type: user.salary_type || 'shift', salary_amount: String(user.salary_amount || '') });
+    setIsNew(true);
+    cardAnim.setValue(0); cardSlide.setValue(20);
+    Animated.parallel([
+      Animated.timing(cardAnim, { toValue: 1, duration: 280, useNativeDriver: true }),
+      Animated.spring(cardSlide, { toValue: 0, tension: 80, friction: 12, useNativeDriver: true }),
+    ]).start();
   };
 
-  const closeModal = () => { setModal(null); setError(''); };
-  const safeCloseModal = () => {
-    if (!modal) return closeModal();
-    const hasInput = modal.name?.trim() || (modal.pin && modal.pin.length > 0);
-    if (hasInput && !modal.id) {
-      Alert.alert(
-        'Отменить создание сотрудника?',
-        'Введённые данные будут потеряны.',
-        [
-          { text: 'Остаться', style: 'cancel' },
-          { text: 'Отменить', style: 'destructive', onPress: closeModal },
-        ]
-      );
-    } else {
-      closeModal();
-    }
-  };
-
-  const save = () => {
-    if (!modal) return;
-    if (!modal.name.trim()) { setError('Укажите имя сотрудника'); return; }
-    if (modal.pin.trim().length < 4) { setError('PIN — минимум 4 цифры'); return; }
-    if (modal.pin !== modal.pinConfirm) { setError('PIN-коды не совпадают'); return; }
-
+  const handleSave = () => {
+    setError('');
+    if (!draft.name.trim()) { setError('Введите имя сотрудника'); return; }
+    if (isNew && draft.pin.length < 4) { setError('PIN — минимум 4 цифры'); return; }
+    if (isNew && draft.pin !== draft.pinConfirm) { setError('PIN-коды не совпадают'); return; }
+    if (draft.pin && draft.pin.length > 0 && draft.pin.length < 4) { setError('PIN — минимум 4 цифры'); return; }
+    if (draft.pin && draft.pin !== draft.pinConfirm) { setError('PIN-коды не совпадают'); return; }
     try {
-      let result;
-      if (modal.id) {
-        result = updateUser(modal.id, modal.name, modal.pin, modal.role, modal.salary_type, parseFloat(modal.salary_amount)||0);
+      const data = {
+        name: draft.name.trim(),
+        role: draft.role,
+        salary_type: draft.salary_type,
+        salary_amount: parseFloat(draft.salary_amount) || 0,
+        active: draft.active,
+      };
+      if (isNew) {
+        addUser(draft.name.trim(), draft.pin, draft.role, data.salary_type, data.salary_amount);
+        toast.show('Сотрудник добавлен');
       } else {
-        result = addUser(modal.name, modal.pin, modal.role, modal.salary_type, parseFloat(modal.salary_amount)||0);
+        updateUser(selected.id, { ...data, ...(draft.pin ? { pin: draft.pin } : {}) });
+        toast.show('Сохранено');
       }
-      if (!result.ok) { setError(result.error); return; }
       load();
-      toast.show(modal.id ? 'Сотрудник обновлён ✓' : 'Сотрудник добавлен ✓');
-      closeModal();
-    } catch (e) { setError(e.message || 'Ошибка сохранения'); }
+      setSelected(null);
+    } catch(e) { setError(e.message || 'Ошибка сохранения'); }
   };
 
-  const toggleActive = () => {
-    if (!modal?.id) return;
-    try {
-      const result = toggleUserActive(modal.id);
-      if (!result.ok) { setError(result.error); return; }
-      load();
-      toast.show(modal.id ? 'Сотрудник обновлён ✓' : 'Сотрудник добавлен ✓');
-      closeModal();
-    } catch (e) { setError(e.message || 'Ошибка'); }
-  };
-
-  const active   = users.filter(u => u.active !== 0);
-  const inactive = users.filter(u => u.active === 0);
-
-  const renderUser = (user) => {
-    const isAdmin = user.role === 'admin';
-    const isInactive = user.active === 0;
-    return (
-      <Pressable key={user.id} style={styles.userRow} onPress={() => openEdit(user)}>
-        <View style={styles.userLeft}>
-          <Text style={[styles.userName, isInactive && styles.userNameInactive]}>{user.name}</Text>
-          <View style={styles.badgeRow}>
-            <View style={[styles.badge, isAdmin ? styles.badgeAdmin : styles.badgeBarista]}>
-              <Text style={[styles.badgeText, isAdmin ? styles.badgeTextAdmin : styles.badgeTextBarista]}>
-                {isAdmin ? roleNames.admin : roleNames.barista}
-              </Text>
-            </View>
-            {isInactive && (
-              <View style={styles.badgeInactive}>
-                <Text style={styles.badgeTextInactive}>Неактивен</Text>
-              </View>
-            )}
-          </View>
-        </View>
-        <Text style={styles.pinMask}>{'●'.repeat(Math.min(user.pin?.length || 4, 6))}</Text>
-        <Text style={styles.editArrow}>›</Text>
-      </Pressable>
+  const handleToggle = (u) => {
+    Alert.alert(
+      u.active ? 'Деактивировать?' : 'Активировать?',
+      u.active ? `${u.name} не сможет войти в систему` : `${u.name} снова сможет входить`,
+      [
+        { text: 'Отмена' },
+        { text: 'Да', onPress: () => { toggleUserActive(u.id); load(); if (selected?.id === u.id) setSelected(null); } }
+      ]
     );
   };
 
   return (
-    <View style={{ flex: 1 }}>
-      <TopBar title="Сотрудники" onBack={() => navigation.navigate('Settings')} />
-      <ScrollView style={styles.screen} contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
+    <View style={styles.root}>
+      <TopBar
+        title="Сотрудники"
+        onBack={() => navigation.navigate(getHomeRoute())}
+        rightElement={
+          <Pressable style={styles.addBtn} onPress={openNew}>
+            <Text style={styles.addBtnTxt}>+ Добавить</Text>
+          </Pressable>
+        }
+      />
 
-        <MetalCard>
-          {active.length === 0 && (
-            <EmptyState
-              icon="👥"
-              title="Сотрудников пока нет"
-              text="Добавьте сотрудников чтобы каждый мог войти в систему по своему PIN-коду. Можно назначить разные уровни доступа."
-              action="Добавить первого сотрудника"
-              onAction={openAdd}
-            />
-          )}
-          {active.map(renderUser)}
-          <MetalButton title="+ Добавить сотрудника" variant="default" onPress={openAdd} style={{ marginTop: 12 }} />
-        </MetalCard>
-
-        {inactive.length > 0 && (
-          <MetalCard style={{ marginTop: 12 }}>
-            <Text style={styles.sectionTitle}>Неактивные</Text>
-            {inactive.map(renderUser)}
-          </MetalCard>
-        )}
-      </ScrollView>
-      <BottomBar navigation={navigation} activeTab="Kassa" />
-
-      <Modal visible={!!modal} transparent animationType="fade" onRequestClose={safeCloseModal}>
-        <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={closeModal} />
-          {modal && (
-            <View style={styles.modalInner}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>{modal.id ? 'Редактировать сотрудника' : 'Новый сотрудник'}</Text>
-                <Pressable onPress={closeModal} hitSlop={12}>
-                  <Text style={styles.modalClose}>✕</Text>
-                </Pressable>
+      <View style={styles.layout}>
+        {/* Список */}
+        <View style={styles.left}>
+          <Text style={styles.listHint}>Нажмите на сотрудника чтобы редактировать</Text>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {users.length === 0 ? (
+              <View style={styles.emptyWrap}>
+                <Text style={styles.emptyTxt}>Нет сотрудников</Text>
+                <Text style={styles.emptyHint}>Нажмите "+ Добавить" чтобы создать первого</Text>
               </View>
+            ) : (
+              <View style={styles.listCard}>
+                {users.map((u, idx) => {
+                  const isActive = selected?.id === u.id;
+                  return (
+                    <Pressable
+                      key={u.id}
+                      style={({ pressed }) => [
+                        styles.userRow,
+                        idx < users.length - 1 && styles.userRowDiv,
+                        isActive && styles.userRowActive,
+                        !u.active && { opacity: 0.45 },
+                        pressed && { backgroundColor: 'rgba(245,240,232,0.03)' },
+                      ]}
+                      onPress={() => selectUser(u)}
+                    >
+                      {isActive && <View style={styles.activeBar} />}
+                      <View style={styles.userAvatar}>
+                        <Text style={styles.userAvatarTxt}>{(u.name || '?').charAt(0).toUpperCase()}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.userName, isActive && { color: colors.orange }]}>{u.name}</Text>
+                        <Text style={styles.userRole}>{u.role === 'admin' ? roleNames.admin : roleNames.barista}</Text>
+                      </View>
+                      {!u.active && <Text style={styles.inactiveBadge}>Неактивен</Text>}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+          </ScrollView>
+        </View>
 
-              <ScrollView showsVerticalScrollIndicator={false}>
-                <Text style={styles.fieldLabel}>Имя</Text>
+        {/* Правая панель — редактирование */}
+        <View style={styles.right}>
+          {selected ? (
+            <Animated.View style={[{ flex: 1 }, { opacity: cardAnim, transform: [{ translateY: cardSlide }] }]}>
+              <ScrollView contentContainerStyle={styles.editContent}>
+                <Text style={styles.editTitle}>{isNew ? 'Новый сотрудник' : draft.name}</Text>
+                {!isNew && (
+                  <Text style={styles.editHint}>
+                    Оставьте поля PIN пустыми если не хотите менять пароль
+                  </Text>
+                )}
+
+                {/* Имя */}
+                <Text style={styles.fieldLabel}>Имя <Text style={{ color: colors.orange }}>*</Text></Text>
                 <TextInput
                   style={styles.input}
-                  value={modal.name}
-                  onChangeText={v => { setModal(m => ({ ...m, name: v })); setError(''); }}
-                  placeholder="Имя сотрудника"
+                  color={colors.text}
+                  value={draft.name}
+                  onChangeText={v => setDraft(d => ({ ...d, name: v }))}
+                  placeholder="Иван Петров"
                   placeholderTextColor={colors.muted}
-                  autoFocus
+                  autoFocus={isNew}
                 />
 
+                {/* Роль */}
                 <Text style={styles.fieldLabel}>Роль</Text>
-                <View style={styles.chipsRow}>
-                  {[
-                    { key: 'barista', label: roleNames.barista },
-                    { key: 'admin',   label: roleNames.admin   },
-                  ].map(r => (
+                <View style={styles.chips}>
+                  {['barista', 'admin'].map(role => (
                     <Pressable
-                      key={r.key}
-                      style={[styles.chip, modal.role === r.key && styles.chipActive]}
-                      onPress={() => setModal(m => ({ ...m, role: r.key }))}
+                      key={role}
+                      style={[styles.chip, draft.role === role && styles.chipActive]}
+                      onPress={() => setDraft(d => ({ ...d, role }))}
                     >
-                      <Text style={[styles.chipText, modal.role === r.key && styles.chipTextActive]}>
-                        {r.label}
+                      <Text style={[styles.chipTxt, draft.role === role && styles.chipTxtActive]}>
+                        {role === 'admin' ? roleNames.admin : roleNames.barista}
                       </Text>
                     </Pressable>
                   ))}
                 </View>
+                <Text style={styles.roleHint}>
+                  {draft.role === 'admin'
+                    ? 'Администратор видит все разделы, отчёты и настройки'
+                    : 'Сотрудник работает только с кассой и лояльностью'}
+                </Text>
 
-                <View style={styles.pinLabelRow}>
-                  <Text style={styles.fieldLabel}>PIN-код</Text>
-                  <Pressable onPress={() => setShowPin(s => !s)} hitSlop={8}>
-                    <Text style={styles.showPinBtn}>{showPin ? 'Скрыть' : 'Показать'}</Text>
+                {/* PIN */}
+                <Text style={styles.fieldLabel}>{isNew ? 'PIN-код *' : 'Новый PIN (необязательно)'}</Text>
+                <View style={styles.pinRow}>
+                  <TextInput
+                    style={[styles.input, { flex: 1, textAlign: 'center', letterSpacing: 6, fontSize: 20 }]}
+                    color={colors.text}
+                    value={draft.pin}
+                    onChangeText={v => setDraft(d => ({ ...d, pin: v.replace(/\D/g,'') }))}
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    secureTextEntry={!showPin}
+                    placeholder="• • • •"
+                    placeholderTextColor={colors.muted}
+                  />
+                  <TextInput
+                    style={[styles.input, { flex: 1, textAlign: 'center', letterSpacing: 6, fontSize: 20 }]}
+                    color={colors.text}
+                    value={draft.pinConfirm}
+                    onChangeText={v => setDraft(d => ({ ...d, pinConfirm: v.replace(/\D/g,'') }))}
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    secureTextEntry={!showPin}
+                    placeholder="Повтор"
+                    placeholderTextColor={colors.muted}
+                  />
+                  <Pressable style={styles.showPinBtn} onPress={() => setShowPin(v => !v)}>
+                    <Text style={styles.showPinTxt}>{showPin ? 'Скрыть' : 'Показать'}</Text>
                   </Pressable>
                 </View>
+                <Text style={styles.pinHint}>PIN используется для входа в приложение. Минимум 4 цифры.</Text>
+
+                {/* Зарплата */}
+                <Text style={styles.fieldLabel}>Тип зарплаты</Text>
+                <View style={styles.chips}>
+                  {SALARY_TYPES.map(st => (
+                    <Pressable
+                      key={st.key}
+                      style={[styles.chip, draft.salary_type === st.key && styles.chipActive]}
+                      onPress={() => setDraft(d => ({ ...d, salary_type: st.key }))}
+                    >
+                      <Text style={[styles.chipTxt, draft.salary_type === st.key && styles.chipTxtActive]}>{st.label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <Text style={styles.roleHint}>
+                  {SALARY_TYPES.find(s => s.key === draft.salary_type)?.hint}
+                </Text>
+
+                <Text style={styles.fieldLabel}>Размер</Text>
                 <TextInput
                   style={styles.input}
-                  value={modal.pin}
-                  onChangeText={v => { setModal(m => ({ ...m, pin: v })); setError(''); }}
-                  secureTextEntry={!showPin}
-                  keyboardType="number-pad"
-                  maxLength={6}
-                  placeholder="4–6 цифр"
-                  placeholderTextColor={colors.muted}
-                />
-
-                <Text style={styles.fieldLabel}>Повторите PIN</Text>
-                <TextInput
-                  style={styles.input}
-                  value={modal.pinConfirm}
-                  onChangeText={v => { setModal(m => ({ ...m, pinConfirm: v })); setError(''); }}
-                  secureTextEntry={!showPin}
-                  keyboardType="number-pad"
-                  maxLength={6}
-                  placeholder="Повторите PIN"
-                  placeholderTextColor={colors.muted}
-                />
-                <Hint>4-6 цифр. Каждый сотрудник вводит свой уникальный PIN при начале работы. Не используйте одинаковые коды для разных людей.</Hint>
-
-                {error !== '' && <Text style={styles.errorText}>{error}</Text>}
-
-                <Text style={styles.fieldLabel}>Ставка заработной платы</Text>
-                {SALARY_TYPES.map(t => (
-                  <Pressable key={t.key} style={[styles.salaryRow, modal.salary_type === t.key && styles.salaryRowActive]} onPress={() => setModal(m => ({ ...m, salary_type: t.key }))}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.catChipLabel, modal.salary_type === t.key && { color: colors.greenLight }]}>{modal.salary_type===t.key?'◉ ':'○ '}{t.label}</Text>
-                      <Text style={{ fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted }}>{t.hint}</Text>
-                    </View>
-                  </Pressable>
-                ))}
-                <TextInput
-                  style={styles.input}
-                  value={modal.salary_amount}
-                  onChangeText={v => setModal(m => ({ ...m, salary_amount: v }))}
+                  color={colors.text}
+                  value={draft.salary_amount}
+                  onChangeText={v => setDraft(d => ({ ...d, salary_amount: v }))}
                   keyboardType="numeric"
-                  placeholder={modal.salary_type === 'revenue_pct' || modal.salary_type === 'profit_pct' ? '% (напр. 5)' : '₽ (напр. 2000)'}
+                  placeholder="0"
                   placeholderTextColor={colors.muted}
                 />
 
-                <MetalButton title="Сохранить" variant="success" onPress={save} style={{ marginTop: 8 }} />
+                {error ? <Text style={styles.errorTxt}>{error}</Text> : null}
 
-                {modal.id && (
-                  <MetalButton
-                    title={modal.active !== 0 ? '🚫 Деактивировать' : '✓ Активировать'}
-                    variant={modal.active !== 0 ? 'danger' : 'default'}
-                    onPress={toggleActive}
-                    style={{ marginTop: 8 }}
-                  />
-                )}
+                {/* Кнопки */}
+                <View style={styles.btnRow}>
+                  {!isNew && (
+                    <Pressable
+                      style={[styles.toggleBtn, { borderColor: selected?.active ? 'rgba(217,95,95,0.4)' : 'rgba(123,175,142,0.4)' }]}
+                      onPress={() => handleToggle(selected)}
+                    >
+                      <Text style={[styles.toggleTxt, { color: selected?.active ? colors.red : colors.green }]}>
+                        {selected?.active ? 'Деактивировать' : 'Активировать'}
+                      </Text>
+                    </Pressable>
+                  )}
+                  <Pressable style={styles.saveBtn} onPress={handleSave}>
+                    <Text style={styles.saveTxt}>{isNew ? 'Создать' : 'Сохранить'}</Text>
+                  </Pressable>
+                </View>
+
               </ScrollView>
+            </Animated.View>
+          ) : (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', opacity: 0.3 }}>
+              <Text style={{ fontSize: 40 }}>👥</Text>
+              <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, marginTop: 12 }}>
+                Выберите сотрудника
+              </Text>
             </View>
           )}
         </View>
-      </Modal>
+      </View>
+
+      <BottomBar navigation={navigation} activeTab="Kassa" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  inner: { padding: spacing.lg, paddingBottom: 20, maxWidth: 1100, width: '100%', alignSelf: 'center' },
-  sectionTitle: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },
-  empty: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center', paddingVertical: 12 },
-  userRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
-  userLeft: { flex: 1 },
-  userName: { fontFamily: fonts.family, fontSize: 15, color: colors.text, marginBottom: 4 },
-  userNameInactive: { color: colors.muted },
-  badgeRow: { flexDirection: 'row', gap: 6 },
-  badge: { paddingVertical: 2, paddingHorizontal: 8, borderRadius: 8 },
-  badgeAdmin:   { backgroundColor: 'rgba(61,95,168,0.2)',  borderWidth: 1, borderColor: 'rgba(61,95,168,0.4)' },
-  badgeBarista: { backgroundColor: 'rgba(122,158,82,0.15)', borderWidth: 1, borderColor: 'rgba(122,158,82,0.35)' },
-  badgeInactive: { paddingVertical: 2, paddingHorizontal: 8, borderRadius: 8, backgroundColor: 'rgba(74,77,84,0.2)', borderWidth: 1, borderColor: colors.border },
-  badgeText: { fontFamily: fonts.familySemibold, fontSize: 10, textTransform: 'uppercase', letterSpacing: 1 },
-  badgeTextAdmin: { color: '#7a9be8' },
-  badgeTextBarista: { color: colors.greenLight },
-  badgeTextInactive: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
-  pinMask: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginRight: 8 },
-  editArrow: { fontSize: 18, color: colors.muted },
-  // Модалка
-  modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  modalInner: { width: '52%', maxWidth: 460, maxHeight: '88%', backgroundColor: '#0e0f11', borderRadius: 20, padding: 24, borderWidth: 1, borderColor: colors.borderHi },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  modalTitle: { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text, flex: 1, marginRight: 12 },
-  modalClose: { fontSize: 18, color: colors.muted },
-  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 6, marginTop: 14 },
-  input: { padding: 14, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 15, fontFamily: fonts.family, marginBottom: 4 },
-  chipsRow: { flexDirection: 'row', gap: 10, marginBottom: 4 },
-  chip: { flex: 1, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e', alignItems: 'center' },
-  chipActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.15)' },
-  chipText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
-  chipTextActive: { color: colors.greenLight },
-  pinLabelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, marginBottom: 6 },
-  showPinBtn: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.greenLight },
-  errorText: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.redLight, marginBottom: 8, textAlign: 'center' },
-  salaryRow: { padding: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, marginBottom: 6 },
-  salaryRowActive: { borderColor: 'rgba(61,158,146,0.5)', backgroundColor: 'rgba(61,158,146,0.08)' },
+  root:       { flex: 1, backgroundColor: colors.bg },
+  layout:     { flex: 1, flexDirection: 'row' },
+
+  left:       { width: 280, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface },
+  listHint:   { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, padding: 12, paddingBottom: 6 },
+  listCard:   { margin: 8, backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  userRow:    { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 10, position: 'relative' },
+  userRowDiv: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  userRowActive: { backgroundColor: 'rgba(240,160,80,0.06)' },
+  activeBar:  { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
+  userAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  userAvatarTxt: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted },
+  userName:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
+  userRole:   { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
+  inactiveBadge: { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.red, backgroundColor: 'rgba(217,95,95,0.1)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  emptyWrap:  { padding: 32, alignItems: 'center' },
+  emptyTxt:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
+  emptyHint:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 6, textAlign: 'center', opacity: 0.7 },
+
+  right:      { flex: 1, backgroundColor: colors.bg },
+  editContent:{ padding: 24, paddingBottom: 40 },
+  editTitle:  { fontFamily: fonts.family, fontSize: 24, fontWeight: '800', color: colors.text, marginBottom: 4 },
+  editHint:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginBottom: 16, lineHeight: 18 },
+
+  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 18 },
+  input:      { backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 13, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 15 },
+  chips:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip:       { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  chipActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.08)' },
+  chipTxt:    { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  chipTxtActive: { color: colors.orange },
+  roleHint:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 8, lineHeight: 17 },
+  pinHint:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 6, lineHeight: 17 },
+  pinRow:     { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  showPinBtn: { paddingVertical: 10, paddingHorizontal: 12 },
+  showPinTxt: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
+
+  errorTxt:   { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.red, marginTop: 12 },
+  btnRow:     { flexDirection: 'row', gap: 10, marginTop: 24 },
+  toggleBtn:  { flex: 1, paddingVertical: 14, borderRadius: 14, borderWidth: 1, alignItems: 'center', backgroundColor: colors.surface },
+  toggleTxt:  { fontFamily: fonts.familySemibold, fontSize: 14 },
+  saveBtn:    { flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
+  saveTxt:    { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: '#fff' },
+
+  addBtn:     { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 10, backgroundColor: 'rgba(240,160,80,0.15)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)' },
+  addBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
 });
