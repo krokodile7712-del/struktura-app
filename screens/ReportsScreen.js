@@ -132,7 +132,7 @@ export default function ReportsScreen({ navigation }) {
 
   // Анимации
   const fadeAnim  = useState(new Animated.Value(0))[0];
-  const tabAnim   = useState(new Animated.Value(0))[0];
+  const tabAnim   = useState(new Animated.Value(1))[0];
   const slideAnim = useState(new Animated.Value(16))[0];
 
   const getRange = useCallback(() => {
