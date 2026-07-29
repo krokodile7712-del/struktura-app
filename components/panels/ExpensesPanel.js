@@ -96,6 +96,23 @@ export default function ExpensesPanel() {
   return (
     <View style={styles.root}>
 
+      {/* Заголовок с кнопкой */}
+      <View style={styles.panelHeader}>
+        <Text style={styles.panelTitle}>Расходы</Text>
+        {can('add_expense') !== false && (
+          <Animated.View style={{ transform: [{ scale: btnScale }] }}>
+            <Pressable
+              style={styles.addBtn}
+              onPressIn={() => animBtn(0.92)}
+              onPressOut={() => animBtn(1)}
+              onPress={openModal}
+            >
+              <Text style={styles.addBtnTxt}>+ Расход</Text>
+            </Pressable>
+          </Animated.View>
+        )}
+      </View>
+
       {/* Фильтры периода */}
       <View style={styles.periodRow}>
         {PERIODS.map(p => (
@@ -257,6 +274,8 @@ const styles = StyleSheet.create({
   root:       { flex: 1, backgroundColor: colors.bg },
   layout:     { flex: 1, flexDirection: 'row' },
 
+  panelHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, paddingBottom: 0 },
+  panelTitle:  { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.text },
   periodRow:  { flexDirection: 'row', padding: 12, gap: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
   periodBtn:  { paddingVertical: 7, paddingHorizontal: 16, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   periodBtnActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.08)' },
