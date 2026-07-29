@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
   root:        { flex: 1, backgroundColor: colors.bg },
   layout:      { flex: 1, flexDirection: 'row' },
 
-  leftPanel:   { borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface, overflow: 'hidden' },
+  leftPanel:   { borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface, overflow: 'hidden', maxWidth: 220 },
   bizHeader:   { padding: 18, paddingBottom: 10 },
   bizName:     { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.text },
   bizCity:     { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },

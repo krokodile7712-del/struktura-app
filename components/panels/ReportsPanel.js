@@ -221,31 +221,11 @@ export default function ReportsPanel() {
 
           <View style={styles.divider} />
 
-          {/* Ключевые цифры */}
-          {pnl && (
-            <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-              <Text style={styles.sectionLabel}>Итоги</Text>
-              {[
-                { label: 'Выручка',  value: `${fmt(pnl.revenue)} ₽`,    color: colors.text },
-                { label: 'Заказов',  value: pnl.orderCount,              color: colors.text },
-                { label: 'Ср. чек', value: `${fmt(pnl.avgCheck)} ₽`,   color: colors.text },
-                { label: 'Прибыль',  value: `${pnl.netProfit >= 0 ? '+' : ''}${fmt(pnl.netProfit)} ₽`, color: pnl.netProfit >= 0 ? colors.green : colors.red },
-              ].map((s, i) => (
-                <View key={i} style={styles.statRow}>
-                  <Text style={styles.statLabel}>{s.label}</Text>
-                  <Text style={[styles.statVal, { color: s.color }]}>{s.value}</Text>
-                </View>
-              ))}
-
-              <View style={styles.divider} />
-
-              {/* Сравнение */}
-              <View style={styles.compareRow}>
-                <Text style={styles.compareTxt}>Сравнить</Text>
-                <Toggle value={compare} onValueChange={v => setCompare(v)} size="sm" />
-              </View>
-            </Animated.View>
-          )}
+          {/* Сравнение */}
+          <View style={styles.compareRow}>
+            <Text style={styles.compareTxt}>Сравнить</Text>
+            <Toggle value={compare} onValueChange={v => setCompare(v)} size="sm" />
+          </View>
         </View>
 
         {/* ── Правая панель ── */}
@@ -457,7 +437,7 @@ const styles = StyleSheet.create({
   layout:  { flex: 1, flexDirection: 'row' },
 
   // Левая панель
-  left:    { width: 220, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface, padding: 16 },
+  left:    { width: 160, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface, padding: 12 },
   sectionLabel: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8 },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 14 },
 
