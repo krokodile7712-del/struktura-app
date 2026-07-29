@@ -281,7 +281,12 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
       setClients(all);
       if (initialClientId) {
         const found = all.find(c => c.id === Number(initialClientId));
-        if (found) setSelected(found);
+        if (found) {
+          setSelected(found);
+          // Сразу показываем карточку без анимации при первой загрузке
+          cardAnim.setValue(1);
+          cardSlide.setValue(0);
+        }
       }
       setTerms(getTerms());
       const lc = getLoyaltyConfig();
