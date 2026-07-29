@@ -52,10 +52,10 @@ export default function ShiftCloseScreen({ navigation }) {
     // Последовательная анимация
     Animated.timing(overlayAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
     Animated.timing(titleAnim, { toValue: 1, duration: 600, delay: 300, useNativeDriver: true }).start();
-    Animated.sequence([Animated.delay(600),  Animated.spring(card1Anim, { toValue: 0, tension: 60, friction: 12, useNativeDriver: true })]).start();
-    Animated.sequence([Animated.delay(900),  Animated.spring(card2Anim, { toValue: 0, tension: 60, friction: 12, useNativeDriver: true })]).start();
-    Animated.sequence([Animated.delay(1200), Animated.spring(card3Anim, { toValue: 0, tension: 60, friction: 12, useNativeDriver: true })]).start();
-    Animated.sequence([Animated.delay(1500), Animated.spring(card4Anim, { toValue: 0, tension: 60, friction: 12, useNativeDriver: true })]).start();
+    Animated.sequence([Animated.delay(600),  Animated.timing(card1Anim, { toValue: 0, duration: 400, useNativeDriver: true })]).start();
+    Animated.sequence([Animated.delay(900),  Animated.timing(card2Anim, { toValue: 0, duration: 400, useNativeDriver: true })]).start();
+    Animated.sequence([Animated.delay(1200), Animated.timing(card3Anim, { toValue: 0, duration: 400, useNativeDriver: true })]).start();
+    Animated.sequence([Animated.delay(1500), Animated.timing(card4Anim, { toValue: 0, duration: 400, useNativeDriver: true })]).start();
     Animated.sequence([Animated.delay(1800), Animated.timing(btnAnim,   { toValue: 1, duration: 500, useNativeDriver: true })]).start();
 
   };
