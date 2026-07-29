@@ -43,12 +43,12 @@ function DashPanel({ stats, name }) {
       <View style={styles.statsGrid}>
         {[
           { label: 'Выручка', value: `${(stats.todayTotal || 0).toLocaleString('ru-RU')} ₽` },
-          { label: 'Заказов', value: stats.ordersToday || 0 },
-          { label: 'Средний чек', value: `${stats.avgCheck || 0} ₽` },
-          { label: 'Прибыль', value: `${stats.profit || 0} ₽`, hi: (stats.profit||0) >= 0 },
+          { label: 'Заказов', value: stats.todayOrders || 0 },
+          { label: 'Средний чек', value: `${stats.todayOrders > 0 ? Math.round((stats.todayTotal||0) / stats.todayOrders).toLocaleString('ru-RU') : 0} ₽` },
+          { label: 'Наличные', value: `${(stats.todayCash || 0).toLocaleString('ru-RU')} ₽` },
         ].map((s, i) => (
           <View key={i} style={styles.statCard}>
-            <Text style={[styles.statVal, s.hi !== undefined && { color: s.hi ? colors.green : colors.red }]}>{s.value}</Text>
+            <Text style={styles.statVal}>{s.value}</Text>
             <Text style={styles.statLbl}>{s.label}</Text>
           </View>
         ))}
