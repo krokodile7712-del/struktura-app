@@ -27,10 +27,7 @@ export default function ShiftCloseScreen({ navigation }) {
   const card3Anim     = useState(new Animated.Value(60))[0];
   const card4Anim     = useState(new Animated.Value(60))[0];
   const btnAnim       = useState(new Animated.Value(0))[0];
-  const [revenueVal, setRevenueVal] = useState(0);
-  const [ordersVal, setOrdersVal]   = useState(0);
-  const [profitVal, setProfitVal]   = useState(0);
-  const [expVal, setExpVal]         = useState(0);
+
   const slideAnim= useState(new Animated.Value(20))[0];
   const btnScale = useState(new Animated.Value(1))[0];
 
@@ -48,20 +45,7 @@ export default function ShiftCloseScreen({ navigation }) {
     ]).start();
   }, []);
 
-  const animateCounter = (setter, target, delay, duration = 1000) => {
-    setTimeout(() => {
-      const steps = 40;
-      const interval = duration / steps;
-      let step = 0;
-      const timer = setInterval(() => {
-        step++;
-        const progress = step / steps;
-        const eased = 1 - Math.pow(1 - progress, 3);
-        setter(Math.round(target * eased));
-        if (step >= steps) { clearInterval(timer); setter(target); }
-      }, interval);
-    }, delay);
-  };
+
 
   const showResultModal = (s) => {
     setShowResult(true);
@@ -73,11 +57,7 @@ export default function ShiftCloseScreen({ navigation }) {
     Animated.sequence([Animated.delay(1200), Animated.spring(card3Anim, { toValue: 0, tension: 60, friction: 12, useNativeDriver: true })]).start();
     Animated.sequence([Animated.delay(1500), Animated.spring(card4Anim, { toValue: 0, tension: 60, friction: 12, useNativeDriver: true })]).start();
     Animated.sequence([Animated.delay(1800), Animated.timing(btnAnim,   { toValue: 1, duration: 500, useNativeDriver: true })]).start();
-    // Счётчики
-    animateCounter(setRevenueVal, s.total || 0, 700, 1400);
-    animateCounter(setOrdersVal, s.orders || 0, 1000, 1000);
-    animateCounter(setExpVal, s.expTotal || 0, 1300, 1000);
-    animateCounter(setProfitVal, (s.total || 0) - (s.expTotal || 0), 1600, 1000);
+
   };
 
   const handleConfirm = () => {
@@ -124,14 +104,14 @@ export default function ShiftCloseScreen({ navigation }) {
 
             <Animated.View style={[styles.modalCard, styles.modalCardOrange, { transform: [{ translateY: card1Anim }], opacity: card1Anim.interpolate({ inputRange: [0, 60], outputRange: [1, 0] }) }]}>
               <Text style={styles.modalCardLabel}>Выручка</Text>
-              <Text style={[styles.modalCardVal, { color: colors.orange }]}>{revenueVal.toLocaleString('ru-RU')} ₽</Text>
+              <Text style={[styles.modalCardVal, { color: colors.orange }]}>{fmt(summary?.total || 0)} ₽</Text>
               {summary.cash > 0 && <Text style={styles.modalCardSub}>Нал: {fmt(summary.cash)} ₽</Text>}
               {summary.card > 0 && <Text style={styles.modalCardSub}>Карта: {fmt(summary.card)} ₽</Text>}
             </Animated.View>
 
             <Animated.View style={[styles.modalCard, { transform: [{ translateY: card2Anim }], opacity: card2Anim.interpolate({ inputRange: [0, 60], outputRange: [1, 0] }) }]}>
               <Text style={styles.modalCardLabel}>Заказов</Text>
-              <Text style={styles.modalCardVal}>{ordersVal}</Text>
+              <Text style={styles.modalCardVal}>{summary?.orders || 0}</Text>
               <Text style={styles.modalCardSub}>
                 Ср. чек: {summary.orders > 0 ? Math.round((summary.total || 0) / summary.orders).toLocaleString('ru-RU') : 0} ₽
               </Text>
@@ -139,7 +119,7 @@ export default function ShiftCloseScreen({ navigation }) {
 
             <Animated.View style={[styles.modalCard, { transform: [{ translateY: card3Anim }], opacity: card3Anim.interpolate({ inputRange: [0, 60], outputRange: [1, 0] }) }]}>
               <Text style={styles.modalCardLabel}>Расходы</Text>
-              <Text style={[styles.modalCardVal, { color: colors.red }]}>{expVal.toLocaleString('ru-RU')} ₽</Text>
+              <Text style={[styles.modalCardVal, { color: colors.red }]}>{fmt(summary?.expTotal || 0)} ₽</Text>
               <Text style={styles.modalCardSub}>
                 {Object.keys(summary.expByCategory || {}).length} категор.
               </Text>
@@ -147,8 +127,8 @@ export default function ShiftCloseScreen({ navigation }) {
 
             <Animated.View style={[styles.modalCard, { transform: [{ translateY: card4Anim }], opacity: card4Anim.interpolate({ inputRange: [0, 60], outputRange: [1, 0] }) }]}>
               <Text style={styles.modalCardLabel}>Прибыль</Text>
-              <Text style={[styles.modalCardVal, { color: profitVal >= 0 ? colors.green : colors.red }]}>
-                {profitVal >= 0 ? '+' : ''}{profitVal.toLocaleString('ru-RU')} ₽
+              <Text style={[styles.modalCardVal, { color: ((summary?.total||0)-(summary?.expTotal||0)) >= 0 ? colors.green : colors.red }]}>
+                {((summary?.total||0)-(summary?.expTotal||0)) >= 0 ? '+' : ''}{fmt((summary?.total||0)-(summary?.expTotal||0))} ₽
               </Text>
               <Text style={styles.modalCardSub}>Выручка минус расходы</Text>
             </Animated.View>
