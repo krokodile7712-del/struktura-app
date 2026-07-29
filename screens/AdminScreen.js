@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, Anima
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import StatsBar from '../components/StatsBar';
 import ShiftBanner from '../components/ShiftBanner';
 import {
   getOpenShift, getBusinessProfile, getTerms, pluralizeRu,
@@ -130,7 +129,7 @@ export default function AdminScreen({ navigation }) {
       case 'Expenses': return <ExpensesPanel />;
       case 'Bookings': return <BookingsPanel />;
       case 'Settings': return <SettingsFullPanel navigation={navigation} />;
-      default:         return <DashPanel stats={stats} name={session?.name?.split(' ')[0]} />;
+      default:         return <DashPanel stats={stats} name={session?.name?.split(' ')[0]} navigation={navigation} />;
     }
   };
 
@@ -138,9 +137,6 @@ export default function AdminScreen({ navigation }) {
     <View style={styles.root}>
       <TopBar title={roleNames.admin || 'Администратор'} navigation={navigation} activeScreen="Admin" />
       {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift')} />}
-      <StatsBar stats={stats} modules={modules}
-        onShiftPress={() => navigation.navigate('ShiftClose')}
-        onStockPress={() => navigation.navigate('Stock')} />
 
       <View style={styles.layout}>
         {/* Левая панель */}
