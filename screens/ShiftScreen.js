@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TextInput, Pressable, Animated, Easing, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Pressable, Animated, KeyboardAvoidingView, Platform, TouchableWithoutFeedback } from 'react-native';
 import { openShift, getOpenShift } from '../db/queries';
 import { getSession } from '../db/session';
 import { colors, fonts } from '../constants/theme';
@@ -52,6 +52,7 @@ export default function ShiftScreen({ navigation }) {
   const animInput = (to) => Animated.spring(inputScale, { toValue: to, useNativeDriver: true, tension: 150 }).start();
 
   return (
+    <TouchableWithoutFeedback onPress={() => inputRef.current?.focus()}>
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.root}
@@ -130,6 +131,7 @@ export default function ShiftScreen({ navigation }) {
 
       </Animated.View>
     </KeyboardAvoidingView>
+    </TouchableWithoutFeedback>
   );
 }
 
