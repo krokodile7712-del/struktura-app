@@ -193,24 +193,7 @@ export default function SalesPanel() {
 
           <View style={styles.divider} />
 
-          {/* Статистика */}
-          <Animated.View style={{ opacity: fadeAnim }}>
-            <Text style={styles.sectionLabel}>Итоги</Text>
-            {[
-              { label: 'Выручка',  value: `${fmt(total)} ₽`,    color: colors.orange },
-              { label: 'Заказов',  value: filtered.length,       color: colors.text },
-              { label: 'Ср. чек', value: `${fmt(avgCheck)} ₽`,  color: colors.text },
-              cash  > 0 && { label: 'Наличные', value: `${fmt(cash)} ₽`,  color: colors.text },
-              card  > 0 && { label: 'Карта',    value: `${fmt(card)} ₽`,  color: colors.text },
-              qr    > 0 && { label: 'QR/СБП',   value: `${fmt(qr)} ₽`,    color: colors.text },
-              mixed > 0 && { label: 'Смешанная',value: `${fmt(mixed)} ₽`, color: colors.text },
-            ].filter(Boolean).map((s, i) => (
-              <View key={i} style={styles.statRow}>
-                <Text style={styles.statLabel}>{s.label}</Text>
-                <Text style={[styles.statVal, { color: s.color }]}>{s.value}</Text>
-              </View>
-            ))}
-          </Animated.View>
+
         </View>
 
         {/* ── Правая панель: поиск + список ── */}
