@@ -68,11 +68,11 @@ export default function ShiftCloseScreen({ navigation }) {
     // Последовательная анимация
     Animated.timing(overlayAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
     Animated.timing(titleAnim, { toValue: 1, duration: 600, delay: 300, useNativeDriver: true }).start();
-    Animated.spring(card1Anim, { toValue: 0, tension: 60, friction: 12, delay: 600, useNativeDriver: true }).start();
-    Animated.spring(card2Anim, { toValue: 0, tension: 60, friction: 12, delay: 900, useNativeDriver: true }).start();
-    Animated.spring(card3Anim, { toValue: 0, tension: 60, friction: 12, delay: 1200, useNativeDriver: true }).start();
-    Animated.spring(card4Anim, { toValue: 0, tension: 60, friction: 12, delay: 1500, useNativeDriver: true }).start();
-    Animated.timing(btnAnim, { toValue: 1, duration: 500, delay: 1800, useNativeDriver: true }).start();
+    Animated.sequence([Animated.delay(600),  Animated.spring(card1Anim, { toValue: 0, tension: 60, friction: 12, useNativeDriver: true })]).start();
+    Animated.sequence([Animated.delay(900),  Animated.spring(card2Anim, { toValue: 0, tension: 60, friction: 12, useNativeDriver: true })]).start();
+    Animated.sequence([Animated.delay(1200), Animated.spring(card3Anim, { toValue: 0, tension: 60, friction: 12, useNativeDriver: true })]).start();
+    Animated.sequence([Animated.delay(1500), Animated.spring(card4Anim, { toValue: 0, tension: 60, friction: 12, useNativeDriver: true })]).start();
+    Animated.sequence([Animated.delay(1800), Animated.timing(btnAnim,   { toValue: 1, duration: 500, useNativeDriver: true })]).start();
     // Счётчики
     animateCounter(setRevenueVal, s.total || 0, 700, 1400);
     animateCounter(setOrdersVal, s.orders || 0, 1000, 1000);
