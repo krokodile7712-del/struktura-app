@@ -1,29 +1,43 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator } from 'react-native';
-import { getHomeRoute } from '../../db/session';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator, Animated } from 'react-native';
+
 import { getBookings, updateBookingStatus } from '../../db/supabase';
 import { getBusinessProfile } from '../../db/queries';
 import { colors, fonts } from '../../constants/theme';
 
 const STATUS = {
-  pending:   { label: 'Новая',        color: '#f5c842', bg: 'rgba(245,200,66,0.12)' },
-  confirmed: { label: 'Подтверждена', color: '#3d9e92', bg: 'rgba(61,158,146,0.12)' },
-  cancelled: { label: 'Отменена',     color: '#a01020', bg: 'rgba(160,16,32,0.12)' },
-  done:      { label: 'Выполнена',    color: '#4a4d54', bg: 'rgba(74,77,84,0.12)' },
+  pending:   { label: 'Новая',        color: colors.amber,  bg: 'rgba(212,175,106,0.12)' },
+  confirmed: { label: 'Подтверждена', color: colors.green,  bg: 'rgba(123,175,142,0.12)' },
+  cancelled: { label: 'Отменена',     color: colors.red,    bg: 'rgba(217,95,95,0.12)'   },
+  done:      { label: 'Выполнена',    color: colors.muted,  bg: 'rgba(74,77,84,0.1)'     },
 };
+
+const FILTERS = [
+  { key: 'all',       label: 'Все' },
+  { key: 'pending',   label: 'Новые' },
+  { key: 'confirmed', label: 'Подтверждены' },
+  { key: 'done',      label: 'Выполнены' },
+  { key: 'cancelled', label: 'Отменены' },
+];
 
 function fmtDate(str) {
   if (!str) return '';
   const d = new Date(str + 'T00:00');
+  const today = new Date(); today.setHours(0,0,0,0);
+  const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate()+1);
+  if (d.getTime() === today.getTime()) return 'Сегодня';
+  if (d.getTime() === tomorrow.getTime()) return 'Завтра';
   return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
 }
 
 export default function BookingsPanel() {
-  const [bookings, setBookings]   = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [expanded, setExpanded]   = useState(null);
-  const [filter, setFilter]       = useState('all'); // all / pending / confirmed / done
-  const [businessId, setBusinessId] = useState(null);
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [expanded, setExpanded] = useState(null);
+  const [filter, setFilter]     = useState('all');
+
+  const fadeAnim  = useState(new Animated.Value(0))[0];
+  const slideAnim = useState(new Animated.Value(16))[0];
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -33,8 +47,14 @@ export default function BookingsPanel() {
       if (!slug) { setLoading(false); return; }
       const data = await getBookings(null, null, slug);
       setBookings(data || []);
-    } catch (e) { console.error(e); }
+    } catch(e) { console.error(e); }
     setLoading(false);
+
+    fadeAnim.setValue(0); slideAnim.setValue(16);
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: true }),
+      Animated.spring(slideAnim, { toValue: 0, tension: 70, friction: 12, useNativeDriver: true }),
+    ]).start();
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -44,7 +64,7 @@ export default function BookingsPanel() {
       await updateBookingStatus(id, status);
       setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
       setExpanded(null);
-    } catch (e) { Alert.alert('Ошибка', e.message); }
+    } catch(e) { Alert.alert('Ошибка', e.message); }
   };
 
   const filtered = bookings.filter(b => filter === 'all' || b.status === filter);
@@ -57,141 +77,199 @@ export default function BookingsPanel() {
     return acc;
   }, {});
 
-  const today = new Date().toISOString().slice(0, 10);
+  // Счётчики по статусам
+  const counts = bookings.reduce((acc, b) => {
+    acc[b.status] = (acc[b.status] || 0) + 1;
+    return acc;
+  }, {});
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={styles.root}>
 
-      {/* Фильтры */}
-      <View style={styles.filters}>
-        {[
-          { key: 'all',       label: 'Все' },
-          { key: 'pending',   label: 'Новые' },
-          { key: 'confirmed', label: 'Подтверждены' },
-          { key: 'done',      label: 'Выполнены' },
-        ].map(f => (
-          <Pressable key={f.key}
-            style={[styles.filterBtn, filter === f.key && styles.filterBtnActive]}
-            onPress={() => setFilter(f.key)}>
-            <Text style={[styles.filterTxt, filter === f.key && styles.filterTxtActive]}>{f.label}</Text>
-          </Pressable>
-        ))}
+      <View style={styles.layout}>
+
+        {/* Левая панель */}
+        <View style={styles.left}>
+          <Text style={styles.sectionLabel}>Фильтр</Text>
+          {FILTERS.map(f => {
+            const count = f.key === 'all' ? bookings.length : (counts[f.key] || 0);
+            return (
+              <Pressable
+                key={f.key}
+                style={[styles.filterBtn, filter === f.key && styles.filterBtnActive]}
+                onPress={() => setFilter(f.key)}
+              >
+                {filter === f.key && <View style={styles.filterBar} />}
+                <Text style={[styles.filterTxt, filter === f.key && styles.filterTxtActive]}>{f.label}</Text>
+                {count > 0 && (
+                  <View style={[styles.countBadge, f.key === 'pending' && count > 0 && styles.countBadgeNew]}>
+                    <Text style={[styles.countTxt, f.key === 'pending' && count > 0 && styles.countTxtNew]}>{count}</Text>
+                  </View>
+                )}
+              </Pressable>
+            );
+          })}
+
+          <View style={styles.divider} />
+
+          {/* Подсказка */}
+          <View style={styles.hintCard}>
+            <Text style={styles.hintTitle}>Онлайн запись</Text>
+            <Text style={styles.hintTxt}>
+              Клиенты записываются через форму по QR-коду. Новые записи появляются здесь автоматически.
+            </Text>
+          </View>
+        </View>
+
+        {/* Правая панель */}
+        <View style={styles.right}>
+          {loading ? (
+            <View style={styles.centerWrap}>
+              <ActivityIndicator color={colors.orange} size="large" />
+              <Text style={styles.loadingTxt}>Загрузка записей...</Text>
+            </View>
+          ) : filtered.length === 0 ? (
+            <View style={styles.centerWrap}>
+              <Text style={styles.emptyTxt}>
+                {filter === 'all' ? 'Нет записей' : `Нет записей в категории «${FILTERS.find(f=>f.key===filter)?.label}»`}
+              </Text>
+              <Text style={styles.emptyHint}>
+                Поделитесь QR-кодом из Настроек чтобы клиенты могли записаться
+              </Text>
+            </View>
+          ) : (
+            <Animated.ScrollView
+              contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+              style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
+            >
+              {Object.entries(grouped)
+                .sort(([a],[b]) => a.localeCompare(b))
+                .map(([date, items]) => (
+                  <View key={date} style={styles.group}>
+                    <Text style={styles.groupDate}>{fmtDate(date)}</Text>
+                    <View style={styles.groupCard}>
+                      {items.map((b, idx) => {
+                        const st = STATUS[b.status] || STATUS.pending;
+                        const isExp = expanded === b.id;
+                        return (
+                          <View key={b.id}>
+                            <Pressable
+                              style={({ pressed }) => [
+                                styles.bookingRow,
+                                idx < items.length - 1 && !isExp && styles.rowDiv,
+                                pressed && { backgroundColor: 'rgba(245,240,232,0.03)' },
+                              ]}
+                              onPress={() => setExpanded(isExp ? null : b.id)}
+                            >
+                              {/* Время */}
+                              <Text style={styles.bookingTime}>
+                                {b.time_start?.slice(0,5) || '—'}
+                              </Text>
+
+                              {/* Инфо */}
+                              <View style={{ flex: 1 }}>
+                                <Text style={styles.bookingName}>{b.client_name}</Text>
+                                <Text style={styles.bookingSub} numberOfLines={1}>
+                                  {b.services?.name || 'Без услуги'}
+                                  {b.client_phone ? ` · ${b.client_phone}` : ''}
+                                </Text>
+                                {b.note ? <Text style={styles.bookingNote}>💬 {b.note}</Text> : null}
+                              </View>
+
+                              {/* Статус */}
+                              <View style={[styles.statusBadge, { backgroundColor: st.bg }]}>
+                                <Text style={[styles.statusTxt, { color: st.color }]}>{st.label}</Text>
+                              </View>
+
+                              <Text style={[styles.chevron, isExp && styles.chevronOpen]}>›</Text>
+                            </Pressable>
+
+                            {/* Действия */}
+                            {isExp && (
+                              <View style={[styles.actionsPanel, idx < items.length - 1 && styles.rowDiv]}>
+                                {b.status !== 'confirmed' && (
+                                  <Pressable style={styles.actionBtn} onPress={() => handleStatus(b.id, 'confirmed')}>
+                                    <Text style={[styles.actionTxt, { color: colors.green }]}>✓ Подтвердить</Text>
+                                  </Pressable>
+                                )}
+                                {b.status !== 'done' && b.status !== 'cancelled' && (
+                                  <Pressable style={styles.actionBtn} onPress={() => handleStatus(b.id, 'done')}>
+                                    <Text style={styles.actionTxt}>✔ Выполнено</Text>
+                                  </Pressable>
+                                )}
+                                {b.status !== 'cancelled' && (
+                                  <Pressable style={[styles.actionBtn, { borderColor: 'rgba(217,95,95,0.35)' }]}
+                                    onPress={() => handleStatus(b.id, 'cancelled')}>
+                                    <Text style={[styles.actionTxt, { color: colors.red }]}>✕ Отменить</Text>
+                                  </Pressable>
+                                )}
+                              </View>
+                            )}
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ))}
+            </Animated.ScrollView>
+          )}
+        </View>
+
       </View>
-
-      {loading ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator color={colors.greenLight} />
-        </View>
-      ) : filtered.length === 0 ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', opacity: 0.4 }}>
-          <Text style={{ fontSize: 40 }}>📅</Text>
-          <Text style={{ fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted, marginTop: 12 }}>
-            {filter === 'all' ? 'Нет записей' : 'Нет в этой категории'}
-          </Text>
-        </View>
-      ) : (
-        <ScrollView contentContainerStyle={{ padding: 16, gap: 20 }}>
-          {Object.entries(grouped)
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([date, items]) => (
-              <View key={date}>
-                {/* Заголовок даты */}
-                <Text style={styles.dateLabel}>
-                  {date === today ? 'Сегодня' : fmtDate(date)}
-                </Text>
-
-                {/* Карточки записей */}
-                <View style={styles.dayCard}>
-                  {items.map((b, idx) => {
-                    const st = STATUS[b.status] || STATUS.pending;
-                    const isExp = expanded === b.id;
-                    return (
-                      <View key={b.id}>
-                        <Pressable
-                          style={({ pressed }) => [
-                            styles.bookingRow,
-                            idx < items.length - 1 && !isExp && styles.rowDiv,
-                            pressed && { backgroundColor: 'rgba(255,255,255,0.02)' }
-                          ]}
-                          onPress={() => setExpanded(isExp ? null : b.id)}
-                        >
-                          {/* Время */}
-                          <Text style={styles.bookingTime}>
-                            {b.time_start?.slice(0, 5) || '—'}
-                          </Text>
-
-                          {/* Информация */}
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.bookingName}>{b.client_name}</Text>
-                            <Text style={styles.bookingSub} numberOfLines={1}>
-                              {b.services?.name || 'Без услуги'}{b.client_phone ? ` · ${b.client_phone}` : ''}
-                            </Text>
-                            {b.note ? <Text style={styles.bookingNote}>💬 {b.note}</Text> : null}
-                          </View>
-
-                          {/* Статус */}
-                          <View style={[styles.statusBadge, { backgroundColor: st.bg }]}>
-                            <Text style={[styles.statusTxt, { color: st.color }]}>{st.label}</Text>
-                          </View>
-
-                          <Text style={[styles.chevron, isExp && styles.chevronOpen]}>›</Text>
-                        </Pressable>
-
-                        {/* Аккордеон — действия */}
-                        {isExp && (
-                          <View style={[styles.actionsPanel, idx < items.length - 1 && styles.rowDiv]}>
-                            {b.status !== 'confirmed' && (
-                              <Pressable style={styles.actionBtn}
-                                onPress={() => handleStatus(b.id, 'confirmed')}>
-                                <Text style={[styles.actionTxt, { color: colors.greenLight }]}>✓ Подтвердить</Text>
-                              </Pressable>
-                            )}
-                            {b.status !== 'done' && (
-                              <Pressable style={styles.actionBtn}
-                                onPress={() => handleStatus(b.id, 'done')}>
-                                <Text style={styles.actionTxt}>✔ Выполнено</Text>
-                              </Pressable>
-                            )}
-                            {b.status !== 'cancelled' && (
-                              <Pressable style={[styles.actionBtn, { borderColor: 'rgba(160,16,32,0.3)' }]}
-                                onPress={() => handleStatus(b.id, 'cancelled')}>
-                                <Text style={[styles.actionTxt, { color: colors.redLight }]}>✕ Отменить</Text>
-                              </Pressable>
-                            )}
-                          </View>
-                        )}
-                      </View>
-                    );
-                  })}
-                </View>
-              </View>
-            ))}
-        </ScrollView>
-      )}
 
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  filters:        { flexDirection: 'row', gap: 8, padding: 12, paddingTop: 8 },
-  filterBtn:      { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', backgroundColor: '#07080a' },
-  filterBtnActive:{ borderColor: 'rgba(61,158,146,0.5)', backgroundColor: 'rgba(61,158,146,0.1)' },
-  filterTxt:      { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
-  filterTxtActive:{ color: colors.greenLight },
-  dateLabel:      { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8 },
-  dayCard:        { backgroundColor: '#0b0c0f', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', overflow: 'hidden' },
-  bookingRow:     { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
-  rowDiv:         { borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.15)' },
-  bookingTime:    { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text, width: 44 },
-  bookingName:    { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
-  bookingSub:     { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
-  bookingNote:    { fontFamily: fonts.familyRegular, fontSize: 11, color: '#7a9e52', marginTop: 2 },
-  statusBadge:    { paddingVertical: 4, paddingHorizontal: 8, borderRadius: 8 },
-  statusTxt:      { fontFamily: fonts.familySemibold, fontSize: 11 },
-  chevron:        { fontSize: 18, color: 'rgba(74,77,84,0.4)', transform: [{ rotate: '90deg' }] },
-  chevronOpen:    { transform: [{ rotate: '-90deg' }] },
-  actionsPanel:   { flexDirection: 'row', gap: 8, padding: 12, backgroundColor: 'rgba(74,77,84,0.05)' },
-  actionBtn:      { flex: 1, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', alignItems: 'center' },
-  actionTxt:      { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
+  root:   { flex: 1, backgroundColor: colors.bg },
+  layout: { flex: 1, flexDirection: 'row' },
+
+  // Левая панель
+  left:   { width: 200, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface, padding: 14 },
+  sectionLabel: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8 },
+  divider: { height: 1, backgroundColor: colors.border, marginVertical: 12 },
+
+  filterBtn:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 10, borderRadius: 10, position: 'relative', gap: 8 },
+  filterBtnActive: { backgroundColor: 'rgba(240,160,80,0.08)' },
+  filterBar:   { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
+  filterTxt:   { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, flex: 1 },
+  filterTxtActive: { color: colors.orange },
+  countBadge:  { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10, backgroundColor: colors.surface2 },
+  countBadgeNew: { backgroundColor: 'rgba(212,175,106,0.2)' },
+  countTxt:    { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
+  countTxtNew: { color: colors.amber },
+
+  hintCard:  { backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 12 },
+  hintTitle: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.text, marginBottom: 6 },
+  hintTxt:   { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, lineHeight: 17 },
+
+  // Правая панель
+  right:      { flex: 1 },
+  centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
+  loadingTxt: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 12 },
+  emptyTxt:   { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted, textAlign: 'center' },
+  emptyHint:  { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center', marginTop: 8, lineHeight: 20, opacity: 0.7 },
+
+  group:       { marginBottom: 16 },
+  groupDate:   { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, marginBottom: 8, paddingHorizontal: 2 },
+  groupCard:   { backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+
+  bookingRow:  { flexDirection: 'row', alignItems: 'center', padding: 13, gap: 10 },
+  rowDiv:      { borderBottomWidth: 1, borderBottomColor: colors.border },
+  bookingTime: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text, width: 46 },
+  bookingName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
+  bookingSub:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
+  bookingNote: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.indigo, marginTop: 2 },
+
+  statusBadge: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 10 },
+  statusTxt:   { fontFamily: fonts.familySemibold, fontSize: 11 },
+  chevron:     { fontSize: 18, color: colors.muted, transform: [{ rotate: '90deg' }] },
+  chevronOpen: { transform: [{ rotate: '-90deg' }] },
+
+  actionsPanel:{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 12, backgroundColor: colors.surface2 },
+  actionBtn:   { paddingVertical: 9, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  actionTxt:   { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
+
+  refreshBtn:  { fontSize: 20, color: colors.muted },
 });
