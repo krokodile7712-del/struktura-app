@@ -137,6 +137,7 @@ export default function AdminScreen({ navigation }) {
   const [roleNames, setRoleNames]     = useState({ admin: 'Администратор' });
   const [bookingActive, setBookingActive] = useState(false);
   const [active, setActive]           = useState('dash');
+  const [sessionName, setSessionName]   = useState('');
   const animWidth = useState(new Animated.Value(220))[0];
 
   const setActiveAnimated = (key) => {
@@ -153,6 +154,8 @@ export default function AdminScreen({ navigation }) {
     try {
       const p = getBusinessProfile();
       setProfile(p);
+      const sess = getSession();
+      setSessionName(sess?.name?.split(' ')[0] || '');
       setModules(p?.modules || {});
       setBookingActive(!!(p?.booking_slug));
       setHasShift(!!getOpenShift());
@@ -164,7 +167,6 @@ export default function AdminScreen({ navigation }) {
 
   useFocusEffect(useCallback(() => { loadStats(); }, [loadStats]));
 
-  const session = getSession();
 
   const renderRight = () => {
     switch(active) {
@@ -174,7 +176,7 @@ export default function AdminScreen({ navigation }) {
       case 'Expenses': return <ExpensesPanel />;
       case 'Bookings': return <BookingsPanel />;
       case 'Settings': return <SettingsFullPanel navigation={navigation} />;
-      default:         return <DashPanel stats={stats} name={session?.name?.split(' ')[0]} navigation={navigation} />;
+      default:         return <DashPanel stats={stats} name={sessionName} navigation={navigation} />;
     }
   };
 
