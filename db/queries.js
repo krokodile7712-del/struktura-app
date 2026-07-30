@@ -1335,6 +1335,7 @@ export function fixCostCardLinks() {
 }
 
 export function saveCostCardForVariant(variantId, ingredients) {
+  if (!Array.isArray(ingredients)) ingredients = [];
   const db = getDb();
   // Получаем product_id из варианта
   const variant = db.getFirstSync(`SELECT product_id FROM product_variants WHERE id = ?`, [variantId]);

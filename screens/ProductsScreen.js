@@ -322,27 +322,22 @@ export default function ProductsScreen({ navigation }) {
       }
       upsertProductVariants(pid, data.vars.map(v => ({ id: v.id, label: v.label, size: v.label, price: parseFloat(v.price)||0 })));
       // Техкарты
-      try {
-        const newVars = getProductVariants(pid);
-        if (Array.isArray(newVars)) {
-          newVars.forEach((v, i) => {
-            const ings = Array.isArray(data.vars[i]?.ings) ? data.vars[i].ings : [];
-            saveCostCardForVariant(v.id, ings.map(ing => ({
-              name: ing.name || '',
-              amount: parseFloat(ing.amount)||0,
-              unit: ing.unit || '',
-              price_per_unit: parseFloat(ing.price_per_unit)||0,
-              pricePerUnit: parseFloat(ing.price_per_unit)||0,
-              factor: 1,
-            })));
-          });
-        }
-      } catch(techErr) { console.error('[techcard]', techErr.message); }
+      const newVars = getProductVariants(pid);
+      newVars.forEach((v, i) => {
+        const ings = Array.isArray(data.vars[i]?.ings) ? data.vars[i].ings : [];
+        saveCostCardForVariant(v.id, ings.map(ing => ({
+          name: ing.name || '',
+          amount: parseFloat(ing.amount)||0,
+          unit: ing.unit || '',
+          pricePerUnit: parseFloat(ing.price_per_unit)||0,
+          factor: 1,
+        })));
+      });
       // Модификаторы
-      try { if (Array.isArray(data.selGroups)) setProductModifierGroups(pid, data.selGroups); } catch(_) {}
+      setProductModifierGroups(pid, data.selGroups || []);
       load();
       setSelected(null);
-    } catch(e) { console.error('[handleSave]', e.message); Alert.alert('Ошибка', e.message); }
+    } catch(e) { Alert.alert('Ошибка', e.message); }
   };
 
   const handleDelete = (id) => {
