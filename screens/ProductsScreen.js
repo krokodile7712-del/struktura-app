@@ -336,6 +336,7 @@ export default function ProductsScreen({ navigation }) {
       });
       // Модификаторы
       setProductModifierGroups(pid, data.selGroups || []);
+      console.log("[handleSave] done, calling load+setSelected");
       load();
       setSelected(null);
     } catch(e) { console.error('[handleSave ERROR]', e.message, e.stack?.split('\n')[1]); Alert.alert('Ошибка', e.message); }
