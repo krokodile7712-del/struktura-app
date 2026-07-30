@@ -69,7 +69,6 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
       title: 'Система',
       adminOnly: true,
       items: [
-        { label: 'Настройки',  screen: 'Settings',  always: true },
       ],
     },
   ];
