@@ -270,6 +270,7 @@ export default function SettingsFullPanel({ navigation }) {
         };
       }) : [];
     });
+    try { setStock(getAllStock()); } catch(_) {}
     setProductModal({ product, axes, variants, groupIds: groups.map(g => g.id), techCards });
     try { setPriceSchedules(getPriceSchedules(product.id)); } catch(_) { setPriceSchedules([]); }
   };
