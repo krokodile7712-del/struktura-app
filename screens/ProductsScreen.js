@@ -39,7 +39,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
       const tc = {};
       v.forEach(vi => { try { tc[vi.id] = getCostCardForVariant(vi.id); } catch(_) {} });
       return v.length > 0
-        ? v.map(vi => ({ id: vi.id, label: vi.label || vi.size || '', price: String(vi.price || ''), ings: Array.isArray(tc[vi.id]?.ingredients) ? tc[vi.id].ingredients : [] }))
+        ? v.map(vi => ({ id: vi.id, label: vi.label || vi.size || '', price: String(vi.price || ''), ings: Array.isArray(tc[vi.id]?.ingredients) ? tc[vi.id].ingredients.map(ing => ({ ...ing, amount: String(ing.amount || ''), price_per_unit: String(ing.price_per_unit || '') })) : [] }))
         : [{ id: null, label: '', price: String(product?.price || ''), ings: [] }];
     } catch { return [{ id: null, label: '', price: '', ings: [] }]; }
   });
