@@ -43,10 +43,7 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
     {
       title: 'Работа',
       items: [
-        { label: 'Касса',      screen: 'Kassa',       always: true },
-        { label: 'Продажи',    screen: 'Sales',       always: true },
         { label: 'Клиенты',    screen: 'ClientsList', module: 'clients' },
-        { label: 'Расходы',    screen: 'Expenses',    always: true },
         { label: 'Товары',     screen: 'Products',    always: true },
       ],
     },
