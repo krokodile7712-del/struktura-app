@@ -27,7 +27,7 @@ import { getDb } from '../../db/database';
 import Hint from '../Hint';
 import InfoTip from '../InfoTip';
 import Toggle from '../Toggle';
-import { can, clearSession } from '../../db/session';
+import { can } from '../../db/session';
 import EmptyState from '../EmptyState';
 import { colors, fonts, spacing } from '../../constants/theme';
 import { upsertBusiness, syncServicesToSupabase } from '../../db/supabase';
@@ -763,13 +763,13 @@ export default function SettingsFullPanel({ navigation }) {
   const terms = getTerms();
 
   const SECTIONS = [
-    { key: 'menu',      icon: '🍽',  label: 'Меню и цены' },
-    { key: 'employees', icon: '👥',  label: 'Сотрудники' },
-    { key: 'loyalty',   icon: '⭐',  label: 'Лояльность' },
-    { key: 'payment',   icon: '💳',  label: 'Оплата и скидки' },
-    { key: 'stock',     icon: '📦',  label: 'Склад' },
-    { key: 'business',  icon: '⚙️',  label: 'Профиль бизнеса' },
-    { key: 'system',    icon: '🔧',  label: 'Система' },
+    { key: 'menu',      label: 'Меню и цены' },
+    { key: 'employees', label: 'Сотрудники' },
+    { key: 'loyalty',   label: 'Лояльность' },
+    { key: 'payment',   label: 'Оплата и скидки' },
+    { key: 'stock',     label: 'Склад' },
+    { key: 'business',  label: 'Профиль бизнеса' },
+    { key: 'system',    label: 'Система' },
   ];
 
   const visibleSections = SECTIONS.filter(s => {
@@ -809,10 +809,10 @@ export default function SettingsFullPanel({ navigation }) {
           ) : (
             <View style={styles.menuFloatRow}>
               <Pressable onPress={() => setMenuSearchOpen(true)} hitSlop={14} style={styles.menuBadge}>
-                <Text style={styles.menuBadgeText}>🔍</Text>
+                <Text style={styles.menuBadgeText}></Text>
               </Pressable>
               <Pressable onPress={openNewProduct} hitSlop={14} style={[styles.menuBadge, styles.menuBadgeAdd]}>
-                <Text style={[styles.menuBadgeText, { color: colors.greenLight }]}>＋</Text>
+                <Text style={[styles.menuBadgeText, { color: colors.orange }]}>+</Text>
               </Pressable>
             </View>
           )}
@@ -842,10 +842,9 @@ export default function SettingsFullPanel({ navigation }) {
           <View style={[styles.menuCard, { marginTop: 8 }]}>
             <Pressable
               style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
-              onPress={() => null}
+              onPress={() => navigation?.navigate('Products')}
             >
-              <Text style={{ fontSize: 20, marginRight: 12 }}>🛍</Text>
-              <View style={{ flex: 1 }}>
+                            <View style={{ flex: 1 }}>
                 <Text style={styles.menuItemName}>Товары и цены</Text>
                 <Text style={styles.menuItemSub}>Добавить товары, цены и техкарты</Text>
               </View>
@@ -866,7 +865,7 @@ export default function SettingsFullPanel({ navigation }) {
                 hitSlop={14}
                 style={[styles.menuBadge, styles.menuBadgeAdd]}
               >
-                <Text style={[styles.menuBadgeText, { color: colors.greenLight }]}>＋</Text>
+                <Text style={[styles.menuBadgeText, { color: colors.orange }]}>+</Text>
               </Pressable>
             </View>
           </View>
@@ -874,7 +873,7 @@ export default function SettingsFullPanel({ navigation }) {
 
         {/* Список сотрудников */}
         {users.length === 0 ? (
-          <Text style={[styles.empty, { paddingVertical: 20 }]}>Нет сотрудников. Нажмите ＋ чтобы добавить.</Text>
+          <Text style={[styles.empty, { paddingVertical: 20 }]}>Нет сотрудников. Нажмите + чтобы добавить.</Text>
         ) : (
           <View style={styles.menuCard}>
             {users.map((u, idx) => (
@@ -937,7 +936,7 @@ export default function SettingsFullPanel({ navigation }) {
               >
                 <Text style={{ fontSize: 22, marginRight: 12 }}>{m.icon}</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.menuItemName, loyaltyModel === m.key && { color: colors.greenLight }]}>{m.label}</Text>
+                  <Text style={[styles.menuItemName, loyaltyModel === m.key && { color: colors.orange }]}>{m.label}</Text>
                   <Text style={styles.menuItemSub}>{m.desc}</Text>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -1058,7 +1057,7 @@ export default function SettingsFullPanel({ navigation }) {
                 </View>
                 <View style={styles.loyaltyExample}>
                   <Text style={styles.loyaltyExampleTitle}>Пример: заказ на {example} ₽</Text>
-                  <Text style={styles.loyaltyExampleLine}>Клиент заплатит <Text style={styles.loyaltyExampleAccent}>{example - disc} ₽</Text> вместо {example} ₽ <Text style={{ color: colors.redLight }}>(−{disc} ₽)</Text></Text>
+                  <Text style={styles.loyaltyExampleLine}>Клиент заплатит <Text style={styles.loyaltyExampleAccent}>{example - disc} ₽</Text> вместо {example} ₽ <Text style={{ color: colors.red }}>(−{disc} ₽)</Text></Text>
                 </View>
                 <View style={[styles.menuCard, { marginTop: 12 }]}>
                   <View style={styles.menuRow}>
@@ -1140,7 +1139,7 @@ export default function SettingsFullPanel({ navigation }) {
           <View style={styles.menuFloatBtns} pointerEvents="box-none">
             <View style={styles.menuFloatRow}>
               <Pressable onPress={openNewPayMethod} hitSlop={14} style={[styles.menuBadge, styles.menuBadgeAdd]}>
-                <Text style={[styles.menuBadgeText, { color: colors.greenLight }]}>＋</Text>
+                <Text style={[styles.menuBadgeText, { color: colors.orange }]}>+</Text>
               </Pressable>
             </View>
           </View>
@@ -1183,7 +1182,7 @@ export default function SettingsFullPanel({ navigation }) {
           <View style={styles.menuFloatBtns} pointerEvents="box-none">
             <View style={styles.menuFloatRow}>
               <Pressable onPress={openNewDiscount} hitSlop={14} style={[styles.menuBadge, styles.menuBadgeAdd]}>
-                <Text style={[styles.menuBadgeText, { color: colors.greenLight }]}>＋</Text>
+                <Text style={[styles.menuBadgeText, { color: colors.orange }]}>+</Text>
               </Pressable>
             </View>
           </View>
@@ -1216,7 +1215,7 @@ export default function SettingsFullPanel({ navigation }) {
                     <Text style={styles.menuItemSub}>Нажмите чтобы добавить описание</Text>
                   )}
                 </View>
-                <Text style={[styles.menuItemPrice, { color: colors.redLight, marginRight: 8 }]}>−{d.pct}%</Text>
+                <Text style={[styles.menuItemPrice, { color: colors.red, marginRight: 8 }]}>−{d.pct}%</Text>
                 <Text style={styles.menuItemArrow}>›</Text>
               </Pressable>
             ))}
@@ -1231,7 +1230,7 @@ export default function SettingsFullPanel({ navigation }) {
               <View style={styles.menuFloatBtns} pointerEvents="box-none">
                 <View style={styles.menuFloatRow}>
                   <Pressable onPress={() => setZoneModal({ name: '', tables: [], newTableInput: '', bulkPrefix: 'Стол', bulkFrom: '', bulkTo: '' })} hitSlop={14} style={[styles.menuBadge, styles.menuBadgeAdd]}>
-                    <Text style={[styles.menuBadgeText, { color: colors.greenLight }]}>＋</Text>
+                    <Text style={[styles.menuBadgeText, { color: colors.orange }]}>+</Text>
                   </Pressable>
                 </View>
               </View>
@@ -1261,10 +1260,9 @@ export default function SettingsFullPanel({ navigation }) {
           <View style={[styles.menuCard, { marginTop: 8 }]}>
             <Pressable
               style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
-              onPress={() => null}
+              onPress={() => navigation.navigate('Stock')}
             >
-              <Text style={{ fontSize: 20, marginRight: 12 }}>📦</Text>
-              <View style={{ flex: 1 }}>
+                            <View style={{ flex: 1 }}>
                 <Text style={styles.menuItemName}>Перейти в раздел Склад</Text>
                 <Text style={styles.menuItemSub}>Остатки, пороги и категории управляются там</Text>
               </View>
@@ -1351,7 +1349,7 @@ export default function SettingsFullPanel({ navigation }) {
             {/* Статус подключения */}
             <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
               <Text style={styles.bizFieldLabel}>Статус</Text>
-              <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: bookingConnected ? colors.greenLight : colors.muted }}>
+              <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: bookingConnected ? colors.orange : colors.muted }}>
                 {bookingConnected ? '● Подключено' : '○ Не подключено'}
               </Text>
             </View>
@@ -1365,26 +1363,26 @@ export default function SettingsFullPanel({ navigation }) {
                     Alert.alert('Скопировано', link);
                   }}>
                   <Text style={styles.bizFieldLabel}>Ссылка</Text>
-                  <Text style={{ fontFamily: fonts.familyRegular, fontSize: 11, color: colors.greenLight, flex: 1, textAlign: 'right' }} numberOfLines={1}>
+                  <Text style={{ fontFamily: fonts.familyRegular, fontSize: 11, color: colors.orange, flex: 1, textAlign: 'right' }} numberOfLines={1}>
                     .../{bookingSlug} 📋
                   </Text>
                 </TouchableOpacity>
                 <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
                   <Pressable
-                    style={{ flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: 'rgba(61,158,146,0.1)', alignItems: 'center' }}
+                    style={{ flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: 'rgba(240,160,80,0.08)', alignItems: 'center' }}
                     onPress={() => setQrModal(true)}>
-                    <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.greenLight }}>📷 QR код</Text>
+                    <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange }}>📷 QR код</Text>
                   </Pressable>
                   <TouchableOpacity
                     activeOpacity={0.7}
-                    style={{ flex: 1, marginLeft: 8, paddingVertical: 10, borderRadius: 10, backgroundColor: 'rgba(74,77,84,0.15)', alignItems: 'center' }}
+                    style={{ flex: 1, marginLeft: 8, paddingVertical: 10, borderRadius: 10, backgroundColor: colors.borderLo, alignItems: 'center' }}
                     onPress={() => syncMenu()}>
                     <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted }}>{syncing ? '⏳...' : '🔄 Меню'}</Text>
                   </TouchableOpacity>
                   <Pressable
                     style={{ flex: 1, marginLeft: 8, paddingVertical: 10, borderRadius: 10, backgroundColor: 'rgba(200,50,50,0.12)', alignItems: 'center' }}
                     onPress={() => { setBookingConnected(false); setBookingSlug(''); }}>
-                    <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.redLight }}>↺ Сбросить</Text>
+                    <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.red }}>↺ Сбросить</Text>
                   </Pressable>
                 </View>
               </>
@@ -1416,7 +1414,7 @@ export default function SettingsFullPanel({ navigation }) {
           {!bookingConnected && (
             <TouchableOpacity
               activeOpacity={0.7}
-              style={{ marginTop: 10, paddingVertical: 14, borderRadius: 14, backgroundColor: colors.greenLight, alignItems: 'center' }}
+              style={{ marginTop: 10, paddingVertical: 14, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' }}
               onPress={() => connectBooking()}>
               <Text style={{ fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff' }}>Подключить онлайн запись</Text>
             </TouchableOpacity>
@@ -1487,7 +1485,7 @@ export default function SettingsFullPanel({ navigation }) {
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 {['₽','$','€','₸','₴'].map(cur => (
                   <Pressable key={cur} style={[styles.bizCurrencyChip, bizDraft.currency === cur && styles.bizCurrencyChipActive]} onPress={() => setBizDraft(d => ({ ...d, currency: cur }))}>
-                    <Text style={[styles.bizCurrencyText, bizDraft.currency === cur && { color: colors.greenLight }]}>{cur}</Text>
+                    <Text style={[styles.bizCurrencyText, bizDraft.currency === cur && { color: colors.orange }]}>{cur}</Text>
                   </Pressable>
                 ))}
               </View>
@@ -1497,7 +1495,7 @@ export default function SettingsFullPanel({ navigation }) {
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 {['DD.MM.YYYY','MM/DD/YYYY','YYYY-MM-DD'].map(fmt => (
                   <Pressable key={fmt} style={[styles.bizCurrencyChip, bizDraft.dateFormat === fmt && styles.bizCurrencyChipActive]} onPress={() => setBizDraft(d => ({ ...d, dateFormat: fmt }))}>
-                    <Text style={[{ fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted }, bizDraft.dateFormat === fmt && { color: colors.greenLight }]}>{fmt}</Text>
+                    <Text style={[{ fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted }, bizDraft.dateFormat === fmt && { color: colors.orange }]}>{fmt}</Text>
                   </Pressable>
                 ))}
               </View>
@@ -1572,7 +1570,7 @@ export default function SettingsFullPanel({ navigation }) {
           <View style={styles.menuCard}>
             <Pressable
               style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
-              onPress={() => { setSetting('onboarding_done', ''); clearSession?.(); navigation?.navigate('Onboarding'); }}
+              onPress={() => { setSetting('onboarding_done', ''); null; }}
             >
               <Text style={{ fontSize: 20, marginRight: 12 }}>🚀</Text>
               <View style={{ flex: 1 }}>
@@ -1635,7 +1633,7 @@ export default function SettingsFullPanel({ navigation }) {
             >
               <Text style={{ fontSize: 20, marginRight: 12 }}>🗑</Text>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.menuItemName, { color: colors.redLight }]}>Сбросить все данные</Text>
+                <Text style={[styles.menuItemName, { color: colors.red }]}>Сбросить все данные</Text>
                 <Text style={styles.menuItemSub}>Удалить продажи, клиентов, товары. Настройки сохранятся</Text>
               </View>
               <Text style={styles.menuItemArrow}>›</Text>
@@ -1649,8 +1647,7 @@ export default function SettingsFullPanel({ navigation }) {
               style={[styles.menuRow]}
               onPress={() => setSetting('notify_low_stock', getSetting('notify_low_stock') === '1' ? '0' : '1')}
             >
-              <Text style={{ fontSize: 20, marginRight: 12 }}>📦</Text>
-              <View style={{ flex: 1 }}>
+                            <View style={{ flex: 1 }}>
                 <Text style={styles.menuItemName}>Низкий остаток на складе</Text>
                 <Text style={styles.menuItemSub}>Предупреждение ⚠️ когда товар заканчивается</Text>
               </View>
@@ -1692,8 +1689,8 @@ export default function SettingsFullPanel({ navigation }) {
     <View style={{ flex: 1 }}>
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
         <Text style={{ fontSize: 32, marginBottom: 16 }}>🔒</Text>
-        <Text style={{ fontFamily: 'AnekDevanagari_700Bold', fontSize: 18, color: '#ddd8d0', textAlign: 'center' }}>Нет доступа</Text>
-        <Text style={{ fontFamily: 'AnekDevanagari_400Regular', fontSize: 14, color: '#4a4d54', textAlign: 'center', marginTop: 8 }}>Настройки доступны только администратору.</Text>
+        <Text style={{ fontFamily: 'AnekDevanagari_700Bold', fontSize: 18, color: colors.text, textAlign: 'center' }}>Нет доступа</Text>
+        <Text style={{ fontFamily: 'AnekDevanagari_400Regular', fontSize: 14, color: colors.muted, textAlign: 'center', marginTop: 8 }}>Настройки доступны только администратору.</Text>
       </View>
     </View>
   );
@@ -1935,7 +1932,7 @@ export default function SettingsFullPanel({ navigation }) {
                 )}
 
                 {/* Статус */}
-                <View style={[styles.productVariantRow, { marginTop: 16, backgroundColor: '#0b0c0f', borderRadius: 14, paddingHorizontal: 16, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)' }]}>
+                <View style={[styles.productVariantRow, { marginTop: 16, backgroundColor: colors.surface, borderRadius: 14, paddingHorizontal: 16, borderWidth: 1, borderColor: colors.border }]}>
                   <Text style={{ flex: 1, fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text }}>Активен</Text>
                   <Toggle value={!!productModal.product.active} onValueChange={() => toggleProductActive()} />
                 </View>
@@ -2188,7 +2185,7 @@ export default function SettingsFullPanel({ navigation }) {
                       try { deleteUser(empModal.id); loadAll(); setEmpModal(null); } catch (e) { console.error(e); }
                     }}
                   >
-                    <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.redLight }}>Удалить сотрудника</Text>
+                    <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red }}>Удалить сотрудника</Text>
                   </Pressable>
                 )}
 
@@ -2495,7 +2492,7 @@ export default function SettingsFullPanel({ navigation }) {
                       <View key={t.id} style={styles.tableChipEdit}>
                         <Text style={styles.tableChipEditText}>{t.name}</Text>
                         <Pressable onPress={() => removeTableFromZone(t.id)} hitSlop={6}>
-                          <Text style={{ fontSize: 13, color: colors.redLight, marginLeft: 4 }}>✕</Text>
+                          <Text style={{ fontSize: 13, color: colors.red, marginLeft: 4 }}>✕</Text>
                         </Pressable>
                       </View>
                     ))}
@@ -2625,7 +2622,7 @@ export default function SettingsFullPanel({ navigation }) {
                     style={[styles.catChip, payMethodModal.type === t.key && styles.catChipActive]}
                     onPress={() => setPayMethodModal(m => ({ ...m, type: t.key }))}
                   >
-                    <Text style={[styles.catChipLabel, payMethodModal.type === t.key && { color: colors.greenLight }]}>{t.label}</Text>
+                    <Text style={[styles.catChipLabel, payMethodModal.type === t.key && { color: colors.orange }]}>{t.label}</Text>
                   </Pressable>
                 ))}
               </View>
@@ -2884,7 +2881,7 @@ export default function SettingsFullPanel({ navigation }) {
             struktura.app/book/{bookingSlug}
           </Text>
           <Pressable
-            style={{ paddingVertical: 14, paddingHorizontal: 40, borderRadius: 16, backgroundColor: colors.greenLight }}
+            style={{ paddingVertical: 14, paddingHorizontal: 40, borderRadius: 16, backgroundColor: colors.orange }}
             onPress={shareBookingLink}>
             <Text style={{ fontFamily: fonts.family, fontSize: 16, fontWeight: '700', color: '#fff' }}>Поделиться ссылкой</Text>
           </Pressable>
@@ -2904,9 +2901,9 @@ const styles = StyleSheet.create({
   // Левая панель навигации
   leftPanel: {
     width: 220,
-    backgroundColor: '#07080a',
+    backgroundColor: colors.surface2,
     borderRightWidth: 1,
-    borderRightColor: 'rgba(74,77,84,0.3)',
+    borderRightColor: colors.border,
     paddingVertical: 12,
   },
   navItem: {
@@ -2918,22 +2915,22 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   navItemActive: {
-    backgroundColor: 'rgba(61,158,146,0.08)',
+    backgroundColor: 'rgba(240,160,80,0.08)',
   },
   navIcon:  { fontSize: 17, width: 24, textAlign: 'center' },
   navLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, flex: 1 },
-  navLabelActive: { color: colors.greenLight },
+  navLabelActive: { color: colors.orange, fontFamily: fonts.family },
   navActiveBar: {
     position: 'absolute',
     left: 0, top: '15%', bottom: '15%',
     width: 3, borderRadius: 2,
-    backgroundColor: colors.greenLight,
+    backgroundColor: colors.orange,
   },
   navArrow: { fontSize: 16, color: colors.muted },
 
   // Правая панель
-  rightPanel: { flex: 1 },
-  rightInner: { padding: 20, paddingBottom: 40 },
+  rightPanel: { flex: 1, backgroundColor: colors.bg },
+  rightInner: { padding: 24, paddingBottom: 48 },
   sectionTitle: {
     fontFamily: fonts.family,
     fontSize: 22,
@@ -2945,40 +2942,32 @@ const styles = StyleSheet.create({
 
   // Телефон
   phoneback: { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
-  phoneBackText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight },
+  phoneBackText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
 
   // Двухколоночный layout
   twoCol: { flex: 1, flexDirection: 'row' },
-  leftPanel: { width: 220, backgroundColor: '#07080a', borderRightWidth: 1, borderRightColor: 'rgba(74,77,84,0.3)', paddingVertical: 12 },
+  leftPanel: { width: 220, backgroundColor: colors.surface, borderRightWidth: 1, borderRightColor: colors.border, paddingVertical: 12 },
   navItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, paddingHorizontal: 18, position: 'relative' },
-  navItemActive: { backgroundColor: 'rgba(61,158,146,0.08)' },
+  navItemActive: { backgroundColor: 'rgba(240,160,80,0.06)' },
   navIcon: { fontSize: 17, width: 24, textAlign: 'center' },
   navLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, flex: 1 },
-  navLabelActive: { color: colors.greenLight },
-  navActiveBar: { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.greenLight },
+  navLabelActive: { color: colors.orange, fontFamily: fonts.family },
+  navActiveBar: { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
   navArrow: { fontSize: 16, color: colors.muted },
-  rightPanel: { flex: 1 },
-  rightInner: { padding: 20, paddingBottom: 40 },
-  sectionTitle: { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.text, marginBottom: 18, letterSpacing: -0.3 },
+  rightPanel: { flex: 1, backgroundColor: colors.bg },
+  rightInner: { padding: 24, paddingBottom: 48 },
+  sectionTitle: { fontFamily: fonts.family, fontSize: 24, fontWeight: '800', color: colors.text, marginBottom: 20, letterSpacing: -0.3 },
   phoneback: { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
-  phoneBackText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight },
+  phoneBackText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
   // Модалка товара — position:absolute для надёжного scroll
   prodModalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center' },
-  prodModalBox: {
-    width: '50%',
-    maxHeight: '85%',
-    backgroundColor: '#0e0f11',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(74,77,84,0.5)',
-    overflow: 'hidden',
-  },
+  prodModalBox: { width: '50%', maxHeight: '85%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   prodModalHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.3)',
+    padding: 20, borderBottomWidth: 1, borderBottomColor: colors.border,
   },
   prodModalTitle: { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text },
-  receiptBox: { width: 320, maxHeight: '88%', backgroundColor: '#0e0f11', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(74,77,84,0.5)', overflow: 'hidden' },
+  receiptBox: { width: 320, maxHeight: '88%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   receiptPaper: { backgroundColor: '#ffffff', borderRadius: 12, padding: 20 },
   receiptBizName: { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: '#111', textAlign: 'center', marginBottom: 4 },
   receiptBizSub:  { fontFamily: fonts.familyRegular, fontSize: 12, color: '#555', textAlign: 'center', lineHeight: 18 },
@@ -2988,35 +2977,35 @@ const styles = StyleSheet.create({
   receiptItem:    { fontFamily: fonts.familyRegular, fontSize: 13, color: '#222' },
   receiptTotal:   { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: '#111' },
   receiptFooter:  { fontFamily: fonts.familyRegular, fontSize: 11, color: '#888', textAlign: 'center', marginTop: 4 },
-  typeChip:       { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(74,77,84,0.35)', backgroundColor: '#07080a' },
-  typeChipActive: { borderColor: 'rgba(61,158,146,0.5)', backgroundColor: 'rgba(61,158,146,0.1)' },
+  typeChip:       { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(74,77,84,0.35)', backgroundColor: colors.surface2 },
+  typeChipActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.08)' },
   typeChipTxt:    { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
-  typeChipTxtActive: { color: colors.greenLight },
+  typeChipTxtActive: { color: colors.orange },
   bizGroupLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginTop: 20, marginBottom: 8, marginLeft: 2 },
   bizFieldRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, gap: 12 },
   bizFieldLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, width: 140 },
   bizInput: { flex: 1, fontFamily: fonts.familyRegular, fontSize: 13, color: colors.text, textAlign: 'right', padding: 0 },
-  bizPreviewBtn: { marginTop: 8, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(61,158,146,0.4)', alignItems: 'center', backgroundColor: 'rgba(61,158,146,0.06)' },
-  bizPreviewBtnText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight },
-  bizCurrencyChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', backgroundColor: '#07080a' },
-  bizCurrencyChipActive: { borderColor: 'rgba(61,158,146,0.5)', backgroundColor: 'rgba(61,158,146,0.08)' },
+  bizPreviewBtn: { marginTop: 8, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', backgroundColor: 'rgba(61,158,146,0.06)' },
+  bizPreviewBtnText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
+  bizCurrencyChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface2 },
+  bizCurrencyChipActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.08)' },
   bizCurrencyText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   stockCatGroup: { marginBottom: 4 },
-  stockAccHead: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12, backgroundColor: '#0e0f11', borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', marginBottom: 6 },
+  stockAccHead: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, marginBottom: 6 },
   stockAccTitle: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, flex: 1 },
   stockAccArrow: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
-  loyaltyInput: { width: 60, padding: 8, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', borderRadius: 10, color: colors.text, fontFamily: fonts.family, fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  loyaltyInput: { width: 60, padding: 8, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 10, color: colors.text, fontFamily: fonts.family, fontSize: 16, fontWeight: '700', textAlign: 'center' },
   loyaltyUnit: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, width: 36 },
   loyaltyExample: { marginTop: 10, padding: 14, backgroundColor: 'rgba(61,95,168,0.08)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(61,95,168,0.2)', gap: 4 },
   loyaltyExampleTitle: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
   loyaltyExampleLine: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.text, lineHeight: 20 },
-  loyaltyExampleAccent: { fontFamily: fonts.familySemibold, color: colors.greenLight },
-  prodModalFooter: { padding: 16, borderTopWidth: 1, borderTopColor: 'rgba(74,77,84,0.3)', backgroundColor: '#0e0f11' },
-  confirmBtn: { paddingVertical: 15, borderRadius: 14, backgroundColor: 'rgba(61,158,146,0.85)', alignItems: 'center' },
+  loyaltyExampleAccent: { fontFamily: fonts.familySemibold, color: colors.orange },
+  prodModalFooter: { padding: 16, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface },
+  confirmBtn: { paddingVertical: 15, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
   confirmBtnText: { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff' },
   prodInput: {
-    padding: 13, backgroundColor: '#07080a', borderWidth: 1,
-    borderColor: 'rgba(74,77,84,0.5)', borderRadius: 12,
+    padding: 13, backgroundColor: colors.surface2, borderWidth: 1,
+    borderColor: colors.border, borderRadius: 12,
     fontSize: 15, fontFamily: fonts.familySemibold, color: colors.text, marginBottom: 4,
   },
 
@@ -3025,22 +3014,22 @@ const styles = StyleSheet.create({
   productFieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 16 },
   productSectionHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, marginBottom: 8 },
   productCatRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  productCatChip: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', backgroundColor: '#07080a' },
-  productCatChipActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.1)' },
+  productCatChip: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface2 },
+  productCatChipActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.08)' },
   productCatChipText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
-  productCatChipTextActive: { color: colors.greenLight },
+  productCatChipTextActive: { color: colors.orange },
   productVariantRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, gap: 10 },
-  productVariantName: { flex: 1, fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, padding: 10, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', borderRadius: 10, marginRight: 8 },
+  productVariantName: { flex: 1, fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, padding: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 10, marginRight: 8 },
   productVariantPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
-  productVariantPrice: { fontFamily: fonts.family, fontSize: 16, fontWeight: '700', color: colors.text, width: 72, textAlign: 'right', padding: 8, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', borderRadius: 10 },
+  productVariantPrice: { fontFamily: fonts.family, fontSize: 16, fontWeight: '700', color: colors.text, width: 72, textAlign: 'right', padding: 8, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 10 },
   productVariantUnit: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
-  techCardBtn: { flex: 1, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(74,77,84,0.35)', backgroundColor: '#07080a', alignItems: 'center' },
+  techCardBtn: { flex: 1, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(74,77,84,0.35)', backgroundColor: colors.surface2, alignItems: 'center' },
   techCardBtnText: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
   productAddVariant: { paddingVertical: 12, alignItems: 'center' },
-  productAddVariantText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.greenLight },
+  productAddVariantText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
   productHint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, lineHeight: 18, marginBottom: 4 },
-  productCheckbox: { width: 24, height: 24, borderRadius: 8, borderWidth: 1.5, borderColor: 'rgba(74,77,84,0.5)', alignItems: 'center', justifyContent: 'center' },
-  productCheckboxOn: { backgroundColor: colors.greenLight, borderColor: colors.greenLight },
+  productCheckbox: { width: 24, height: 24, borderRadius: 8, borderWidth: 1.5, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  productCheckboxOn: { backgroundColor: colors.orange, borderColor: colors.orange },
 
   // Техкарта модалка
   techCardEmpty: { alignItems: 'center', paddingVertical: 24, gap: 8 },
@@ -3049,20 +3038,20 @@ const styles = StyleSheet.create({
   techIngRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, gap: 10 },
   techIngName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, marginBottom: 2 },
   techIngFactor: { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted },
-  techIngAmount: { width: 64, padding: 8, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', borderRadius: 10, color: colors.text, fontFamily: fonts.family, fontSize: 16, textAlign: 'right' },
-  techIngUnitBtn: { paddingVertical: 7, paddingHorizontal: 10, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', borderRadius: 10 },
+  techIngAmount: { width: 64, padding: 8, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 10, color: colors.text, fontFamily: fonts.family, fontSize: 16, textAlign: 'right' },
+  techIngUnitBtn: { paddingVertical: 7, paddingHorizontal: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 10 },
   techIngUnitText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
-  techIngAddBtn: { paddingVertical: 14, alignItems: 'center', borderTopWidth: 1, borderTopColor: 'rgba(74,77,84,0.2)', marginTop: 8 },
-  techIngAddText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight },
+  techIngAddBtn: { paddingVertical: 14, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border, marginTop: 8 },
+  techIngAddText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
 
   // Меню и цены — шапка
   menuTopBar: { marginBottom: 12 },
   menuTopBarSticky: {
-    backgroundColor: '#060608',
+    backgroundColor: colors.bg,
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(74,77,84,0.2)',
+    borderBottomColor: colors.border,
     position: 'relative',
     justifyContent: 'center',
   },
@@ -3088,9 +3077,9 @@ const styles = StyleSheet.create({
     width: 240,
   },
   menuSearchRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  menuSearchInput: { flex: 1, padding: 9, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 14, fontFamily: fonts.family },
-  menuBadge: { width: 36, height: 36, borderRadius: 12, backgroundColor: '#0e0f11', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', alignItems: 'center', justifyContent: 'center' },
-  menuBadgeAdd: { borderColor: 'rgba(61,158,146,0.4)', backgroundColor: 'rgba(61,158,146,0.06)' },
+  menuSearchInput: { flex: 1, padding: 9, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 14, fontFamily: fonts.family },
+  menuBadge: { width: 36, height: 36, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  menuBadgeAdd: { borderColor: 'rgba(240,160,80,0.4)', backgroundColor: 'rgba(240,160,80,0.08)' },
   menuBadgeText: { fontSize: 16, color: colors.muted },
   // Категории меню
   menuCatGroup: { marginBottom: 16 },
@@ -3098,38 +3087,39 @@ const styles = StyleSheet.create({
   menuCatLine: { flex: 1, height: 1, backgroundColor: 'rgba(74,77,84,0.25)' },
   menuCatName: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
   // Карточка товаров
-  menuCard: { backgroundColor: '#0b0c0f', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', overflow: 'hidden' },
-  menuRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 16 },
-  menuRowDiv: { borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.2)' },
+  menuCard: { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  menuRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16 },
+  menuRowDiv: { borderBottomWidth: 1, borderBottomColor: colors.border },
   menuItemName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, flex: 1, marginRight: 8 },
   menuItemSub: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
   menuItemPrice: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, marginRight: 8 },
   menuItemPriceNone: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, fontStyle: 'italic' },
-  menuItemArrow: { fontSize: 18, color: 'rgba(74,77,84,0.5)', fontFamily: fonts.family },
+  menuItemArrow: { fontSize: 18, color: colors.border, fontFamily: fonts.family },
 
   screen: { flex: 1 },
   inner: { padding: spacing.lg, paddingBottom: 20, maxWidth: 1100, width: '100%', alignSelf: 'center' },
   hiddenHint: { textAlign: 'center', fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginBottom: 10 },
   blockTitle: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.textDim, textTransform: 'uppercase', letterSpacing: 2, marginBottom: 12, textAlign: 'center' },
-  catHeader: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
-  rowName: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.text, flex: 1 },
+  catHeader: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 2, marginBottom: 8, marginTop: 16 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
+  rowName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, flex: 1 },
   rowSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
   tableChipEdit: { flexDirection: 'row', alignItems: 'center', paddingVertical: 5, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(61,95,168,0.4)', backgroundColor: 'rgba(61,95,168,0.1)' },
   tableChipEditText: { fontFamily: fonts.familySemibold, fontSize: 12, color: '#7a9be8' },
   rowNameInactive: { color: colors.muted },
-  rowPrice: { fontFamily: fonts.family, fontSize: 13, fontWeight: '700', color: colors.greenLight },
+  rowPrice: { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: colors.orange },
   empty: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center', paddingVertical: 12 },
+  fieldHint: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 5, marginBottom: 4, lineHeight: 15 },
   hintText: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginBottom: 10, lineHeight: 17 },
   catChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e' },
-  catChipActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.12)' },
+  catChipActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.1)' },
   catChipLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
   unitChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e' },
   fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, marginTop: 10 },
   sectionTitle: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.text, textTransform: 'uppercase', letterSpacing: 1, marginTop: 16, marginBottom: 8 },
-  input: { padding: 13, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 14, fontFamily: fonts.familyRegular },
+  input: { padding: 13, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 14, fontFamily: fonts.familyRegular },
   modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center' },
-  modalInner: { width: '55%', maxWidth: 540, backgroundColor: '#0e0f11', borderRadius: 20, padding: 24, borderWidth: 1, borderColor: colors.borderHi },
+  modalInner: { width: '55%', maxWidth: 540, backgroundColor: colors.surface, borderRadius: 20, padding: 24, borderWidth: 1, borderColor: colors.borderHi },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   modalTitle: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, flex: 1 },
   modalClose: { fontSize: 18, color: colors.muted, padding: 4 },
@@ -3142,31 +3132,31 @@ const styles = StyleSheet.create({
   axisBlock: { marginTop: 10, padding: 10, borderWidth: 1, borderColor: 'rgba(61,95,168,0.35)', borderRadius: 12, backgroundColor: 'rgba(61,95,168,0.06)' },
   axisHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   axisValuesWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
-  axisValueChip: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(61,158,146,0.45)', borderRadius: 10, backgroundColor: 'rgba(61,158,146,0.08)', paddingHorizontal: 8, paddingVertical: 4 },
+  axisValueChip: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(61,158,146,0.45)', borderRadius: 10, backgroundColor: 'rgba(240,160,80,0.08)', paddingHorizontal: 8, paddingVertical: 4 },
   axisValueInput: { fontFamily: fonts.family, fontSize: 13, color: colors.text, minWidth: 40, maxWidth: 90, padding: 0 },
-  axisValueRemove: { fontSize: 14, color: colors.redLight },
+  axisValueRemove: { fontSize: 14, color: colors.red },
   addValueBtn: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed' },
-  addValueBtnText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.greenLight },
+  addValueBtnText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.orange },
   techCardTitle: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.text, marginTop: 10, marginBottom: 6 },
   ingredientRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
   ingredientName: { flex: 1, fontFamily: fonts.familyRegular, fontSize: 13, color: colors.text },
-  ingredientAmount: { width: 64, padding: 8, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 10, color: colors.text, fontSize: 13, fontFamily: fonts.family, textAlign: 'center' },
+  ingredientAmount: { width: 64, padding: 8, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 10, color: colors.text, fontSize: 13, fontFamily: fonts.family, textAlign: 'center' },
   ingredientUnit: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, width: 30 },
   ingredientUnitBtn: { paddingVertical: 5, paddingHorizontal: 8, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(61,95,168,0.5)', backgroundColor: 'rgba(61,95,168,0.1)', minWidth: 36, alignItems: 'center' },
   ingredientUnitBtnText: { fontFamily: fonts.familySemibold, fontSize: 12, color: '#7a9be8' },
   factorRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, paddingLeft: 8 },
   factorLabel: { flex: 1, fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
-  factorInput: { width: 72, padding: 6, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(122,158,82,0.4)', borderRadius: 8, color: colors.text, fontSize: 12, fontFamily: fonts.family, textAlign: 'center' },
-  factorInputAuto: { borderColor: 'rgba(61,158,146,0.4)', color: colors.greenLight },
-  factorAutoLabel: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.greenLight, textTransform: 'uppercase', letterSpacing: 1 },
-  ingredientRemove: { fontSize: 15, color: colors.redLight, paddingHorizontal: 4 },
+  factorInput: { width: 72, padding: 6, backgroundColor: colors.surface2, borderWidth: 1, borderColor: 'rgba(122,158,82,0.4)', borderRadius: 8, color: colors.text, fontSize: 12, fontFamily: fonts.family, textAlign: 'center' },
+  factorInputAuto: { borderColor: 'rgba(240,160,80,0.4)', color: colors.orange },
+  factorAutoLabel: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.orange, textTransform: 'uppercase', letterSpacing: 1 },
+  ingredientRemove: { fontSize: 15, color: colors.red, paddingHorizontal: 4 },
   addIngredientBtn: { paddingVertical: 8, alignItems: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: 12, borderStyle: 'dashed', marginTop: 2 },
-  addIngredientBtnLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.greenLight },
+  addIngredientBtnLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.orange },
   checkRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
-  checkBox: { fontSize: 18, color: colors.greenLight, width: 22 },
+  checkBox: { fontSize: 18, color: colors.orange, width: 22 },
   chipsRowSmall: { flexDirection: 'row', gap: 8, marginTop: 8 },
   chipSmall: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e' },
-  chipSmallActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.18)' },
+  chipSmallActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(61,158,146,0.18)' },
   chipSmallLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
-  chipSmallLabelActive: { color: colors.greenLight },
+  chipSmallLabelActive: { color: colors.orange },
 });
