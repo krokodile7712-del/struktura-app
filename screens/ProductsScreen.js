@@ -264,29 +264,31 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
 
       </ScrollView>
 
-      {/* Пикер ингредиентов */}
-      <Modal visible={ingPicker !== null} transparent animationType="fade" onRequestClose={() => setIngPicker(null)}>
-        <View style={styles.modalOverlay}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setIngPicker(null)} />
-          <View style={styles.ingPickerBox}>
+      {/* Пикер ингредиентов — встроенный */}
+      {ingPicker !== null && (
+        <View style={styles.ingPickerInline}>
+          <View style={styles.ingPickerHeader}>
             <Text style={styles.ingPickerTitle}>Выбрать из склада</Text>
-            <TextInput style={styles.ingPickerSearch} color={colors.text}
-              value={ingSearch} onChangeText={setIngSearch}
-              placeholder="Поиск..." placeholderTextColor={colors.muted} autoFocus />
-            <ScrollView style={{ flex: 1 }}>
-              {filteredStock.map(s => (
-                <Pressable key={s.id} style={styles.ingPickerRow} onPress={() => addIng(ingPicker, s)}>
-                  <Text style={styles.ingPickerName}>{s.name}</Text>
-                  <Text style={styles.ingPickerUnit}>{s.unit}</Text>
-                </Pressable>
-              ))}
-              {filteredStock.length === 0 && (
-                <Text style={styles.ingPickerEmpty}>Ничего не найдено</Text>
-              )}
-            </ScrollView>
+            <Pressable onPress={() => { setIngPicker(null); setIngSearch(''); }} hitSlop={12}>
+              <Text style={{ color: colors.muted, fontSize: 18 }}>✕</Text>
+            </Pressable>
           </View>
+          <TextInput style={styles.ingPickerSearch} color={colors.text}
+            value={ingSearch} onChangeText={setIngSearch}
+            placeholder="Поиск по складу..." placeholderTextColor={colors.muted} />
+          <ScrollView style={{ maxHeight: 260 }} keyboardShouldPersistTaps="handled">
+            {filteredStock.map(s => (
+              <Pressable key={s.id} style={styles.ingPickerRow} onPress={() => addIng(ingPicker, s)}>
+                <Text style={styles.ingPickerName}>{s.name}</Text>
+                <Text style={styles.ingPickerUnit}>{s.unit}</Text>
+              </Pressable>
+            ))}
+            {filteredStock.length === 0 && (
+              <Text style={styles.ingPickerEmpty}>Склад пуст или ничего не найдено</Text>
+            )}
+          </ScrollView>
         </View>
-      </Modal>
+      )}
     </Animated.View>
   );
 }
@@ -811,6 +813,8 @@ const styles = StyleSheet.create({
 
   // Модалки
   modalOverlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  ingPickerInline: { backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, marginTop: 8, overflow: 'hidden' },
+  ingPickerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
   ingPickerBox:  { width: '60%', maxHeight: '70%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', padding: 0 },
   ingPickerTitle:{ fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, padding: 16, paddingBottom: 8 },
   ingPickerSearch:{ margin: 12, marginTop: 0, backgroundColor: colors.surface2, borderRadius: 10, padding: 11, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 14, borderWidth: 1, borderColor: colors.border },
