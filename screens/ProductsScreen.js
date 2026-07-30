@@ -25,9 +25,10 @@ import { colors, fonts } from '../constants/theme';
 const fmt = n => (n||0).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
 // ─── Правая панель редактирования товара ─────────────────────────────────────
-function ProductEditor({ product, onSave, onDelete, onToggleActive, stock, categories, allModGroups, onClose, onRefreshStock }) {
+function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, allModGroups, onClose }) {
   const isNew = !product?.id;
   const canEditCost = can('edit_cost_cards');
+  const [stock, setStock] = useState(() => { try { return getAllStock(); } catch { return []; } });
 
   const [name, setName]           = useState(product?.name || '');
   const [category, setCategory]   = useState(product?.category || ((categories || [])[0] || ''));
@@ -194,7 +195,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, stock, categ
                       </Pressable>
                     </View>
                   ))}
-                  <Pressable style={styles.addIngBtn} onPress={() => { onRefreshStock?.(); setIngPicker(vi); }}>
+                  <Pressable style={styles.addIngBtn} onPress={() => { try { setStock(getAllStock()); } catch(_){} setIngPicker(vi); }}>
                     <Text style={styles.addIngTxt}>+ Добавить из склада</Text>
                   </Pressable>
                   {v.ings.length === 0 && (
@@ -505,10 +506,8 @@ export default function ProductsScreen({ navigation }) {
               onDelete={handleDelete}
               onToggleActive={handleToggleActive}
               onClose={() => setSelected(null)}
-              stock={stock}
               categories={categories}
               allModGroups={modGroups}
-              onRefreshStock={() => { try { setStock(getAllStock()); } catch(_) {} }}
             />
           ) : (
             <View style={styles.emptyRight}>
