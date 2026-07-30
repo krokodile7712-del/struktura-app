@@ -2024,7 +2024,7 @@ export default function SettingsFullPanel({ navigation }) {
 
                 {/* Левая: основные данные */}
                 {/* Правая: основные данные */}
-                <ScrollView style={{ width: 420, borderRightWidth: 1, borderRightColor: colors.border }} contentContainerStyle={{ padding: 20, paddingBottom: 32 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 32 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
                   <Text style={styles.productFieldLabel}>Тип ставки</Text>
                   <View style={styles.menuCard}>
