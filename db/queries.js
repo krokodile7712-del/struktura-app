@@ -1367,7 +1367,7 @@ export function saveCostCardForVariant(variantId, ingredients) {
   for (const ing of ingredients) {
     db.runSync(
       `INSERT INTO cost_ingredients (cost_card_id, name, amount, unit, price_per_unit, factor) VALUES (?, ?, ?, ?, ?, ?)`,
-      [cardId, ing.name, ing.amount, ing.unit, ing.pricePerUnit || 0, ing.factor ?? 1]
+      [cardId, ing.name, ing.amount, ing.unit, ing.price_per_unit || ing.pricePerUnit || 0, ing.factor ?? 1]
     );
   }
 }
