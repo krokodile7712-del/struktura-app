@@ -325,7 +325,7 @@ export default function ProductsScreen({ navigation }) {
       const newVars = getProductVariants(pid);
       newVars.forEach((v, i) => {
         const ings = data.vars[i]?.ings || [];
-        saveCostCardForVariant(v.id, ings.map(ing => ({ ...ing, amount: parseFloat(ing.amount)||0, price_per_unit: parseFloat(ing.price_per_unit)||0 })));
+        saveCostCardForVariant(v.id, ings.map(ing => ({ ...ing, amount: parseFloat(ing.amount)||0, price_per_unit: parseFloat(ing.price_per_unit)||0, pricePerUnit: parseFloat(ing.price_per_unit)||0 })));
       });
       // Модификаторы
       setProductModifierGroups(pid, data.selGroups);
