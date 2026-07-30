@@ -25,7 +25,7 @@ import { colors, fonts } from '../constants/theme';
 const fmt = n => (n||0).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
 // ─── Правая панель редактирования товара ─────────────────────────────────────
-function ProductEditor({ product, onSave, onDelete, onToggleActive, stock, categories, allModGroups, onClose }) {
+function ProductEditor({ product, onSave, onDelete, onToggleActive, stock, categories, allModGroups, onClose, onRefreshStock }) {
   const isNew = !product?.id;
   const canEditCost = can('edit_cost_cards');
 
@@ -194,7 +194,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, stock, categ
                       </Pressable>
                     </View>
                   ))}
-                  <Pressable style={styles.addIngBtn} onPress={() => setIngPicker(vi)}>
+                  <Pressable style={styles.addIngBtn} onPress={() => { onRefreshStock?.(); setIngPicker(vi); }}>
                     <Text style={styles.addIngTxt}>+ Добавить из склада</Text>
                   </Pressable>
                   {v.ings.length === 0 && (
@@ -508,6 +508,7 @@ export default function ProductsScreen({ navigation }) {
               stock={stock}
               categories={categories}
               allModGroups={modGroups}
+              onRefreshStock={() => { try { setStock(getAllStock()); } catch(_) {} }}
             />
           ) : (
             <View style={styles.emptyRight}>
