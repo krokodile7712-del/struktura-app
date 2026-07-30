@@ -1,150 +1,183 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Image, StyleSheet, ScrollView, Pressable, Dimensions } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, Pressable, ScrollView, Animated } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
-import ShiftBanner from '../components/ShiftBanner';
 import BottomBar from '../components/BottomBar';
-import StatsBar from '../components/StatsBar';
-import { getBusinessProfile, getOpenShift, getTerms, pluralizeRu, getRoleNames, getDashboardStats } from '../db/queries';
-import { can } from '../db/session';
-import { colors, fonts, spacing } from '../constants/theme';
+import ShiftBanner from '../components/ShiftBanner';
+import {
+  getOpenShift, getBusinessProfile, getTerms, pluralizeRu,
+  getDashboardStats, getRoleNames,
+} from '../db/queries';
+import { getSession, can } from '../db/session';
+import { colors, fonts } from '../constants/theme';
 
-function useColumns() {
-  const [cols, setCols] = useState(() => {
-    const w = Dimensions.get('window').width;
-    if (w < 480) return 2;
-    if (w < 700) return 3;
-    return 4;
-  });
-  useEffect(() => {
-    const sub = Dimensions.addEventListener('change', ({ window }) => {
-      if (window.width < 480)      setCols(2);
-      else if (window.width < 700) setCols(3);
-      else                         setCols(4);
-    });
-    return () => sub?.remove();
-  }, []);
-  return cols;
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Доброе утро';
+  if (h < 17) return 'Добрый день';
+  return 'Добрый вечер';
 }
 
-const ACCENT = {
-  action:  { border: 'rgba(122,158,82,0.5)',  bg: 'rgba(122,158,82,0.10)' },
-  pay:     { border: 'rgba(61,95,168,0.5)',   bg: 'rgba(61,95,168,0.10)'  },
-  success: { border: 'rgba(61,158,146,0.5)',  bg: 'rgba(61,158,146,0.10)' },
-  default: { border: 'rgba(74,77,84,0.5)',    bg: 'rgba(20,22,24,0.9)'    },
-  danger:  { border: 'rgba(160,16,32,0.5)',   bg: 'rgba(160,16,32,0.10)'  },
-};
-
-const getMenuItems = (terms) => [
-  { icon: '💸', label: 'Расходы',    sub: 'Записать затрату', screen: 'Expenses',    variant: 'danger'   },
-  { icon: '📊', label: pluralizeRu(terms.order), sub: 'История', screen: 'Sales', variant: 'success' },
-  { icon: '👥', label: 'Клиенты',   sub: 'Поиск · новый',    screen: 'ClientsList', variant: 'pay', module: 'clients' },
-];
+function fmt(n) { return (n || 0).toLocaleString('ru-RU'); }
 
 export default function DashboardScreen({ navigation }) {
-  const [modules, setModules]     = useState({});
-  const [terms, setTerms]         = useState({ item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' });
-  const [roleNames, setRoleNames] = useState({ barista: 'Сотрудник', admin: 'Администратор' });
-  const [hasShift, setHasShift] = useState(true);
-  const [stats, setStats]         = useState(null);
-  const [profile, setProfile]     = useState(null);
-  const cols = useColumns();
+  const [profile, setProfile]       = useState(null);
+  const [terms, setTerms]           = useState({ order: 'Заказ', client: 'Клиент' });
+  const [stats, setStats]           = useState({});
+  const [hasShift, setHasShift]     = useState(false);
+  const [roleNames, setRoleNames]   = useState({ barista: 'Сотрудник' });
+  const [sessionName, setSessionName] = useState('');
+  const [active, setActive]         = useState('dash');
 
-  const loadStats = () => {
+  const fadeAnim  = useState(new Animated.Value(0))[0];
+  const slideAnim = useState(new Animated.Value(16))[0];
+  const animWidth = useState(new Animated.Value(220))[0];
+
+  const load = useCallback(() => {
     try {
       const p = getBusinessProfile();
       setProfile(p);
-      setModules(p?.modules || {});
       setTerms(getTerms());
       setRoleNames(getRoleNames());
       setStats(getDashboardStats());
       setHasShift(!!getOpenShift());
-    } catch (e) { console.error(e); }
+      const sess = getSession();
+      setSessionName(sess?.name?.split(' ')[0] || '');
+    } catch(e) { console.error(e); }
+
+    fadeAnim.setValue(0); slideAnim.setValue(16);
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: true }),
+      Animated.spring(slideAnim, { toValue: 0, tension: 70, friction: 12, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const setActiveAnimated = (key) => {
+    setActive(key);
+    Animated.spring(animWidth, {
+      toValue: 52,
+      useNativeDriver: false,
+      tension: 40,
+      friction: 10,
+    }).start();
   };
 
-  useEffect(() => {
-    loadStats();
-    const unsub = navigation.addListener('focus', loadStats);
-    return unsub;
-  }, [navigation]);
-
-  const visibleItems = getMenuItems(terms).filter(item =>
-    !item.module || modules[item.module] !== false
-  );
-
-  const logoUri = profile?.logo_url || 'https://i.ibb.co/hRZxPz8b/19-20260514150523.png';
-  const screenW = Dimensions.get('window').width;
-  const gridPad = spacing.lg * 2;
-  const gap     = 10;
-  const tileW   = Math.floor((Math.min(screenW, 1100) - gridPad - gap * (cols - 1)) / cols);
+  // Разделы доступные сотруднику по правам
+  const SECTIONS = [
+    { key: 'dash',         label: 'Обзор',    always: true },
+    { key: 'Sales',        label: 'Продажи',  perm: 'view_order_history' },
+    { key: 'ClientsList',  label: 'Клиенты',  perm: 'view_clients' },
+    { key: 'Expenses',     label: 'Расходы',  perm: 'add_expenses' },
+    { key: 'Stock',        label: 'Склад',    perm: 'view_stock' },
+  ].filter(s => s.always || can(s.perm));
 
   return (
-    <View style={{ flex: 1 }}>
-      <TopBar title={roleNames.barista} navigation={navigation} activeScreen="Dashboard" />
+    <View style={styles.root}>
+      <TopBar title={roleNames.barista || 'Сотрудник'} navigation={navigation} activeScreen="Dashboard" />
       {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift')} />}
-      <StatsBar
-        stats={stats}
-        modules={modules}
-        onShiftPress={() => navigation.navigate('ShiftClose')}
-        onStockPress={() => navigation.navigate('Stock')}
-      />
 
-      <ScrollView contentContainerStyle={styles.inner}>
+      <View style={styles.layout}>
 
-        {/* Логотип */}
-        <View style={styles.logoWrap}>
-          <Image
-            source={{ uri: logoUri }}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-          {profile?.business_name ? (
-            <Text style={styles.bizName}>{profile.business_name}</Text>
-          ) : null}
-        </View>
-
-        {/* Hero — Новый заказ */}
-        <Pressable
-          style={({ pressed }) => [
-            styles.hero,
-            pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] },
-          ]}
-          onPress={() => navigation.navigate('Kassa')}
-        >
-          <Text style={styles.heroIcon}>🛍</Text>
-          <View>
-            <Text style={styles.heroLabel}>Новый {terms.order.toLowerCase()}</Text>
-            <Text style={styles.heroSub}>Касса · добавить позиции и оплатить</Text>
+        {/* ── Левая панель ── */}
+        <Animated.View style={[styles.leftPanel, { width: animWidth }]}>
+          <View style={styles.bizHeader}>
+            <Text style={styles.bizName} numberOfLines={1}>{profile?.business_name || 'Мой бизнес'}</Text>
+            {profile?.city ? <Text style={styles.bizCity}>{profile.city}</Text> : null}
           </View>
-          <Text style={styles.heroArrow}>›</Text>
-        </Pressable>
 
-        {/* Вторичные действия — список */}
-        <View style={styles.list}>
-          {visibleItems.map((item, idx) => (
-            <Pressable
-              key={item.screen}
-              style={({ pressed }) => [
-                styles.listItem,
-                idx < visibleItems.length - 1 && styles.listItemDiv,
-                pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
-              ]}
-              onPress={() => navigation.navigate(item.screen)}
-            >
-              <Text style={styles.listIcon}>{item.icon}</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.listLabel}>{item.label}</Text>
-                {item.sub ? <Text style={styles.listSub}>{item.sub}</Text> : null}
-              </View>
-              <Text style={styles.listArrow}>›</Text>
+          <Pressable
+            style={({ pressed }) => [styles.ctaBtn, pressed && { opacity: 0.85 }]}
+            onPress={() => navigation.navigate('Kassa')}
+          >
+            <Text style={styles.ctaLabel}>Новый {terms.order?.toLowerCase()}</Text>
+            <Text style={styles.ctaSub}>Открыть кассу</Text>
+          </Pressable>
+
+          <View style={styles.divider} />
+
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {SECTIONS.map(s => {
+              const isActive = active === s.key;
+              return (
+                <Pressable
+                  key={s.key}
+                  style={({ pressed }) => [
+                    styles.menuItem,
+                    isActive && styles.menuItemActive,
+                    pressed && { backgroundColor: 'rgba(245,240,232,0.04)' },
+                  ]}
+                  onPress={() => {
+                    if (s.key === 'dash') {
+                      setActive('dash');
+                      Animated.spring(animWidth, { toValue: 220, useNativeDriver: false, tension: 40, friction: 10 }).start();
+                    } else {
+                      setActiveAnimated(s.key);
+                      setTimeout(() => navigation.navigate(s.key), 200);
+                    }
+                  }}
+                >
+                  {isActive && <View style={styles.activeBar} />}
+                  <Text style={[styles.menuLabel, isActive && styles.menuLabelActive]}>{s.label}</Text>
+                </Pressable>
+              );
+            })}
+
+            <View style={styles.divider} />
+
+            <Pressable style={styles.menuItem} onPress={() => navigation.navigate('Login')}>
+              <Text style={styles.logoutLabel}>⎋  Сменить аккаунт</Text>
             </Pressable>
-          ))}
+          </ScrollView>
+        </Animated.View>
+
+        {/* ── Правая панель — дашборд ── */}
+        <View style={styles.rightPanel}>
+          <Animated.ScrollView
+            contentContainerStyle={styles.dashContent}
+            style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
+          >
+            <Text style={styles.greeting}>{getGreeting()}{sessionName ? `, ${sessionName}` : ''}</Text>
+            <Text style={styles.greetingSub}>Сводка текущей смены</Text>
+
+            <View style={styles.statsGrid}>
+              {[
+                { label: 'Выручка',    value: `${fmt(stats.todayTotal)} ₽` },
+                { label: 'Заказов',    value: stats.todayOrders || 0 },
+                { label: 'Средний чек',value: `${stats.todayOrders > 0 ? fmt(Math.round((stats.todayTotal||0) / stats.todayOrders)) : 0} ₽` },
+                { label: 'Наличные',   value: `${fmt(stats.todayCash)} ₽` },
+              ].map((s, i) => (
+                <View key={i} style={styles.statCard}>
+                  <Text style={styles.statVal}>{s.value}</Text>
+                  <Text style={styles.statLbl}>{s.label}</Text>
+                </View>
+              ))}
+            </View>
+
+            {stats.shift && (
+              <>
+                <View style={styles.shiftDivider} />
+                <Pressable
+                  style={({ pressed }) => [styles.shiftCloseBtn, pressed && { opacity: 0.85 }]}
+                  onPress={() => navigation.navigate('ShiftClose')}
+                >
+                  <View>
+                    <Text style={styles.shiftCloseTxt}>Закрыть смену</Text>
+                    <Text style={styles.shiftCloseSub}>
+                      Открыта {stats.shiftDuration || ''} · {fmt(stats.todayTotal)} ₽
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 18, color: colors.red }}>›</Text>
+                </Pressable>
+              </>
+            )}
+
+            <Text style={styles.hint}>Нажмите на раздел слева для перехода</Text>
+          </Animated.ScrollView>
         </View>
 
-        <Pressable style={styles.switchBtn} onPress={() => navigation.navigate('Login')}>
-          <Text style={styles.switchBtnText}>🔄 Сменить аккаунт</Text>
-        </Pressable>
-
-      </ScrollView>
+      </View>
 
       <BottomBar navigation={navigation} activeTab="Kassa" />
     </View>
@@ -152,52 +185,41 @@ export default function DashboardScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  inner: {
-    padding: spacing.lg,
-    paddingBottom: 20,
-    maxWidth: 1100,
-    width: '100%',
-    alignSelf: 'center',
-  },
-  logoWrap: {
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
-  logo: {
-    width: 160,
-    height: 80,
-    marginBottom: 6,
-  },
-  bizName: {
-    fontFamily: fonts.familySemibold,
-    fontSize: 13,
-    color: colors.muted,
-    letterSpacing: 3,
-    textTransform: 'uppercase',
-  },
-  hero: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    paddingVertical: 18,
-    paddingHorizontal: 22,
-    borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: 'rgba(122,158,82,0.6)',
-    backgroundColor: 'rgba(122,158,82,0.12)',
-    marginBottom: 14,
-  },
-  heroIcon:  { fontSize: 32 },
-  heroLabel: { fontFamily: fonts.family, fontSize: 17, fontWeight: '700', color: '#c8e890', textTransform: 'capitalize' },
-  heroSub:   { fontFamily: fonts.familyRegular, fontSize: 12, color: 'rgba(200,232,144,0.6)', marginTop: 2 },
-  heroArrow: { fontFamily: fonts.family, fontSize: 28, color: 'rgba(200,232,144,0.5)', marginLeft: 'auto' },
-  list:        { backgroundColor: '#0b0c0f', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', overflow: 'hidden', marginBottom: 14 },
-  listItem:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, gap: 12 },
-  listItemDiv: { borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.2)' },
-  listIcon:    { fontSize: 18, width: 24, textAlign: 'center', opacity: 0.7 },
-  listLabel:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
-  listSub:     { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 1 },
-  listArrow:   { fontSize: 18, color: 'rgba(74,77,84,0.4)' },
-  switchBtn: { padding: 14, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(74,77,84,0.35)', alignItems: 'center', marginTop: 4 },
-  switchBtnText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, letterSpacing: 1 },
+  root:    { flex: 1, backgroundColor: colors.bg },
+  layout:  { flex: 1, flexDirection: 'row' },
+
+  leftPanel:  { borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface, overflow: 'hidden' },
+  bizHeader:  { padding: 18, paddingBottom: 10 },
+  bizName:    { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.text },
+  bizCity:    { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
+
+  ctaBtn:     { marginHorizontal: 12, marginBottom: 12, padding: 14, borderRadius: 12, backgroundColor: colors.orange, alignItems: 'center' },
+  ctaLabel:   { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: '#fff', textTransform: 'capitalize' },
+  ctaSub:     { fontFamily: fonts.familyRegular, fontSize: 10, color: 'rgba(255,255,255,0.7)', marginTop: 1 },
+
+  divider:    { height: 1, backgroundColor: colors.border, marginHorizontal: 12, marginVertical: 4 },
+
+  menuItem:       { paddingVertical: 12, paddingHorizontal: 16, position: 'relative' },
+  menuItemActive: { backgroundColor: 'rgba(245,240,232,0.06)' },
+  activeBar:      { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
+  menuLabel:      { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
+  menuLabelActive:{ color: colors.text },
+  logoutLabel:    { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+
+  rightPanel:   { flex: 1, backgroundColor: colors.bg },
+  dashContent:  { padding: 32, paddingBottom: 40 },
+  greeting:     { fontFamily: fonts.family, fontSize: 26, fontWeight: '800', color: colors.text, marginBottom: 4 },
+  greetingSub:  { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginBottom: 28 },
+
+  statsGrid:  { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
+  statCard:   { flex: 1, minWidth: '44%', backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, padding: 16 },
+  statVal:    { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.text, marginBottom: 4 },
+  statLbl:    { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.8 },
+
+  shiftDivider:   { height: 1, backgroundColor: colors.border, marginBottom: 16 },
+  shiftCloseBtn:  { backgroundColor: 'rgba(217,95,95,0.07)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(217,95,95,0.3)', padding: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  shiftCloseTxt:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red, marginBottom: 3 },
+  shiftCloseSub:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+
+  hint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'center', opacity: 0.5, marginTop: 16 },
 });
