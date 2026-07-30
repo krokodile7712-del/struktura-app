@@ -159,7 +159,6 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
                 </View>
               );
             })}
-</View>
           </Animated.View>
         </ScrollView>
       </Animated.View>
