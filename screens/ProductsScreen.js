@@ -166,6 +166,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, stock, categ
 
               {/* Техкарта */}
               {canEditCost ? (
+              <>
               <Pressable style={styles.techToggle} onPress={() => setExpandedVar(isOpen ? -1 : vi)}>
                 <Text style={styles.techToggleTxt}>
                   Техкарта{(Array.isArray(v.ings) && v.ings.length > 0) ? ` · ${v.ings.length} поз. · ${cost.toFixed(2)} ₽` : ' · не задана'}
@@ -200,6 +201,12 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, stock, categ
                     <Text style={styles.ingHint}>Не обязательно — нужно для автосписания и расчёта маржи</Text>
                   )}
                 </View>
+              )}
+              </>
+              ) : (
+              <View style={[styles.techToggle, { opacity: 0.4 }]}>
+                <Text style={styles.techToggleTxt}>Техкарта · нет доступа</Text>
+              </View>
               )}
             </View>
           );
