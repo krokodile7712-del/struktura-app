@@ -342,7 +342,7 @@ export default function StockPanel() {
                   <View style={styles.curRow}>
                     <View>
                       <Text style={styles.curLabel}>Текущий остаток</Text>
-                      <Text style={styles.fieldHint}>Фактическое количество на складе</Text>
+
                       <Text style={[
                         styles.curVal,
                         modalItem['остаток'] < 0 && styles.qtyNeg,
@@ -378,7 +378,7 @@ export default function StockPanel() {
                       <Text style={styles.priceSaveTxt}>✓</Text>
                     </Pressable>
                   </View>
-                  <Text style={styles.fieldHint}>Используется для расчёта себестоимости в техкартах</Text>
+
                 </View>
 
                 {/* Режимы */}
@@ -409,7 +409,7 @@ export default function StockPanel() {
                     </Pressable>
 
                     <Text style={styles.inputLabel}>Количество, {modalItem.unit}</Text>
-                    <Text style={styles.fieldHint}>Сколько единиц добавить или списать</Text>
+
                     <TextInput
                       style={styles.inputField}
                       value={qty}
@@ -423,7 +423,7 @@ export default function StockPanel() {
                     {mode === 'purchase' && (
                       <>
                         <Text style={styles.inputLabel}>Цена закупки, ₽/ед.</Text>
-                        <Text style={styles.fieldHint}>Обновит среднюю цену для расчёта маржи</Text>
+
                         <TextInput
                           style={styles.inputField}
                           value={price}
@@ -600,24 +600,24 @@ const styles = StyleSheet.create({
 
   curBox:    { padding: 16, backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, marginBottom: 16 },
   curRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  curLabel:  { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
+  curLabel:  { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.textDim, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
   curVal:    { fontFamily: fonts.family, fontSize: 28, fontWeight: '800', color: colors.text },
   curUnit:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, fontWeight: '400' },
   curThrBox: { alignItems: 'flex-end' },
   curThrLabel:{ fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
   curThrVal: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, marginTop: 2 },
-  curAvg:    { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 10 },
+  curAvg:    { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.textDim, marginTop: 10 },
 
   modeList:   { borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(74,77,84,0.25)' },
   modeRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, backgroundColor: colors.surface2 },
   modeRowDiv: { borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.18)' },
-  modeLabel:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, marginBottom: 2 },
+  modeLabel:  { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text, marginBottom: 2 },
   modeDesc:   { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
   modeArrow:  { fontSize: 18, color: colors.muted },
 
   backBtn:     { paddingVertical: 10, marginBottom: 8 },
   backBtnText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
-  inputLabel:  { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, marginTop: 14 },
+  inputLabel:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.textDim, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, marginTop: 14 },
   inputField:  { padding: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 22, fontFamily: fonts.family, textAlign: 'center', marginBottom: 4 },
 
   previewBox:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, backgroundColor: 'rgba(61,95,168,0.08)', borderRadius: 12, marginVertical: 10, borderWidth: 1, borderColor: 'rgba(61,95,168,0.2)' },
@@ -625,7 +625,7 @@ const styles = StyleSheet.create({
   previewVal:   { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.text },
 
   confirmBtn:    { paddingVertical: 15, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center', marginTop: 8 },
-  confirmBtnOff: { backgroundColor: colors.border },
+  confirmBtnOff: { backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
   confirmBtnText:{ fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff' },
 
   histToggle:     { paddingVertical: 12, alignItems: 'center', marginTop: 8 },
