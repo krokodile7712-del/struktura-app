@@ -2121,60 +2121,12 @@ export default function SettingsFullPanel({ navigation }) {
                           )}
                           <Text style={[styles.menuItemSub, { marginRight: 8 }]}>{s.unit}</Text>
                           <View style={[styles.productCheckbox, empModal.salaryType === s.key && styles.productCheckboxOn]}>
+                            {empModal.salaryType === s.key && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
+                          </View>
+                        </Pressable>
+                      ))}
+                    </View>
 
-                <Text style={styles.productFieldLabel}>Роль</Text>
-                <View style={styles.menuCard}>
-                  {[
-                    { key: 'admin',   label: roleNames.admin,   sub: 'Полный доступ к настройкам и отчётам' },
-                    { key: 'barista', label: roleNames.barista, sub: 'Только касса и базовые функции' },
-                  ].map((r, idx) => (
-                    <Pressable
-                      key={r.key}
-                      style={[styles.menuRow, idx === 0 && styles.menuRowDiv]}
-                      onPress={() => setEmpModal(m => ({ ...m, role: r.key }))}
-                    >
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.menuItemName}>{r.label}</Text>
-                        <Text style={styles.menuItemSub}>{r.sub}</Text>
-                      </View>
-                      <View style={[styles.productCheckbox, empModal.role === r.key && styles.productCheckboxOn]}>
-                        {empModal.role === r.key && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
-                      </View>
-                    </Pressable>
-                  ))}
-                </View>
-
-                <Text style={styles.productFieldLabel}>Ставка</Text>
-                <View style={styles.menuCard}>
-                  {[
-                    { key: 'shift',       label: 'За смену',         unit: '₽/смена' },
-                    { key: 'hourly',      label: 'Почасовая',        unit: '₽/час' },
-                    { key: 'monthly',     label: 'Оклад',            unit: '₽/мес' },
-                    { key: 'revenue_pct', label: '% от выручки',     unit: '%' },
-                  ].map((s, idx) => (
-                    <Pressable
-                      key={s.key}
-                      style={[styles.menuRow, idx < 3 && styles.menuRowDiv]}
-                      onPress={() => setEmpModal(m => ({ ...m, salaryType: s.key }))}
-                    >
-                      <Text style={[styles.menuItemName, { flex: 1 }]}>{s.label}</Text>
-                      {empModal.salaryType === s.key && (
-                        <TextInput
-                          color={colors.text}
-                          style={[styles.prodInput, { width: 80, marginRight: 8, padding: 6, textAlign: 'right', marginBottom: 0 }]}
-                          value={empModal.salaryAmount}
-                          onChangeText={v => setEmpModal(m => ({ ...m, salaryAmount: v }))}
-                          keyboardType="numeric"
-                          placeholder="0"
-                          placeholderTextColor={colors.muted}
-                        />
-                      )}
-                      <Text style={[styles.menuItemSub, { marginRight: 8 }]}>{s.unit}</Text>
-                      <View style={[styles.productCheckbox, empModal.salaryType === s.key && styles.productCheckboxOn]}>
-                        {empModal.salaryType === s.key && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
-                      </View>
-                    </Pressable>
-                  ))}
                   </ScrollView>
                 </View>
 
