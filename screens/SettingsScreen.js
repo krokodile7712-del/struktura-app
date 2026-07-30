@@ -2025,7 +2025,7 @@ export default function SettingsScreen({ navigation }) {
               </View>
 
               {/* Горизонтальный layout */}
-              <View style={{ flexDirection: 'row', flex: 1, minHeight: 400 }}>
+              <View style={{ flexDirection: 'row', flex: 1 }}>
 
                 {/* Левая: основные данные */}
                 <View style={{ width: 280, borderRightWidth: 1, borderRightColor: colors.border }}>
@@ -3040,7 +3040,7 @@ const styles = StyleSheet.create({
   // Модалка товара — position:absolute для надёжного scroll
   prodModalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center' },
   prodModalBox: { width: '50%', maxHeight: '85%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
-  empModalBox:  { width: '75%', maxHeight: '85%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', flexDirection: 'column', flex: 0 },
+  empModalBox:  { width: '75%', height: '82%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', flexDirection: 'column' },
   prodModalHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     padding: 20, borderBottomWidth: 1, borderBottomColor: colors.border,
