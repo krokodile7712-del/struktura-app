@@ -2022,116 +2022,9 @@ export default function SettingsFullPanel({ navigation }) {
               {/* Горизонтальный layout */}
               <View style={{ flexDirection: 'row', flex: 1 }}>
 
-                {/* Левая: ставка + права */}
-                <View style={{ flex: 1 }}>
-                  <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 32 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-
-                    <Text style={styles.productFieldLabel}>Имя <Text style={{ color: colors.orange }}>*</Text></Text>
-                    <TextInput
-                      color={colors.text}
-                      style={styles.prodInput}
-                      value={empModal.name}
-                      onChangeText={v => setEmpModal(m => ({ ...m, name: v }))}
-                      placeholder="Иван Петров"
-                      placeholderTextColor={colors.muted}
-                      autoFocus={!empModal.id}
-                    />
-
-                    <Text style={[styles.productFieldLabel, { marginTop: 16 }]}>{empModal.id ? 'Новый PIN (необязательно)' : 'PIN-код *'}</Text>
-                    <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-                      <TextInput
-                        color={colors.text}
-                        style={[styles.prodInput, { flex: 1, textAlign: 'center', letterSpacing: 6, fontSize: 18 }]}
-                        value={empModal.pin}
-                        onChangeText={v => setEmpModal(m => ({ ...m, pin: v.replace(/\D/g,'') }))}
-                        keyboardType="number-pad"
-                        maxLength={6}
-                        secureTextEntry={!showPin}
-                        placeholder="• • • •"
-                        placeholderTextColor={colors.muted}
-                      />
-                      <TextInput
-                        color={colors.text}
-                        style={[styles.prodInput, { flex: 1, textAlign: 'center', letterSpacing: 6, fontSize: 18 }]}
-                        value={empModal.pin2}
-                        onChangeText={v => setEmpModal(m => ({ ...m, pin2: v.replace(/\D/g,'') }))}
-                        keyboardType="number-pad"
-                        maxLength={6}
-                        secureTextEntry={!showPin}
-                        placeholder="Повтор"
-                        placeholderTextColor={colors.muted}
-                      />
-                    </View>
-                    <Pressable onPress={() => setShowPin(v => !v)} style={{ marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={{ fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted }}>
-                        {showPin ? '🙈 Скрыть PIN' : '👁 Показать PIN'}
-                      </Text>
-                    </Pressable>
-                    <Text style={{ fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 4, lineHeight: 16 }}>
-                      Минимум 4 цифры. Оставьте пустым чтобы не менять.
-                    </Text>
-
-                    <Text style={[styles.productFieldLabel, { marginTop: 16 }]}>Роль</Text>
-                    <View style={{ flexDirection: 'row', gap: 8 }}>
-                      {[
-                        { key: 'admin',   label: roleNames.admin },
-                        { key: 'barista', label: roleNames.barista },
-                      ].map(r => (
-                        <Pressable
-                          key={r.key}
-                          style={[styles.typeChip, empModal.role === r.key && styles.typeChipActive, { flex: 1, alignItems: 'center' }]}
-                          onPress={() => setEmpModal(m => ({ ...m, role: r.key }))}
-                        >
-                          <Text style={[styles.typeChipTxt, empModal.role === r.key && styles.typeChipTxtActive]}>{r.label}</Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                    <Text style={{ fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 6, lineHeight: 16 }}>
-                      {empModal.role === 'admin' ? 'Полный доступ: настройки, отчёты, все разделы' : 'Базовый доступ: касса, клиенты. Права настраиваются справа'}
-                    </Text>
-
-                    {/* Кнопки */}
-                    <Pressable
-                      style={({ pressed }) => [styles.confirmBtn, { marginTop: 24 }, pressed && { opacity: 0.88 }]}
-                      onPress={() => {
-                        if (!empModal.name.trim()) return;
-                        if (empModal.pin !== empModal.pin2) return;
-                        if (!empModal.id && empModal.pin.length < 4) return;
-                        try {
-                          if (empModal.id) {
-                            updateUser(empModal.id, empModal.name, empModal.pin, empModal.role, empModal.salaryType, parseFloat(empModal.salaryAmount) || 0);
-                            if (empModal.role !== 'admin') saveUserPermissions(empModal.id, empModal.permissions || DEFAULT_PERMISSIONS);
-                          } else {
-                            addUser(empModal.name, empModal.pin, empModal.role, empModal.salaryType, parseFloat(empModal.salaryAmount) || 0);
-                            if (empModal.role !== 'admin') {
-                              const newUser = getUsers().find(u => u.name === empModal.name.trim());
-                              if (newUser) saveUserPermissions(newUser.id, empModal.permissions || DEFAULT_PERMISSIONS);
-                            }
-                          }
-                          loadAll();
-                          setEmpModal(null);
-                        } catch (e) { console.error(e); }
-                      }}
-                    >
-                      <Text style={styles.confirmBtnText}>Сохранить</Text>
-                    </Pressable>
-
-                    {empModal.id && (
-                      <Pressable
-                        style={{ paddingVertical: 13, alignItems: 'center', marginTop: 8, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(217,95,95,0.3)', backgroundColor: 'rgba(217,95,95,0.06)' }}
-                        onPress={() => {
-                          try { deleteUser(empModal.id); loadAll(); setEmpModal(null); } catch (e) { console.error(e); }
-                        }}
-                      >
-                        <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red }}>Удалить сотрудника</Text>
-                      </Pressable>
-                    )}
-
-                  </ScrollView>
-                </View>
-
+                {/* Левая: основные данные */}
                 {/* Правая: основные данные */}
-                <ScrollView style={{ width: 300, borderLeftWidth: 1, borderLeftColor: colors.border }} contentContainerStyle={{ padding: 20, paddingBottom: 32 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                <ScrollView style={{ width: 300, borderRightWidth: 1, borderRightColor: colors.border }} contentContainerStyle={{ padding: 20, paddingBottom: 32 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
                   <Text style={styles.productFieldLabel}>Тип ставки</Text>
                   <View style={styles.menuCard}>
@@ -2240,6 +2133,115 @@ export default function SettingsFullPanel({ navigation }) {
                   )}
 
                 </ScrollView>
+
+                {/* Правая: ставка + права */}
+                <View style={{ flex: 1 }}>
+                  <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 32 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+
+                    <Text style={styles.productFieldLabel}>Имя <Text style={{ color: colors.orange }}>*</Text></Text>
+                    <TextInput
+                      color={colors.text}
+                      style={styles.prodInput}
+                      value={empModal.name}
+                      onChangeText={v => setEmpModal(m => ({ ...m, name: v }))}
+                      placeholder="Иван Петров"
+                      placeholderTextColor={colors.muted}
+                      autoFocus={!empModal.id}
+                    />
+
+                    <Text style={[styles.productFieldLabel, { marginTop: 16 }]}>{empModal.id ? 'Новый PIN (необязательно)' : 'PIN-код *'}</Text>
+                    <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                      <TextInput
+                        color={colors.text}
+                        style={[styles.prodInput, { flex: 1, textAlign: 'center', letterSpacing: 6, fontSize: 18 }]}
+                        value={empModal.pin}
+                        onChangeText={v => setEmpModal(m => ({ ...m, pin: v.replace(/\D/g,'') }))}
+                        keyboardType="number-pad"
+                        maxLength={6}
+                        secureTextEntry={!showPin}
+                        placeholder="• • • •"
+                        placeholderTextColor={colors.muted}
+                      />
+                      <TextInput
+                        color={colors.text}
+                        style={[styles.prodInput, { flex: 1, textAlign: 'center', letterSpacing: 6, fontSize: 18 }]}
+                        value={empModal.pin2}
+                        onChangeText={v => setEmpModal(m => ({ ...m, pin2: v.replace(/\D/g,'') }))}
+                        keyboardType="number-pad"
+                        maxLength={6}
+                        secureTextEntry={!showPin}
+                        placeholder="Повтор"
+                        placeholderTextColor={colors.muted}
+                      />
+                    </View>
+                    <Pressable onPress={() => setShowPin(v => !v)} style={{ marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={{ fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted }}>
+                        {showPin ? '🙈 Скрыть PIN' : '👁 Показать PIN'}
+                      </Text>
+                    </Pressable>
+                    <Text style={{ fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 4, lineHeight: 16 }}>
+                      Минимум 4 цифры. Оставьте пустым чтобы не менять.
+                    </Text>
+
+                    <Text style={[styles.productFieldLabel, { marginTop: 16 }]}>Роль</Text>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      {[
+                        { key: 'admin',   label: roleNames.admin },
+                        { key: 'barista', label: roleNames.barista },
+                      ].map(r => (
+                        <Pressable
+                          key={r.key}
+                          style={[styles.typeChip, empModal.role === r.key && styles.typeChipActive, { flex: 1, alignItems: 'center' }]}
+                          onPress={() => setEmpModal(m => ({ ...m, role: r.key }))}
+                        >
+                          <Text style={[styles.typeChipTxt, empModal.role === r.key && styles.typeChipTxtActive]}>{r.label}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                    <Text style={{ fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 6, lineHeight: 16 }}>
+                      {empModal.role === 'admin' ? 'Полный доступ: настройки, отчёты, все разделы' : 'Базовый доступ: касса, клиенты. Права настраиваются справа'}
+                    </Text>
+
+                    {/* Кнопки */}
+                    <Pressable
+                      style={({ pressed }) => [styles.confirmBtn, { marginTop: 24 }, pressed && { opacity: 0.88 }]}
+                      onPress={() => {
+                        if (!empModal.name.trim()) return;
+                        if (empModal.pin !== empModal.pin2) return;
+                        if (!empModal.id && empModal.pin.length < 4) return;
+                        try {
+                          if (empModal.id) {
+                            updateUser(empModal.id, empModal.name, empModal.pin, empModal.role, empModal.salaryType, parseFloat(empModal.salaryAmount) || 0);
+                            if (empModal.role !== 'admin') saveUserPermissions(empModal.id, empModal.permissions || DEFAULT_PERMISSIONS);
+                          } else {
+                            addUser(empModal.name, empModal.pin, empModal.role, empModal.salaryType, parseFloat(empModal.salaryAmount) || 0);
+                            if (empModal.role !== 'admin') {
+                              const newUser = getUsers().find(u => u.name === empModal.name.trim());
+                              if (newUser) saveUserPermissions(newUser.id, empModal.permissions || DEFAULT_PERMISSIONS);
+                            }
+                          }
+                          loadAll();
+                          setEmpModal(null);
+                        } catch (e) { console.error(e); }
+                      }}
+                    >
+                      <Text style={styles.confirmBtnText}>Сохранить</Text>
+                    </Pressable>
+
+                    {empModal.id && (
+                      <Pressable
+                        style={{ paddingVertical: 13, alignItems: 'center', marginTop: 8, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(217,95,95,0.3)', backgroundColor: 'rgba(217,95,95,0.06)' }}
+                        onPress={() => {
+                          try { deleteUser(empModal.id); loadAll(); setEmpModal(null); } catch (e) { console.error(e); }
+                        }}
+                      >
+                        <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red }}>Удалить сотрудника</Text>
+                      </Pressable>
+                    )}
+
+                  </ScrollView>
+                </View>
+
 
               </View>
             </View>
