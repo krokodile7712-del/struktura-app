@@ -2132,6 +2132,44 @@ export default function SettingsScreen({ navigation }) {
                       ))}
                     </View>
 
+
+                    {/* Кнопки */}
+                    <Pressable
+                      style={({ pressed }) => [styles.confirmBtn, { marginTop: 20 }, pressed && { opacity: 0.88 }]}
+                      onPress={() => {
+                        if (!empModal.name.trim()) return;
+                        if (empModal.pin !== empModal.pin2) return;
+                        if (empModal.pin.length < 4) return;
+                        try {
+                          if (empModal.id) {
+                            updateUser(empModal.id, empModal.name, empModal.pin, empModal.role, empModal.salaryType, parseFloat(empModal.salaryAmount) || 0);
+                            if (empModal.role !== 'admin') saveUserPermissions(empModal.id, empModal.permissions || DEFAULT_PERMISSIONS);
+                          } else {
+                            addUser(empModal.name, empModal.pin, empModal.role, empModal.salaryType, parseFloat(empModal.salaryAmount) || 0);
+                            if (empModal.role !== 'admin') {
+                              const newUser = getUsers().find(u => u.name === empModal.name.trim());
+                              if (newUser) saveUserPermissions(newUser.id, empModal.permissions || DEFAULT_PERMISSIONS);
+                            }
+                          }
+                          loadAll();
+                          setEmpModal(null);
+                        } catch (e) { console.error(e); }
+                      }}
+                    >
+                      <Text style={styles.confirmBtnText}>Сохранить</Text>
+                    </Pressable>
+
+                    {empModal.id && (
+                      <Pressable
+                        style={{ paddingVertical: 14, alignItems: 'center', marginTop: 8 }}
+                        onPress={() => {
+                          try { deleteUser(empModal.id); loadAll(); setEmpModal(null); } catch (e) { console.error(e); }
+                        }}
+                      >
+                        <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red }}>Удалить сотрудника</Text>
+                      </Pressable>
+                    )}
+
                   </ScrollView>
                 </View>
 
@@ -2227,43 +2265,6 @@ export default function SettingsScreen({ navigation }) {
                       </View>
                     ))}
                   </>
-                )}
-
-                {/* Сохранить */}
-                <Pressable
-                  style={({ pressed }) => [styles.confirmBtn, { marginTop: 20 }, pressed && { opacity: 0.88 }]}
-                  onPress={() => {
-                    if (!empModal.name.trim()) return;
-                    if (empModal.pin !== empModal.pin2) return;
-                    if (empModal.pin.length < 4) return;
-                    try {
-                      if (empModal.id) {
-                        updateUser(empModal.id, empModal.name, empModal.pin, empModal.role, empModal.salaryType, parseFloat(empModal.salaryAmount) || 0);
-                        if (empModal.role !== 'admin') saveUserPermissions(empModal.id, empModal.permissions || DEFAULT_PERMISSIONS);
-                      } else {
-                        addUser(empModal.name, empModal.pin, empModal.role, empModal.salaryType, parseFloat(empModal.salaryAmount) || 0);
-                        if (empModal.role !== 'admin') {
-                          const newUser = getUsers().find(u => u.name === empModal.name.trim());
-                          if (newUser) saveUserPermissions(newUser.id, empModal.permissions || DEFAULT_PERMISSIONS);
-                        }
-                      }
-                      loadAll();
-                      setEmpModal(null);
-                    } catch (e) { console.error(e); }
-                  }}
-                >
-                  <Text style={styles.confirmBtnText}>Сохранить</Text>
-                </Pressable>
-
-                {empModal.id && (
-                  <Pressable
-                    style={{ paddingVertical: 14, alignItems: 'center', marginTop: 8 }}
-                    onPress={() => {
-                      try { deleteUser(empModal.id); loadAll(); setEmpModal(null); } catch (e) { console.error(e); }
-                    }}
-                  >
-                    <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red }}>Удалить сотрудника</Text>
-                  </Pressable>
                 )}
 
                 </ScrollView>
