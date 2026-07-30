@@ -2408,7 +2408,7 @@ export default function SettingsScreen({ navigation }) {
                   {/* Кнопка добавить */}
                   <Pressable
                     style={styles.techIngAddBtn}
-                    onPress={() => { setIngredientPicker({ variantKey: vKey, search: '' }); }}
+                    onPress={() => { try { setStock(getAllStock()); } catch(_){} setIngredientPicker({ variantKey: vKey, search: '' }); }}
                   >
                     <Text style={styles.techIngAddText}>+ Добавить ингредиент со склада</Text>
                   </Pressable>
