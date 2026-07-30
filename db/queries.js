@@ -2510,9 +2510,9 @@ export const DEFAULT_PERMISSIONS = {
   // Склад
   view_stock:         true,
   edit_stock:         false,
-  edit_thresholds:    false,
+  edit_thresholds:    true,   // Допустимый остаток — разрешено по умолчанию
   // Меню
-  edit_cost_cards:    false,
+  edit_cost_cards:    true,   // Себестоимость — разрешено по умолчанию
   edit_products:      false,
   // Финансы
   view_reports:       false,

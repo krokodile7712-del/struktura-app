@@ -342,6 +342,7 @@ export default function StockPanel() {
                   <View style={styles.curRow}>
                     <View>
                       <Text style={styles.curLabel}>Текущий остаток</Text>
+                      <Text style={styles.fieldHint}>Фактическое количество на складе</Text>
                       <Text style={[
                         styles.curVal,
                         modalItem['остаток'] < 0 && styles.qtyNeg,
@@ -377,6 +378,7 @@ export default function StockPanel() {
                       <Text style={styles.priceSaveTxt}>✓</Text>
                     </Pressable>
                   </View>
+                  <Text style={styles.fieldHint}>Используется для расчёта себестоимости в техкартах</Text>
                 </View>
 
                 {/* Режимы */}
@@ -407,6 +409,7 @@ export default function StockPanel() {
                     </Pressable>
 
                     <Text style={styles.inputLabel}>Количество, {modalItem.unit}</Text>
+                    <Text style={styles.fieldHint}>Сколько единиц добавить или списать</Text>
                     <TextInput
                       style={styles.inputField}
                       value={qty}
@@ -420,6 +423,7 @@ export default function StockPanel() {
                     {mode === 'purchase' && (
                       <>
                         <Text style={styles.inputLabel}>Цена закупки, ₽/ед.</Text>
+                        <Text style={styles.fieldHint}>Обновит среднюю цену для расчёта маржи</Text>
                         <TextInput
                           style={styles.inputField}
                           value={price}
