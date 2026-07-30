@@ -82,8 +82,6 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
     onSave({ name: name.trim(), category, active, vars, selGroups });
   };
 
-  const filteredStock = (stock || []).filter(s => !ingSearch.trim() || s.name.toLowerCase().includes(ingSearch.toLowerCase()));
-
   const totalCost = (v) => { const ings = Array.isArray(v?.ings) ? v.ings : []; return ings.reduce((s, ing) => s + (parseFloat(ing?.amount)||0) * (parseFloat(ing?.price_per_unit)||0), 0); };
   const margin    = (v) => { const c = totalCost(v); const p = parseFloat(v.price)||0; return p > 0 && c > 0 ? Math.round((1 - c/p)*100) : null; };
 
