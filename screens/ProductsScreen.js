@@ -25,7 +25,7 @@ import { colors, fonts } from '../constants/theme';
 const fmt = n => (n||0).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
 // ─── Правая панель редактирования товара ─────────────────────────────────────
-function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, allModGroups, onClose, onIngPicker, addIngRef }) {
+function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, allModGroups, onClose, onIngPicker }) {
   const isNew = !product?.id;
   const canEditCost = can('edit_cost_cards');
   const [stock, setStock] = useState(() => { try { return getAllStock(); } catch { return []; } });
@@ -67,8 +67,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
     setVars(v => v.map((r,j) => j===vi ? { ...r, ings: [...(Array.isArray(r.ings) ? r.ings : []), { name: s.name, amount: '', unit: s.unit, price_per_unit: String(s.avg_price || s.last_price || '') }] } : r));
     setIngPickerVar(null);
   };
-  // Регистрируем addIng в ref при каждом рендере
-  if (addIngRef) addIngRef.current = addIng;
+
   const removeIng    = (vi, ii) => setVars(v => v.map((r,j) => j===vi ? { ...r, ings: r.ings.filter((_,k)=>k!==ii) } : r));
   const setIngField  = (vi, ii, f, val) => setVars(v => v.map((r,j) => j===vi ? { ...r, ings: r.ings.map((ing,k) => k===ii ? {...ing,[f]:val} : ing) } : r));
 
@@ -197,7 +196,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
                       </Pressable>
                     </View>
                   ))}
-                  <Pressable style={styles.addIngBtn} onPress={() => { setIngPickerVar(vi); onIngPicker?.(vi); }}>
+                  <Pressable style={styles.addIngBtn} onPress={() => { setIngPickerVar(vi); onIngPicker?.(vi, (s) => addIng(vi, s)); }}>
                     <Text style={styles.addIngTxt}>+ Добавить из склада</Text>
                   </Pressable>
                   {v.ings.length === 0 && (
@@ -287,7 +286,7 @@ export default function ProductsScreen({ navigation }) {
   const [groupModal, setGroupModal] = useState(null);
   const [ingPickerState, setIngPickerState] = useState(null); // {vi}
   const [ingSearch, setIngSearch]           = useState('');
-  const ingAddRef = React.useRef(null);
+  const [pendingIngCallback, setPendingIngCallback] = React.useState(null);
 
   const load = useCallback(() => {
     try {
@@ -495,8 +494,7 @@ export default function ProductsScreen({ navigation }) {
               onClose={() => setSelected(null)}
               categories={categories}
               allModGroups={modGroups}
-              onIngPicker={(vi) => { try { setStock(getAllStock()); } catch(_){} setIngPickerState(vi !== null ? { vi } : null); setIngSearch(''); }}
-              addIngRef={ingAddRef}
+              onIngPicker={(vi, callback) => { try { setStock(getAllStock()); } catch(_){} setIngPickerState(vi !== null ? { vi } : null); setIngSearch(''); setPendingIngCallback(() => callback); }}
             />
           ) : (
             <View style={styles.emptyRight}>
@@ -533,8 +531,8 @@ export default function ProductsScreen({ navigation }) {
             <ScrollView keyboardShouldPersistTaps="handled">
               {filteredStock.map(s => (
                 <Pressable key={s.id} style={styles.ingPickerRow} onPress={() => {
-                  if (ingPickerState !== null && ingAddRef.current) {
-                    ingAddRef.current(ingPickerState.vi, s);
+                  if (pendingIngCallback) {
+                    pendingIngCallback(s);
                   }
                   setIngPickerState(null);
                   setIngSearch('');
