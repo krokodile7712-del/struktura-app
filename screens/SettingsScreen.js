@@ -2180,9 +2180,8 @@ export default function SettingsScreen({ navigation }) {
                       </View>
                     </Pressable>
                   ))}
-                </View>
-
                   </ScrollView>
+                </View>
                 </View>
 
                 {/* Правая: права доступа */}

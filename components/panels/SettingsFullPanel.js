@@ -2175,9 +2175,8 @@ export default function SettingsFullPanel({ navigation }) {
                       </View>
                     </Pressable>
                   ))}
-                </View>
-
                   </ScrollView>
+                </View>
                 </View>
 
                 {/* Правая: права доступа */}
