@@ -48,8 +48,12 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
     {
       title: 'Работа',
       items: [
-        { label: 'Клиенты',    screen: 'ClientsList', module: 'clients' },
-        { label: 'Товары',     screen: 'Products',    adminOnly: true },
+        { label: 'Касса',     screen: 'Kassa',       always: true },
+        { label: 'Продажи',   screen: 'Sales',       perm: 'drawer_sales' },
+        { label: 'Клиенты',   screen: 'ClientsList', perm: 'drawer_clients', module: 'clients' },
+        { label: 'Расходы',   screen: 'Expenses',    perm: 'drawer_expenses' },
+        { label: 'Склад',     screen: 'Stock',       perm: 'drawer_stock' },
+        { label: 'Товары',    screen: 'Products',    adminOnly: true },
       ],
     },
     {
@@ -127,7 +131,7 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
               const visibleItems = section.items.filter(item => {
                 if (item.adminOnly) return isAdmin;
                 if (item.always) return true;
-                if (item.perm && !isAdmin) return can(item.perm);
+                if (item.perm) return isAdmin || can(item.perm);
                 if (item.module) return modules[item.module] !== false;
                 return true;
               });
