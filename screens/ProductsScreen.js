@@ -166,14 +166,14 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, stock, categ
               {/* Техкарта */}
               <Pressable style={styles.techToggle} onPress={() => setExpandedVar(isOpen ? -1 : vi)}>
                 <Text style={styles.techToggleTxt}>
-                  Техкарта{v.ings.length > 0 ? ` · ${v.ings.length} поз. · ${cost.toFixed(2)} ₽` : ' · не задана'}
+                  Техкарта{(Array.isArray(v.ings) && v.ings.length > 0) ? ` · ${v.ings.length} поз. · ${cost.toFixed(2)} ₽` : ' · не задана'}
                 </Text>
                 <Text style={[styles.chevron, isOpen && styles.chevronOpen]}>›</Text>
               </Pressable>
 
               {isOpen && (
                 <View style={styles.techBody}>
-                  {v.ings.map((ing, ii) => (
+                  {(Array.isArray(v.ings) ? v.ings : []).map((ing, ii) => (
                     <View key={ii} style={styles.ingRow}>
                       <Text style={styles.ingName} numberOfLines={1}>{ing.name}</Text>
                       <TextInput style={styles.ingInput} color={colors.text}
