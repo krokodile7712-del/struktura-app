@@ -25,7 +25,7 @@ import { colors, fonts } from '../constants/theme';
 const fmt = n => (n||0).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
 // ─── Правая панель редактирования товара ─────────────────────────────────────
-function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, allModGroups, onClose }) {
+function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, allModGroups, onClose, onIngPicker, onIngAdd }) {
   const isNew = !product?.id;
   const canEditCost = can('edit_cost_cards');
   const [stock, setStock] = useState(() => { try { return getAllStock(); } catch { return []; } });
@@ -46,8 +46,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
   const [selGroups, setSelGroups] = useState(() => {
     try { return product?.id ? getProductModifierGroups(product.id).map(g => Number(g.id)) : []; } catch { return []; }
   });
-  const [ingPicker, setIngPicker] = useState(null);
-  const [ingSearch, setIngSearch] = useState('');
+  const [ingPickerVar, setIngPickerVar] = useState(null); // индекс варианта
   const [expandedVar, setExpandedVar] = useState(0);
 
   const slideAnim = useState(new Animated.Value(20))[0];
@@ -64,7 +63,17 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
   const addVariant   = () => setVars(v => [...v, { id: null, label: '', price: '', ings: [] }]);
   const removeVariant= (i) => setVars(v => v.filter((_,j) => j !== i));
   const setVarField  = (i, f, val) => setVars(v => v.map((r,j) => j===i ? {...r,[f]:val} : r));
-  const addIng       = (vi, s) => { setVars(v => v.map((r,j) => j===vi ? { ...r, ings: [...r.ings, { name: s.name, amount: '', unit: s.unit, price_per_unit: String(s.avg_price || s.last_price || '') }] } : r)); setIngPicker(null); setIngSearch(''); };
+  const addIng = (vi, s) => {
+    setVars(v => v.map((r,j) => j===vi ? { ...r, ings: [...r.ings, { name: s.name, amount: '', unit: s.unit, price_per_unit: String(s.avg_price || s.last_price || '') }] } : r));
+    setIngPickerVar(null);
+  };
+  // Вызывается из родителя когда пользователь выбрал ингредиент
+  useEffect(() => {
+    if (onIngAdd) {
+      const { vi, s } = onIngAdd;
+      addIng(vi, s);
+    }
+  }, [onIngAdd]);
   const removeIng    = (vi, ii) => setVars(v => v.map((r,j) => j===vi ? { ...r, ings: r.ings.filter((_,k)=>k!==ii) } : r));
   const setIngField  = (vi, ii, f, val) => setVars(v => v.map((r,j) => j===vi ? { ...r, ings: r.ings.map((ing,k) => k===ii ? {...ing,[f]:val} : ing) } : r));
 
@@ -195,7 +204,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
                       </Pressable>
                     </View>
                   ))}
-                  <Pressable style={styles.addIngBtn} onPress={() => { try { setStock(getAllStock()); } catch(_){} setIngPicker(vi); }}>
+                  <Pressable style={styles.addIngBtn} onPress={() => { setIngPickerVar(vi); onIngPicker?.(vi); }}>
                     <Text style={styles.addIngTxt}>+ Добавить из склада</Text>
                   </Pressable>
                   {v.ings.length === 0 && (
@@ -264,31 +273,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
 
       </ScrollView>
 
-      {/* Пикер ингредиентов — встроенный */}
-      {ingPicker !== null && (
-        <View style={styles.ingPickerInline}>
-          <View style={styles.ingPickerHeader}>
-            <Text style={styles.ingPickerTitle}>Выбрать из склада</Text>
-            <Pressable onPress={() => { setIngPicker(null); setIngSearch(''); }} hitSlop={12}>
-              <Text style={{ color: colors.muted, fontSize: 18 }}>✕</Text>
-            </Pressable>
-          </View>
-          <TextInput style={styles.ingPickerSearch} color={colors.text}
-            value={ingSearch} onChangeText={setIngSearch}
-            placeholder="Поиск по складу..." placeholderTextColor={colors.muted} />
-          <ScrollView style={{ maxHeight: 200 }} keyboardShouldPersistTaps="handled">
-            {filteredStock.map(s => (
-              <Pressable key={s.id} style={styles.ingPickerRow} onPress={() => addIng(ingPicker, s)}>
-                <Text style={styles.ingPickerName}>{s.name}</Text>
-                <Text style={styles.ingPickerUnit}>{s.unit}</Text>
-              </Pressable>
-            ))}
-            {filteredStock.length === 0 && (
-              <Text style={styles.ingPickerEmpty}>Склад пуст или ничего не найдено</Text>
-            )}
-          </ScrollView>
-        </View>
-      )}
+
     </Animated.View>
   );
 }
@@ -306,7 +291,10 @@ export default function ProductsScreen({ navigation }) {
   const [expandedCats, setExpandedCats] = useState({});
   const [orderModal, setOrderModal] = useState(false);
   const [orderDraft, setOrderDraft] = useState([]);
-  const [groupModal, setGroupModal] = useState(null);      // null | group obj
+  const [groupModal, setGroupModal] = useState(null);
+  const [ingPickerState, setIngPickerState] = useState(null); // {vi}
+  const [ingSearch, setIngSearch]           = useState('');
+  const [ingAdd, setIngAdd]                 = useState(null);  // {vi, s}
 
   const load = useCallback(() => {
     try {
@@ -326,6 +314,10 @@ export default function ProductsScreen({ navigation }) {
   }, []);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const filteredStock = (stock || []).filter(s =>
+    !ingSearch.trim() || s.name.toLowerCase().includes(ingSearch.toLowerCase())
+  );
 
   const handleSave = (data) => {
     try {
@@ -510,6 +502,8 @@ export default function ProductsScreen({ navigation }) {
               onClose={() => setSelected(null)}
               categories={categories}
               allModGroups={modGroups}
+              onIngPicker={(vi) => { try { setStock(getAllStock()); } catch(_){} setIngPickerState(vi !== null ? { vi } : null); setIngSearch(''); }}
+              onIngAdd={ingAdd}
             />
           ) : (
             <View style={styles.emptyRight}>
@@ -522,6 +516,48 @@ export default function ProductsScreen({ navigation }) {
       </View>
 
       <BottomBar navigation={navigation} activeTab="Kassa" />
+
+      {/* Пикер ингредиентов — на уровне экрана */}
+      <Modal visible={ingPickerState !== null} transparent animationType="fade" onRequestClose={() => setIngPickerState(null)}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setIngPickerState(null)} />
+          <View style={styles.ingPickerBox}>
+            <View style={styles.ingPickerHeader}>
+              <Text style={styles.ingPickerTitle}>Выбрать из склада</Text>
+              <Pressable onPress={() => setIngPickerState(null)} hitSlop={12}>
+                <Text style={{ color: colors.muted, fontSize: 18 }}>✕</Text>
+              </Pressable>
+            </View>
+            <TextInput
+              style={styles.ingPickerSearch}
+              color={colors.text}
+              value={ingSearch}
+              onChangeText={setIngSearch}
+              placeholder="Поиск по складу..."
+              placeholderTextColor={colors.muted}
+              autoFocus
+            />
+            <ScrollView keyboardShouldPersistTaps="handled">
+              {filteredStock.map(s => (
+                <Pressable key={s.id} style={styles.ingPickerRow} onPress={() => {
+                  if (ingPickerState !== null) {
+                    setIngAdd({ vi: ingPickerState.vi, s });
+                    setTimeout(() => setIngAdd(null), 100);
+                  }
+                  setIngPickerState(null);
+                  setIngSearch('');
+                }}>
+                  <Text style={styles.ingPickerName}>{s.name}</Text>
+                  <Text style={styles.ingPickerUnit}>{s.unit}</Text>
+                </Pressable>
+              ))}
+              {filteredStock.length === 0 && (
+                <Text style={styles.ingPickerEmpty}>Ничего не найдено</Text>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {/* Модалка порядка категорий */}
       <Modal visible={orderModal} transparent animationType="fade" onRequestClose={() => setOrderModal(false)}>
@@ -586,8 +622,7 @@ function ModGroupModal({ group, onSave, onDelete, onClose, stock }) {
   const [options, setOptions] = useState(() => {
     try { return group?.id ? (getAllModifierGroups().find(g=>g.id===group.id)?.options || []) : []; } catch { return []; }
   });
-  const [ingPicker, setIngPicker] = useState(null);
-  const [ingSearch, setIngSearch] = useState('');
+  const [ingPickerVar, setIngPickerVar] = useState(null); // индекс варианта
 
   const addOption = () => setOptions(o => [...o, { id: null, name: '', price: '', ingr_to_replace: '' }]);
   const removeOpt = (i) => setOptions(o => o.filter((_,j)=>j!==i));
@@ -815,7 +850,7 @@ const styles = StyleSheet.create({
   modalOverlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 24 },
   ingPickerInline: { backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, marginTop: 8, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 8 },
   ingPickerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface2 },
-  ingPickerBox:  { width: '60%', maxHeight: '70%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', padding: 0 },
+  ingPickerBox:  { width: '55%', maxHeight: '75%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   ingPickerTitle:{ fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, padding: 16, paddingBottom: 8 },
   ingPickerSearch:{ margin: 12, marginTop: 0, backgroundColor: colors.surface2, borderRadius: 10, padding: 11, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 14, borderWidth: 1, borderColor: colors.border },
   ingPickerRow:  { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: colors.borderLo },
