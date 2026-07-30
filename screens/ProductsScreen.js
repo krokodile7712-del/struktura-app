@@ -67,8 +67,8 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
     setVars(v => v.map((r,j) => j===vi ? { ...r, ings: [...(Array.isArray(r.ings) ? r.ings : []), { name: s.name, amount: '', unit: s.unit, price_per_unit: String(s.avg_price || s.last_price || '') }] } : r));
     setIngPickerVar(null);
   };
-  // Регистрируем addIng в ref чтобы родитель мог вызвать
-  useEffect(() => { if (addIngRef) addIngRef.current = addIng; });
+  // Регистрируем addIng в ref при каждом рендере
+  if (addIngRef) addIngRef.current = addIng;
   const removeIng    = (vi, ii) => setVars(v => v.map((r,j) => j===vi ? { ...r, ings: r.ings.filter((_,k)=>k!==ii) } : r));
   const setIngField  = (vi, ii, f, val) => setVars(v => v.map((r,j) => j===vi ? { ...r, ings: r.ings.map((ing,k) => k===ii ? {...ing,[f]:val} : ing) } : r));
 
