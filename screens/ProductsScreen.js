@@ -820,7 +820,7 @@ const styles = StyleSheet.create({
   ingPickerSearch:{ margin: 12, marginTop: 0, backgroundColor: colors.surface2, borderRadius: 10, padding: 11, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 14, borderWidth: 1, borderColor: colors.border },
   ingPickerRow:  { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: colors.borderLo },
   ingPickerName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, flex: 1 },
-  ingPickerUnit: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+  ingPickerUnit: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginLeft: 8, minWidth: 30 },
   ingPickerEmpty:{ fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center', padding: 24 },
 
   orderModalBox:   { width: '45%', maxHeight: '70%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, padding: 24 },
