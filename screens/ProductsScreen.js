@@ -19,7 +19,7 @@ import {
   getProductModifierGroups, setProductModifierGroups,
 } from '../db/queries';
 import { getDb } from '../db/database';
-import { getHomeRoute } from '../db/session';
+import { getHomeRoute, can } from '../db/session';
 import { colors, fonts } from '../constants/theme';
 
 const fmt = n => (n||0).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -27,6 +27,7 @@ const fmt = n => (n||0).toLocaleString('ru-RU', { minimumFractionDigits: 0, maxi
 // ─── Правая панель редактирования товара ─────────────────────────────────────
 function ProductEditor({ product, onSave, onDelete, onToggleActive, stock, categories, allModGroups, onClose }) {
   const isNew = !product?.id;
+  const canEditCost = can('edit_cost_cards');
 
   const [name, setName]           = useState(product?.name || '');
   const [category, setCategory]   = useState(product?.category || ((categories || [])[0] || ''));
@@ -164,6 +165,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, stock, categ
               </View>
 
               {/* Техкарта */}
+              {canEditCost ? (
               <Pressable style={styles.techToggle} onPress={() => setExpandedVar(isOpen ? -1 : vi)}>
                 <Text style={styles.techToggleTxt}>
                   Техкарта{(Array.isArray(v.ings) && v.ings.length > 0) ? ` · ${v.ings.length} поз. · ${cost.toFixed(2)} ₽` : ' · не задана'}

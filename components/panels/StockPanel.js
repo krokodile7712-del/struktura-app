@@ -357,6 +357,9 @@ export default function StockPanel() {
                         <Text style={styles.curThrVal}>{modalItem['порог']} {modalItem.unit}</Text>
                       </View>
                     )}
+                    {!can('edit_thresholds') && modalItem['порог'] > 0 && (
+                      <Text style={{ fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, marginTop: 4 }}>Изменение порога недоступно</Text>
+                    )}
                   </View>
                   {/* Цена за единицу — редактируемая */}
                   <View style={styles.priceRow}>
@@ -384,7 +387,7 @@ export default function StockPanel() {
                 {/* Режимы */}
                 {!mode && can('edit_stock') ? (
                   <View style={styles.modeList}>
-                    {MODES.map((m, i) => (
+                    {MODES.filter(m => m.key !== 'set' || can('edit_thresholds')).map((m, i) => (
                       <Pressable
                         key={m.key}
                         style={({ pressed }) => [
