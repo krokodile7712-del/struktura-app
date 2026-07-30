@@ -2022,8 +2022,8 @@ export default function SettingsFullPanel({ navigation }) {
               {/* Горизонтальный layout */}
               <View style={{ flexDirection: 'row', flex: 1 }}>
 
-                {/* Левая: основные данные */}
-                <View style={{ width: 300, borderRightWidth: 1, borderRightColor: colors.border }}>
+                {/* Левая: ставка + права */}
+                <View style={{ flex: 1 }}>
                   <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 32 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
                     <Text style={styles.productFieldLabel}>Имя <Text style={{ color: colors.orange }}>*</Text></Text>
@@ -2130,8 +2130,8 @@ export default function SettingsFullPanel({ navigation }) {
                   </ScrollView>
                 </View>
 
-                {/* Правая: ставка + права */}
-                <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 32 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                {/* Правая: основные данные */}
+                <ScrollView style={{ width: 300, borderLeftWidth: 1, borderLeftColor: colors.border }} contentContainerStyle={{ padding: 20, paddingBottom: 32 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
                   <Text style={styles.productFieldLabel}>Тип ставки</Text>
                   <View style={styles.menuCard}>
