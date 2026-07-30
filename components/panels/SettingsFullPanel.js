@@ -2094,6 +2094,12 @@ export default function SettingsFullPanel({ navigation }) {
                           { key: 'open_shift',  label: 'Открывать смену' },
                           { key: 'close_shift', label: 'Закрывать смену' },
                         ]},
+                      { group: 'Шторка (Drawer)', items: [
+                          { key: 'drawer_clients',  label: 'Клиенты' },
+                          { key: 'drawer_stock',    label: 'Склад' },
+                          { key: 'drawer_expenses', label: 'Расходы' },
+                          { key: 'drawer_sales',    label: 'Продажи' },
+                        ]},
                       ].map(group => (
                         <View key={group.group} style={{ marginBottom: 12 }}>
                           <Text style={styles.catHeader}>{group.group}</Text>

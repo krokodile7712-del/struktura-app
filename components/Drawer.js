@@ -4,7 +4,7 @@ import {
   Animated, Dimensions, ScrollView, Modal,
 } from 'react-native';
 import { colors, fonts } from '../constants/theme';
-import { getSession } from '../db/session';
+import { getSession, can } from '../db/session';
 import { getBusinessProfile, getOpenShift } from '../db/queries';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -120,7 +120,9 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
             {SECTIONS.map((section, si) => {
               if (section.adminOnly && !isAdmin) return null;
               const visibleItems = section.items.filter(item => {
+                if (item.adminOnly) return isAdmin;
                 if (item.always) return true;
+                if (item.perm && !isAdmin) return can(item.perm);
                 if (item.module) return modules[item.module] !== false;
                 return true;
               });
