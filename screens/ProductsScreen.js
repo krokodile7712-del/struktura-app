@@ -338,7 +338,7 @@ export default function ProductsScreen({ navigation }) {
       setProductModifierGroups(pid, data.selGroups || []);
       load();
       setSelected(null);
-    } catch(e) { Alert.alert('Ошибка', e.message); }
+    } catch(e) { console.error('[handleSave ERROR]', e.message, e.stack?.split('\n')[1]); Alert.alert('Ошибка', e.message); }
   };
 
   const handleDelete = (id) => {
@@ -348,7 +348,7 @@ export default function ProductsScreen({ navigation }) {
       deleteProduct(id);
       load();
       setSelected(null);
-    } catch(e) { Alert.alert('Ошибка', e.message); }
+    } catch(e) { console.error('[handleSave ERROR]', e.message, e.stack?.split('\n')[1]); Alert.alert('Ошибка', e.message); }
   };
 
   const handleToggleActive = (p) => {
@@ -371,7 +371,7 @@ export default function ProductsScreen({ navigation }) {
       if (data.id) { updateModifierGroup(data.id, data); }
       else { insertModifierGroup(data); }
       load(); setGroupModal(null);
-    } catch(e) { Alert.alert('Ошибка', e.message); }
+    } catch(e) { console.error('[handleSave ERROR]', e.message, e.stack?.split('\n')[1]); Alert.alert('Ошибка', e.message); }
   };
 
   return (
