@@ -27,7 +27,7 @@ import { getDb } from '../../db/database';
 import Hint from '../Hint';
 import InfoTip from '../InfoTip';
 import Toggle from '../Toggle';
-import { can } from '../../db/session';
+import { can, getSession, setPermissions } from '../../db/session';
 import EmptyState from '../EmptyState';
 import { colors, fonts, spacing } from '../../constants/theme';
 import { upsertBusiness, syncServicesToSupabase } from '../../db/supabase';
@@ -2214,7 +2214,10 @@ export default function SettingsFullPanel({ navigation }) {
                         try {
                           if (empModal.id) {
                             updateUser(empModal.id, empModal.name, empModal.pin, empModal.role, empModal.salaryType, parseFloat(empModal.salaryAmount) || 0);
-                            if (empModal.role !== 'admin') saveUserPermissions(empModal.id, empModal.permissions || DEFAULT_PERMISSIONS);
+                            if (empModal.role !== 'admin') {
+                              saveUserPermissions(empModal.id, empModal.permissions || DEFAULT_PERMISSIONS);
+                              if (getSession()?.id === empModal.id) setPermissions(empModal.permissions || DEFAULT_PERMISSIONS);
+                            }
                           } else {
                             addUser(empModal.name, empModal.pin, empModal.role, empModal.salaryType, parseFloat(empModal.salaryAmount) || 0);
                             if (empModal.role !== 'admin') {
