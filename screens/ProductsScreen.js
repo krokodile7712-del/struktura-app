@@ -312,6 +312,7 @@ export default function ProductsScreen({ navigation }) {
   );
 
   const handleSave = (data) => {
+    console.log("[handleSave] called, pid:", selected?.id, "name:", data?.name);
     try {
       let pid = selected?.id;
       if (!pid) {
