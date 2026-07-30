@@ -132,7 +132,7 @@ export default function SettingsFullPanel({ navigation }) {
     setOpenSections(s => ({ ...s, [key]: !s[key] }));
   }; // { businessName, modules, terms, units, unitInput }
 
-  useEffect(() => { loadAll(); }, []);
+  useEffect(() => { loadAll(); });
 
   // Открываем редактор профиля при переходе в секцию
   React.useEffect(() => {
