@@ -2029,7 +2029,6 @@ export default function SettingsScreen({ navigation }) {
 
                 {/* Левая: основные данные */}
                 {/* Правая: основные данные */}
-                <View style={{ width: 1, backgroundColor: colors.border }} />
                 <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 32 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
                   <Text style={styles.productFieldLabel}>Тип ставки</Text>
@@ -2139,6 +2138,8 @@ export default function SettingsScreen({ navigation }) {
                   )}
 
                 </ScrollView>
+
+                <View style={{ width: 1, backgroundColor: colors.border }} />
 
                 {/* Правая: ставка + права */}
                 <View style={{ flex: 1 }}>
