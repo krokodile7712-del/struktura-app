@@ -68,8 +68,8 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
     setIngPickerVar(null);
   };
 
-  const removeIng    = (vi, ii) => setVars(v => v.map((r,j) => j===vi ? { ...r, ings: r.ings.filter((_,k)=>k!==ii) } : r));
-  const setIngField  = (vi, ii, f, val) => setVars(v => v.map((r,j) => j===vi ? { ...r, ings: r.ings.map((ing,k) => k===ii ? {...ing,[f]:val} : ing) } : r));
+  const removeIng    = (vi, ii) => setVars(v => v.map((r,j) => j===vi ? { ...r, ings: (Array.isArray(r.ings) ? r.ings : []).filter((_,k)=>k!==ii) } : r));
+  const setIngField  = (vi, ii, f, val) => setVars(v => v.map((r,j) => j===vi ? { ...r, ings: (Array.isArray(r.ings) ? r.ings : []).map((ing,k) => k===ii ? {...ing,[f]:val} : ing) } : r));
 
   const handleSave = () => {
     if (!name.trim()) { Alert.alert('Введите название товара'); return; }
