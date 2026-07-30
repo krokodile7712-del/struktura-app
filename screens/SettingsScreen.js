@@ -2182,7 +2182,6 @@ export default function SettingsScreen({ navigation }) {
                   ))}
                   </ScrollView>
                 </View>
-                </View>
 
                 {/* Правая: права доступа */}
                 <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
