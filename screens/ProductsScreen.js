@@ -286,7 +286,7 @@ export default function ProductsScreen({ navigation }) {
   const [groupModal, setGroupModal] = useState(null);
   const [ingPickerState, setIngPickerState] = useState(null); // {vi}
   const [ingSearch, setIngSearch]           = useState('');
-  const [pendingIngCallback, setPendingIngCallback] = React.useState(null);
+  const pendingIngCallback = React.useRef(null);
 
   const load = useCallback(() => {
     try {
@@ -494,7 +494,7 @@ export default function ProductsScreen({ navigation }) {
               onClose={() => setSelected(null)}
               categories={categories}
               allModGroups={modGroups}
-              onIngPicker={(vi, callback) => { try { setStock(getAllStock()); } catch(_){} setIngPickerState(vi !== null ? { vi } : null); setIngSearch(''); setPendingIngCallback(() => callback); }}
+              onIngPicker={(vi, callback) => { try { setStock(getAllStock()); } catch(_){} setIngPickerState(vi !== null ? { vi } : null); setIngSearch(''); pendingIngCallback.current = callback; }}
             />
           ) : (
             <View style={styles.emptyRight}>
@@ -531,8 +531,9 @@ export default function ProductsScreen({ navigation }) {
             <ScrollView keyboardShouldPersistTaps="handled">
               {filteredStock.map(s => (
                 <Pressable key={s.id} style={styles.ingPickerRow} onPress={() => {
-                  if (pendingIngCallback) {
-                    pendingIngCallback(s);
+                  if (pendingIngCallback.current) {
+                    pendingIngCallback.current(s);
+                    pendingIngCallback.current = null;
                   }
                   setIngPickerState(null);
                   setIngSearch('');
