@@ -15,14 +15,25 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const contentOpacity  = useRef(new Animated.Value(0)).current;
 
-  const user    = getSession();
-  const profile = (() => { try { return getBusinessProfile(); } catch { return null; } })();
-  const shift   = (() => { try { return getOpenShift(); } catch { return null; } })();
-  const isAdmin = user?.role === 'admin';
-  const modules = profile?.modules || {};
+  const [user, setUser]       = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [shift, setShift]     = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [modules, setModules] = useState({});
+  const [permsKey, setPermsKey] = useState(0);
 
   useEffect(() => {
     if (visible) {
+      // Перечитываем сессию и права при каждом открытии
+      const u = getSession();
+      const p = (() => { try { return getBusinessProfile(); } catch { return null; } })();
+      setUser(u);
+      setProfile(p);
+      setShift((() => { try { return getOpenShift(); } catch { return null; } })());
+      setIsAdmin(u?.role === 'admin');
+      setModules(p?.modules || {});
+      setPermsKey(k => k + 1);
+
       Animated.parallel([
         Animated.spring(translateX, { toValue: 0, useNativeDriver: true, tension: 65, friction: 11 }),
         Animated.timing(backdropOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
