@@ -276,7 +276,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
           <TextInput style={styles.ingPickerSearch} color={colors.text}
             value={ingSearch} onChangeText={setIngSearch}
             placeholder="Поиск по складу..." placeholderTextColor={colors.muted} />
-          <ScrollView style={{ maxHeight: 260 }} keyboardShouldPersistTaps="handled">
+          <ScrollView style={{ maxHeight: 200 }} keyboardShouldPersistTaps="handled">
             {filteredStock.map(s => (
               <Pressable key={s.id} style={styles.ingPickerRow} onPress={() => addIng(ingPicker, s)}>
                 <Text style={styles.ingPickerName}>{s.name}</Text>
@@ -813,12 +813,12 @@ const styles = StyleSheet.create({
 
   // Модалки
   modalOverlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 24 },
-  ingPickerInline: { backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, marginTop: 8, overflow: 'hidden' },
-  ingPickerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+  ingPickerInline: { backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, marginTop: 8, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 8 },
+  ingPickerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface2 },
   ingPickerBox:  { width: '60%', maxHeight: '70%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', padding: 0 },
   ingPickerTitle:{ fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, padding: 16, paddingBottom: 8 },
   ingPickerSearch:{ margin: 12, marginTop: 0, backgroundColor: colors.surface2, borderRadius: 10, padding: 11, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 14, borderWidth: 1, borderColor: colors.border },
-  ingPickerRow:  { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
+  ingPickerRow:  { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: colors.borderLo },
   ingPickerName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, flex: 1 },
   ingPickerUnit: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
   ingPickerEmpty:{ fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center', padding: 24 },
