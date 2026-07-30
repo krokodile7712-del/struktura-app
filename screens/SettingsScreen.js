@@ -104,6 +104,7 @@ export default function SettingsScreen({ navigation }) {
   const [stockSearchOpen, setStockSearchOpen] = useState(false);
   const [openStockCats, setOpenStockCats] = useState({});
   const [empModal, setEmpModal]         = useState(null);
+  const [showPin, setShowPin]           = useState(false);
   const [roleNames, setRoleNames]       = useState({ admin: 'Администратор', barista: 'Сотрудник' });
 
   const [techCardModal, setTechCardModal] = useState(null); // { variantKey, variantLabel }
@@ -1259,18 +1260,63 @@ export default function SettingsScreen({ navigation }) {
         </SectionAccordion>
 
         <SectionAccordion sectionKey="stock" selectedSection={selectedSection}>
-          <View style={[styles.menuCard, { marginTop: 8 }]}>
+
+          {/* Автосписание */}
+          <Text style={styles.bizGroupLabel}>Поведение склада</Text>
+          <View style={styles.menuCard}>
+            <View style={[styles.menuRow, styles.menuRowDiv]}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.menuItemName}>Автосписание при продаже</Text>
+                <Text style={styles.menuItemSub}>Ингредиенты из техкарты списываются автоматически при оплате</Text>
+              </View>
+              <Toggle
+                value={!!(profile?.modules?.autoDebit)}
+                onValueChange={v => {
+                  try {
+                    const db = getDb();
+                    const mods = { ...(profile?.modules || {}), autoDebit: v };
+                    db.runSync('UPDATE business_profile SET modules = ? WHERE id = 1', [JSON.stringify(mods)]);
+                    loadAll();
+                  } catch(e) {}
+                }}
+                size="sm"
+              />
+            </View>
+            <View style={styles.menuRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.menuItemName}>Предупреждение о низком остатке</Text>
+                <Text style={styles.menuItemSub}>Показывать уведомление на главном экране</Text>
+              </View>
+              <Toggle
+                value={!!(profile?.modules?.stockWarning !== false)}
+                onValueChange={v => {
+                  try {
+                    const db = getDb();
+                    const mods = { ...(profile?.modules || {}), stockWarning: v };
+                    db.runSync('UPDATE business_profile SET modules = ? WHERE id = 1', [JSON.stringify(mods)]);
+                    loadAll();
+                  } catch(e) {}
+                }}
+                size="sm"
+              />
+            </View>
+          </View>
+
+          {/* Переход */}
+          <Text style={styles.bizGroupLabel}>Управление</Text>
+          <View style={styles.menuCard}>
             <Pressable
-              style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
+              style={({ pressed }) => [styles.menuRow, pressed && { opacity: 0.75 }]}
               onPress={() => navigation.navigate('Stock')}
             >
-                            <View style={{ flex: 1 }}>
-                <Text style={styles.menuItemName}>Перейти в раздел Склад</Text>
-                <Text style={styles.menuItemSub}>Остатки, пороги и категории управляются там</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.menuItemName}>Открыть склад</Text>
+                <Text style={styles.menuItemSub}>Остатки, закупки, пороги и списания</Text>
               </View>
               <Text style={styles.menuItemArrow}>›</Text>
             </Pressable>
           </View>
+
         </SectionAccordion>
 
         <SectionAccordion sectionKey="business" selectedSection={selectedSection}>
@@ -1414,30 +1460,36 @@ export default function SettingsScreen({ navigation }) {
           </View>
 
           {!bookingConnected && (
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={{ marginTop: 10, paddingVertical: 14, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' }}
-              onPress={() => connectBooking()}>
-              <Text style={{ fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff' }}>Подключить онлайн запись</Text>
-            </TouchableOpacity>
+            <>
+              <Text style={{ fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 8, lineHeight: 18 }}>
+                После подключения клиенты смогут записываться через форму по QR-коду. Ссылка генерируется автоматически из названия бизнеса — никаких ручных настроек.
+              </Text>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={{ marginTop: 10, paddingVertical: 15, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' }}
+                onPress={() => connectBooking()}>
+                <Text style={{ fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff' }}>Подключить онлайн запись</Text>
+                <Text style={{ fontFamily: fonts.familyRegular, fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>Займёт секунду — ссылка создаётся автоматически</Text>
+              </TouchableOpacity>
+            </>
           )}
 
           {/* ФНС */}
           <Text style={styles.bizGroupLabel}>Касса и ФНС</Text>
           <View style={styles.menuCard}>
-            <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
-              <Text style={styles.bizFieldLabel}>СНО</Text>
-              <View style={{ flex: 1, alignItems: 'flex-end' }}>
+            <View style={[styles.menuRow, styles.menuRowDiv, { flexDirection: 'column', alignItems: 'flex-start', paddingVertical: 14 }]}>
+              <Text style={[styles.bizFieldLabel, { marginBottom: 10 }]}>Система налогообложения (СНО)</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                 {[
-                  { key: 'usn_income',         label: 'УСН доход' },
-                  { key: 'usn_income_outcome',  label: 'УСН доход-расход' },
-                  { key: 'osn',                 label: 'ОСНО' },
-                  { key: 'envd',                label: 'ЕНВД' },
-                  { key: 'esn',                 label: 'ЕСН' },
-                  { key: 'patent',              label: 'Патент' },
+                  { key: 'usn_income',        label: 'УСН доходы' },
+                  { key: 'usn_income_outcome', label: 'УСН д-р' },
+                  { key: 'osn',               label: 'ОСНО' },
+                  { key: 'envd',              label: 'ЕНВД' },
+                  { key: 'esn',               label: 'ЕСН' },
+                  { key: 'patent',            label: 'Патент' },
                 ].map(t => (
                   <TouchableOpacity key={t.key}
-                    style={[styles.typeChip, { marginBottom: 4 }, bizDraft.taxSystem === t.key && styles.typeChipActive]}
+                    style={[styles.typeChip, bizDraft.taxSystem === t.key && styles.typeChipActive]}
                     onPress={() => setBizDraft(d => ({ ...d, taxSystem: t.key }))}>
                     <Text style={[styles.typeChipTxt, bizDraft.taxSystem === t.key && styles.typeChipTxtActive]}>{t.label}</Text>
                   </TouchableOpacity>
@@ -1963,51 +2015,117 @@ export default function SettingsScreen({ navigation }) {
         <View style={styles.prodModalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setEmpModal(null)} />
           {empModal && (
-            <View style={[styles.prodModalBox, { width: '44%' }]}>
+            <View style={styles.empModalBox}>
+              {/* Шапка */}
               <View style={styles.prodModalHeader}>
-                <Text style={styles.prodModalTitle}>{empModal.id ? 'Редактировать' : 'Новый сотрудник'}</Text>
+                <Text style={styles.prodModalTitle}>{empModal.id ? 'Редактировать сотрудника' : 'Новый сотрудник'}</Text>
                 <Pressable onPress={() => setEmpModal(null)} hitSlop={14} style={styles.itemModalClose}>
                   <Text style={styles.itemModalCloseText}>✕</Text>
                 </Pressable>
               </View>
 
-              <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 8 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              {/* Горизонтальный layout */}
+              <View style={{ flexDirection: 'row', flex: 1, overflow: 'hidden' }}>
 
-                <Text style={styles.productFieldLabel}>Имя</Text>
-                <TextInput
-                  color={colors.text}
-                  style={styles.prodInput}
-                  value={empModal.name}
-                  onChangeText={v => setEmpModal(m => ({ ...m, name: v }))}
-                  placeholder="Имя сотрудника"
-                  placeholderTextColor={colors.muted}
-                />
+                {/* Левая: основные данные */}
+                <View style={{ width: 280, borderRightWidth: 1, borderRightColor: colors.border }}>
+                  <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
 
-                <Text style={styles.productFieldLabel}>PIN-код</Text>
-                <TextInput
-                  color={colors.text}
-                  style={[styles.prodInput, { textAlign: 'center', letterSpacing: 6, fontSize: 18 }]}
-                  value={empModal.pin}
-                  onChangeText={v => setEmpModal(m => ({ ...m, pin: v.replace(/\D/g,'') }))}
-                  keyboardType="number-pad"
-                  maxLength={6}
-                  secureTextEntry
-                  placeholder="• • • •"
-                  placeholderTextColor={colors.muted}
-                />
+                    <Text style={styles.productFieldLabel}>Имя <Text style={{ color: colors.orange }}>*</Text></Text>
+                    <TextInput
+                      color={colors.text}
+                      style={styles.prodInput}
+                      value={empModal.name}
+                      onChangeText={v => setEmpModal(m => ({ ...m, name: v }))}
+                      placeholder="Иван Петров"
+                      placeholderTextColor={colors.muted}
+                      autoFocus={!empModal.id}
+                    />
 
-                <Text style={styles.productFieldLabel}>Подтвердите PIN</Text>
-                <TextInput
-                  color={colors.text}
-                  style={[styles.prodInput, { textAlign: 'center', letterSpacing: 6, fontSize: 18 }]}
-                  value={empModal.pin2}
-                  onChangeText={v => setEmpModal(m => ({ ...m, pin2: v.replace(/\D/g,'') }))}
-                  keyboardType="number-pad"
-                  maxLength={6}
-                  secureTextEntry
-                  placeholder="• • • •"
-                  placeholderTextColor={colors.muted}
-                />
+                    <Text style={styles.productFieldLabel}>{empModal.id ? 'Новый PIN (необязательно)' : 'PIN-код *'}</Text>
+                    <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                      <TextInput
+                        color={colors.text}
+                        style={[styles.prodInput, { flex: 1, textAlign: 'center', letterSpacing: 6, fontSize: 18 }]}
+                        value={empModal.pin}
+                        onChangeText={v => setEmpModal(m => ({ ...m, pin: v.replace(/\D/g,'') }))}
+                        keyboardType="number-pad"
+                        maxLength={6}
+                        secureTextEntry={!showPin}
+                        placeholder="• • • •"
+                        placeholderTextColor={colors.muted}
+                      />
+                      <TextInput
+                        color={colors.text}
+                        style={[styles.prodInput, { flex: 1, textAlign: 'center', letterSpacing: 6, fontSize: 18 }]}
+                        value={empModal.pin2}
+                        onChangeText={v => setEmpModal(m => ({ ...m, pin2: v.replace(/\D/g,'') }))}
+                        keyboardType="number-pad"
+                        maxLength={6}
+                        secureTextEntry={!showPin}
+                        placeholder="Повтор"
+                        placeholderTextColor={colors.muted}
+                      />
+                    </View>
+                    <Pressable onPress={() => setShowPin(v => !v)} style={{ marginTop: 6 }}>
+                      <Text style={{ fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted }}>
+                        {showPin ? '🙈 Скрыть PIN' : '👁 Показать PIN'}
+                      </Text>
+                    </Pressable>
+
+                    <Text style={{ fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 4, lineHeight: 16 }}>
+                      PIN используется для входа. Минимум 4 цифры. Оставьте пустым чтобы не менять.
+                    </Text>
+
+                    <Text style={[styles.productFieldLabel, { marginTop: 16 }]}>Роль</Text>
+                    <View style={styles.menuCard}>
+                      {[
+                        { key: 'admin',   label: roleNames.admin,   sub: 'Полный доступ к настройкам и отчётам' },
+                        { key: 'barista', label: roleNames.barista, sub: 'Только касса и базовые функции' },
+                      ].map((r, idx) => (
+                        <Pressable
+                          key={r.key}
+                          style={[styles.menuRow, idx === 0 && styles.menuRowDiv]}
+                          onPress={() => setEmpModal(m => ({ ...m, role: r.key }))}
+                        >
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.menuItemName}>{r.label}</Text>
+                            <Text style={styles.menuItemSub}>{r.sub}</Text>
+                          </View>
+                          <View style={[styles.productCheckbox, empModal.role === r.key && styles.productCheckboxOn]}>
+                            {empModal.role === r.key && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
+                          </View>
+                        </Pressable>
+                      ))}
+                    </View>
+
+                    <Text style={[styles.productFieldLabel, { marginTop: 16 }]}>Ставка</Text>
+                    <View style={styles.menuCard}>
+                      {[
+                        { key: 'shift',       label: 'За смену',     unit: '₽/смена' },
+                        { key: 'hourly',      label: 'Почасовая',    unit: '₽/час' },
+                        { key: 'monthly',     label: 'Оклад',        unit: '₽/мес' },
+                        { key: 'revenue_pct', label: '% от выручки', unit: '%' },
+                      ].map((s, idx) => (
+                        <Pressable
+                          key={s.key}
+                          style={[styles.menuRow, idx < 3 && styles.menuRowDiv]}
+                          onPress={() => setEmpModal(m => ({ ...m, salaryType: s.key }))}
+                        >
+                          <Text style={[styles.menuItemName, { flex: 1 }]}>{s.label}</Text>
+                          {empModal.salaryType === s.key && (
+                            <TextInput
+                              color={colors.text}
+                              style={[styles.prodInput, { width: 80, marginRight: 8, padding: 6, textAlign: 'right', marginBottom: 0 }]}
+                              value={empModal.salaryAmount}
+                              onChangeText={v => setEmpModal(m => ({ ...m, salaryAmount: v }))}
+                              keyboardType="numeric"
+                              placeholder="0"
+                              placeholderTextColor={colors.muted}
+                            />
+                          )}
+                          <Text style={[styles.menuItemSub, { marginRight: 8 }]}>{s.unit}</Text>
+                          <View style={[styles.productCheckbox, empModal.salaryType === s.key && styles.productCheckboxOn]}>
 
                 <Text style={styles.productFieldLabel}>Роль</Text>
                 <View style={styles.menuCard}>
@@ -2065,6 +2183,11 @@ export default function SettingsScreen({ navigation }) {
                 </View>
 
 
+                  </ScrollView>
+                </View>
+
+                {/* Правая: права доступа */}
+                <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
                 {/* Права доступа — только для сотрудника */}
                 {empModal.role !== 'admin' && empModal.permissions && (
                   <>
@@ -2194,7 +2317,9 @@ export default function SettingsScreen({ navigation }) {
                   </Pressable>
                 )}
 
-              </ScrollView>
+                </ScrollView>
+                </View>
+              </View>
             </View>
           )}
         </View>
@@ -2967,6 +3092,7 @@ const styles = StyleSheet.create({
   // Модалка товара — position:absolute для надёжного scroll
   prodModalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center' },
   prodModalBox: { width: '50%', maxHeight: '85%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  empModalBox:  { width: '72%', maxHeight: '85%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', flexDirection: 'column' },
   prodModalHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     padding: 20, borderBottomWidth: 1, borderBottomColor: colors.border,
