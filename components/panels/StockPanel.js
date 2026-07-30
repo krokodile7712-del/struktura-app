@@ -371,7 +371,7 @@ export default function StockPanel() {
                     />
                     <Text style={styles.curAvg}>₽/ед.</Text>
                     <Pressable
-                      style={({ pressed }) => [styles.priceSaveBtn, pressed && { opacity: 0.7, backgroundColor: 'rgba(61,158,146,0.3)' }]}
+                      style={({ pressed }) => [styles.priceSaveBtn, pressed && { opacity: 0.7, backgroundColor: 'rgba(240,160,80,0.3)' }]}
                       onPress={() => savePrice(String(modalItem.avg_price || ''))}
                     >
                       <Text style={styles.priceSaveTxt}>✓</Text>
@@ -485,7 +485,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     padding: 11,
-    backgroundColor: '#07080a',
+    backgroundColor: colors.surface2,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
@@ -515,10 +515,10 @@ const styles = StyleSheet.create({
 
   // Карточка категории
   catCard: {
-    backgroundColor: '#0b0c0f',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(74,77,84,0.3)',
+    borderColor: colors.border,
     overflow: 'hidden',
   },
 
@@ -568,33 +568,33 @@ const styles = StyleSheet.create({
   },
 
   statusOk:  { color: 'rgba(61,158,146,0.7)' },
-  statusLow: { color: colors.redLight },
+  statusLow: { color: colors.red },
   statusNeg: { color: '#ff3b30' },
-  qtyLow:    { color: colors.redLight },
+  qtyLow:    { color: colors.red },
   qtyNeg:    { color: '#ff3b30' },
 
   rowArrow: {
     fontFamily: fonts.family,
     fontSize: 20,
-    color: 'rgba(74,77,84,0.5)',
+    color: colors.border,
   },
 
   // Локации
   locBar:   { maxHeight: 44, borderBottomWidth: 1, borderBottomColor: colors.border },
   locInner: { paddingHorizontal: spacing.lg, paddingVertical: 8, gap: 8, flexDirection: 'row' },
   locChip:  { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e' },
-  locChipActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.1)' },
+  locChipActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(240,160,80,0.08)' },
   locChipText:   { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
 
   // Модалка
   modalRoot:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  modalInner: { width: '50%', maxWidth: 480, maxHeight: '88%', backgroundColor: '#0e0f11', borderRadius: 20, padding: 22, borderWidth: 1, borderColor: 'rgba(74,77,84,0.5)' },
+  modalInner: { width: '50%', maxWidth: 480, maxHeight: '88%', backgroundColor: colors.surface, borderRadius: 20, padding: 22, borderWidth: 1, borderColor: colors.border },
   modalHeader:{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 },
   modalTitle: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, flex: 1, marginRight: 12 },
   modalCloseBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(74,77,84,0.25)', alignItems: 'center', justifyContent: 'center' },
   modalCloseTxt: { fontSize: 13, color: colors.muted, fontFamily: fonts.familySemibold },
 
-  curBox:    { padding: 16, backgroundColor: '#07080a', borderRadius: 14, borderWidth: 1, borderColor: colors.border, marginBottom: 16 },
+  curBox:    { padding: 16, backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, marginBottom: 16 },
   curRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
   curLabel:  { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
   curVal:    { fontFamily: fonts.family, fontSize: 28, fontWeight: '800', color: colors.text },
@@ -605,33 +605,33 @@ const styles = StyleSheet.create({
   curAvg:    { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 10 },
 
   modeList:   { borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(74,77,84,0.25)' },
-  modeRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, backgroundColor: '#07080a' },
+  modeRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, backgroundColor: colors.surface2 },
   modeRowDiv: { borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.18)' },
   modeLabel:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, marginBottom: 2 },
   modeDesc:   { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
   modeArrow:  { fontSize: 18, color: colors.muted },
 
   backBtn:     { paddingVertical: 10, marginBottom: 8 },
-  backBtnText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.greenLight },
+  backBtnText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
   inputLabel:  { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, marginTop: 14 },
-  inputField:  { padding: 14, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 22, fontFamily: fonts.family, textAlign: 'center', marginBottom: 4 },
+  inputField:  { padding: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 22, fontFamily: fonts.family, textAlign: 'center', marginBottom: 4 },
 
   previewBox:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, backgroundColor: 'rgba(61,95,168,0.08)', borderRadius: 12, marginVertical: 10, borderWidth: 1, borderColor: 'rgba(61,95,168,0.2)' },
   previewLabel: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
   previewVal:   { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.text },
 
-  confirmBtn:    { paddingVertical: 15, borderRadius: 14, backgroundColor: 'rgba(61,158,146,0.85)', alignItems: 'center', marginTop: 8 },
-  confirmBtnOff: { backgroundColor: 'rgba(74,77,84,0.3)' },
+  confirmBtn:    { paddingVertical: 15, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center', marginTop: 8 },
+  confirmBtnOff: { backgroundColor: colors.border },
   confirmBtnText:{ fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff' },
 
   histToggle:     { paddingVertical: 12, alignItems: 'center', marginTop: 8 },
   histToggleText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
-  histRow:    { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.15)' },
+  histRow:    { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: colors.borderLo },
   histDate:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, flex: 1 },
   histQty:    { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.text, flex: 1, textAlign: 'center' },
   priceRow:   { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
-  priceInput: { paddingVertical: 4, paddingHorizontal: 10, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', borderRadius: 8, color: colors.text, fontFamily: fonts.family, fontSize: 14, minWidth: 70, textAlign: 'center' },
-  priceSaveBtn: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 8, backgroundColor: 'rgba(61,158,146,0.15)', borderWidth: 1, borderColor: 'rgba(61,158,146,0.4)' },
-  priceSaveTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight },
-  histPrice:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.greenLight, flex: 1, textAlign: 'right' },
+  priceInput: { paddingVertical: 4, paddingHorizontal: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 8, color: colors.text, fontFamily: fonts.family, fontSize: 14, minWidth: 70, textAlign: 'center' },
+  priceSaveBtn: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 8, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(61,158,146,0.4)' },
+  priceSaveTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
+  histPrice:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.orange, flex: 1, textAlign: 'right' },
 });
