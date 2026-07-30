@@ -318,7 +318,7 @@ export default function ProductsScreen({ navigation }) {
         pid = insertProduct({ name: data.name, category: data.category, price: parseFloat(data.vars[0]?.price)||0, active: 1 });
       } else {
         const db = getDb();
-        db.runSync(`UPDATE products SET name=?, category=?, active=? WHERE id=?`, [data.name, data.category, data.active ? 1 : 0, pid]);
+        db.runSync(`UPDATE products SET name=?, category=?, active=?, price=? WHERE id=?`, [data.name, data.category, data.active ? 1 : 0, parseFloat(data.vars[0]?.price)||0, pid]);
       }
       upsertProductVariants(pid, data.vars.map(v => ({ id: v.id, label: v.label, size: v.label, price: parseFloat(v.price)||0 })));
       // Техкарты
