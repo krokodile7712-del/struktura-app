@@ -312,7 +312,6 @@ export default function ProductsScreen({ navigation }) {
   );
 
   const handleSave = (data) => {
-    console.log("[handleSave] called, pid:", selected?.id, "name:", data?.name);
     try {
       let pid = selected?.id;
       if (!pid) {
@@ -326,7 +325,6 @@ export default function ProductsScreen({ navigation }) {
       const newVars = getProductVariants(pid);
       newVars.forEach((v, i) => {
         const ings = Array.isArray(data.vars[i]?.ings) ? data.vars[i].ings : [];
-        console.log("[save ings]", JSON.stringify(ings));
         saveCostCardForVariant(v.id, ings.map(ing => ({
 
           name: ing.name || '',
@@ -338,9 +336,8 @@ export default function ProductsScreen({ navigation }) {
       });
       // Модификаторы
       setProductModifierGroups(pid, data.selGroups || []);
-      console.log("[handleSave] done, calling load+setSelected");
-      load();
       setSelected(null);
+      load();
     } catch(e) { console.error('[handleSave ERROR]', e.message, e.stack?.split('\n')[1]); Alert.alert('Ошибка', e.message); }
   };
 
@@ -349,8 +346,8 @@ export default function ProductsScreen({ navigation }) {
       cleanOrphanCostIngredients(id);
       deleteOldCostCards(id);
       deleteProduct(id);
-      load();
       setSelected(null);
+      load();
     } catch(e) { console.error('[handleSave ERROR]', e.message, e.stack?.split('\n')[1]); Alert.alert('Ошибка', e.message); }
   };
 
