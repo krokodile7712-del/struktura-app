@@ -226,15 +226,6 @@ export default function AdminScreen({ navigation }) {
               );
             })}
 
-            <View style={styles.divider} />
-            <Pressable
-              style={({ pressed }) => [styles.menuItem, styles.logoutBtn, pressed && { opacity: 0.6 }]}
-              onPress={() => navigation.navigate('Login')}>
-              <Text style={styles.logoutIcon}>⎋</Text>
-              {active === 'dash' && (
-                <Text style={styles.logoutLabel}>Сменить аккаунт</Text>
-              )}
-            </Pressable>
           </ScrollView>
         </Animated.View>
 

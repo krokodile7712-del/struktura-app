@@ -159,16 +159,7 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
                 </View>
               );
             })}
-
-            {/* Выход */}
-            <View style={[styles.section, styles.sectionDiv]}>
-              <Pressable
-                style={({ pressed }) => [styles.navItem, pressed && { opacity: 0.7 }]}
-                onPress={() => { onClose(); navigation.navigate('Login'); }}
-              >
-                <Text style={styles.logoutLabel}>⎋ Выйти из аккаунта</Text>
-              </Pressable>
-            </View>
+</View>
           </Animated.View>
         </ScrollView>
       </Animated.View>
