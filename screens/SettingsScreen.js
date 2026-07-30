@@ -1942,7 +1942,7 @@ export default function SettingsScreen({ navigation }) {
                         <Text style={styles.productVariantUnit}>₽</Text>
                         <Pressable
                           style={styles.techCardBtn}
-                          onPress={() => setTechCardModal({ variantKey: variantKey(v, idx), variantLabel: v.label || productModal.product.name })}
+                          onPress={() => { try { setStock(getAllStock()); } catch(_){} setTechCardModal({ variantKey: variantKey(v, idx), variantLabel: v.label || productModal.product.name }); }}
                         >
                           <Text style={styles.techCardBtnText}>
                             🧾 {(productModal.techCards[variantKey(v, idx)] || []).length > 0
