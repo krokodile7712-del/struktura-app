@@ -29,7 +29,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, stock, categ
   const isNew = !product?.id;
 
   const [name, setName]           = useState(product?.name || '');
-  const [category, setCategory]   = useState(product?.category || (categories[0] || ''));
+  const [category, setCategory]   = useState(product?.category || ((categories || [])[0] || ''));
   const [active, setActive]       = useState(product?.active !== 0);
   const [vars, setVars]           = useState(() => {
     try {
@@ -71,7 +71,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, stock, categ
     onSave({ name: name.trim(), category, active, vars, selGroups });
   };
 
-  const filteredStock = stock.filter(s => !ingSearch.trim() || s.name.toLowerCase().includes(ingSearch.toLowerCase()));
+  const filteredStock = (stock || []).filter(s => !ingSearch.trim() || s.name.toLowerCase().includes(ingSearch.toLowerCase()));
 
   const totalCost = (v) => (v.ings || []).reduce((s, ing) => s + (parseFloat(ing.amount)||0) * (parseFloat(ing.price_per_unit)||0), 0);
   const margin    = (v) => { const c = totalCost(v); const p = parseFloat(v.price)||0; return p > 0 && c > 0 ? Math.round((1 - c/p)*100) : null; };
@@ -598,7 +598,7 @@ function ModGroupModal({ group, onSave, onDelete, onClose, stock }) {
     onSave(data);
   };
 
-  const filteredStock = stock.filter(s => !ingSearch.trim() || s.name.toLowerCase().includes(ingSearch.toLowerCase()));
+  const filteredStock = (stock || []).filter(s => !ingSearch.trim() || s.name.toLowerCase().includes(ingSearch.toLowerCase()));
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
