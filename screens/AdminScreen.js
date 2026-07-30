@@ -143,7 +143,7 @@ export default function AdminScreen({ navigation }) {
   const setActiveAnimated = (key) => {
     setActive(key);
     Animated.spring(animWidth, {
-      toValue: (key === 'Settings' || key === 'Reports' || key === 'Sales' || key === 'Bookings') ? 52 : 220,
+      toValue: 52,
       useNativeDriver: false,
       tension: 40,
       friction: 10,
@@ -189,11 +189,11 @@ export default function AdminScreen({ navigation }) {
         {/* Левая панель */}
         <Animated.View style={[styles.leftPanel, { width: animWidth }]}>
           <View style={styles.bizHeader}>
-            {(active !== 'Settings' && active !== 'Reports' && active !== 'Sales' && active !== 'Bookings') && <Text style={styles.bizName} numberOfLines={1}>{profile?.business_name || 'Мой бизнес'}</Text>}
-{(active !== 'Settings' && active !== 'Reports' && active !== 'Sales' && active !== 'Bookings') && profile?.city ? <Text style={styles.bizCity}>{profile.city}</Text> : null}
+            {active === 'dash' && <Text style={styles.bizName} numberOfLines={1}>{profile?.business_name || 'Мой бизнес'}</Text>}
+{active === 'dash' && profile?.city ? <Text style={styles.bizCity}>{profile.city}</Text> : null}
           </View>
 
-          {(active !== 'Settings' && active !== 'Reports' && active !== 'Sales' && active !== 'Bookings') && (
+          {active === 'dash' && (
             <Pressable style={({ pressed }) => [styles.ctaBtn, pressed && { opacity: 0.85 }]}
               onPress={() => navigation.navigate('Kassa')}>
               <Text style={styles.ctaLabel}>Новый {terms.order?.toLowerCase()}</Text>
@@ -219,7 +219,7 @@ export default function AdminScreen({ navigation }) {
                   style={({ pressed }) => [styles.menuItem, isActive && styles.menuItemActive, pressed && { backgroundColor: 'rgba(245,240,232,0.04)' }]}
                   onPress={() => setActiveAnimated(s.key)}>
                   {isActive && <View style={styles.activeBar} />}
-                  {(active !== 'Settings' && active !== 'Reports' && active !== 'Sales' && active !== 'Bookings')
+                  {active === 'dash'
                     ? <Text style={[styles.menuLabel, isActive && styles.menuLabelActive]}>{s.label}</Text>
                     : <View style={[styles.menuDot, isActive && styles.menuDotActive]} />}
                 </Pressable>
@@ -231,7 +231,7 @@ export default function AdminScreen({ navigation }) {
               style={({ pressed }) => [styles.menuItem, styles.logoutBtn, pressed && { opacity: 0.6 }]}
               onPress={() => navigation.navigate('Login')}>
               <Text style={styles.logoutIcon}>⎋</Text>
-              {(active !== 'Settings' && active !== 'Reports' && active !== 'Sales' && active !== 'Bookings') && (
+              {active === 'dash' && (
                 <Text style={styles.logoutLabel}>Сменить аккаунт</Text>
               )}
             </Pressable>

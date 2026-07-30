@@ -112,9 +112,8 @@ export default function DashboardScreen({ navigation }) {
 
   const setActiveAnimated = (key) => {
     setActive(key);
-    const collapse = key !== 'dash';
     Animated.spring(animWidth, {
-      toValue: collapse ? 52 : 220,
+      toValue: key === 'dash' ? 220 : 52,
       useNativeDriver: false,
       tension: 40,
       friction: 10,
@@ -192,13 +191,6 @@ export default function DashboardScreen({ navigation }) {
               );
             })}
 
-            <View style={styles.divider} />
-            <Pressable style={styles.menuItem} onPress={() => navigation.navigate('Login')}>
-              {!collapsed
-                ? <Text style={styles.logoutLabel}>⎋  Сменить аккаунт</Text>
-                : <Text style={[styles.logoutLabel, { fontSize: 16 }]}>⎋</Text>
-              }
-            </Pressable>
           </ScrollView>
         </Animated.View>
 
