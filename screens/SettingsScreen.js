@@ -2315,7 +2315,6 @@ export default function SettingsScreen({ navigation }) {
                 )}
 
                 </ScrollView>
-                </View>
               </View>
             </View>
           )}

@@ -2310,7 +2310,6 @@ export default function SettingsFullPanel({ navigation }) {
                 )}
 
                 </ScrollView>
-                </View>
               </View>
             </View>
           )}
