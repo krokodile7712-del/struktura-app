@@ -326,7 +326,9 @@ export default function ProductsScreen({ navigation }) {
       const newVars = getProductVariants(pid);
       newVars.forEach((v, i) => {
         const ings = Array.isArray(data.vars[i]?.ings) ? data.vars[i].ings : [];
+        console.log("[save ings]", JSON.stringify(ings));
         saveCostCardForVariant(v.id, ings.map(ing => ({
+
           name: ing.name || '',
           amount: parseFloat(ing.amount)||0,
           unit: ing.unit || '',
