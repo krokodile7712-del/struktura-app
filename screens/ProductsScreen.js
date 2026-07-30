@@ -309,7 +309,7 @@ export default function ProductsScreen({ navigation }) {
     try {
       const prods = getAllProductsAdmin();
       setProducts(prods);
-      setStock(getAllStock());
+      const s = getAllStock(); console.log('[Products] stock loaded:', s.length); setStock(s);
       const cats = getCategories();
       setCategories(cats);
       const ord = getCategoryOrder();
