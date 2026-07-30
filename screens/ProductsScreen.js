@@ -331,7 +331,7 @@ export default function ProductsScreen({ navigation }) {
       setProductModifierGroups(pid, data.selGroups);
       load();
       setSelected(null);
-    } catch(e) { Alert.alert('Ошибка', e.message); }
+    } catch(e) { console.error('[handleSave]', e); Alert.alert('Ошибка', e.stack || e.message); }
   };
 
   const handleDelete = (id) => {
