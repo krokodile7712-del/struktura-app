@@ -64,7 +64,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
   const removeVariant= (i) => setVars(v => v.filter((_,j) => j !== i));
   const setVarField  = (i, f, val) => setVars(v => v.map((r,j) => j===i ? {...r,[f]:val} : r));
   const addIng = (vi, s) => {
-    setVars(v => v.map((r,j) => j===vi ? { ...r, ings: [...r.ings, { name: s.name, amount: '', unit: s.unit, price_per_unit: String(s.avg_price || s.last_price || '') }] } : r));
+    setVars(v => v.map((r,j) => j===vi ? { ...r, ings: [...(Array.isArray(r.ings) ? r.ings : []), { name: s.name, amount: '', unit: s.unit, price_per_unit: String(s.avg_price || s.last_price || '') }] } : r));
     setIngPickerVar(null);
   };
   // Вызывается из родителя когда пользователь выбрал ингредиент
