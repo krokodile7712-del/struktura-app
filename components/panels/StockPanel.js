@@ -385,7 +385,11 @@ export default function StockPanel() {
                 </View>
 
                 {/* Режимы */}
-                {!mode && can('edit_stock') ? (
+                {!can('edit_stock') ? (
+                  <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+                    <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted }}>Изменение остатков недоступно</Text>
+                  </View>
+                ) : !mode ? (
                   <View style={styles.modeList}>
                     {MODES.filter(m => m.key !== 'set' || can('edit_thresholds')).map((m, i) => (
                       <Pressable
