@@ -190,6 +190,14 @@ export default function EquipmentScreen({ navigation }) {
 
               <View style={styles.divider} />
 
+              {/* Подсказка об амортизации */}
+              <View style={styles.amortHint}>
+                <Text style={styles.amortHintTitle}>Что такое амортизация?</Text>
+                <Text style={styles.amortHintText}>
+                  Амортизация — это постепенное списание стоимости оборудования. Например, кофемашина за 150 000 ₽ со сроком 36 месяцев будет «стоить» 4 167 ₽ каждый месяц — эта сумма учитывается в себестоимости продукции.
+                </Text>
+              </View>
+
               {/* Название */}
               <Text style={styles.fieldLabel}>Название <Text style={{ color: colors.orange }}>*</Text></Text>
               <TextInput style={styles.input} color={colors.text} value={draft.name} onChangeText={v => setDraft(d => ({ ...d, name: v }))} placeholder="Кофемашина, Холодильник..." placeholderTextColor={colors.muted} autoFocus={isNew} />
