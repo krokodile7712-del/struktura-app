@@ -170,7 +170,7 @@ export default function AdminScreen({ navigation }) {
 
   const renderRight = () => {
     switch(active) {
-      case 'Sales':    return <SalesPanel />;
+      case 'Sales':    return <SalesPanel onDataChange={loadStats} />;
       case 'Reports':  return <ReportsPanel />;
       case 'Stock':    return <StockPanel />;
       case 'Expenses': return <ExpensesPanel />;

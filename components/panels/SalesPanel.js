@@ -49,7 +49,7 @@ function groupByDate(orders) {
 }
 
 // ─── Экран ────────────────────────────────────────────────────────────────────
-export default function SalesPanel() {
+export default function SalesPanel({ onDataChange }) {
   const isAdmin  = getSession()?.role === 'admin';
   const terms    = getTerms();
   const toast    = useToast();
@@ -133,17 +133,17 @@ export default function SalesPanel() {
   const openEdit = (o) => { setEditOrder(o); setEditTotal(String(o.total)); setEditMethod(o.method); };
   const confirmEdit = () => {
     if (!editOrder) return;
-    try { updateOrder(editOrder.id, { total: parseFloat(editTotal)||0, method: editMethod }); toast.show('Сохранено'); load(); } catch(e) {}
+    try { updateOrder(editOrder.id, { total: parseFloat(editTotal)||0, method: editMethod }); toast.show('Сохранено'); load(); onDataChange?.(); } catch(e) {}
     setEditOrder(null);
   };
   const confirmReturn = () => {
     if (!returnTarget) return;
-    try { returnOrder(returnTarget.id); toast.show('Возврат оформлен'); load(); } catch(e) {}
+    try { returnOrder(returnTarget.id); toast.show('Возврат оформлен'); load(); onDataChange?.(); } catch(e) {}
     setReturnTarget(null);
   };
   const confirmDelete = () => {
     if (!deleteTarget) return;
-    try { deleteOrder(deleteTarget.id); toast.show('Удалено'); load(); } catch(e) {}
+    try { deleteOrder(deleteTarget.id); toast.show('Удалено'); load(); onDataChange?.(); } catch(e) {}
     setDeleteTarget(null);
   };
 
