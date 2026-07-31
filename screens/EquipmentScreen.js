@@ -387,6 +387,9 @@ const styles = StyleSheet.create({
   deleteBtn:  { borderRadius: 14, paddingVertical: 13, alignItems: 'center', marginTop: 10, borderWidth: 1, borderColor: 'rgba(217,95,95,0.4)', backgroundColor: 'rgba(217,95,95,0.07)' },
   deleteBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red },
 
+  amortHint:     { backgroundColor: 'rgba(139,127,212,0.08)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(139,127,212,0.2)', padding: 14, marginBottom: 4 },
+  amortHintTitle:{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.indigo, marginBottom: 6 },
+  amortHintText: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.textDim, lineHeight: 18 },
   addBtn:     { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, backgroundColor: 'rgba(240,160,80,0.12)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)' },
   addBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
 });
