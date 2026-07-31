@@ -1,243 +1,370 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput } from 'react-native';
-import MetalCard from '../components/MetalCard';
-import MetalButton from '../components/MetalButton';
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, Animated } from 'react-native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import Hint from '../components/Hint';
 import InfoTip from '../components/InfoTip';
-import EmptyState from '../components/EmptyState';
+import Toggle from '../components/Toggle';
+import { useFocusEffect } from '@react-navigation/native';
 import { getEquipment, addEquipment, updateEquipment, deleteEquipment, manualIncrementEquipment, getAllProducts } from '../db/queries';
 import { getHomeRoute } from '../db/session';
-import { colors, fonts, spacing } from '../constants/theme';
-import { useFocusEffect } from '@react-navigation/native';
+import { colors, fonts } from '../constants/theme';
 
 const AMORT_TYPES = [
-  { key: 'linear',     label: 'Линейная',      hint: 'Стоимость ÷ срок (мес.) = сумма в месяц. Не зависит от загрузки.' },
-  { key: 'production', label: 'По циклам',      hint: 'Стоимость ÷ ресурс (циклов) = стоимость за 1 цикл использования.' },
-  { key: 'mixed',      label: 'Смешанная',      hint: 'Линейная амортизация + учёт циклов для контроля износа.' },
+  { key: 'linear',     label: 'Линейная',   hint: 'Стоимость ÷ срок (мес.) = сумма в месяц. Не зависит от загрузки.' },
+  { key: 'production', label: 'По циклам',  hint: 'Стоимость ÷ ресурс (циклов) = стоимость за 1 цикл использования.' },
+  { key: 'mixed',      label: 'Смешанная',  hint: 'Линейная + учёт циклов для контроля износа.' },
 ];
 const COUNTER_TYPES = [
-  { key: 'order',   label: 'Каждый заказ',          hint: 'Счётчик растёт на N при каждом оформленном заказе.' },
-  { key: 'product', label: 'Продажа товара',         hint: 'Счётчик растёт только при продаже выбранного товара.' },
-  { key: 'manual',  label: 'Вручную',                hint: 'Сотрудник сам нажимает «+» когда использовал оборудование.' },
+  { key: 'order',   label: 'Каждый заказ',   hint: 'Счётчик растёт при каждом оформленном заказе.' },
+  { key: 'product', label: 'Продажа товара',  hint: 'Счётчик растёт только при продаже выбранного товара.' },
+  { key: 'manual',  label: 'Вручную',         hint: 'Сотрудник нажимает + когда использовал оборудование.' },
 ];
-
 const EMPTY = { name: '', cost: '', purchase_date: '', amort_type: 'linear', amort_period: '36', amort_cycles: '0', counter_type: 'order', counter_product_id: null, cycles_per_use: '1' };
 
-function amortDesc(eq) {
-  if (!eq) return '';
-  if (eq.amort_type === 'linear') {
-    const monthly = eq.amort_period > 0 ? Math.round(eq.cost / eq.amort_period) : 0;
-    return `~${monthly} ₽/мес · срок ${eq.amort_period} мес.`;
+const fmt = n => (n || 0).toLocaleString('ru-RU', { maximumFractionDigits: 0 });
+
+function amortMonthly(eq) {
+  if (!eq?.cost) return 0;
+  if (eq.amort_type === 'linear' || eq.amort_type === 'mixed') {
+    const months = parseInt(eq.amort_period) || 36;
+    return Math.round(parseFloat(eq.cost) / months);
   }
-  if (eq.amort_type === 'production') {
-    const perCycle = eq.amort_cycles > 0 ? Math.round((eq.cost / eq.amort_cycles) * 100) / 100 : 0;
-    return `${perCycle} ₽/цикл · ресурс ${eq.amort_cycles} цикл.`;
+  return 0;
+}
+
+function wearPct(eq) {
+  if (!eq) return 0;
+  if (eq.amort_type === 'production' || eq.amort_type === 'mixed') {
+    const total = parseInt(eq.amort_cycles) || 1;
+    return Math.min(100, Math.round((eq.current_cycles || 0) / total * 100));
   }
-  return 'Смешанная';
+  if (eq.purchase_date) {
+    const months = Math.floor((Date.now() - new Date(eq.purchase_date)) / 2592000000);
+    const period = parseInt(eq.amort_period) || 36;
+    return Math.min(100, Math.round(months / period * 100));
+  }
+  return 0;
 }
 
 export default function EquipmentScreen({ navigation }) {
   const [items, setItems]       = useState([]);
   const [products, setProducts] = useState([]);
-  const [modal, setModal]       = useState(null);
-  const [confirmDel, setConfirmDel] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const [draft, setDraft]       = useState(null);
+  const [isNew, setIsNew]       = useState(false);
 
-  useFocusEffect(useCallback(() => {
-    try { setItems(getEquipment()); setProducts(getAllProducts()); } catch (e) { console.error(e); }
-  }, []));
+  const fadeAnim  = useState(new Animated.Value(0))[0];
+  const slideAnim = useState(new Animated.Value(20))[0];
 
-  const openNew  = () => setModal({ ...EMPTY, id: null });
-  const openEdit = (eq) => setModal({
-    id: eq.id, name: eq.name, cost: String(eq.cost), purchase_date: eq.purchase_date || '',
-    amort_type: eq.amort_type, amort_period: String(eq.amort_period), amort_cycles: String(eq.amort_cycles),
-    counter_type: eq.counter_type, counter_product_id: eq.counter_product_id,
-    cycles_per_use: String(eq.cycles_per_use || 1), current_cycles: eq.current_cycles,
-  });
-
-  const save = () => {
-    if (!modal || !modal.name.trim()) return;
-    const data = {
-      name: modal.name.trim(), cost: parseFloat(modal.cost)||0,
-      purchase_date: modal.purchase_date, amort_type: modal.amort_type,
-      amort_period: parseInt(modal.amort_period)||0, amort_cycles: parseInt(modal.amort_cycles)||0,
-      counter_type: modal.counter_type, counter_product_id: modal.counter_product_id||null,
-      cycles_per_use: parseFloat(modal.cycles_per_use)||1,
-    };
+  const load = useCallback(() => {
     try {
-      if (modal.id) updateEquipment(modal.id, data);
-      else addEquipment(data);
       setItems(getEquipment());
-    } catch (e) { console.error(e); }
-    setModal(null);
+      setProducts(getAllProducts());
+    } catch(e) { console.error(e); }
+  }, []);
+
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const openNew = () => {
+    setIsNew(true);
+    setDraft({ ...EMPTY });
+    setSelected(null);
+    animate();
   };
 
-  const remove = () => {
-    try { deleteEquipment(confirmDel); setItems(getEquipment()); } catch (e) { console.error(e); }
-    setConfirmDel(null); setModal(null);
+  const openEdit = (item) => {
+    setIsNew(false);
+    setDraft({ ...EMPTY, ...item, cost: String(item.cost || ''), amort_period: String(item.amort_period || '36'), amort_cycles: String(item.amort_cycles || '0'), cycles_per_use: String(item.cycles_per_use || '1') });
+    setSelected(item);
+    animate();
   };
 
-  const manualUse = (id) => {
-    try { manualIncrementEquipment(id, 1); setItems(getEquipment()); } catch (e) { console.error(e); }
+  const animate = () => {
+    fadeAnim.setValue(0); slideAnim.setValue(20);
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 280, useNativeDriver: true }),
+      Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 12, useNativeDriver: true }),
+    ]).start();
+  };
+
+  const handleSave = () => {
+    if (!draft.name.trim()) { Alert.alert('Введите название'); return; }
+    try {
+      const data = { ...draft, cost: parseFloat(draft.cost)||0, amort_period: parseInt(draft.amort_period)||36, amort_cycles: parseInt(draft.amort_cycles)||0, cycles_per_use: parseInt(draft.cycles_per_use)||1 };
+      if (isNew) addEquipment(data);
+      else updateEquipment(selected.id, data);
+      load();
+      setDraft(null);
+      setSelected(null);
+    } catch(e) { Alert.alert('Ошибка', e.message); }
+  };
+
+  const handleDelete = () => {
+    Alert.alert('Удалить оборудование?', selected?.name, [
+      { text: 'Отмена' },
+      { text: 'Удалить', style: 'destructive', onPress: () => {
+        try { deleteEquipment(selected.id); load(); setDraft(null); setSelected(null); } catch(e) {}
+      }}
+    ]);
+  };
+
+  const handleManual = (item) => {
+    try { manualIncrementEquipment(item.id, parseInt(item.cycles_per_use)||1); load(); } catch(e) {}
   };
 
   return (
-    <View style={{ flex: 1 }}>
-      <TopBar title="Оборудование" onBack={() => navigation.navigate(getHomeRoute())} />
-      <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
-        {items.length === 0 ? (
-          <EmptyState icon="⚙️" title="Оборудование не добавлено"
-            text="Добавьте оборудование — и система будет считать амортизацию за каждую продажу. Это часть реальной себестоимости."
-            action="+ Добавить оборудование" onAction={openNew} />
-        ) : (
-          <MetalCard>
-            {items.map(eq => {
-              const pct = eq.amort_cycles > 0 ? Math.min(100, Math.round(eq.current_cycles / eq.amort_cycles * 100)) : null;
-              return (
-                <Pressable key={eq.id} style={styles.row} onPress={() => openEdit(eq)}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.rowName}>⚙️ {eq.name}</Text>
-                    <Text style={styles.rowSub}>{amortDesc(eq)}</Text>
-                    {pct !== null && (
-                      <View style={styles.progressWrap}>
-                        <View style={[styles.progressBar, { width: `${pct}%` }]} />
-                        <Text style={styles.progressText}>{eq.current_cycles} / {eq.amort_cycles} цикл. ({pct}%)</Text>
-                      </View>
-                    )}
-                    {eq.counter_type === 'manual' && (
-                      <Pressable style={styles.manualBtn} onPress={() => manualUse(eq.id)}>
-                        <Text style={styles.manualBtnText}>+ Использовал</Text>
-                      </Pressable>
-                    )}
-                  </View>
-                  <Text style={styles.rowPrice}>{eq.cost.toLocaleString('ru-RU')} ₽ ›</Text>
-                </Pressable>
-              );
-            })}
-            <MetalButton title="+ Добавить оборудование" variant="default" onPress={openNew} style={{ marginTop: 12 }} />
-          </MetalCard>
-        )}
-      </ScrollView>
-      <BottomBar navigation={navigation} activeTab="Kassa" />
+    <View style={styles.root}>
+      <TopBar
+        title="Оборудование"
+        onBack={() => navigation.navigate(getHomeRoute())}
+        rightElement={
+          <Pressable style={styles.addBtn} onPress={openNew}>
+            <Text style={styles.addBtnTxt}>+ Добавить</Text>
+          </Pressable>
+        }
+      />
 
-      <Modal visible={!!modal} transparent animationType="fade" onRequestClose={() => setModal(null)}>
-        <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setModal(null)} />
-          {modal && (
-            <View style={[styles.modalInner, { maxHeight: '90%' }]}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>{modal.id ? 'Редактировать' : 'Новое оборудование'}</Text>
-                <Pressable onPress={() => setModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
+      <View style={styles.layout}>
+
+        {/* Левая панель */}
+        <View style={styles.left}>
+          <Text style={styles.listHint}>Оборудование и его износ</Text>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {items.length === 0 ? (
+              <View style={styles.emptyWrap}>
+                <Text style={styles.emptyTxt}>Нет оборудования</Text>
+                <Text style={styles.emptyHint}>Добавьте кофемашину, холодильник и другую технику чтобы отслеживать амортизацию</Text>
               </View>
-              <ScrollView showsVerticalScrollIndicator={false}>
-                <Text style={styles.fieldLabel}>Название *</Text>
-                <TextInput style={styles.input} value={modal.name} onChangeText={v => setModal(m => ({...m, name: v}))} placeholder="Название оборудования" placeholderTextColor={colors.muted} autoFocus={!modal.id} />
+            ) : (
+              <View style={styles.listCard}>
+                {items.map((item, idx) => {
+                  const wear = wearPct(item);
+                  const isActive = selected?.id === item.id;
+                  const monthly = amortMonthly(item);
+                  return (
+                    <Pressable
+                      key={item.id}
+                      style={({ pressed }) => [
+                        styles.itemRow,
+                        idx < items.length - 1 && styles.itemRowDiv,
+                        isActive && styles.itemRowActive,
+                        pressed && { opacity: 0.8 },
+                      ]}
+                      onPress={() => openEdit(item)}
+                    >
+                      {isActive && <View style={styles.activeBar} />}
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.itemName, isActive && { color: colors.orange }]} numberOfLines={1}>{item.name}</Text>
+                        <Text style={styles.itemSub}>{monthly > 0 ? `${fmt(monthly)} ₽/мес` : 'Амортизация не задана'}</Text>
+                        {/* Полоска износа */}
+                        <View style={styles.wearTrack}>
+                          <View style={[styles.wearFill, { width: `${wear}%`, backgroundColor: wear > 80 ? colors.red : wear > 50 ? colors.amber : colors.green }]} />
+                        </View>
+                        <Text style={styles.wearTxt}>{wear}% износа</Text>
+                      </View>
+                      {item.counter_type === 'manual' && (
+                        <Pressable style={styles.manualBtn} onPress={() => handleManual(item)} hitSlop={8}>
+                          <Text style={styles.manualBtnTxt}>+1</Text>
+                        </Pressable>
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+          </ScrollView>
+        </View>
 
-                <Text style={styles.fieldLabel}>Стоимость покупки, ₽</Text>
-                <TextInput style={styles.input} value={modal.cost} onChangeText={v => setModal(m => ({...m, cost: v}))} keyboardType="numeric" placeholder="150000" placeholderTextColor={colors.muted} />
+        {/* Правая панель */}
+        <View style={styles.right}>
+          {draft ? (
+            <Animated.ScrollView
+              contentContainerStyle={styles.editorContent}
+              style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
+              keyboardShouldPersistTaps="handled"
+            >
+              <Text style={styles.editorTitle}>{isNew ? 'Новое оборудование' : draft.name}</Text>
+              <Text style={styles.editorSub}>{isNew ? 'Заполните данные и нажмите Сохранить' : 'Редактирование'}</Text>
 
-                <Text style={styles.fieldLabel}>Дата покупки</Text>
-                <TextInput style={styles.input} value={modal.purchase_date} onChangeText={v => setModal(m => ({...m, purchase_date: v}))} placeholder="2024-01-15" placeholderTextColor={colors.muted} />
+              <View style={styles.divider} />
 
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, marginBottom: 6 }}>
-                  <Text style={styles.fieldLabel}>Тип амортизации</Text>
-                  <InfoTip title="Типы амортизации" text="Линейная — равные суммы каждый месяц. По циклам — стоимость за каждое использование. Смешанная — оба метода одновременно." />
-                </View>
+              {/* Название */}
+              <Text style={styles.fieldLabel}>Название <Text style={{ color: colors.orange }}>*</Text></Text>
+              <TextInput style={styles.input} color={colors.text} value={draft.name} onChangeText={v => setDraft(d => ({ ...d, name: v }))} placeholder="Кофемашина, Холодильник..." placeholderTextColor={colors.muted} autoFocus={isNew} />
+
+              {/* Стоимость */}
+              <View style={styles.labelRow}>
+                <Text style={styles.fieldLabel}>Стоимость покупки</Text>
+                <InfoTip title="Стоимость" text="Начальная цена оборудования. Используется для расчёта ежемесячной амортизации." />
+              </View>
+              <View style={styles.inputRow}>
+                <TextInput style={[styles.input, { flex: 1 }]} color={colors.text} value={draft.cost} onChangeText={v => setDraft(d => ({ ...d, cost: v }))} keyboardType="numeric" placeholder="0" placeholderTextColor={colors.muted} />
+                <Text style={styles.unitTxt}>₽</Text>
+              </View>
+
+              {/* Дата покупки */}
+              <Text style={styles.fieldLabel}>Дата покупки</Text>
+              <TextInput style={styles.input} color={colors.text} value={draft.purchase_date} onChangeText={v => setDraft(d => ({ ...d, purchase_date: v }))} placeholder="2024-01-15" placeholderTextColor={colors.muted} />
+
+              {/* Тип амортизации */}
+              <View style={styles.labelRow}>
+                <Text style={styles.fieldLabel}>Тип амортизации</Text>
+                <InfoTip title="Амортизация" text="Способ списания стоимости оборудования. Линейная — равномерно по месяцам. По циклам — по количеству использований." />
+              </View>
+              <View style={styles.chips}>
                 {AMORT_TYPES.map(t => (
-                  <Pressable key={t.key} style={[styles.optionRow, modal.amort_type === t.key && styles.optionRowActive]} onPress={() => setModal(m => ({...m, amort_type: t.key}))}>
-                    <Text style={[styles.optionLabel, modal.amort_type === t.key && styles.optionLabelActive]}>{modal.amort_type === t.key ? '◉ ' : '○ '}{t.label}</Text>
-                    <Text style={styles.optionHint}>{t.hint}</Text>
+                  <Pressable key={t.key} style={[styles.chip, draft.amort_type === t.key && styles.chipActive]} onPress={() => setDraft(d => ({ ...d, amort_type: t.key }))}>
+                    <Text style={[styles.chipTxt, draft.amort_type === t.key && styles.chipTxtActive]}>{t.label}</Text>
                   </Pressable>
                 ))}
+              </View>
+              <Text style={styles.hintTxt}>{AMORT_TYPES.find(t => t.key === draft.amort_type)?.hint}</Text>
 
-                {(modal.amort_type === 'linear' || modal.amort_type === 'mixed') && <>
-                  <Text style={styles.fieldLabel}>Срок амортизации, месяцев</Text>
-                  <TextInput style={styles.input} value={modal.amort_period} onChangeText={v => setModal(m => ({...m, amort_period: v}))} keyboardType="numeric" placeholder="36" placeholderTextColor={colors.muted} />
-                </>}
-                {(modal.amort_type === 'production' || modal.amort_type === 'mixed') && <>
-                  <Text style={styles.fieldLabel}>Ресурс оборудования, циклов</Text>
-                  <TextInput style={styles.input} value={modal.amort_cycles} onChangeText={v => setModal(m => ({...m, amort_cycles: v}))} keyboardType="numeric" placeholder="50000" placeholderTextColor={colors.muted} />
-                  <Hint>Сколько раз можно использовать до полного износа.</Hint>
-                </>}
+              {/* Срок (для линейной и смешанной) */}
+              {(draft.amort_type === 'linear' || draft.amort_type === 'mixed') && (
+                <>
+                  <Text style={styles.fieldLabel}>Срок амортизации, мес.</Text>
+                  <View style={styles.inputRow}>
+                    <TextInput style={[styles.input, { flex: 1 }]} color={colors.text} value={draft.amort_period} onChangeText={v => setDraft(d => ({ ...d, amort_period: v }))} keyboardType="numeric" placeholder="36" placeholderTextColor={colors.muted} />
+                    <Text style={styles.unitTxt}>мес</Text>
+                  </View>
+                  {draft.cost && draft.amort_period ? (
+                    <Text style={styles.calcHint}>≈ {fmt(Math.round(parseFloat(draft.cost) / parseInt(draft.amort_period)))} ₽/мес</Text>
+                  ) : null}
+                </>
+              )}
 
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, marginBottom: 6 }}>
-                  <Text style={styles.fieldLabel}>Счётчик циклов</Text>
-                  <InfoTip title="Как считать циклы?" text="Каждый заказ — для универсального оборудования. Конкретный товар — считает только при продаже выбранного товара. Вручную — сотрудник нажимает '+' на этом экране." />
-                </View>
+              {/* Ресурс циклов (для production и mixed) */}
+              {(draft.amort_type === 'production' || draft.amort_type === 'mixed') && (
+                <>
+                  <Text style={styles.fieldLabel}>Ресурс, циклов</Text>
+                  <View style={styles.inputRow}>
+                    <TextInput style={[styles.input, { flex: 1 }]} color={colors.text} value={draft.amort_cycles} onChangeText={v => setDraft(d => ({ ...d, amort_cycles: v }))} keyboardType="numeric" placeholder="10000" placeholderTextColor={colors.muted} />
+                    <Text style={styles.unitTxt}>цикл</Text>
+                  </View>
+                </>
+              )}
+
+              {/* Тип счётчика */}
+              <View style={styles.labelRow}>
+                <Text style={styles.fieldLabel}>Счётчик циклов</Text>
+                <InfoTip title="Счётчик" text="Как считать использования оборудования. Влияет на расчёт износа по циклам." />
+              </View>
+              <View style={styles.chips}>
                 {COUNTER_TYPES.map(t => (
-                  <Pressable key={t.key} style={[styles.optionRow, modal.counter_type === t.key && styles.optionRowActive]} onPress={() => setModal(m => ({...m, counter_type: t.key}))}>
-                    <Text style={[styles.optionLabel, modal.counter_type === t.key && styles.optionLabelActive]}>{modal.counter_type === t.key ? '◉ ' : '○ '}{t.label}</Text>
-                    <Text style={styles.optionHint}>{t.hint}</Text>
+                  <Pressable key={t.key} style={[styles.chip, draft.counter_type === t.key && styles.chipActive]} onPress={() => setDraft(d => ({ ...d, counter_type: t.key }))}>
+                    <Text style={[styles.chipTxt, draft.counter_type === t.key && styles.chipTxtActive]}>{t.label}</Text>
                   </Pressable>
                 ))}
+              </View>
+              <Text style={styles.hintTxt}>{COUNTER_TYPES.find(t => t.key === draft.counter_type)?.hint}</Text>
 
-                {modal.counter_type === 'product' && <>
-                  <Text style={styles.fieldLabel}>Товар-триггер</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+              {/* Конкретный товар для counter_type=product */}
+              {draft.counter_type === 'product' && (
+                <>
+                  <Text style={styles.fieldLabel}>Товар</Text>
+                  <View style={styles.prodList}>
                     {products.map(p => (
-                      <Pressable key={p.id} style={[styles.productChip, modal.counter_product_id === p.id && styles.productChipActive]} onPress={() => setModal(m => ({...m, counter_product_id: p.id}))}>
-                        <Text style={[styles.productChipText, modal.counter_product_id === p.id && styles.productChipTextActive]}>{p.name}</Text>
+                      <Pressable key={p.id} style={[styles.prodRow, draft.counter_product_id === p.id && styles.prodRowActive]} onPress={() => setDraft(d => ({ ...d, counter_product_id: p.id }))}>
+                        <Text style={[styles.prodName, draft.counter_product_id === p.id && { color: colors.orange }]}>{p.name}</Text>
+                        {draft.counter_product_id === p.id && <Text style={{ color: colors.orange, fontSize: 14 }}>✓</Text>}
                       </Pressable>
                     ))}
-                  </ScrollView>
-                </>}
+                  </View>
+                </>
+              )}
 
-                <Text style={styles.fieldLabel}>Циклов за одно использование</Text>
-                <TextInput style={styles.input} value={modal.cycles_per_use} onChangeText={v => setModal(m => ({...m, cycles_per_use: v}))} keyboardType="numeric" placeholder="1" placeholderTextColor={colors.muted} />
-                <Hint>Обычно 1. Если оборудование используется N раз за один заказ — укажите N.</Hint>
+              {/* Циклов за использование */}
+              <View style={styles.labelRow}>
+                <Text style={styles.fieldLabel}>Циклов за 1 использование</Text>
+                <InfoTip title="Циклов за раз" text="Сколько циклов ресурса расходуется при одном использовании. Обычно 1." />
+              </View>
+              <TextInput style={styles.input} color={colors.text} value={draft.cycles_per_use} onChangeText={v => setDraft(d => ({ ...d, cycles_per_use: v }))} keyboardType="numeric" placeholder="1" placeholderTextColor={colors.muted} />
 
-                <MetalButton title="Сохранить" variant="success" onPress={save} style={{ marginTop: 8 }} />
-                {modal.id && <MetalButton title="Удалить" variant="danger" onPress={() => setConfirmDel(modal.id)} style={{ marginTop: 6 }} />}
-              </ScrollView>
+              {/* Кнопки */}
+              <Pressable style={styles.saveBtn} onPress={handleSave}>
+                <Text style={styles.saveBtnTxt}>{isNew ? 'Добавить оборудование' : 'Сохранить'}</Text>
+              </Pressable>
+
+              {!isNew && (
+                <Pressable style={styles.deleteBtn} onPress={handleDelete}>
+                  <Text style={styles.deleteBtnTxt}>Удалить оборудование</Text>
+                </Pressable>
+              )}
+
+            </Animated.ScrollView>
+          ) : (
+            <View style={styles.emptyRight}>
+              <Text style={styles.emptyRightTxt}>Выберите оборудование или нажмите «+ Добавить»</Text>
+              <Text style={styles.emptyRightSub}>Здесь отслеживается износ и амортизация техники</Text>
             </View>
           )}
         </View>
-      </Modal>
 
-      <Modal visible={!!confirmDel} transparent animationType="fade" onRequestClose={() => setConfirmDel(null)}>
-        <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setConfirmDel(null)} />
-          <View style={[styles.modalInner, { width: '40%' }]}>
-            <Text style={styles.modalTitle}>Удалить оборудование?</Text>
-            <Text style={{ color: colors.muted, fontFamily: fonts.familyRegular, fontSize: 13, marginVertical: 12 }}>Данные об амортизации и циклах будут удалены.</Text>
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              <MetalButton title="Отмена" variant="back" onPress={() => setConfirmDel(null)} style={{ flex: 1 }} />
-              <MetalButton title="Удалить" variant="danger" onPress={remove} style={{ flex: 1 }} />
-            </View>
-          </View>
-        </View>
-      </Modal>
+      </View>
+
+      <BottomBar navigation={navigation} activeTab="Kassa" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  inner: { padding: spacing.lg, paddingBottom: 20, maxWidth: 1100, width: '100%', alignSelf: 'center' },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
-  rowName: { fontFamily: fonts.family, fontSize: 15, color: colors.text },
-  rowSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
-  rowPrice: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
-  progressWrap: { marginTop: 6, height: 6, backgroundColor: '#07080a', borderRadius: 3, overflow: 'hidden', position: 'relative' },
-  progressBar: { height: '100%', backgroundColor: colors.greenLight, borderRadius: 3 },
-  progressText: { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, marginTop: 2 },
-  manualBtn: { marginTop: 6, paddingVertical: 4, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(61,158,146,0.4)', alignSelf: 'flex-start' },
-  manualBtnText: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.greenLight },
-  modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center' },
-  modalInner: { width: '58%', maxWidth: 520, backgroundColor: '#0e0f11', borderRadius: 20, padding: 24, borderWidth: 1, borderColor: 'rgba(74,77,84,0.5)' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  modalTitle: { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text },
-  modalClose: { fontSize: 18, color: colors.muted },
-  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, marginTop: 12 },
-  input: { padding: 13, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 15, marginBottom: 4, fontFamily: fonts.family },
-  optionRow: { padding: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.border, marginBottom: 6 },
-  optionRowActive: { borderColor: 'rgba(61,158,146,0.5)', backgroundColor: 'rgba(61,158,146,0.08)' },
-  optionLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, marginBottom: 2 },
-  optionLabelActive: { color: colors.greenLight },
-  optionHint: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
-  productChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, marginRight: 8 },
-  productChipActive: { borderColor: 'rgba(61,158,146,0.5)', backgroundColor: 'rgba(61,158,146,0.12)' },
-  productChipText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
-  productChipTextActive: { color: colors.greenLight },
+  root:   { flex: 1, backgroundColor: colors.bg },
+  layout: { flex: 1, flexDirection: 'row' },
+
+  left:   { width: 280, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface },
+  listHint: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, padding: 12, paddingBottom: 6 },
+  listCard: { margin: 8, backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  itemRow:  { padding: 13, position: 'relative' },
+  itemRowDiv: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  itemRowActive: { backgroundColor: 'rgba(240,160,80,0.06)' },
+  activeBar: { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
+  itemName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, marginBottom: 2 },
+  itemSub:  { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginBottom: 6 },
+  wearTrack:{ height: 4, backgroundColor: colors.border, borderRadius: 2, overflow: 'hidden', marginBottom: 3 },
+  wearFill: { height: '100%', borderRadius: 2 },
+  wearTxt:  { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted },
+  manualBtn:{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.3)', marginLeft: 8 },
+  manualBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
+
+  emptyWrap: { padding: 32, alignItems: 'center' },
+  emptyTxt:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
+  emptyHint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 6, lineHeight: 18, opacity: 0.7 },
+
+  right:   { flex: 1, backgroundColor: colors.bg },
+  emptyRight: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
+  emptyRightTxt: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted, textAlign: 'center' },
+  emptyRightSub: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center', marginTop: 8, opacity: 0.6 },
+
+  editorContent: { padding: 24, paddingBottom: 40 },
+  editorTitle:   { fontFamily: fonts.family, fontSize: 24, fontWeight: '800', color: colors.text },
+  editorSub:     { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 4 },
+  divider:       { height: 1, backgroundColor: colors.border, marginVertical: 20 },
+
+  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 16 },
+  labelRow:   { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, marginBottom: 8 },
+  input:      { backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, paddingVertical: 12, paddingHorizontal: 14, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 14 },
+  inputRow:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  unitTxt:    { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, width: 36 },
+  calcHint:   { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.orange, marginTop: 6 },
+
+  chips:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip:       { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  chipActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.08)' },
+  chipTxt:    { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  chipTxtActive: { color: colors.orange },
+  hintTxt:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 8, lineHeight: 18 },
+
+  prodList:   { backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', maxHeight: 200 },
+  prodRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
+  prodRowActive: { backgroundColor: 'rgba(240,160,80,0.06)' },
+  prodName:   { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
+
+  saveBtn:    { backgroundColor: colors.orange, borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginTop: 24 },
+  saveBtnTxt: { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: '#fff' },
+  deleteBtn:  { borderRadius: 14, paddingVertical: 13, alignItems: 'center', marginTop: 10, borderWidth: 1, borderColor: 'rgba(217,95,95,0.4)', backgroundColor: 'rgba(217,95,95,0.07)' },
+  deleteBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red },
+
+  addBtn:     { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, backgroundColor: 'rgba(240,160,80,0.12)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)' },
+  addBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
 });
