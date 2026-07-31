@@ -879,6 +879,13 @@ export function closeShift(shift_id) {
     `UPDATE shifts SET closed_at=?, cash_total=?, card_total=?, status='closed' WHERE id=?`,
     [now, totals?.cash_total || 0, totals?.card_total || 0, shift_id]
   );
+  // Инкрементируем оборудование с ручным счётчиком — скрытно, раз в смену
+  try {
+    const manualEquip = db.getAllSync(`SELECT id, cycles_per_use FROM equipment WHERE counter_type = 'manual' AND active = 1`);
+    for (const eq of manualEquip) {
+      db.runSync(`UPDATE equipment SET current_cycles = current_cycles + ? WHERE id = ?`, [eq.cycles_per_use || 1, eq.id]);
+    }
+  } catch(_) {}
 }
 
 export function getOpenShift() {
