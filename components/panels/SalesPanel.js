@@ -10,7 +10,7 @@ import {
   returnOrder, getTerms, pluralizeRu, getPayMethods,
 } from '../../db/queries';
 import { useToast } from '../Toast';
-import { getSession } from '../../db/session';
+import { getSession, getHomeRoute } from '../../db/session';
 import { colors, fonts } from '../../constants/theme';
 
 // ─── Утилиты ─────────────────────────────────────────────────────────────────
@@ -193,7 +193,24 @@ export default function SalesPanel() {
 
           <View style={styles.divider} />
 
-
+          {/* Статистика */}
+          <Animated.View style={{ opacity: fadeAnim }}>
+            <Text style={styles.sectionLabel}>Итоги</Text>
+            {[
+              { label: 'Выручка',  value: `${fmt(total)} ₽`,    color: colors.orange },
+              { label: 'Заказов',  value: filtered.length,       color: colors.text },
+              { label: 'Ср. чек', value: `${fmt(avgCheck)} ₽`,  color: colors.text },
+              cash  > 0 && { label: 'Наличные', value: `${fmt(cash)} ₽`,  color: colors.text },
+              card  > 0 && { label: 'Карта',    value: `${fmt(card)} ₽`,  color: colors.text },
+              qr    > 0 && { label: 'QR/СБП',   value: `${fmt(qr)} ₽`,    color: colors.text },
+              mixed > 0 && { label: 'Смешанная',value: `${fmt(mixed)} ₽`, color: colors.text },
+            ].filter(Boolean).map((s, i) => (
+              <View key={i} style={styles.statRow}>
+                <Text style={styles.statLabel}>{s.label}</Text>
+                <Text style={[styles.statVal, { color: s.color }]}>{s.value}</Text>
+              </View>
+            ))}
+          </Animated.View>
         </View>
 
         {/* ── Правая панель: поиск + список ── */}
@@ -344,8 +361,28 @@ export default function SalesPanel() {
               onChangeText={setEditTotal} keyboardType="numeric" placeholder="0"
               placeholderTextColor={colors.muted} />
             <Text style={styles.fieldLabel}>Способ оплаты</Text>
-            <TextInput style={styles.modalInput} color={colors.text} value={editMethod}
-              onChangeText={setEditMethod} placeholder="Наличные" placeholderTextColor={colors.muted} />
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 }}>
+              {payMethods.length > 0
+                ? payMethods.map(m => (
+                    <Pressable
+                      key={m.id}
+                      style={{ paddingVertical: 9, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: editMethod === m.name ? 'rgba(240,160,80,0.5)' : colors.border, backgroundColor: editMethod === m.name ? 'rgba(240,160,80,0.08)' : colors.surface }}
+                      onPress={() => setEditMethod(m.name)}
+                    >
+                      <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: editMethod === m.name ? colors.orange : colors.muted }}>{m.name}</Text>
+                    </Pressable>
+                  ))
+                : ['Наличные', 'Карта'].map(name => (
+                    <Pressable
+                      key={name}
+                      style={{ paddingVertical: 9, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: editMethod === name ? 'rgba(240,160,80,0.5)' : colors.border, backgroundColor: editMethod === name ? 'rgba(240,160,80,0.08)' : colors.surface }}
+                      onPress={() => setEditMethod(name)}
+                    >
+                      <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: editMethod === name ? colors.orange : colors.muted }}>{name}</Text>
+                    </Pressable>
+                  ))
+              }
+            </View>
             <View style={styles.modalBtns}>
               <Pressable style={styles.modalCancel} onPress={() => setEditOrder(null)}>
                 <Text style={styles.modalCancelTxt}>Отмена</Text>

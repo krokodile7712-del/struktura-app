@@ -369,8 +369,28 @@ export default function SalesScreen({ navigation }) {
               onChangeText={setEditTotal} keyboardType="numeric" placeholder="0"
               placeholderTextColor={colors.muted} />
             <Text style={styles.fieldLabel}>Способ оплаты</Text>
-            <TextInput style={styles.modalInput} color={colors.text} value={editMethod}
-              onChangeText={setEditMethod} placeholder="Наличные" placeholderTextColor={colors.muted} />
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 }}>
+              {payMethods.length > 0
+                ? payMethods.map(m => (
+                    <Pressable
+                      key={m.id}
+                      style={{ paddingVertical: 9, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: editMethod === m.name ? 'rgba(240,160,80,0.5)' : colors.border, backgroundColor: editMethod === m.name ? 'rgba(240,160,80,0.08)' : colors.surface }}
+                      onPress={() => setEditMethod(m.name)}
+                    >
+                      <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: editMethod === m.name ? colors.orange : colors.muted }}>{m.name}</Text>
+                    </Pressable>
+                  ))
+                : ['Наличные', 'Карта'].map(name => (
+                    <Pressable
+                      key={name}
+                      style={{ paddingVertical: 9, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: editMethod === name ? 'rgba(240,160,80,0.5)' : colors.border, backgroundColor: editMethod === name ? 'rgba(240,160,80,0.08)' : colors.surface }}
+                      onPress={() => setEditMethod(name)}
+                    >
+                      <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: editMethod === name ? colors.orange : colors.muted }}>{name}</Text>
+                    </Pressable>
+                  ))
+              }
+            </View>
             <View style={styles.modalBtns}>
               <Pressable style={styles.modalCancel} onPress={() => setEditOrder(null)}>
                 <Text style={styles.modalCancelTxt}>Отмена</Text>
