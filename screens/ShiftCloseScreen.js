@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, Animated, Modal, Dimensions } from 'react-native';
 import TopBar from '../components/TopBar';
 import { getOpenShift, getShiftSummary, closeShift, getTerms, pluralizeRu, getPayMethods } from '../db/queries';
@@ -31,10 +31,14 @@ export default function ShiftCloseScreen({ navigation }) {
   const slideAnim= useState(new Animated.Value(20))[0];
   const btnScale = useState(new Animated.Value(1))[0];
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
+    // Сбрасываем состояние при каждом открытии экрана
+    setClosed(false);
+    setShowResult(false);
+    setFactCash('');
     try {
       const shift = getOpenShift();
-      if (shift) setSummary(getShiftSummary(shift.id));
+      setSummary(shift ? getShiftSummary(shift.id) : null);
       setTerms(getTerms());
       setPayMethods(getPayMethods());
     } catch(e) { console.error(e); }
@@ -43,7 +47,7 @@ export default function ShiftCloseScreen({ navigation }) {
       Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
       Animated.spring(slideAnim, { toValue: 0, tension: 60, friction: 12, useNativeDriver: true }),
     ]).start();
-  }, []);
+  }, []));
 
 
 
