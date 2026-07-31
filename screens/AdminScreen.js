@@ -142,6 +142,7 @@ export default function AdminScreen({ navigation }) {
 
   const setActiveAnimated = (key) => {
     setActive(key);
+    if (key === 'dash') loadStats();
     Animated.spring(animWidth, {
       toValue: key === 'dash' ? 220 : 52,
       useNativeDriver: false,
