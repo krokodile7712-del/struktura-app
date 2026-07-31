@@ -164,11 +164,7 @@ export default function EquipmentScreen({ navigation }) {
                         </View>
                         <Text style={styles.wearTxt}>{wear}% износа</Text>
                       </View>
-                      {item.counter_type === 'manual' && (
-                        <Pressable style={styles.manualBtn} onPress={() => handleManual(item)} hitSlop={8}>
-                          <Text style={styles.manualBtnTxt}>+1</Text>
-                        </Pressable>
-                      )}
+
                     </Pressable>
                   );
                 })}
