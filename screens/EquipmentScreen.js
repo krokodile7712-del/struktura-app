@@ -5,6 +5,7 @@ import BottomBar from '../components/BottomBar';
 import InfoTip from '../components/InfoTip';
 import Toggle from '../components/Toggle';
 import { useFocusEffect } from '@react-navigation/native';
+import DatePicker from '../components/DatePicker';
 import { getEquipment, addEquipment, updateEquipment, deleteEquipment, manualIncrementEquipment, getAllProducts } from '../db/queries';
 import { getHomeRoute } from '../db/session';
 import { colors, fonts } from '../constants/theme';
@@ -52,6 +53,7 @@ export default function EquipmentScreen({ navigation }) {
   const [selected, setSelected] = useState(null);
   const [draft, setDraft]       = useState(null);
   const [isNew, setIsNew]       = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const fadeAnim  = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(20))[0];
@@ -204,7 +206,12 @@ export default function EquipmentScreen({ navigation }) {
 
               {/* Дата покупки */}
               <Text style={styles.fieldLabel}>Дата покупки</Text>
-              <TextInput style={styles.input} color={colors.text} value={draft.purchase_date} onChangeText={v => setDraft(d => ({ ...d, purchase_date: v }))} placeholder="2024-01-15" placeholderTextColor={colors.muted} />
+              <Pressable style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]} onPress={() => setShowDatePicker(true)}>
+                <Text style={{ fontFamily: fonts.familyRegular, fontSize: 14, color: draft.purchase_date ? colors.text : colors.muted }}>
+                  {draft.purchase_date ? draft.purchase_date.split('-').reverse().join('.') : 'Выбрать дату...'}
+                </Text>
+                <Text style={{ fontSize: 16, color: colors.muted }}>📅</Text>
+              </Pressable>
 
               {/* Тип амортизации */}
               <View style={styles.labelRow}>
@@ -304,6 +311,13 @@ export default function EquipmentScreen({ navigation }) {
       </View>
 
       <BottomBar navigation={navigation} activeTab="Kassa" />
+      <DatePicker
+        visible={showDatePicker}
+        value={draft?.purchase_date || new Date().toISOString().slice(0,10)}
+        onChange={v => { setDraft(d => ({ ...d, purchase_date: v })); setShowDatePicker(false); }}
+        onClose={() => setShowDatePicker(false)}
+        title="Дата покупки"
+      />
     </View>
   );
 }
