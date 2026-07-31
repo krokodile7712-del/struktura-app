@@ -1,219 +1,328 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput } from 'react-native';
-import MetalCard from '../components/MetalCard';
-import MetalButton from '../components/MetalButton';
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, Animated } from 'react-native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import Hint from '../components/Hint';
 import InfoTip from '../components/InfoTip';
-import EmptyState from '../components/EmptyState';
+import DatePicker from '../components/DatePicker';
+import { useFocusEffect } from '@react-navigation/native';
 import { getInvestments, addInvestment, updateInvestment, deleteInvestment, getInvestmentSummary, getPnL } from '../db/queries';
 import { getHomeRoute } from '../db/session';
-import { colors, fonts, spacing } from '../constants/theme';
-import { useFocusEffect } from '@react-navigation/native';
+import { colors, fonts } from '../constants/theme';
 
 const CATEGORIES = [
-  { key: 'equipment',  label: 'Оборудование',   icon: '⚙️' },
-  { key: 'renovation', label: 'Ремонт',          icon: '🔨' },
-  { key: 'marketing',  label: 'Реклама/запуск',  icon: '📣' },
-  { key: 'deposit',    label: 'Депозит',         icon: '🔑', returnable: true },
-  { key: 'other',      label: 'Прочее',          icon: '📦' },
+  { key: 'equipment',  label: 'Оборудование' },
+  { key: 'renovation', label: 'Ремонт' },
+  { key: 'marketing',  label: 'Реклама' },
+  { key: 'deposit',    label: 'Депозит', returnable: true },
+  { key: 'other',      label: 'Прочее' },
 ];
 
 const EMPTY = { name: '', amount: '', invest_date: '', amort_months: '', category: 'other', returnable: false };
-
-function fmt(n) { return Math.round(n||0).toLocaleString('ru-RU'); }
+const fmt = n => Math.round(n||0).toLocaleString('ru-RU');
+const fmtDate = s => s ? s.split('-').reverse().join('.') : '—';
 
 export default function InvestmentsScreen({ navigation }) {
-  const [items, setItems]     = useState([]);
-  const [summary, setSummary] = useState(null);
-  const [avgMonthlyProfit, setAvgMonthlyProfit] = useState(0);
-  const [modal, setModal]     = useState(null);
+  const [items, setItems]       = useState([]);
+  const [summary, setSummary]   = useState(null);
+  const [avgProfit, setAvgProfit] = useState(0);
+  const [selected, setSelected] = useState(null);
+  const [draft, setDraft]       = useState(null);
+  const [isNew, setIsNew]       = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
-  useFocusEffect(useCallback(() => {
-    try {
-      setItems(getInvestments());
-      const s = getInvestmentSummary();
-      setSummary(s);
-      // Средняя прибыль за последние 3 месяца
-      const d = new Date();
-      const to = d.toISOString().slice(0,10);
-      d.setMonth(d.getMonth()-3);
-      const from = d.toISOString().slice(0,10);
-      const p3 = getPnL(from, to);
-      setAvgMonthlyProfit(Math.round((p3.netProfit || 0) / 3));
-    } catch (e) { console.error(e); }
-  }, []));
+  const fadeAnim  = useState(new Animated.Value(0))[0];
+  const slideAnim = useState(new Animated.Value(20))[0];
 
-  const save = () => {
-    if (!modal || !modal.name.trim() || !modal.amount) return;
-    const data = {
-      name: modal.name.trim(), amount: parseFloat(modal.amount)||0,
-      invest_date: modal.invest_date, amort_months: parseInt(modal.amort_months)||0,
-      category: modal.category, returnable: modal.returnable ? 1 : 0,
-    };
+  const load = useCallback(() => {
     try {
-      if (modal.id) updateInvestment(modal.id, data);
-      else addInvestment(data);
       setItems(getInvestments());
       setSummary(getInvestmentSummary());
-    } catch (e) { console.error(e); }
-    setModal(null);
+      const d = new Date();
+      const to = d.toISOString().slice(0,10);
+      const from3 = new Date(d.setMonth(d.getMonth()-3)).toISOString().slice(0,10);
+      const pnl = getPnL(from3, to);
+      setAvgProfit(Math.round((pnl?.netProfit || 0) / 3));
+    } catch(e) { console.error(e); }
+  }, []);
+
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const animate = () => {
+    fadeAnim.setValue(0); slideAnim.setValue(20);
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 280, useNativeDriver: true }),
+      Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 12, useNativeDriver: true }),
+    ]).start();
   };
 
-  const remove = () => {
-    try { deleteInvestment(modal.id); setItems(getInvestments()); setSummary(getInvestmentSummary()); } catch (e) { console.error(e); }
-    setModal(null);
+  const openNew = () => {
+    setIsNew(true);
+    setDraft({ ...EMPTY });
+    setSelected(null);
+    animate();
   };
 
-  const nonReturnableTotal = items.filter(i => !i.returnable).reduce((s,i) => s + i.amount, 0);
-  const returnableTotal    = items.filter(i => i.returnable).reduce((s,i) => s + i.amount, 0);
-  const recovered = summary?.totalRevenue ? Math.min(nonReturnableTotal, summary.totalRevenue * 0.15) : 0; // упрощённо
-  const remaining  = Math.max(0, nonReturnableTotal - recovered);
-  const monthsLeft = avgMonthlyProfit > 0 ? Math.ceil(remaining / avgMonthlyProfit) : null;
+  const openEdit = (item) => {
+    setIsNew(false);
+    setDraft({ ...EMPTY, ...item, amount: String(item.amount || ''), amort_months: String(item.amort_months || '') });
+    setSelected(item);
+    animate();
+  };
+
+  const handleSave = () => {
+    if (!draft.name.trim()) { Alert.alert('Введите название'); return; }
+    if (!draft.amount) { Alert.alert('Введите сумму инвестиции'); return; }
+    try {
+      const data = { ...draft, amount: parseFloat(draft.amount)||0, amort_months: parseInt(draft.amort_months)||0 };
+      if (isNew) addInvestment(data);
+      else updateInvestment(selected.id, data);
+      load();
+      setDraft(null);
+      setSelected(null);
+    } catch(e) { Alert.alert('Ошибка', e.message); }
+  };
+
+  const handleDelete = () => {
+    Alert.alert('Удалить?', selected?.name, [
+      { text: 'Отмена' },
+      { text: 'Удалить', style: 'destructive', onPress: () => {
+        try { deleteInvestment(selected.id); load(); setDraft(null); setSelected(null); } catch(e) {}
+      }}
+    ]);
+  };
+
+  // Расчёт окупаемости
+  const paybackMonths = summary && avgProfit > 0 ? Math.ceil(summary.totalUnamortized / avgProfit) : null;
+  const paybackStr = paybackMonths ? (paybackMonths > 120 ? '> 10 лет' : `${paybackMonths} мес.`) : '—';
 
   return (
-    <View style={{ flex: 1 }}>
-      <TopBar title="Инвестиции" onBack={() => navigation.navigate(getHomeRoute())} />
-      <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
+    <View style={styles.root}>
+      <TopBar
+        title="Инвестиции"
+        onBack={() => navigation.navigate(getHomeRoute())}
+        rightElement={
+          <Pressable style={styles.addBtn} onPress={openNew}>
+            <Text style={styles.addBtnTxt}>+ Добавить</Text>
+          </Pressable>
+        }
+      />
 
-        {/* Сводка */}
-        {items.length > 0 && (
-          <MetalCard style={{ marginBottom: 12 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-              <Text style={styles.sectionTitle}>Окупаемость</Text>
-              <InfoTip title="Как считается окупаемость?" text="Вложено — сумма всех невозвратных инвестиций. Средняя чистая прибыль берётся из P&L за последние 3 месяца. Прогноз = Осталось ÷ Прибыль в месяц." />
-            </View>
-            <View style={styles.summaryGrid}>
-              <View style={styles.summaryCell}>
-                <Text style={styles.summaryVal}>{fmt(nonReturnableTotal)} ₽</Text>
+      <View style={styles.layout}>
+
+        {/* Левая панель */}
+        <View style={styles.left}>
+          {/* Сводка */}
+          {summary && (
+            <View style={styles.summaryCard}>
+              <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Вложено</Text>
+                <Text style={styles.summaryVal}>{fmt(summary.totalInvested)} ₽</Text>
               </View>
-              <View style={styles.summaryCell}>
-                <Text style={[styles.summaryVal, { color: colors.greenLight }]}>{fmt(remaining)} ₽</Text>
-                <Text style={styles.summaryLabel}>Осталось отбить</Text>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Осталось окупить</Text>
+                <Text style={[styles.summaryVal, { color: colors.amber }]}>{fmt(summary.totalUnamortized)} ₽</Text>
               </View>
-              <View style={styles.summaryCell}>
-                <Text style={styles.summaryVal}>{fmt(avgMonthlyProfit)} ₽</Text>
-                <Text style={styles.summaryLabel}>Прибыль/мес (ср.)</Text>
-              </View>
-              <View style={styles.summaryCell}>
-                <Text style={[styles.summaryVal, { color: monthsLeft ? '#f5c842' : colors.muted }]}>
-                  {monthsLeft ? `${monthsLeft} мес.` : '—'}
-                </Text>
-                <Text style={styles.summaryLabel}>До окупаемости</Text>
+              <View style={[styles.summaryRow, { borderBottomWidth: 0 }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Text style={styles.summaryLabel}>Окупаемость</Text>
+                  <InfoTip title="Окупаемость" text="Рассчитана на основе средней чистой прибыли за последние 3 месяца." />
+                </View>
+                <Text style={[styles.summaryVal, { color: colors.green }]}>{paybackStr}</Text>
               </View>
             </View>
-            {returnableTotal > 0 && (
-              <Text style={styles.depositNote}>+ {fmt(returnableTotal)} ₽ возвратных вложений (депозиты) учитываются отдельно</Text>
-            )}
-          </MetalCard>
-        )}
+          )}
 
-        {/* Список */}
-        {items.length === 0 ? (
-          <EmptyState icon="💰" title="Вложения не добавлены"
-            text="Внесите всё что вы потратили на запуск бизнеса: ремонт, оборудование, рекламу. Система покажет через сколько месяцев вы окупитесь при текущей прибыли."
-            action="+ Добавить вложение" onAction={() => setModal({ ...EMPTY, id: null })} />
-        ) : (
-          <MetalCard>
-            {items.map(item => {
-              const cat = CATEGORIES.find(c => c.key === item.category);
-              return (
-                <Pressable key={item.id} style={styles.row} onPress={() => setModal({
-                  id: item.id, name: item.name, amount: String(item.amount),
-                  invest_date: item.invest_date, amort_months: String(item.amort_months||''),
-                  category: item.category, returnable: !!item.returnable,
-                })}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.rowName}>{cat?.icon || '📦'} {item.name}{item.returnable ? ' 🔄' : ''}</Text>
-                    <Text style={styles.rowSub}>
-                      {item.invest_date || ''}
-                      {item.amort_months > 0 ? ` · ${item.amort_months} мес.` : ''}
-                      {item.returnable ? ' · возвратные' : ''}
-                    </Text>
-                  </View>
-                  <Text style={styles.rowPrice}>{fmt(item.amount)} ₽ ›</Text>
-                </Pressable>
-              );
-            })}
-            <MetalButton title="+ Добавить вложение" variant="default" onPress={() => setModal({ ...EMPTY, id: null })} style={{ marginTop: 12 }} />
-          </MetalCard>
-        )}
-      </ScrollView>
-      <BottomBar navigation={navigation} activeTab="Kassa" />
-
-      <Modal visible={!!modal} transparent animationType="fade" onRequestClose={() => setModal(null)}>
-        <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setModal(null)} />
-          {modal && (
-            <View style={styles.modalInner}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>{modal.id ? 'Изменить' : 'Новое вложение'}</Text>
-                <Pressable onPress={() => setModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
+          {/* Список */}
+          <Text style={styles.listHint}>Нажмите чтобы редактировать</Text>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {items.length === 0 ? (
+              <View style={styles.emptyWrap}>
+                <Text style={styles.emptyTxt}>Нет инвестиций</Text>
+                <Text style={styles.emptyHint}>Добавьте начальные вложения в бизнес — оборудование, ремонт, рекламу</Text>
               </View>
-              <ScrollView showsVerticalScrollIndicator={false}>
-                <Text style={styles.fieldLabel}>Название</Text>
-                <TextInput style={styles.input} value={modal.name} onChangeText={v => setModal(m=>({...m, name: v}))} placeholder="Ремонт, Холодильник, Реклама..." placeholderTextColor={colors.muted} autoFocus={!modal.id} />
-
-                <Text style={styles.fieldLabel}>Сумма, ₽</Text>
-                <TextInput style={styles.input} value={modal.amount} onChangeText={v => setModal(m=>({...m, amount: v}))} keyboardType="numeric" placeholder="500000" placeholderTextColor={colors.muted} />
-
-                <Text style={styles.fieldLabel}>Дата вложения</Text>
-                <TextInput style={styles.input} value={modal.invest_date} onChangeText={v => setModal(m=>({...m, invest_date: v}))} placeholder="2024-01-01" placeholderTextColor={colors.muted} />
-
-                <Text style={styles.fieldLabel}>Категория</Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-                  {CATEGORIES.map(c => (
-                    <Pressable key={c.key} style={[styles.chip, modal.category === c.key && styles.chipActive]} onPress={() => setModal(m => ({...m, category: c.key, returnable: c.returnable || false}))}>
-                      <Text style={[styles.chipText, modal.category === c.key && styles.chipTextActive]}>{c.icon} {c.label}</Text>
+            ) : (
+              <View style={styles.listCard}>
+                {items.map((item, idx) => {
+                  const isActive = selected?.id === item.id;
+                  const cat = CATEGORIES.find(c => c.key === item.category);
+                  return (
+                    <Pressable
+                      key={item.id}
+                      style={({ pressed }) => [
+                        styles.itemRow,
+                        idx < items.length - 1 && styles.itemRowDiv,
+                        isActive && styles.itemRowActive,
+                        pressed && { opacity: 0.8 },
+                      ]}
+                      onPress={() => openEdit(item)}
+                    >
+                      {isActive && <View style={styles.activeBar} />}
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.itemName, isActive && { color: colors.orange }]} numberOfLines={1}>{item.name}</Text>
+                        <Text style={styles.itemCat}>{cat?.label || 'Прочее'} · {fmtDate(item.invest_date)}</Text>
+                      </View>
+                      <Text style={styles.itemAmt}>{fmt(item.amount)} ₽</Text>
                     </Pressable>
-                  ))}
-                </View>
+                  );
+                })}
+              </View>
+            )}
+          </ScrollView>
+        </View>
 
-                <Text style={styles.fieldLabel}>Срок окупаемости/списания, месяцев</Text>
-                <TextInput style={styles.input} value={modal.amort_months} onChangeText={v => setModal(m=>({...m, amort_months: v}))} keyboardType="numeric" placeholder="60 (оставьте 0 если не знаете)" placeholderTextColor={colors.muted} />
-                <Hint>Необязательно. Ремонт обычно списывают за 3-10 лет (36-120 месяцев).</Hint>
+        {/* Правая панель */}
+        <View style={styles.right}>
+          {draft ? (
+            <Animated.ScrollView
+              contentContainerStyle={styles.editorContent}
+              style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
+              keyboardShouldPersistTaps="handled"
+            >
+              <Text style={styles.editorTitle}>{isNew ? 'Новая инвестиция' : draft.name}</Text>
 
-                <Pressable style={styles.row} onPress={() => setModal(m => ({...m, returnable: !m.returnable}))}>
-                  <Text style={styles.rowName}>Возвратные вложения (депозит)</Text>
-                  <Text style={styles.rowPrice}>{modal.returnable ? '☑' : '☐'}</Text>
+              <View style={styles.infoCard}>
+                <Text style={styles.infoTxt}>
+                  Инвестиции — это начальные вложения в бизнес. Они не списываются сразу, а постепенно распределяются на срок окупаемости. Это помогает видеть реальную прибыль с учётом возврата вложений.
+                </Text>
+              </View>
+
+              <View style={styles.divider} />
+
+              {/* Название */}
+              <Text style={styles.fieldLabel}>Название <Text style={{ color: colors.orange }}>*</Text></Text>
+              <TextInput style={styles.input} color={colors.text} value={draft.name} onChangeText={v => setDraft(d => ({ ...d, name: v }))} placeholder="Кофемашина, ремонт, вывеска..." placeholderTextColor={colors.muted} autoFocus={isNew} />
+
+              {/* Сумма */}
+              <View style={styles.labelRow}>
+                <Text style={styles.fieldLabel}>Сумма <Text style={{ color: colors.orange }}>*</Text></Text>
+                <InfoTip title="Сумма инвестиции" text="Полная стоимость вложения. Например, стоимость оборудования или ремонта." />
+              </View>
+              <View style={styles.inputRow}>
+                <TextInput style={[styles.input, { flex: 1 }]} color={colors.text} value={draft.amount} onChangeText={v => setDraft(d => ({ ...d, amount: v }))} keyboardType="numeric" placeholder="0" placeholderTextColor={colors.muted} />
+                <Text style={styles.unitTxt}>₽</Text>
+              </View>
+
+              {/* Дата */}
+              <Text style={styles.fieldLabel}>Дата вложения</Text>
+              <Pressable style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]} onPress={() => setShowDatePicker(true)}>
+                <Text style={{ fontFamily: fonts.familyRegular, fontSize: 14, color: draft.invest_date ? colors.text : colors.muted }}>
+                  {draft.invest_date ? fmtDate(draft.invest_date) : 'Выбрать дату...'}
+                </Text>
+                <Text style={{ fontSize: 16, color: colors.muted }}>📅</Text>
+              </Pressable>
+
+              {/* Категория */}
+              <Text style={styles.fieldLabel}>Категория</Text>
+              <View style={styles.chips}>
+                {CATEGORIES.map(cat => (
+                  <Pressable key={cat.key} style={[styles.chip, draft.category === cat.key && styles.chipActive]} onPress={() => setDraft(d => ({ ...d, category: cat.key, returnable: cat.returnable || false }))}>
+                    <Text style={[styles.chipTxt, draft.category === cat.key && styles.chipTxtActive]}>{cat.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              {/* Срок окупаемости */}
+              <View style={styles.labelRow}>
+                <Text style={styles.fieldLabel}>Срок окупаемости, мес.</Text>
+                <InfoTip title="Срок окупаемости" text="За сколько месяцев планируете вернуть вложение. Используется для расчёта ежемесячной нагрузки на P&L." />
+              </View>
+              <View style={styles.inputRow}>
+                <TextInput style={[styles.input, { flex: 1 }]} color={colors.text} value={draft.amort_months} onChangeText={v => setDraft(d => ({ ...d, amort_months: v }))} keyboardType="numeric" placeholder="24" placeholderTextColor={colors.muted} />
+                <Text style={styles.unitTxt}>мес</Text>
+              </View>
+              {draft.amount && draft.amort_months ? (
+                <Text style={styles.calcHint}>≈ {fmt(Math.round(parseFloat(draft.amount) / parseInt(draft.amort_months)))} ₽/мес нагрузки на прибыль</Text>
+              ) : null}
+
+              {/* Кнопки */}
+              <Pressable style={styles.saveBtn} onPress={handleSave}>
+                <Text style={styles.saveBtnTxt}>{isNew ? 'Добавить инвестицию' : 'Сохранить'}</Text>
+              </Pressable>
+
+              {!isNew && (
+                <Pressable style={styles.deleteBtn} onPress={handleDelete}>
+                  <Text style={styles.deleteBtnTxt}>Удалить</Text>
                 </Pressable>
-                <Hint>Депозит аренды и подобные суммы которые вернутся к вам. Не учитываются в сумме для окупаемости.</Hint>
+              )}
 
-                <MetalButton title="Сохранить" variant="success" onPress={save} style={{ marginTop: 10 }} />
-                {modal.id && !modal.equipment_id && <MetalButton title="Удалить" variant="danger" onPress={remove} style={{ marginTop: 6 }} />}
-              </ScrollView>
+            </Animated.ScrollView>
+          ) : (
+            <View style={styles.emptyRight}>
+              <Text style={styles.emptyRightTxt}>Выберите инвестицию или нажмите «+ Добавить»</Text>
+              <Text style={styles.emptyRightSub}>Отслеживайте вложения и срок их окупаемости</Text>
             </View>
           )}
         </View>
-      </Modal>
+
+      </View>
+
+      <BottomBar navigation={navigation} activeTab="Kassa" />
+
+      <DatePicker
+        visible={showDatePicker}
+        value={draft?.invest_date || new Date().toISOString().slice(0,10)}
+        onChange={v => { setDraft(d => ({ ...d, invest_date: v })); setShowDatePicker(false); }}
+        onClose={() => setShowDatePicker(false)}
+        title="Дата вложения"
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  inner: { padding: spacing.lg, paddingBottom: 20, maxWidth: 1100, width: '100%', alignSelf: 'center' },
-  sectionTitle: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
-  summaryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  summaryCell: { flex: 1, minWidth: 130, padding: 12, backgroundColor: '#07080a', borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
-  summaryVal: { fontFamily: fonts.family, fontSize: 16, fontWeight: '700', color: colors.text },
-  summaryLabel: { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, marginTop: 4, textAlign: 'center' },
-  depositNote: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 10, lineHeight: 16 },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
-  rowName: { fontFamily: fonts.family, fontSize: 14, color: colors.text, flex: 1 },
-  rowSub: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
-  rowPrice: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
-  modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center' },
-  modalInner: { width: '52%', maxWidth: 480, maxHeight: '88%', backgroundColor: '#0e0f11', borderRadius: 20, padding: 24, borderWidth: 1, borderColor: 'rgba(74,77,84,0.5)' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  modalTitle: { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text },
-  modalClose: { fontSize: 18, color: colors.muted },
-  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, marginTop: 12 },
-  input: { padding: 13, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 15, marginBottom: 4, fontFamily: fonts.family },
-  chip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border },
-  chipActive: { borderColor: 'rgba(61,158,146,0.5)', backgroundColor: 'rgba(61,158,146,0.1)' },
-  chipText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
-  chipTextActive: { color: colors.greenLight },
+  root:   { flex: 1, backgroundColor: colors.bg },
+  layout: { flex: 1, flexDirection: 'row' },
+
+  left:   { width: 280, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface },
+
+  summaryCard: { margin: 10, backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  summaryRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+  summaryLabel:{ fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+  summaryVal:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
+
+  listHint: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, paddingHorizontal: 12, paddingBottom: 4 },
+  listCard: { margin: 8, backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  itemRow:  { flexDirection: 'row', alignItems: 'center', padding: 13, position: 'relative' },
+  itemRowDiv: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  itemRowActive: { backgroundColor: 'rgba(240,160,80,0.06)' },
+  activeBar: { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
+  itemName: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, marginBottom: 2 },
+  itemCat:  { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
+  itemAmt:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
+
+  emptyWrap: { padding: 24, alignItems: 'center' },
+  emptyTxt:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
+  emptyHint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 6, lineHeight: 18, opacity: 0.7 },
+
+  right:   { flex: 1, backgroundColor: colors.bg },
+  emptyRight: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
+  emptyRightTxt: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted, textAlign: 'center' },
+  emptyRightSub: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center', marginTop: 8, opacity: 0.6 },
+
+  editorContent: { padding: 24, paddingBottom: 40 },
+  editorTitle:   { fontFamily: fonts.family, fontSize: 24, fontWeight: '800', color: colors.text, marginBottom: 12 },
+  infoCard:  { backgroundColor: 'rgba(139,127,212,0.08)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(139,127,212,0.2)', padding: 14 },
+  infoTxt:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.textDim, lineHeight: 18 },
+  divider:   { height: 1, backgroundColor: colors.border, marginVertical: 20 },
+
+  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 16 },
+  labelRow:   { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, marginBottom: 8 },
+  input:      { backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, paddingVertical: 12, paddingHorizontal: 14, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 14 },
+  inputRow:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  unitTxt:    { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, width: 36 },
+  calcHint:   { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.orange, marginTop: 6 },
+
+  chips:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip:       { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  chipActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.08)' },
+  chipTxt:    { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  chipTxtActive: { color: colors.orange },
+
+  saveBtn:    { backgroundColor: colors.orange, borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginTop: 24 },
+  saveBtnTxt: { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: '#fff' },
+  deleteBtn:  { borderRadius: 14, paddingVertical: 13, alignItems: 'center', marginTop: 10, borderWidth: 1, borderColor: 'rgba(217,95,95,0.4)', backgroundColor: 'rgba(217,95,95,0.07)' },
+  deleteBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red },
+
+  addBtn:     { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, backgroundColor: 'rgba(240,160,80,0.12)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)' },
+  addBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
 });
