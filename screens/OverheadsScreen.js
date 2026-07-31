@@ -1,16 +1,12 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput } from 'react-native';
-import MetalCard from '../components/MetalCard';
-import MetalButton from '../components/MetalButton';
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, Animated } from 'react-native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import Hint from '../components/Hint';
 import InfoTip from '../components/InfoTip';
-import EmptyState from '../components/EmptyState';
+import { useFocusEffect } from '@react-navigation/native';
 import { getOverheadItems, addOverheadItem, updateOverheadItem, deleteOverheadItem } from '../db/queries';
 import { getHomeRoute } from '../db/session';
-import { colors, fonts, spacing } from '../constants/theme';
-import { useFocusEffect } from '@react-navigation/native';
+import { colors, fonts } from '../constants/theme';
 
 const PERIODS = [
   { key: 'month', label: 'В месяц' },
@@ -18,12 +14,12 @@ const PERIODS = [
   { key: 'year',  label: 'В год' },
 ];
 const BASES = [
-  { key: 'order',       label: 'На заказ',       hint: 'Месячная сумма ÷ кол-во заказов за месяц = стоимость на заказ' },
-  { key: 'hour',        label: 'На час работы',   hint: 'Укажите часов в месяц — вычислит накладные на каждый рабочий час' },
-  { key: 'revenue_pct', label: '% от выручки',    hint: 'Фиксированный % с каждого заказа. Укажите % в поле «Значение».' },
+  { key: 'order',       label: 'На заказ',     hint: 'Месячная сумма ÷ количество заказов = накладные на 1 заказ' },
+  { key: 'hour',        label: 'На час работы', hint: 'Месячная сумма ÷ рабочие часы = накладные за 1 час' },
+  { key: 'revenue_pct', label: '% от выручки',  hint: 'Фиксированный % с каждого заказа. Укажите % в поле «Значение».' },
 ];
-
 const EMPTY = { name: '', amount: '', period: 'month', basis: 'order', basis_value: '' };
+const fmt = n => Math.round(n||0).toLocaleString('ru-RU');
 
 function monthlyAmt(item) {
   const a = item.amount || 0;
@@ -33,152 +29,290 @@ function monthlyAmt(item) {
 }
 
 export default function OverheadsScreen({ navigation }) {
-  const [items, setItems] = useState([]);
-  const [modal, setModal] = useState(null);
+  const [items, setItems]       = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [draft, setDraft]       = useState(null);
+  const [isNew, setIsNew]       = useState(false);
 
-  useFocusEffect(useCallback(() => {
-    try { setItems(getOverheadItems()); } catch (e) { console.error(e); }
-  }, []));
+  const fadeAnim  = useState(new Animated.Value(0))[0];
+  const slideAnim = useState(new Animated.Value(20))[0];
+
+  const load = useCallback(() => {
+    try { setItems(getOverheadItems()); } catch(e) { console.error(e); }
+  }, []);
+
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const animate = () => {
+    fadeAnim.setValue(0); slideAnim.setValue(20);
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 280, useNativeDriver: true }),
+      Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 12, useNativeDriver: true }),
+    ]).start();
+  };
+
+  const openNew = () => {
+    setIsNew(true);
+    setDraft({ ...EMPTY });
+    setSelected(null);
+    animate();
+  };
+
+  const openEdit = (item) => {
+    setIsNew(false);
+    setDraft({ ...EMPTY, ...item, amount: String(item.amount || ''), basis_value: String(item.basis_value || '') });
+    setSelected(item);
+    animate();
+  };
+
+  const handleSave = () => {
+    if (!draft.name.trim()) { Alert.alert('Введите название'); return; }
+    if (!draft.amount) { Alert.alert('Введите сумму'); return; }
+    try {
+      const data = { ...draft, amount: parseFloat(draft.amount)||0, basis_value: parseFloat(draft.basis_value)||0 };
+      if (isNew) addOverheadItem(data);
+      else updateOverheadItem(selected.id, data);
+      load();
+      setDraft(null);
+      setSelected(null);
+    } catch(e) { Alert.alert('Ошибка', e.message); }
+  };
+
+  const handleDelete = () => {
+    Alert.alert('Удалить?', selected?.name, [
+      { text: 'Отмена' },
+      { text: 'Удалить', style: 'destructive', onPress: () => {
+        try { deleteOverheadItem(selected.id); load(); setDraft(null); setSelected(null); } catch(e) {}
+      }}
+    ]);
+  };
 
   const totalMonthly = items.reduce((s, i) => s + monthlyAmt(i), 0);
 
-  const save = () => {
-    if (!modal || !modal.name.trim() || !modal.amount) return;
-    const data = {
-      name: modal.name.trim(), amount: parseFloat(modal.amount)||0,
-      period: modal.period, basis: modal.basis,
-      basis_value: parseFloat(modal.basis_value)||0,
-    };
-    try {
-      if (modal.id) updateOverheadItem(modal.id, data);
-      else addOverheadItem(data);
-      setItems(getOverheadItems());
-    } catch (e) { console.error(e); }
-    setModal(null);
-  };
-
-  const remove = () => {
-    try { deleteOverheadItem(modal.id); setItems(getOverheadItems()); } catch (e) { console.error(e); }
-    setModal(null);
-  };
-
   return (
-    <View style={{ flex: 1 }}>
-      <TopBar title="Накладные расходы" onBack={() => navigation.navigate(getHomeRoute())} />
-      <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
-        {items.length === 0 ? (
-          <EmptyState icon="🏢" title="Накладные расходы не добавлены"
-            text="Аренда, коммунальные, интернет, страховка — всё что вы платите постоянно, независимо от продаж. Без этих цифр реальная себестоимость занижена."
-            action="+ Добавить статью расходов" onAction={() => setModal({ ...EMPTY, id: null })} />
-        ) : (
-          <MetalCard>
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Итого накладных в месяц:</Text>
-              <Text style={styles.totalValue}>{Math.round(totalMonthly).toLocaleString('ru-RU')} ₽</Text>
+    <View style={styles.root}>
+      <TopBar
+        title="Накладные расходы"
+        onBack={() => navigation.navigate(getHomeRoute())}
+        rightElement={
+          <Pressable style={styles.addBtn} onPress={openNew}>
+            <Text style={styles.addBtnTxt}>+ Добавить</Text>
+          </Pressable>
+        }
+      />
+
+      <View style={styles.layout}>
+
+        {/* Левая панель */}
+        <View style={styles.left}>
+          {totalMonthly > 0 && (
+            <View style={styles.totalCard}>
+              <Text style={styles.totalLabel}>Итого в месяц</Text>
+              <Text style={styles.totalVal}>{fmt(totalMonthly)} ₽</Text>
             </View>
-            {items.map(item => (
-              <Pressable key={item.id} style={styles.row} onPress={() => setModal({
-                id: item.id, name: item.name, amount: String(item.amount),
-                period: item.period, basis: item.basis, basis_value: String(item.basis_value||''),
-              })}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.rowName}>{item.name}</Text>
-                  <Text style={styles.rowSub}>
-                    {item.amount.toLocaleString('ru-RU')} ₽ {PERIODS.find(p=>p.key===item.period)?.label?.toLowerCase()} ·{' '}
-                    {BASES.find(b=>b.key===item.basis)?.label?.toLowerCase()}
-                    {item.basis === 'revenue_pct' ? ` (${item.basis_value}%)` : ''}
-                    {item.basis === 'hour' ? ` (${item.basis_value} ч/мес)` : ''}
-                  </Text>
-                </View>
-                <Text style={styles.rowPrice}>{Math.round(monthlyAmt(item)).toLocaleString('ru-RU')} ₽/мес ›</Text>
-              </Pressable>
-            ))}
-            <MetalButton title="+ Добавить статью" variant="default" onPress={() => setModal({ ...EMPTY, id: null })} style={{ marginTop: 12 }} />
-          </MetalCard>
-        )}
-      </ScrollView>
-      <BottomBar navigation={navigation} activeTab="Kassa" />
+          )}
 
-      <Modal visible={!!modal} transparent animationType="fade" onRequestClose={() => setModal(null)}>
-        <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setModal(null)} />
-          {modal && (
-            <View style={styles.modalInner}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>{modal.id ? 'Изменить' : 'Новая статья'}</Text>
-                <Pressable onPress={() => setModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
+          <Text style={styles.listHint}>Нажмите чтобы редактировать</Text>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {items.length === 0 ? (
+              <View style={styles.emptyWrap}>
+                <Text style={styles.emptyTxt}>Нет накладных расходов</Text>
+                <Text style={styles.emptyHint}>Добавьте аренду, коммуналку, интернет и другие постоянные затраты</Text>
               </View>
-              <ScrollView showsVerticalScrollIndicator={false}>
-                <Text style={styles.fieldLabel}>Название</Text>
-                <TextInput style={styles.input} value={modal.name} onChangeText={v => setModal(m=>({...m, name: v}))} placeholder="Аренда, Коммунальные, Интернет..." placeholderTextColor={colors.muted} autoFocus={!modal.id} />
-
-                <Text style={styles.fieldLabel}>Сумма, ₽</Text>
-                <TextInput style={styles.input} value={modal.amount} onChangeText={v => setModal(m=>({...m, amount: v}))} keyboardType="numeric" placeholder="50000" placeholderTextColor={colors.muted} />
-
-                <Text style={styles.fieldLabel}>Период</Text>
-                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 4 }}>
-                  {PERIODS.map(p => (
-                    <Pressable key={p.key} style={[styles.chip, modal.period === p.key && styles.chipActive]} onPress={() => setModal(m=>({...m, period: p.key}))}>
-                      <Text style={[styles.chipText, modal.period === p.key && styles.chipTextActive]}>{p.label}</Text>
+            ) : (
+              <View style={styles.listCard}>
+                {items.map((item, idx) => {
+                  const isActive = selected?.id === item.id;
+                  const monthly = monthlyAmt(item);
+                  return (
+                    <Pressable
+                      key={item.id}
+                      style={({ pressed }) => [
+                        styles.itemRow,
+                        idx < items.length - 1 && styles.itemRowDiv,
+                        isActive && styles.itemRowActive,
+                        pressed && { opacity: 0.8 },
+                      ]}
+                      onPress={() => openEdit(item)}
+                    >
+                      {isActive && <View style={styles.activeBar} />}
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.itemName, isActive && { color: colors.orange }]} numberOfLines={1}>{item.name}</Text>
+                        <Text style={styles.itemSub}>{PERIODS.find(p => p.key === item.period)?.label} · {BASES.find(b => b.key === item.basis)?.label}</Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={styles.itemAmt}>{fmt(item.amount)} ₽</Text>
+                        {item.period !== 'month' && (
+                          <Text style={styles.itemMonthly}>≈ {fmt(monthly)} ₽/мес</Text>
+                        )}
+                      </View>
                     </Pressable>
-                  ))}
-                </View>
+                  );
+                })}
+              </View>
+            )}
+          </ScrollView>
+        </View>
 
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, marginBottom: 6 }}>
-                  <Text style={styles.fieldLabel}>База распределения</Text>
-                  <InfoTip title="База распределения" text="Как делить сумму на единицу продукции. На заказ — поровну между всеми заказами. На час — пропорционально рабочему времени. Процент — фиксированная доля каждого заказа." />
-                </View>
-                {BASES.map(b => (
-                  <Pressable key={b.key} style={[styles.optionRow, modal.basis === b.key && styles.optionRowActive]} onPress={() => setModal(m=>({...m, basis: b.key}))}>
-                    <Text style={[styles.optionLabel, modal.basis === b.key && styles.optionLabelActive]}>{modal.basis===b.key?'◉ ':'○ '}{b.label}</Text>
-                    <Text style={styles.optionHint}>{b.hint}</Text>
+        {/* Правая панель */}
+        <View style={styles.right}>
+          {draft ? (
+            <Animated.ScrollView
+              contentContainerStyle={styles.editorContent}
+              style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
+              keyboardShouldPersistTaps="handled"
+            >
+              <Text style={styles.editorTitle}>{isNew ? 'Новый расход' : draft.name}</Text>
+
+              <View style={styles.infoCard}>
+                <Text style={styles.infoTxt}>
+                  Накладные расходы — постоянные затраты бизнеса, не зависящие от объёма продаж. Они учитываются в полном P&L и влияют на расчёт себестоимости каждого заказа.
+                </Text>
+              </View>
+
+              <View style={styles.divider} />
+
+              {/* Название */}
+              <Text style={styles.fieldLabel}>Название <Text style={{ color: colors.orange }}>*</Text></Text>
+              <TextInput style={styles.input} color={colors.text} value={draft.name} onChangeText={v => setDraft(d => ({ ...d, name: v }))} placeholder="Аренда, коммуналка, интернет..." placeholderTextColor={colors.muted} autoFocus={isNew} />
+
+              {/* Сумма и период */}
+              <View style={styles.labelRow}>
+                <Text style={styles.fieldLabel}>Сумма <Text style={{ color: colors.orange }}>*</Text></Text>
+              </View>
+              <View style={styles.inputRow}>
+                <TextInput style={[styles.input, { flex: 1 }]} color={colors.text} value={draft.amount} onChangeText={v => setDraft(d => ({ ...d, amount: v }))} keyboardType="numeric" placeholder="0" placeholderTextColor={colors.muted} />
+                <Text style={styles.unitTxt}>₽</Text>
+              </View>
+
+              <Text style={styles.fieldLabel}>Периодичность</Text>
+              <View style={styles.chips}>
+                {PERIODS.map(p => (
+                  <Pressable key={p.key} style={[styles.chip, draft.period === p.key && styles.chipActive]} onPress={() => setDraft(d => ({ ...d, period: p.key }))}>
+                    <Text style={[styles.chipTxt, draft.period === p.key && styles.chipTxtActive]}>{p.label}</Text>
                   </Pressable>
                 ))}
+              </View>
+              {draft.amount && draft.period !== 'month' && (
+                <Text style={styles.calcHint}>≈ {fmt(monthlyAmt({ amount: parseFloat(draft.amount)||0, period: draft.period }))} ₽/мес</Text>
+              )}
 
-                {modal.basis === 'hour' && <>
+              {/* База распределения */}
+              <View style={styles.labelRow}>
+                <Text style={styles.fieldLabel}>База распределения</Text>
+                <InfoTip title="База распределения" text="Как этот расход распределяется на единицу продукции — на заказ, час работы или процент от выручки." />
+              </View>
+              <View style={styles.chips}>
+                {BASES.map(b => (
+                  <Pressable key={b.key} style={[styles.chip, draft.basis === b.key && styles.chipActive]} onPress={() => setDraft(d => ({ ...d, basis: b.key }))}>
+                    <Text style={[styles.chipTxt, draft.basis === b.key && styles.chipTxtActive]}>{b.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={styles.hintTxt}>{BASES.find(b => b.key === draft.basis)?.hint}</Text>
+
+              {/* Значение базы */}
+              {draft.basis === 'hour' && (
+                <>
                   <Text style={styles.fieldLabel}>Рабочих часов в месяц</Text>
-                  <TextInput style={styles.input} value={modal.basis_value} onChangeText={v => setModal(m=>({...m, basis_value: v}))} keyboardType="numeric" placeholder="176" placeholderTextColor={colors.muted} />
-                </>}
-                {modal.basis === 'revenue_pct' && <>
-                  <Text style={styles.fieldLabel}>Процент от выручки, %</Text>
-                  <TextInput style={styles.input} value={modal.basis_value} onChangeText={v => setModal(m=>({...m, basis_value: v}))} keyboardType="numeric" placeholder="3" placeholderTextColor={colors.muted} />
-                </>}
+                  <View style={styles.inputRow}>
+                    <TextInput style={[styles.input, { flex: 1 }]} color={colors.text} value={draft.basis_value} onChangeText={v => setDraft(d => ({ ...d, basis_value: v }))} keyboardType="numeric" placeholder="160" placeholderTextColor={colors.muted} />
+                    <Text style={styles.unitTxt}>ч</Text>
+                  </View>
+                  {draft.amount && draft.basis_value ? (
+                    <Text style={styles.calcHint}>≈ {fmt(monthlyAmt({ amount: parseFloat(draft.amount)||0, period: draft.period }) / (parseFloat(draft.basis_value)||1))} ₽/час</Text>
+                  ) : null}
+                </>
+              )}
+              {draft.basis === 'revenue_pct' && (
+                <>
+                  <Text style={styles.fieldLabel}>Процент от выручки</Text>
+                  <View style={styles.inputRow}>
+                    <TextInput style={[styles.input, { flex: 1 }]} color={colors.text} value={draft.basis_value} onChangeText={v => setDraft(d => ({ ...d, basis_value: v }))} keyboardType="numeric" placeholder="2" placeholderTextColor={colors.muted} />
+                    <Text style={styles.unitTxt}>%</Text>
+                  </View>
+                </>
+              )}
 
-                <MetalButton title="Сохранить" variant="success" onPress={save} style={{ marginTop: 10 }} />
-                {modal.id && <MetalButton title="Удалить" variant="danger" onPress={remove} style={{ marginTop: 6 }} />}
-              </ScrollView>
+              <Pressable style={styles.saveBtn} onPress={handleSave}>
+                <Text style={styles.saveBtnTxt}>{isNew ? 'Добавить' : 'Сохранить'}</Text>
+              </Pressable>
+              {!isNew && (
+                <Pressable style={styles.deleteBtn} onPress={handleDelete}>
+                  <Text style={styles.deleteBtnTxt}>Удалить</Text>
+                </Pressable>
+              )}
+
+            </Animated.ScrollView>
+          ) : (
+            <View style={styles.emptyRight}>
+              <Text style={styles.emptyRightTxt}>Выберите расход или нажмите «+ Добавить»</Text>
+              <Text style={styles.emptyRightSub}>Постоянные затраты учитываются в полном P&L отчёте</Text>
             </View>
           )}
         </View>
-      </Modal>
+
+      </View>
+
+      <BottomBar navigation={navigation} activeTab="Kassa" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  inner: { padding: spacing.lg, paddingBottom: 20, maxWidth: 1100, width: '100%', alignSelf: 'center' },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 12, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: colors.border },
-  totalLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
-  totalValue: { fontFamily: fonts.family, fontSize: 18, fontWeight: '700', color: colors.greenLight },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
-  rowName: { fontFamily: fonts.family, fontSize: 14, color: colors.text },
-  rowSub: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
-  rowPrice: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
-  modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center' },
-  modalInner: { width: '52%', maxWidth: 480, maxHeight: '85%', backgroundColor: '#0e0f11', borderRadius: 20, padding: 24, borderWidth: 1, borderColor: 'rgba(74,77,84,0.5)' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  modalTitle: { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text },
-  modalClose: { fontSize: 18, color: colors.muted },
-  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, marginTop: 12 },
-  input: { padding: 13, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 15, marginBottom: 4, fontFamily: fonts.family },
-  chip: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border },
-  chipActive: { borderColor: 'rgba(61,158,146,0.5)', backgroundColor: 'rgba(61,158,146,0.1)' },
-  chipText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
-  chipTextActive: { color: colors.greenLight },
-  optionRow: { padding: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, marginBottom: 6 },
-  optionRowActive: { borderColor: 'rgba(61,158,146,0.5)', backgroundColor: 'rgba(61,158,146,0.08)' },
-  optionLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
-  optionLabelActive: { color: colors.greenLight },
-  optionHint: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
+  root:   { flex: 1, backgroundColor: colors.bg },
+  layout: { flex: 1, flexDirection: 'row' },
+
+  left:   { width: 280, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface },
+  totalCard: { margin: 10, backgroundColor: 'rgba(217,95,95,0.07)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(217,95,95,0.25)', padding: 14 },
+  totalLabel:{ fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 6 },
+  totalVal:  { fontFamily: fonts.family, fontSize: 28, fontWeight: '800', color: colors.red },
+
+  listHint: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, paddingHorizontal: 12, paddingBottom: 4 },
+  listCard: { margin: 8, backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  itemRow:  { flexDirection: 'row', alignItems: 'center', padding: 13, position: 'relative' },
+  itemRowDiv: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  itemRowActive: { backgroundColor: 'rgba(240,160,80,0.06)' },
+  activeBar: { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
+  itemName: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, marginBottom: 2 },
+  itemSub:  { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
+  itemAmt:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
+  itemMonthly: { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted },
+
+  emptyWrap: { padding: 24, alignItems: 'center' },
+  emptyTxt:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
+  emptyHint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 6, lineHeight: 18, opacity: 0.7 },
+
+  right:   { flex: 1, backgroundColor: colors.bg },
+  emptyRight: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
+  emptyRightTxt: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted, textAlign: 'center' },
+  emptyRightSub: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center', marginTop: 8, opacity: 0.6 },
+
+  editorContent: { padding: 24, paddingBottom: 40 },
+  editorTitle:   { fontFamily: fonts.family, fontSize: 24, fontWeight: '800', color: colors.text, marginBottom: 12 },
+  infoCard:  { backgroundColor: 'rgba(139,127,212,0.08)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(139,127,212,0.2)', padding: 14 },
+  infoTxt:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.textDim, lineHeight: 18 },
+  divider:   { height: 1, backgroundColor: colors.border, marginVertical: 20 },
+
+  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 16 },
+  labelRow:   { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, marginBottom: 8 },
+  input:      { backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, paddingVertical: 12, paddingHorizontal: 14, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 14 },
+  inputRow:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  unitTxt:    { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, width: 30 },
+  calcHint:   { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.orange, marginTop: 6 },
+  hintTxt:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 8, lineHeight: 18 },
+
+  chips:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip:       { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  chipActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.08)' },
+  chipTxt:    { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  chipTxtActive: { color: colors.orange },
+
+  saveBtn:    { backgroundColor: colors.orange, borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginTop: 24 },
+  saveBtnTxt: { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: '#fff' },
+  deleteBtn:  { borderRadius: 14, paddingVertical: 13, alignItems: 'center', marginTop: 10, borderWidth: 1, borderColor: 'rgba(217,95,95,0.4)', backgroundColor: 'rgba(217,95,95,0.07)' },
+  deleteBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red },
+
+  addBtn:     { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, backgroundColor: 'rgba(240,160,80,0.12)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)' },
+  addBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
 });
