@@ -1807,7 +1807,13 @@ export default function SettingsFullPanel({ navigation }) {
     setSyncing(true);
     try {
       const profile = getBusinessProfile();
-      const biz = await upsertBusiness(bookingSlug, profile?.business_name, profile?.business_type, {});
+      const settings = {
+        hoursFrom: profile?.work_hours_from || '09:00',
+        hoursTo: profile?.work_hours_to || '21:00',
+        slotDuration: profile?.slot_duration || 60,
+        timeSlotsEnabled: profile?.time_slots_enabled !== false,
+      };
+      const biz = await upsertBusiness(bookingSlug, profile?.business_name, profile?.business_type, settings);
       if (biz) {
         const products = getAllProductsAdmin();
         await syncServicesToSupabase(biz.id, products);

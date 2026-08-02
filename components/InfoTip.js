@@ -65,13 +65,13 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   card: {
-    backgroundColor: '#0e0f11',
+    backgroundColor: colors.surface,
     borderRadius: 20,
     padding: 24,
     maxWidth: 420,
     width: '100%',
     borderWidth: 1,
-    borderColor: 'rgba(74,77,84,0.5)',
+    borderColor: colors.border,
   },
   title: {
     fontFamily: fonts.family,
@@ -88,16 +88,16 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   btn: {
-    backgroundColor: 'rgba(61,158,146,0.15)',
+    backgroundColor: 'rgba(240,160,80,0.12)',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(61,158,146,0.4)',
+    borderColor: 'rgba(240,160,80,0.4)',
     padding: 13,
     alignItems: 'center',
   },
   btnText: {
     fontFamily: fonts.familySemibold,
     fontSize: 14,
-    color: colors.greenLight,
+    color: colors.orange,
   },
 });

@@ -39,7 +39,7 @@ export default function Toggle({ value, onValueChange, disabled = false, size = 
 
   const trackColor = anim.interpolate({
     inputRange:  [0, 1],
-    outputRange: ['rgba(74,77,84,0.55)', 'rgba(61,158,146,0.85)'],
+    outputRange: ['rgba(64,60,55,0.6)', 'rgba(240,160,80,0.85)'],
   });
 
   const thumbX = anim.interpolate({
