@@ -118,12 +118,12 @@ export default function App() {
         <AppBackground>
           <Stack.Navigator
             initialRouteName={initialRoute}
-            screenOptions={({ route }) => ({
+            screenOptions={{
               headerShown: false,
-              animation: route.params?.fromDrawer ? 'slide_from_left' : 'slide_from_right',
-              animationDuration: 380,
+              animation: 'fade',
+              animationDuration: 220,
               contentStyle: { backgroundColor: 'transparent' },
-            })}
+            }}
           >
             <Stack.Screen name="Onboarding"  component={OnboardingScreen} />
             <Stack.Screen name="Loyalty"     component={LoyaltyScreen} />
