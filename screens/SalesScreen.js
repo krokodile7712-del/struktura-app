@@ -136,7 +136,12 @@ export default function SalesScreen({ navigation }) {
   const openEdit = (o) => { setEditOrder(o); setEditTotal(String(o.total)); setEditMethod(o.method); };
   const confirmEdit = () => {
     if (!editOrder) return;
-    try { updateOrder(editOrder.id, { total: parseFloat(editTotal)||0, method: editMethod }); toast.show('Сохранено'); load(); } catch(e) {}
+    const found = payMethods.find(m => m.name === editMethod);
+    const method_type = found ? found.type
+      : editMethod === 'Наличные' ? 'cash'
+      : editMethod === 'Карта' ? 'card'
+      : undefined;
+    try { updateOrder(editOrder.id, { total: parseFloat(editTotal)||0, method: editMethod, method_type }); toast.show('Сохранено'); load(); } catch(e) {}
     setEditOrder(null);
   };
   const confirmReturn = () => {

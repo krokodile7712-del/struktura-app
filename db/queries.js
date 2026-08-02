@@ -1195,10 +1195,19 @@ export function deleteOrder(order_id) {
   db.runSync(`DELETE FROM orders WHERE id = ?`, [order_id]);
 }
 
-export function updateOrder(order_id, { total, method }) {
+export function updateOrder(order_id, { total, method, method_type }) {
   const db = getDb();
   try { db.execSync(`ALTER TABLE orders ADD COLUMN discount_pct REAL DEFAULT 0`); } catch (_) {}
-  db.runSync(`UPDATE orders SET total = ?, method = ? WHERE id = ?`, [total, method, order_id]);
+  if (method_type) {
+    // Смена способа оплаты — сбрасываем суммы смешанной оплаты,
+    // чтобы старые cash_amount/card_amount не искажали статистику
+    db.runSync(
+      `UPDATE orders SET total = ?, method = ?, method_type = ?, cash_amount = NULL, card_amount = NULL WHERE id = ?`,
+      [total, method, method_type, order_id]
+    );
+  } else {
+    db.runSync(`UPDATE orders SET total = ?, method = ? WHERE id = ?`, [total, method, order_id]);
+  }
 }
 
 // ─── История заказов клиента ──────────────────────────────────────────────
