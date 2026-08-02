@@ -741,6 +741,8 @@ export function createOrder({ total, method, methodType, shift_id, client_id, ca
       stockWarnings.push(...warnings);
     } catch (e) { console.error('[createOrder] Ошибка списания склада:', e); }
   }
+  try { incrementEquipmentCycles(orderId, items); } catch (e) { console.error('[createOrder] Ошибка счётчика оборудования:', e); }
+
   return { orderId, stockWarnings };
 }
 
@@ -879,10 +881,11 @@ export function closeShift(shift_id) {
     `UPDATE shifts SET closed_at=?, cash_total=?, card_total=?, status='closed' WHERE id=?`,
     [now, totals?.cash_total || 0, totals?.card_total || 0, shift_id]
   );
-  // Инкрементируем оборудование с ручным счётчиком — скрытно, раз в смену
+  // Инкрементируем оборудование со счётчиком "каждая смена" — раз в смену, даже если продаж не было
   try {
-    const manualEquip = db.getAllSync(`SELECT id, cycles_per_use FROM equipment WHERE counter_type = 'manual' AND active = 1`);
-    for (const eq of manualEquip) {
+    ensureEquipment(db);
+    const shiftEquip = db.getAllSync(`SELECT id, cycles_per_use FROM equipment WHERE counter_type = 'shift' AND active = 1`);
+    for (const eq of shiftEquip) {
       db.runSync(`UPDATE equipment SET current_cycles = current_cycles + ? WHERE id = ?`, [eq.cycles_per_use || 1, eq.id]);
     }
   } catch(_) {}
@@ -2064,6 +2067,8 @@ export function applyPendingPriceSchedules() {
 
 function ensureEquipment(db) {
   try { db.execSync(`CREATE TABLE IF NOT EXISTS equipment (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, cost REAL DEFAULT 0, purchase_date TEXT DEFAULT '', amort_type TEXT DEFAULT 'linear', amort_period INTEGER DEFAULT 12, amort_cycles INTEGER DEFAULT 0, current_cycles INTEGER DEFAULT 0, counter_type TEXT DEFAULT 'order', counter_product_id INTEGER, cycles_per_use REAL DEFAULT 1, active INTEGER DEFAULT 1, created_at TEXT NOT NULL)`); } catch (_) {}
+  // Миграция: тип "вручную" убран из приложения — переносим на "каждая смена"
+  try { db.execSync(`UPDATE equipment SET counter_type = 'shift' WHERE counter_type = 'manual'`); } catch (_) {}
 }
 
 export function getEquipment() {
@@ -2107,28 +2112,28 @@ export function deleteEquipment(id) {
   db.runSync(`UPDATE equipment SET active = 0 WHERE id = ?`, [id]);
 }
 
-export function incrementEquipmentCycles(productId, orderId) {
+// Инкремент оборудования при оформлении заказа.
+// 'order'   — раз за заказ, независимо от числа позиций
+// 'product' — по каждой позиции с привязанным товаром, с учётом количества
+export function incrementEquipmentCycles(orderId, items) {
   const db = getDb(); ensureEquipment(db);
-  // Для оборудования с counter_type='order' — каждый заказ
+
   const byOrder = db.getAllSync(`SELECT * FROM equipment WHERE counter_type = 'order' AND active = 1`);
   for (const eq of byOrder) {
     db.runSync(`UPDATE equipment SET current_cycles = current_cycles + ? WHERE id = ?`, [eq.cycles_per_use||1, eq.id]);
   }
-  // Для оборудования с counter_type='product' — при продаже конкретного товара
-  if (productId) {
-    const byProduct = db.getAllSync(
-      `SELECT * FROM equipment WHERE counter_type = 'product' AND counter_product_id = ? AND active = 1`,
-      [productId]
-    );
-    for (const eq of byProduct) {
-      db.runSync(`UPDATE equipment SET current_cycles = current_cycles + ? WHERE id = ?`, [eq.cycles_per_use||1, eq.id]);
+
+  const byProduct = db.getAllSync(`SELECT * FROM equipment WHERE counter_type = 'product' AND active = 1`);
+  if (byProduct.length > 0 && items && items.length > 0) {
+    for (const item of items) {
+      if (!item.product_id) continue;
+      const qty = item.quantity || 1;
+      for (const eq of byProduct) {
+        if (eq.counter_product_id !== item.product_id) continue;
+        db.runSync(`UPDATE equipment SET current_cycles = current_cycles + ? WHERE id = ?`, [(eq.cycles_per_use||1) * qty, eq.id]);
+      }
     }
   }
-}
-
-export function manualIncrementEquipment(id, cycles = 1) {
-  const db = getDb();
-  db.runSync(`UPDATE equipment SET current_cycles = current_cycles + ? WHERE id = ?`, [cycles, id]);
 }
 
 // Амортизация за заказ для включения в себестоимость

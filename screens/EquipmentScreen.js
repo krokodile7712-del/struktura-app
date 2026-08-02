@@ -6,7 +6,7 @@ import InfoTip from '../components/InfoTip';
 import Toggle from '../components/Toggle';
 import { useFocusEffect } from '@react-navigation/native';
 import DatePicker from '../components/DatePicker';
-import { getEquipment, addEquipment, updateEquipment, deleteEquipment, manualIncrementEquipment, getAllProducts } from '../db/queries';
+import { getEquipment, addEquipment, updateEquipment, deleteEquipment, getAllProducts } from '../db/queries';
 import { getHomeRoute } from '../db/session';
 import { colors, fonts } from '../constants/theme';
 
@@ -18,7 +18,7 @@ const AMORT_TYPES = [
 const COUNTER_TYPES = [
   { key: 'order',   label: 'Каждый заказ',   hint: 'Счётчик растёт при каждом оформленном заказе.' },
   { key: 'product', label: 'Продажа товара',  hint: 'Счётчик растёт только при продаже выбранного товара.' },
-  { key: 'manual',  label: 'Вручную',         hint: 'Сотрудник нажимает + когда использовал оборудование.' },
+  { key: 'shift',   label: 'Каждая смена',    hint: 'Счётчик растёт при каждом закрытии смены — даже если продаж не было.' },
 ];
 const EMPTY = { name: '', cost: '', purchase_date: '', amort_type: 'linear', amort_period: '36', amort_cycles: '0', counter_type: 'order', counter_product_id: null, cycles_per_use: '1' };
 
@@ -108,10 +108,6 @@ export default function EquipmentScreen({ navigation }) {
         try { deleteEquipment(selected.id); load(); setDraft(null); setSelected(null); } catch(e) {}
       }}
     ]);
-  };
-
-  const handleManual = (item) => {
-    try { manualIncrementEquipment(item.id, parseInt(item.cycles_per_use)||1); load(); } catch(e) {}
   };
 
   return (
@@ -342,8 +338,6 @@ const styles = StyleSheet.create({
   wearTrack:{ height: 4, backgroundColor: colors.border, borderRadius: 2, overflow: 'hidden', marginBottom: 3 },
   wearFill: { height: '100%', borderRadius: 2 },
   wearTxt:  { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted },
-  manualBtn:{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.3)', marginLeft: 8 },
-  manualBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
 
   emptyWrap: { padding: 32, alignItems: 'center' },
   emptyTxt:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
