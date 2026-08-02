@@ -42,7 +42,7 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
     }
   }, [visible]);
 
-  const nav = (screen) => { onClose(); setTimeout(() => navigation.navigate(screen, { fromDrawer: true }), 80); };
+  const nav = (screen) => { navigation.navigate(screen, { fromDrawer: true }); onClose(); };
 
   const SECTIONS = [
     {
