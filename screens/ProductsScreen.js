@@ -20,7 +20,7 @@ import {
 } from '../db/queries';
 import { getDb } from '../db/database';
 import { getHomeRoute, can } from '../db/session';
-import { colors, fonts } from '../constants/theme';
+import { colors, fonts, anim } from '../constants/theme';
 
 const fmt = n => (n||0).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
@@ -53,10 +53,10 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
   const fadeAnim  = useState(new Animated.Value(0))[0];
 
   useEffect(() => {
-    slideAnim.setValue(20); fadeAnim.setValue(0);
+    slideAnim.setValue(anim.slideFrom); fadeAnim.setValue(0);
     Animated.parallel([
-      Animated.timing(fadeAnim,  { toValue: 1, duration: 280, useNativeDriver: true }),
-      Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 12, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: anim.fadeDuration, useNativeDriver: true }),
+      Animated.spring(slideAnim, { toValue: 0, ...anim.spring, useNativeDriver: true }),
     ]).start();
   }, [product?.id]);
 

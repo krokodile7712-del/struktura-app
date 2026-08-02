@@ -6,7 +6,7 @@ import InfoTip from '../components/InfoTip';
 import { useFocusEffect } from '@react-navigation/native';
 import { getOverheadItems, addOverheadItem, updateOverheadItem, deleteOverheadItem } from '../db/queries';
 import { getHomeRoute } from '../db/session';
-import { colors, fonts } from '../constants/theme';
+import { colors, fonts, anim } from '../constants/theme';
 
 const PERIODS = [
   { key: 'month', label: 'В месяц' },
@@ -44,10 +44,10 @@ export default function OverheadsScreen({ navigation }) {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const animate = () => {
-    fadeAnim.setValue(0); slideAnim.setValue(20);
+    fadeAnim.setValue(0); slideAnim.setValue(anim.slideFrom);
     Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 280, useNativeDriver: true }),
-      Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 12, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: anim.fadeDuration, useNativeDriver: true }),
+      Animated.spring(slideAnim, { toValue: 0, ...anim.spring, useNativeDriver: true }),
     ]).start();
   };
 

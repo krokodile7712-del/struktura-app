@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Animated } from 'react-native';
-import { colors, fonts } from '../constants/theme';
+import { colors, fonts, anim } from '../constants/theme';
 import { getSession } from '../db/session';
 
 const TABS = [
@@ -17,13 +17,13 @@ export default function BottomBar({ navigation, activeTab }) {
   useEffect(() => {
     Animated.spring(indicatorAnim, {
       toValue: activeIndex,
-      tension: 70, friction: 12,
+      ...anim.spring,
       useNativeDriver: true,
     }).start();
     TABS.forEach((_, i) => {
       Animated.spring(scaleAnims[i], {
         toValue: i === activeIndex ? 1 : 0.96,
-        tension: 70, friction: 10,
+        ...anim.spring,
         useNativeDriver: true,
       }).start();
     });

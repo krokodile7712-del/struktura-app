@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, Pressable,
   Animated, Dimensions, ScrollView, Modal,
 } from 'react-native';
-import { colors, fonts } from '../constants/theme';
+import { colors, fonts, anim } from '../constants/theme';
 import { getSession, can } from '../db/session';
 import { getBusinessProfile, getOpenShift } from '../db/queries';
 
@@ -29,15 +29,15 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
       setTick(t => t + 1); // форс-рендер чтобы перечитать права
 
       Animated.parallel([
-        Animated.spring(translateX, { toValue: 0, useNativeDriver: true, tension: 65, friction: 11 }),
-        Animated.timing(backdropOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
-        Animated.timing(contentOpacity, { toValue: 1, duration: 300, delay: 80, useNativeDriver: true }),
+        Animated.spring(translateX, { toValue: 0, useNativeDriver: true, ...anim.spring }),
+        Animated.timing(backdropOpacity, { toValue: 1, duration: 320, useNativeDriver: true }),
+        Animated.timing(contentOpacity, { toValue: 1, duration: 420, delay: 100, useNativeDriver: true }),
       ]).start();
     } else {
       contentOpacity.setValue(0);
       Animated.parallel([
-        Animated.timing(translateX, { toValue: -DRAWER_W, duration: 200, useNativeDriver: true }),
-        Animated.timing(backdropOpacity, { toValue: 0, duration: 180, useNativeDriver: true }),
+        Animated.timing(translateX, { toValue: -DRAWER_W, duration: 280, useNativeDriver: true }),
+        Animated.timing(backdropOpacity, { toValue: 0, duration: 260, useNativeDriver: true }),
       ]).start();
     }
   }, [visible]);

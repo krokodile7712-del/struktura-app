@@ -8,7 +8,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import DatePicker from '../components/DatePicker';
 import { getEquipment, addEquipment, updateEquipment, deleteEquipment, getAllProducts } from '../db/queries';
 import { getHomeRoute } from '../db/session';
-import { colors, fonts } from '../constants/theme';
+import { colors, fonts, anim } from '../constants/theme';
 
 const AMORT_TYPES = [
   { key: 'linear',     label: 'Линейная',   hint: 'Стоимость ÷ срок (мес.) = сумма в месяц. Не зависит от загрузки.' },
@@ -82,10 +82,10 @@ export default function EquipmentScreen({ navigation }) {
   };
 
   const animate = () => {
-    fadeAnim.setValue(0); slideAnim.setValue(20);
+    fadeAnim.setValue(0); slideAnim.setValue(anim.slideFrom);
     Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 280, useNativeDriver: true }),
-      Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 12, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: anim.fadeDuration, useNativeDriver: true }),
+      Animated.spring(slideAnim, { toValue: 0, ...anim.spring, useNativeDriver: true }),
     ]).start();
   };
 

@@ -5,7 +5,7 @@ import BottomBar from '../components/BottomBar';
 import { useFocusEffect } from '@react-navigation/native';
 import { getWorkJournal, getOrderItemsWithNotes } from '../db/queries';
 import { getHomeRoute } from '../db/session';
-import { colors, fonts } from '../constants/theme';
+import { colors, fonts, anim } from '../constants/theme';
 
 const fmt = n => Math.round(n||0).toLocaleString('ru-RU');
 
@@ -28,15 +28,19 @@ export default function WorkJournalScreen({ navigation }) {
   const [expanded, setExpanded] = useState(null);
   const [itemsMap, setItemsMap] = useState({});
   const fadeAnim = useState(new Animated.Value(0))[0];
+  const slideAnim = useState(new Animated.Value(anim.slideFrom))[0];
 
   const load = useCallback(() => {
     try {
       setEntries(getWorkJournal({ limit: 100 }));
-      Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: true }).start();
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: anim.fadeDuration, useNativeDriver: true }),
+        Animated.spring(slideAnim, { toValue: 0, ...anim.spring, useNativeDriver: true }),
+      ]).start();
     } catch(e) { console.error(e); }
   }, []);
 
-  useFocusEffect(useCallback(() => { fadeAnim.setValue(0); load(); }, [load]));
+  useFocusEffect(useCallback(() => { fadeAnim.setValue(0); slideAnim.setValue(anim.slideFrom); load(); }, [load]));
 
   const toggleExpand = (id) => {
     if (expanded === id) { setExpanded(null); return; }
@@ -56,7 +60,7 @@ export default function WorkJournalScreen({ navigation }) {
     <View style={styles.root}>
       <TopBar title="Журнал работы" onBack={() => navigation.navigate(getHomeRoute())} />
 
-      <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+      <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
         {/* Поиск */}
         <View style={styles.searchWrap}>
           <TextInput

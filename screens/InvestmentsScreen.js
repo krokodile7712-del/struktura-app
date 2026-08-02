@@ -7,7 +7,7 @@ import DatePicker from '../components/DatePicker';
 import { useFocusEffect } from '@react-navigation/native';
 import { getInvestments, addInvestment, updateInvestment, deleteInvestment, getInvestmentSummary, getPnL } from '../db/queries';
 import { getHomeRoute } from '../db/session';
-import { colors, fonts } from '../constants/theme';
+import { colors, fonts, anim } from '../constants/theme';
 
 const CATEGORIES = [
   { key: 'equipment',  label: 'Оборудование' },
@@ -48,10 +48,10 @@ export default function InvestmentsScreen({ navigation }) {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const animate = () => {
-    fadeAnim.setValue(0); slideAnim.setValue(20);
+    fadeAnim.setValue(0); slideAnim.setValue(anim.slideFrom);
     Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 280, useNativeDriver: true }),
-      Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 12, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: anim.fadeDuration, useNativeDriver: true }),
+      Animated.spring(slideAnim, { toValue: 0, ...anim.spring, useNativeDriver: true }),
     ]).start();
   };
 

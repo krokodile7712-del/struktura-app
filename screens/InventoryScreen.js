@@ -10,7 +10,7 @@ import {
   getAllStock,
 } from '../db/queries';
 import { getHomeRoute } from '../db/session';
-import { colors, fonts } from '../constants/theme';
+import { colors, fonts, anim } from '../constants/theme';
 
 const fmt = n => Math.round(n||0).toLocaleString('ru-RU');
 
@@ -37,13 +37,18 @@ export default function InventoryScreen({ navigation }) {
   const [actItems, setActItems]     = useState([]);
   const [actVals, setActVals]       = useState({});
   const fadeAnim = useState(new Animated.Value(0))[0];
+  const slideAnim = useState(new Animated.Value(anim.slideFrom))[0];
 
   const load = useCallback(() => {
     try {
       setActs(getInventoryActs());
       setStock(getAllStock());
       fadeAnim.setValue(0);
-      Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: true }).start();
+      slideAnim.setValue(anim.slideFrom);
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: anim.fadeDuration, useNativeDriver: true }),
+        Animated.spring(slideAnim, { toValue: 0, ...anim.spring, useNativeDriver: true }),
+      ]).start();
     } catch(e) { console.error(e); }
   }, []);
 
@@ -117,7 +122,7 @@ export default function InventoryScreen({ navigation }) {
         }
       />
 
-      <Animated.View style={[{ flex: 1 }, { opacity: fadeAnim }]}>
+      <Animated.View style={[{ flex: 1 }, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
 
         {/* Подсказка */}
         <View style={styles.infoCard}>

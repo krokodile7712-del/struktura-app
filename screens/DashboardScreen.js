@@ -12,7 +12,7 @@ import {
   getDashboardStats, getRoleNames,
 } from '../db/queries';
 import { getSession, can } from '../db/session';
-import { colors, fonts } from '../constants/theme';
+import { colors, fonts, anim } from '../constants/theme';
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -87,7 +87,7 @@ export default function DashboardScreen({ navigation }) {
 
   const animWidth = useState(new Animated.Value(220))[0];
   const fadeAnim  = useState(new Animated.Value(0))[0];
-  const slideAnim = useState(new Animated.Value(16))[0];
+  const slideAnim = useState(new Animated.Value(anim.slideFrom))[0];
 
   const load = useCallback(() => {
     try {
@@ -101,10 +101,10 @@ export default function DashboardScreen({ navigation }) {
       setSessionName(sess?.name?.split(' ')[0] || '');
     } catch(e) { console.error(e); }
 
-    fadeAnim.setValue(0); slideAnim.setValue(16);
+    fadeAnim.setValue(0); slideAnim.setValue(anim.slideFrom);
     Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: true }),
-      Animated.spring(slideAnim, { toValue: 0, tension: 70, friction: 12, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: anim.fadeDuration, useNativeDriver: true }),
+      Animated.spring(slideAnim, { toValue: 0, ...anim.spring, useNativeDriver: true }),
     ]).start();
   }, []);
 
@@ -118,6 +118,12 @@ export default function DashboardScreen({ navigation }) {
       tension: 40,
       friction: 10,
     }).start();
+    fadeAnim.setValue(0);
+    slideAnim.setValue(anim.slideFrom);
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: anim.fadeDuration, useNativeDriver: true }),
+      Animated.spring(slideAnim, { toValue: 0, ...anim.spring, useNativeDriver: true }),
+    ]).start();
   };
 
   // Разделы по правам
@@ -196,7 +202,7 @@ export default function DashboardScreen({ navigation }) {
 
         {/* Правая панель */}
         <View style={styles.rightPanel}>
-          <Animated.View style={[{ flex: 1 }, { opacity: fadeAnim }]}>
+          <Animated.View style={[{ flex: 1 }, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
             {renderRight()}
           </Animated.View>
         </View>

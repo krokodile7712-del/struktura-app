@@ -17,7 +17,7 @@ import StockPanel from '../components/panels/StockPanel';
 import ExpensesPanel from '../components/panels/ExpensesPanel';
 import BookingsPanel from '../components/panels/BookingsPanel';
 import SettingsFullPanel from '../components/panels/SettingsFullPanel';
-import { colors, fonts, spacing } from '../constants/theme';
+import { colors, fonts, spacing, anim } from '../constants/theme';
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -139,6 +139,8 @@ export default function AdminScreen({ navigation }) {
   const [active, setActive]           = useState('dash');
   const [sessionName, setSessionName]   = useState('');
   const animWidth = useState(new Animated.Value(220))[0];
+  const fadeAnim  = useState(new Animated.Value(1))[0];
+  const slideAnim = useState(new Animated.Value(0))[0];
 
   const setActiveAnimated = (key) => {
     setActive(key);
@@ -149,6 +151,12 @@ export default function AdminScreen({ navigation }) {
       tension: 40,
       friction: 10,
     }).start();
+    fadeAnim.setValue(0);
+    slideAnim.setValue(anim.slideFrom);
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: anim.fadeDuration, useNativeDriver: true }),
+      Animated.spring(slideAnim, { toValue: 0, ...anim.spring, useNativeDriver: true }),
+    ]).start();
   };
 
   const loadStats = useCallback(() => {
@@ -232,7 +240,9 @@ export default function AdminScreen({ navigation }) {
 
         {/* Правая панель */}
         <View style={styles.rightPanel}>
-          {renderRight()}
+          <Animated.View style={[{ flex: 1 }, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+            {renderRight()}
+          </Animated.View>
         </View>
       </View>
 
