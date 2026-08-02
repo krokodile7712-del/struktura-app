@@ -33,6 +33,9 @@ export default function InventoryScreen({ navigation }) {
   const [showSetup, setShowSetup]   = useState(false);
   const [scope, setScope]           = useState('all');
   const [expanded, setExpanded]     = useState(null);
+  const [activeAct, setActiveAct]   = useState(null);
+  const [actItems, setActItems]     = useState([]);
+  const [actVals, setActVals]       = useState({});
   const fadeAnim = useState(new Animated.Value(0))[0];
 
   const load = useCallback(() => {
