@@ -1,12 +1,13 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal, Alert, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Modal, Alert, Animated, TextInput } from 'react-native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import InfoTip from '../components/InfoTip';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   getInventoryActs, createInventoryAct, deleteInventoryAct,
-  getAllStock, getBusinessProfile,
+  setInventoryItemActual, confirmInventoryAct,
+  getAllStock,
 } from '../db/queries';
 import { getHomeRoute } from '../db/session';
 import { colors, fonts } from '../constants/theme';
@@ -44,6 +45,43 @@ export default function InventoryScreen({ navigation }) {
   }, []);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const openAct = (act) => {
+    try {
+      const db = require('../db/database').getDb();
+      const items = db.getAllSync('SELECT * FROM inventory_act_items WHERE act_id = ? ORDER BY stock_name', [act.id]);
+      setActItems(items);
+      const vals = {};
+      items.forEach(i => { vals[i.id] = i.actual !== null && i.actual !== undefined ? String(i.actual) : ''; });
+      setActVals(vals);
+      setActiveAct(act);
+    } catch(e) { console.error(e); }
+  };
+
+  const saveActItem = (itemId, val) => {
+    try {
+      const num = parseFloat(val);
+      if (!isNaN(num)) setInventoryItemActual(itemId, num);
+    } catch(e) {}
+  };
+
+  const handleConfirm = () => {
+    Alert.alert('Подтвердить инвентаризацию?', 'Фактические остатки будут применены к складу', [
+      { text: 'Отмена' },
+      { text: 'Подтвердить', onPress: () => {
+        try {
+          // Сохраняем все введённые значения
+          Object.entries(actVals).forEach(([id, val]) => {
+            const num = parseFloat(val);
+            if (!isNaN(num)) setInventoryItemActual(parseInt(id), num);
+          });
+          confirmInventoryAct(activeAct.id);
+          setActiveAct(null);
+          load();
+        } catch(e) { Alert.alert('Ошибка', e.message); }
+      }}
+    ]);
+  };
 
   const handleCreate = () => {
     try {
@@ -150,6 +188,11 @@ export default function InventoryScreen({ navigation }) {
                         </>
                       )}
 
+                      {act.status === 'draft' && (
+                          <Pressable style={styles.fillBtn} onPress={() => openAct(act)}>
+                            <Text style={styles.fillBtnTxt}>Заполнить фактические остатки →</Text>
+                          </Pressable>
+                        )}
                       <Pressable style={styles.deleteBtn} onPress={() => handleDelete(act.id)}>
                         <Text style={styles.deleteBtnTxt}>Удалить акт</Text>
                       </Pressable>
@@ -163,6 +206,47 @@ export default function InventoryScreen({ navigation }) {
       </Animated.View>
 
       <BottomBar navigation={navigation} activeTab="Kassa" />
+
+      {/* Экран заполнения акта */}
+      <Modal visible={!!activeAct} transparent={false} animationType="slide">
+        <View style={styles.fillRoot}>
+          <View style={styles.fillHeader}>
+            <Pressable onPress={() => setActiveAct(null)} style={styles.fillBack}>
+              <Text style={styles.fillBackTxt}>← Назад</Text>
+            </Pressable>
+            <Text style={styles.fillTitle}>Фактические остатки</Text>
+            <Pressable style={styles.confirmBtn} onPress={handleConfirm}>
+              <Text style={styles.confirmBtnTxt}>Подтвердить</Text>
+            </Pressable>
+          </View>
+          <View style={styles.fillTableHeader}>
+            <Text style={[styles.fillHd, { flex: 2 }]}>Позиция</Text>
+            <Text style={styles.fillHd}>По системе</Text>
+            <Text style={styles.fillHd}>Факт</Text>
+          </View>
+          <ScrollView keyboardShouldPersistTaps="handled">
+            {actItems.map((item, idx) => (
+              <View key={item.id} style={[styles.fillRow, idx < actItems.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
+                <View style={{ flex: 2 }}>
+                  <Text style={styles.fillName}>{item.stock_name}</Text>
+                  <Text style={styles.fillUnit}>{item.unit}</Text>
+                </View>
+                <Text style={styles.fillExpected}>{item.expected}</Text>
+                <TextInput
+                  style={[styles.fillInput, actVals[item.id] && parseFloat(actVals[item.id]) !== item.expected && { borderColor: colors.orange, color: colors.orange }]}
+                  color={colors.text}
+                  value={actVals[item.id]}
+                  onChangeText={v => setActVals(prev => ({ ...prev, [item.id]: v }))}
+                  onBlur={() => saveActItem(item.id, actVals[item.id])}
+                  keyboardType="numeric"
+                  placeholder={String(item.expected)}
+                  placeholderTextColor={colors.muted}
+                />
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      </Modal>
 
       {/* Модалка создания акта */}
       <Modal visible={showSetup} transparent animationType="fade" onRequestClose={() => setShowSetup(false)}>
