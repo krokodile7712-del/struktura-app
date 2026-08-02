@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, Animated, Mod
 import TopBar from '../components/TopBar';
 import { getOpenShift, getShiftSummary, closeShift, getTerms, pluralizeRu, getPayMethods } from '../db/queries';
 import { useToast } from '../components/Toast';
+import { useFocusEffect } from '@react-navigation/native';
 import { clearSession, getHomeRoute } from '../db/session';
 import { colors, fonts } from '../constants/theme';
 
