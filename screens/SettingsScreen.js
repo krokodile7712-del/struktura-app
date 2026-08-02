@@ -142,6 +142,7 @@ export default function SettingsScreen({ navigation }) {
       setBizDraft({
         taxSystem:     profile.tax_system      || 'usn_income',
         vatRate:       profile.vat_rate        || 'none',
+        autoFiscal:    profile.auto_fiscal     === '1',
         businessType:  profile.business_type  || 'cafe',
         timeSlotsEnabled: profile.time_slots_enabled !== false,
         slotDuration:  String(profile.slot_duration || '60'),
@@ -175,6 +176,7 @@ export default function SettingsScreen({ navigation }) {
         businessName:  bizDraft.businessName,
         taxSystem:         bizDraft.taxSystem,
         vatRate:           bizDraft.vatRate,
+        autoFiscal:        !!bizDraft.autoFiscal,
         businessType:      bizDraft.businessType,
         timeSlotsEnabled:  bizDraft.timeSlotsEnabled !== false,
         slotDuration:      parseInt(bizDraft.slotDuration) || 60,
@@ -1475,18 +1477,23 @@ export default function SettingsScreen({ navigation }) {
             </>
           )}
 
-          {/* ФНС */}
-          <Text style={styles.bizGroupLabel}>Касса и ФНС</Text>
+          {/* КАССА И ЧЕК */}
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={styles.bizGroupLabel}>Касса и чек</Text>
+            <InfoTip
+              title="Фискализация"
+              text="Эти настройки определяют, что будет указано на чеке (ИНН, система налогообложения, ставка НДС), когда вы подключите кассовое оборудование или облачную кассу. Пока оборудования нет — чеки копятся в очереди без отправки в ФНС."
+            />
+          </View>
           <View style={styles.menuCard}>
             <View style={[styles.menuRow, styles.menuRowDiv, { flexDirection: 'column', alignItems: 'flex-start', paddingVertical: 14 }]}>
               <Text style={[styles.bizFieldLabel, { marginBottom: 10 }]}>Система налогообложения (СНО)</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                 {[
                   { key: 'usn_income',        label: 'УСН доходы' },
-                  { key: 'usn_income_outcome', label: 'УСН д-р' },
+                  { key: 'usn_income_outcome', label: 'УСН доходы-расходы' },
                   { key: 'osn',               label: 'ОСНО' },
-                  { key: 'envd',              label: 'ЕНВД' },
-                  { key: 'esn',               label: 'ЕСН' },
+                  { key: 'esn',               label: 'ЕСХН' },
                   { key: 'patent',            label: 'Патент' },
                 ].map(t => (
                   <TouchableOpacity key={t.key}
@@ -1497,12 +1504,14 @@ export default function SettingsScreen({ navigation }) {
                 ))}
               </View>
             </View>
-            <View style={styles.bizFieldRow}>
-              <Text style={styles.bizFieldLabel}>НДС по умолчанию</Text>
-              <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <View style={[styles.menuRow, styles.menuRowDiv, { flexDirection: 'column', alignItems: 'flex-start', paddingVertical: 14 }]}>
+              <Text style={[styles.bizFieldLabel, { marginBottom: 10 }]}>НДС по умолчанию</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                 {[
                   { key: 'none', label: 'Без НДС' },
                   { key: 'vat0', label: '0%' },
+                  { key: 'vat5', label: '5%' },
+                  { key: 'vat7', label: '7%' },
                   { key: 'vat10', label: '10%' },
                   { key: 'vat20', label: '20%' },
                 ].map(t => (
@@ -1514,11 +1523,16 @@ export default function SettingsScreen({ navigation }) {
                 ))}
               </View>
             </View>
-          </View>
-
-          {/* ЧЕК */}
-          <Text style={styles.bizGroupLabel}>Чек и печать</Text>
-          <View style={styles.menuCard}>
+            <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', paddingRight: 12 }}>
+                <Text style={styles.bizFieldLabel}>Автоматическая очередь чеков</Text>
+                <InfoTip
+                  title="Автоматическая очередь чеков"
+                  text="Если включено — каждый оплаченный или возвращённый заказ сам встаёт в очередь на фискализацию. Если выключено — чек нужно ставить в очередь вручную кнопкой «Чек» в разделе Продажи."
+                />
+              </View>
+              <Toggle value={!!bizDraft.autoFiscal} onValueChange={v => setBizDraft(d => ({ ...d, autoFiscal: v }))} />
+            </View>
             <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
               <Text style={styles.bizFieldLabel}>Название на чеке</Text>
               <TextInput color={colors.text} style={styles.bizInput} value={bizDraft.receiptName} onChangeText={v => setBizDraft(d => ({ ...d, receiptName: v }))} placeholder={bizDraft.businessName || 'Как в основном'} placeholderTextColor={colors.muted} />
@@ -1527,6 +1541,10 @@ export default function SettingsScreen({ navigation }) {
               <Text style={styles.bizFieldLabel}>Текст подвала</Text>
               <TextInput color={colors.text} style={styles.bizInput} value={bizDraft.receiptFooter} onChangeText={v => setBizDraft(d => ({ ...d, receiptFooter: v }))} placeholder="Спасибо за покупку!" placeholderTextColor={colors.muted} />
             </View>
+          </View>
+          <View style={styles.fiscalStatusCard}>
+            <Text style={styles.fiscalStatusTxt}>Касса не подключена</Text>
+            <Text style={styles.fiscalStatusHint}>Чеки копятся в очереди в разделе Продажи и отправятся в ФНС автоматически, как только будет подключено оборудование или облачная касса.</Text>
           </View>
           <Pressable style={({ pressed }) => [styles.bizPreviewBtn, pressed && { opacity: 0.8 }]} onPress={() => setReceiptPreview(true)}>
             <Text style={styles.bizPreviewBtnText}>👁 Предпросмотр чека</Text>
@@ -3059,6 +3077,10 @@ const styles = StyleSheet.create({
   bizInput: { flex: 1, fontFamily: fonts.familyRegular, fontSize: 13, color: colors.text, textAlign: 'right', padding: 0 },
   bizPreviewBtn: { marginTop: 8, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', backgroundColor: 'rgba(61,158,146,0.06)' },
   bizPreviewBtnText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
+
+  fiscalStatusCard: { marginTop: 8, marginBottom: 8, backgroundColor: 'rgba(240,160,80,0.06)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(240,160,80,0.2)', padding: 12 },
+  fiscalStatusTxt:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.orange, marginBottom: 4 },
+  fiscalStatusHint: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, lineHeight: 16 },
   bizCurrencyChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface2 },
   bizCurrencyChipActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.08)' },
   bizCurrencyText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },

@@ -156,10 +156,12 @@ export function spendPoints(client_id, points) {
 export function updateBusinessProfile({ businessName, modules, terms, roles, units, accessKey,
   logoBase64, phone, address, city, workHoursFrom, workHoursTo, inn, preset,
   receiptName, receiptFooter, currency, dateFormat,
-  email, whatsapp, telegram, instagram, vk, website, theme }) {
+  email, whatsapp, telegram, instagram, vk, website, theme,
+  taxSystem, vatRate, autoFiscal, businessType, timeSlotsEnabled, slotDuration }) {
   const db = getDb();
   const cols = ['logo_base64','phone','address','city','work_hours_from','work_hours_to','inn','preset',
-    'receipt_name','receipt_footer','currency','date_format','email','whatsapp','telegram','instagram','vk','website','theme'];
+    'receipt_name','receipt_footer','currency','date_format','email','whatsapp','telegram','instagram','vk','website','theme',
+    'tax_system','vat_rate','auto_fiscal','business_type','time_slots_enabled','slot_duration'];
   for (const col of cols) {
     try { db.execSync(`ALTER TABLE business_profile ADD COLUMN ${col} TEXT DEFAULT ''`); } catch (_) {}
   }
@@ -190,18 +192,26 @@ export function updateBusinessProfile({ businessName, modules, terms, roles, uni
     vk              ?? '',
     website         ?? '',
     theme           ?? 'dark',
+    taxSystem       ?? '',
+    vatRate         ?? '',
+    autoFiscal      ? '1' : '',
+    businessType    ?? '',
+    timeSlotsEnabled === false ? '' : '1',
+    slotDuration    ? String(slotDuration) : '',
   ];
   const fields = `business_name=?,modules=?,terms=?,roles=?,units=?,access_key=?,
     logo_base64=?,phone=?,address=?,city=?,work_hours_from=?,work_hours_to=?,inn=?,preset=?,
-    receipt_name=?,receipt_footer=?,currency=?,date_format=?,email=?,whatsapp=?,telegram=?,instagram=?,vk=?,website=?,theme=?`;
+    receipt_name=?,receipt_footer=?,currency=?,date_format=?,email=?,whatsapp=?,telegram=?,instagram=?,vk=?,website=?,theme=?,
+    tax_system=?,vat_rate=?,auto_fiscal=?,business_type=?,time_slots_enabled=?,slot_duration=?`;
   if (existing) {
     db.runSync(`UPDATE business_profile SET ${fields} WHERE id=?`, [...payload, existing.id]);
   } else {
     db.runSync(
       `INSERT INTO business_profile (business_name,modules,terms,roles,units,access_key,
         logo_base64,phone,address,city,work_hours_from,work_hours_to,inn,preset,
-        receipt_name,receipt_footer,currency,date_format,email,whatsapp,telegram,instagram,vk,website,theme)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        receipt_name,receipt_footer,currency,date_format,email,whatsapp,telegram,instagram,vk,website,theme,
+        tax_system,vat_rate,auto_fiscal,business_type,time_slots_enabled,slot_duration)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       payload
     );
   }
@@ -742,6 +752,11 @@ export function createOrder({ total, method, methodType, shift_id, client_id, ca
     } catch (e) { console.error('[createOrder] Ошибка списания склада:', e); }
   }
   try { incrementEquipmentCycles(orderId, items); } catch (e) { console.error('[createOrder] Ошибка счётчика оборудования:', e); }
+
+  try {
+    const profile = getBusinessProfile();
+    if (profile?.auto_fiscal === '1') addToFiscalQueue(orderId, false);
+  } catch (e) { console.error('[createOrder] Ошибка автофискализации:', e); }
 
   return { orderId, stockWarnings };
 }
@@ -1925,6 +1940,12 @@ export function returnOrder(orderId) {
   }
 
   db.runSync(`UPDATE orders SET status = 'returned' WHERE id = ?`, [orderId]);
+
+  try {
+    const profile = getBusinessProfile();
+    if (profile?.auto_fiscal === '1') addToFiscalQueue(orderId, true);
+  } catch (e) { console.error('[returnOrder] Ошибка автофискализации:', e); }
+
   return true;
 }
 
@@ -2668,28 +2689,102 @@ export function getClientById(id) {
   return db.getFirstSync(`SELECT * FROM clients WHERE id = ?`, [id]) || null;
 }
 
-// ─── Фискализация ────────────────────────────────────────────────────────────
+// ─── Фискализация (подготовка к 54-ФЗ, без подключённой кассы) ────────────
+//
+// Коды соответствуют приказу ФНС № ЕД-7-20/662@ (реквизиты и форматы ФД).
+// Когда появится реальная касса/облачный провайдер (АТОЛ Онлайн, Такском и т.п.),
+// эти же коды и структура payload передаются в его API без переделки логики.
 
-export function addToFiscalQueue(orderId) {
-  const db = getDb();
-  // Создаём таблицу если не существует
+// Тег 1055 — применяемая система налогообложения
+const TAX_SYSTEM_CODE = {
+  osn: 0, usn_income: 1, usn_income_outcome: 2, envd: 3, esn: 4, patent: 5,
+};
+
+// Тег 1199 — ставка НДС
+const VAT_RATE_CODE = {
+  vat20: 1, vat10: 2, vat20_in: 3, vat10_in: 4, vat0: 5, none: 6, vat5: 7, vat7: 8,
+};
+
+// Тег 1212 — признак предмета расчёта (по умолчанию «товар»; для услугового
+// бизнеса при необходимости можно расширить на основе business_profile.business_type)
+const PAYMENT_OBJECT_GOODS   = 1;
+const PAYMENT_OBJECT_SERVICE = 4;
+
+// Тег 1214 — признак способа расчёта: полная оплата в момент передачи предмета расчёта
+const PAYMENT_METHOD_FULL = 4;
+
+function ensureFiscalQueue(db) {
   db.execSync(`CREATE TABLE IF NOT EXISTS fiscal_queue (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     order_id INTEGER NOT NULL,
     status TEXT DEFAULT 'pending',
     error_msg TEXT DEFAULT '',
+    payload TEXT DEFAULT '',
     created_at TEXT DEFAULT (datetime('now')),
     sent_at TEXT DEFAULT ''
   )`);
-  try { db.execSync(`ALTER TABLE orders ADD COLUMN receipt_status TEXT DEFAULT 'pending'`); } catch(_) {}
-  // Не добавляем дубли
+  try { db.execSync(`ALTER TABLE fiscal_queue ADD COLUMN payload TEXT DEFAULT ''`); } catch (_) {}
+  try { db.execSync(`ALTER TABLE orders ADD COLUMN receipt_status TEXT DEFAULT 'pending'`); } catch (_) {}
+}
+
+// Собирает корректный слепок чека на момент операции — данные бизнеса
+// и цены фиксируются здесь, чтобы дальнейшие изменения в Настройках
+// не искажали уже поставленные в очередь чеки.
+function buildFiscalPayload(order, items, isReturn) {
+  const profile = getBusinessProfile() || {};
+  const taxSystemCode = TAX_SYSTEM_CODE[profile.tax_system] ?? TAX_SYSTEM_CODE.usn_income;
+  const vatCode = VAT_RATE_CODE[profile.vat_rate] ?? VAT_RATE_CODE.none;
+  const paymentObject = PAYMENT_OBJECT_GOODS; // TODO: услуги — если бизнес их продаёт
+
+  return {
+    operation: isReturn ? 'return_receipt' : 'receipt', // тег 1054: приход / возврат прихода
+    order_id: order.id,
+    date: order.created_at,
+    organization: {
+      inn: profile.inn || '',
+      name: profile.receipt_name || profile.business_name || '',
+      tax_system_code: taxSystemCode,
+    },
+    payments: {
+      cash: order.cash_amount || 0,
+      card: order.card_amount || 0,
+    },
+    total: order.total,
+    items: (items || []).map(it => ({
+      name: it.name,
+      quantity: it.quantity || 1,
+      price: it.price,
+      sum: (it.price || 0) * (it.quantity || 1),
+      vat_code: vatCode,
+      payment_object: paymentObject,
+      payment_method: PAYMENT_METHOD_FULL,
+    })),
+  };
+}
+
+// Ставит заказ в очередь на фискализацию. Безопасно вызывать повторно —
+// дублей не создаёт. isReturn — true, если это чек на возврат.
+export function addToFiscalQueue(orderId, isReturn = false) {
+  const db = getDb();
+  ensureFiscalQueue(db);
+
   const exists = db.getFirstSync(`SELECT id FROM fiscal_queue WHERE order_id = ?`, [orderId]);
   if (exists) return;
-  db.runSync(`INSERT INTO fiscal_queue (order_id, status) VALUES (?, 'pending')`, [orderId]);
+
+  const order = db.getFirstSync(`SELECT * FROM orders WHERE id = ?`, [orderId]);
+  if (!order) return;
+  const items = db.getAllSync(`SELECT * FROM order_items WHERE order_id = ?`, [orderId]);
+
+  let payload = '';
+  try { payload = JSON.stringify(buildFiscalPayload(order, items, isReturn)); } catch (_) {}
+
+  db.runSync(`INSERT INTO fiscal_queue (order_id, status, payload) VALUES (?, 'pending', ?)`, [orderId, payload]);
+  db.runSync(`UPDATE orders SET receipt_status = 'pending' WHERE id = ?`, [orderId]);
 }
 
 export function getFiscalQueue(status) {
   const db = getDb();
+  ensureFiscalQueue(db);
   const where = status ? `WHERE fq.status = '${status}'` : '';
   return db.getAllSync(`
     SELECT fq.*, o.total, o.method, o.created_at as order_date
@@ -2702,6 +2797,7 @@ export function getFiscalQueue(status) {
 
 export function updateFiscalStatus(orderId, status, errorMsg) {
   const db = getDb();
+  ensureFiscalQueue(db);
   db.runSync(
     `UPDATE fiscal_queue SET status = ?, error_msg = ?, sent_at = datetime('now') WHERE order_id = ?`,
     [status, errorMsg || '', orderId]
@@ -2711,6 +2807,6 @@ export function updateFiscalStatus(orderId, status, errorMsg) {
 
 export function getFiscalStatus(orderId) {
   const db = getDb();
-  try { db.execSync(`CREATE TABLE IF NOT EXISTS fiscal_queue (id INTEGER PRIMARY KEY AUTOINCREMENT, order_id INTEGER NOT NULL, status TEXT DEFAULT 'pending', error_msg TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')), sent_at TEXT DEFAULT '')`); } catch(_) {}
+  ensureFiscalQueue(db);
   return db.getFirstSync(`SELECT status FROM fiscal_queue WHERE order_id = ?`, [orderId]);
 }
