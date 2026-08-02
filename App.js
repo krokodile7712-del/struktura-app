@@ -120,7 +120,8 @@ export default function App() {
             initialRouteName={initialRoute}
             screenOptions={{
               headerShown: false,
-              animation: 'fade',
+              animation: 'slide_from_right',
+              animationDuration: 380,
               contentStyle: { backgroundColor: 'transparent' },
             }}
           >
