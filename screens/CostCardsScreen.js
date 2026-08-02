@@ -355,6 +355,6 @@ const styles = StyleSheet.create({
   closeBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(74,77,84,0.25)', alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
   closeTxt: { fontSize: 13, color: colors.text, fontFamily: fonts.familySemibold },
 
-  confirmBtn:    { paddingVertical: 14, borderRadius: 14, backgroundColor: 'rgba(61,158,146,0.85)', alignItems: 'center' },
+  confirmBtn:    { paddingVertical: 14, borderRadius: 14, backgroundColor: 'rgba(240,160,80,0.85)', alignItems: 'center' },
   confirmBtnTxt: { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff' },
 });

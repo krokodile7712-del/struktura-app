@@ -937,7 +937,7 @@ export default function SettingsScreen({ navigation }) {
             ].map((m, idx) => (
               <Pressable
                 key={m.key}
-                style={[styles.menuRow, idx < 2 && styles.menuRowDiv, loyaltyModel === m.key && { backgroundColor: 'rgba(61,158,146,0.06)' }]}
+                style={[styles.menuRow, idx < 2 && styles.menuRowDiv, loyaltyModel === m.key && { backgroundColor: 'rgba(240,160,80,0.06)' }]}
                 onPress={() => setLoyaltyModel(m.key)}
               >
                 <Text style={{ fontSize: 22, marginRight: 12 }}>{m.icon}</Text>
@@ -3081,7 +3081,7 @@ const styles = StyleSheet.create({
   bizFieldRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, gap: 12 },
   bizFieldLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, width: 140 },
   bizInput: { flex: 1, fontFamily: fonts.familyRegular, fontSize: 13, color: colors.text, textAlign: 'right', padding: 0 },
-  bizPreviewBtn: { marginTop: 8, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', backgroundColor: 'rgba(61,158,146,0.06)' },
+  bizPreviewBtn: { marginTop: 8, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', backgroundColor: 'rgba(240,160,80,0.06)' },
   bizPreviewBtnText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
 
   fiscalStatusCard: { marginTop: 8, marginBottom: 8, backgroundColor: 'rgba(240,160,80,0.06)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(240,160,80,0.2)', padding: 12 },
@@ -3232,7 +3232,7 @@ const styles = StyleSheet.create({
   axisBlock: { marginTop: 10, padding: 10, borderWidth: 1, borderColor: 'rgba(61,95,168,0.35)', borderRadius: 12, backgroundColor: 'rgba(61,95,168,0.06)' },
   axisHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   axisValuesWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
-  axisValueChip: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(61,158,146,0.45)', borderRadius: 10, backgroundColor: 'rgba(240,160,80,0.08)', paddingHorizontal: 8, paddingVertical: 4 },
+  axisValueChip: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(240,160,80,0.45)', borderRadius: 10, backgroundColor: 'rgba(240,160,80,0.08)', paddingHorizontal: 8, paddingVertical: 4 },
   axisValueInput: { fontFamily: fonts.family, fontSize: 13, color: colors.text, minWidth: 40, maxWidth: 90, padding: 0 },
   axisValueRemove: { fontSize: 14, color: colors.red },
   addValueBtn: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed' },
@@ -3256,7 +3256,7 @@ const styles = StyleSheet.create({
   checkBox: { fontSize: 18, color: colors.orange, width: 22 },
   chipsRowSmall: { flexDirection: 'row', gap: 8, marginTop: 8 },
   chipSmall: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e' },
-  chipSmallActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(61,158,146,0.18)' },
+  chipSmallActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.18)' },
   chipSmallLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
   chipSmallLabelActive: { color: colors.orange },
 });

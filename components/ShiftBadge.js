@@ -157,9 +157,9 @@ const styles = StyleSheet.create({
   mainBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingVertical: 5, paddingHorizontal: 10,
-    backgroundColor: 'rgba(61,158,146,0.1)',
+    backgroundColor: 'rgba(240,160,80,0.1)',
     borderRadius: 18, borderWidth: 1,
-    borderColor: 'rgba(61,158,146,0.35)',
+    borderColor: 'rgba(240,160,80,0.35)',
   },
   mainBadgeClosed: {
     backgroundColor: 'rgba(74,77,84,0.1)',

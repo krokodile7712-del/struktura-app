@@ -578,7 +578,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  statusOk:  { color: 'rgba(61,158,146,0.7)' },
+  statusOk:  { color: colors.green },
   statusLow: { color: colors.red },
   statusNeg: { color: '#ff3b30' },
   qtyLow:    { color: colors.red },
@@ -594,7 +594,7 @@ const styles = StyleSheet.create({
   locBar:   { maxHeight: 44, borderBottomWidth: 1, borderBottomColor: colors.border },
   locInner: { paddingHorizontal: spacing.lg, paddingVertical: 8, gap: 8, flexDirection: 'row' },
   locChip:  { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e' },
-  locChipActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(240,160,80,0.08)' },
+  locChipActive: { borderColor: 'rgba(240,160,80,0.6)', backgroundColor: 'rgba(240,160,80,0.08)' },
   locChipText:   { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
 
   // Модалка
@@ -642,7 +642,7 @@ const styles = StyleSheet.create({
   histQty:    { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.text, flex: 1, textAlign: 'center' },
   priceRow:   { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
   priceInput: { paddingVertical: 4, paddingHorizontal: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 8, color: colors.text, fontFamily: fonts.family, fontSize: 14, minWidth: 70, textAlign: 'center' },
-  priceSaveBtn: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 8, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(61,158,146,0.4)' },
+  priceSaveBtn: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 8, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)' },
   priceSaveTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
   histPrice:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.orange, flex: 1, textAlign: 'right' },
 });

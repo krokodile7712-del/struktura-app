@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)',
     alignItems: 'center', minWidth: 80,
   },
-  statBoxMain: { borderColor: 'rgba(61,158,146,0.35)', flex: 1 },
+  statBoxMain: { borderColor: 'rgba(240,160,80,0.35)', flex: 1 },
   statVal: { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: colors.text },
   statValMain: { color: '#3d9e92', fontSize: 17 },
   statLabel: { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, marginTop: 2 },

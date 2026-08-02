@@ -31,7 +31,7 @@ export function ToastProvider({ children }) {
 
   const ICONS = { success: '✓', error: '✕', info: 'ⓘ', warn: '⚠️' };
   const COLORS = {
-    success: { bg: 'rgba(61,158,146,0.92)', border: 'rgba(61,158,146,0.6)' },
+    success: { bg: 'rgba(123,175,142,0.92)', border: 'rgba(123,175,142,0.6)' },
     error:   { bg: 'rgba(160,16,32,0.92)',  border: 'rgba(160,16,32,0.6)'  },
     info:    { bg: 'rgba(61,95,168,0.92)',  border: 'rgba(61,95,168,0.6)'  },
     warn:    { bg: 'rgba(200,140,0,0.92)',  border: 'rgba(200,140,0,0.6)'  },

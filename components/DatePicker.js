@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
   grid:     { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, paddingBottom: 8 },
   cell:     { width: CELL_SIZE, height: CELL_SIZE, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
   cellSelected: { backgroundColor: colors.greenLight },
-  cellToday:    { backgroundColor: 'rgba(61,158,146,0.15)', borderWidth: 1, borderColor: 'rgba(61,158,146,0.5)' },
+  cellToday:    { backgroundColor: 'rgba(240,160,80,0.15)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.5)' },
 
   cellText:         { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
   cellTextSelected: { color: '#fff' },

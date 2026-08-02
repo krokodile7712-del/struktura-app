@@ -18,7 +18,7 @@ const VARIANT_STYLES = {
     textColor: colors.text,
   },
   success: {
-    border: 'rgba(61,158,146,0.55)',
+    border: 'rgba(123,175,142,0.55)',
     glowColor: colors.greenGlow,
     overlay: gradients.greenGlow,
     textColor: colors.greenLight,
@@ -36,7 +36,7 @@ const VARIANT_STYLES = {
     textColor: colors.redLight,
   },
   selected: {
-    border: 'rgba(61,158,146,0.85)',
+    border: 'rgba(123,175,142,0.85)',
     glowColor: colors.greenGlow,
     overlay: gradients.greenGlow,
     textColor: colors.greenLight,

@@ -384,7 +384,7 @@ export default function StockScreen({ navigation }) {
                     />
                     <Text style={styles.curAvg}>₽/ед.</Text>
                     <Pressable
-                      style={({ pressed }) => [styles.priceSaveBtn, pressed && { opacity: 0.7, backgroundColor: 'rgba(61,158,146,0.3)' }]}
+                      style={({ pressed }) => [styles.priceSaveBtn, pressed && { opacity: 0.7, backgroundColor: 'rgba(240,160,80,0.3)' }]}
                       onPress={() => savePrice(String(modalItem.avg_price || ''))}
                     >
                       <Text style={styles.priceSaveTxt}>✓</Text>
@@ -580,7 +580,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  statusOk:  { color: 'rgba(61,158,146,0.7)' },
+  statusOk:  { color: colors.green },
   statusLow: { color: colors.redLight },
   statusNeg: { color: '#ff3b30' },
   qtyLow:    { color: colors.redLight },
@@ -596,7 +596,7 @@ const styles = StyleSheet.create({
   locBar:   { maxHeight: 44, borderBottomWidth: 1, borderBottomColor: colors.border },
   locInner: { paddingHorizontal: spacing.lg, paddingVertical: 8, gap: 8, flexDirection: 'row' },
   locChip:  { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e' },
-  locChipActive: { borderColor: 'rgba(61,158,146,0.6)', backgroundColor: 'rgba(61,158,146,0.1)' },
+  locChipActive: { borderColor: 'rgba(240,160,80,0.6)', backgroundColor: 'rgba(240,160,80,0.1)' },
   locChipText:   { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
 
   // Модалка
@@ -633,7 +633,7 @@ const styles = StyleSheet.create({
   previewLabel: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
   previewVal:   { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.text },
 
-  confirmBtn:    { paddingVertical: 15, borderRadius: 14, backgroundColor: 'rgba(61,158,146,0.85)', alignItems: 'center', marginTop: 8 },
+  confirmBtn:    { paddingVertical: 15, borderRadius: 14, backgroundColor: 'rgba(240,160,80,0.85)', alignItems: 'center', marginTop: 8 },
   confirmBtnOff: { backgroundColor: 'rgba(74,77,84,0.3)' },
   confirmBtnText:{ fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff' },
 
@@ -644,7 +644,7 @@ const styles = StyleSheet.create({
   histQty:    { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.text, flex: 1, textAlign: 'center' },
   priceRow:   { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
   priceInput: { paddingVertical: 4, paddingHorizontal: 10, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', borderRadius: 8, color: colors.text, fontFamily: fonts.family, fontSize: 14, minWidth: 70, textAlign: 'center' },
-  priceSaveBtn: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 8, backgroundColor: 'rgba(61,158,146,0.15)', borderWidth: 1, borderColor: 'rgba(61,158,146,0.4)' },
+  priceSaveBtn: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 8, backgroundColor: 'rgba(240,160,80,0.15)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)' },
   priceSaveTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight },
   histPrice:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.greenLight, flex: 1, textAlign: 'right' },
 });
