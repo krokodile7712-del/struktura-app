@@ -326,6 +326,27 @@ const styles = StyleSheet.create({
   deleteBtn:  { marginTop: 14, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(217,95,95,0.3)', backgroundColor: 'rgba(217,95,95,0.06)', alignItems: 'center' },
   deleteBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.red },
 
+  fillBtn:    { marginTop: 14, marginBottom: 8, paddingVertical: 13, borderRadius: 12, backgroundColor: 'rgba(240,160,80,0.12)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center' },
+  fillBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
+
+  // ─── Экран заполнения фактических остатков ───────────────────────────
+  fillRoot:   { flex: 1, backgroundColor: colors.bg },
+  fillHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
+  fillBack:   { paddingVertical: 6, paddingRight: 10 },
+  fillBackTxt:{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
+  fillTitle:  { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.text },
+  confirmBtn: { backgroundColor: colors.orange, borderRadius: 12, paddingVertical: 9, paddingHorizontal: 16 },
+  confirmBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: '#fff' },
+
+  fillTableHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
+  fillHd:     { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, flex: 1, textAlign: 'right' },
+
+  fillRow:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
+  fillName:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
+  fillUnit:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
+  fillExpected: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.textDim, flex: 1, textAlign: 'right' },
+  fillInput:  { flex: 1, marginLeft: 8, backgroundColor: colors.surface, borderRadius: 10, borderWidth: 1, borderColor: colors.border, paddingVertical: 8, paddingHorizontal: 10, fontFamily: fonts.familySemibold, fontSize: 14, textAlign: 'right' },
+
   addBtn:     { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, backgroundColor: 'rgba(240,160,80,0.12)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)' },
   addBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
 
