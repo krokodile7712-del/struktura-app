@@ -824,7 +824,7 @@ export default function KassaScreen({ navigation, route }) {
               )}
             </View>
 
-            {/* Скидки если есть */}
+            {/* Скидки если есть (авто: личная/лояльность/баллы) */}
             {(discountAmount > 0 || pointsDiscount > 0) && (
               <View style={styles.v2Discount}>
                 {effectiveDiscount && discountAmount > 0 && (
@@ -834,6 +834,24 @@ export default function KassaScreen({ navigation, route }) {
                   <Text style={styles.v2DiscountTxt}>★ Баллы  −{pointsDiscount} ₽</Text>
                 )}
               </View>
+            )}
+
+            {/* Ручной выбор скидки — недоступен, если скидка уже применяется автоматически (личная/по лояльности) */}
+            {loyaltyModel !== 'discount' && can('apply_discounts') && !(forClient?.discount_pct > 0) && (
+              appliedDiscount ? (
+                <View style={styles.v2DiscountRow}>
+                  <Pressable style={{ flex: 1 }} onPress={() => setDiscountDropOpen(true)}>
+                    <Text style={styles.v2DiscountApplied}>🏷 {appliedDiscount.name}</Text>
+                  </Pressable>
+                  <Pressable onPress={() => setAppliedDiscount(null)} hitSlop={10}>
+                    <Text style={styles.v2ClientX}>✕</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <Pressable onPress={() => setDiscountDropOpen(true)}>
+                  <Text style={styles.v2ClientAdd}>🏷 Добавить скидку</Text>
+                </Pressable>
+              )
             )}
 
             {/* Итого */}
@@ -943,41 +961,6 @@ export default function KassaScreen({ navigation, route }) {
               </View>
 
               <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            {/* Клиент */}
-              {forClient ? (
-                <View style={styles.payInfoRow}>
-                  <Text style={styles.payInfoIcon}>👤</Text>
-                  <Text style={styles.payInfoVal} numberOfLines={1}>{forClient.fio}</Text>
-                  <Text style={styles.payInfoSub}>
-                    {loyaltyModel === 'points' ? `★ ${forClient.balance||0}` : `−${forClient.discount_pct||0}%`}
-                  </Text>
-                  <Pressable onPress={() => updateSlot({ forClient: null })} hitSlop={8}>
-                    <Text style={styles.payInfoX}>✕</Text>
-                  </Pressable>
-                </View>
-              ) : (
-                <Pressable style={styles.payInfoAdd} onPress={() => { setClientSearch(''); setClientPickerOpen(true); }}>
-                  <Text style={styles.payInfoAddTxt}>👤 Добавить клиента</Text>
-                </Pressable>
-              )}
-
-              {/* Скидка */}
-              {loyaltyModel !== 'discount' && can('apply_discounts') && (
-                effectiveDiscount ? (
-                  <View style={styles.payInfoRow}>
-                    <Text style={styles.payInfoIcon}>🏷</Text>
-                    <Text style={styles.payInfoVal} numberOfLines={1}>{effectiveDiscount.name} −{effectiveDiscount.pct}%</Text>
-                    <Text style={[styles.payInfoSub, { color: colors.green }]}>−{discountAmount} ₽</Text>
-                    <Pressable onPress={() => setAppliedDiscount(null)} hitSlop={8}>
-                      <Text style={styles.payInfoX}>✕</Text>
-                    </Pressable>
-                  </View>
-                ) : (
-                  <Pressable style={styles.payInfoAdd} onPress={() => setDiscountDropOpen(true)}>
-                    <Text style={styles.payInfoAddTxt}>🏷 Добавить скидку</Text>
-                  </Pressable>
-                )
-              )}
 
               {/* Баллы */}
               {loyaltyModel === 'points' && loyaltyConfig.allow_spend && forClient && (forClient.balance||0) > 0 && (
@@ -1677,6 +1660,8 @@ const styles = StyleSheet.create({
   v2ClientX:    { fontSize: 13, color: 'rgba(64,60,55,0.5)', paddingHorizontal: 2 },
   v2ClientAdd:  { fontFamily: fonts.familyRegular, fontSize: 13, color: 'rgba(64,60,55,0.6)' },
   v2Discount:   { gap: 3 },
+  v2DiscountRow:{ flexDirection: 'row', alignItems: 'center', gap: 8 },
+  v2DiscountApplied: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
   v2DiscountTxt:{ fontFamily: fonts.familyRegular, fontSize: 12, color: colors.green },
   v2Total:      { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
   v2TotalLabel: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
