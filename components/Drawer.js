@@ -1,11 +1,12 @@
 import React, { useRef, useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, Pressable,
-  Animated, Dimensions, ScrollView, Modal,
+  Animated, Dimensions, ScrollView, Modal, Alert,
 } from 'react-native';
 import { colors, fonts, anim } from '../constants/theme';
-import { getSession, can } from '../db/session';
+import { getSession, can, clearSession } from '../db/session';
 import { getBusinessProfile, getOpenShift } from '../db/queries';
+import { resetKassaCart } from '../db/cartStore';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const DRAWER_W = Math.min(300, SCREEN_W * 0.75);
@@ -103,6 +104,26 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
                 <Text style={styles.userName}>{user?.name || 'Пользователь'}</Text>
                 <Text style={styles.userRole}>{isAdmin ? 'Администратор' : 'Сотрудник'}</Text>
               </View>
+              <Pressable
+                hitSlop={10}
+                style={styles.switchAccBtn}
+                onPress={() => {
+                  Alert.alert('Сменить аккаунт?', 'Вы выйдете из текущего аккаунта и вернётесь на экран входа.', [
+                    { text: 'Отмена', style: 'cancel' },
+                    {
+                      text: 'Выйти', style: 'destructive',
+                      onPress: () => {
+                        resetKassaCart();
+                        clearSession();
+                        navigation.navigate('Login');
+                        onClose();
+                      },
+                    },
+                  ]);
+                }}
+              >
+                <Text style={styles.switchAccIcon}>🔑</Text>
+              </Pressable>
             </View>
 
             {/* Бизнес + смена */}
@@ -217,6 +238,8 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   avatarTxt:  { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.indigo },
+  switchAccBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  switchAccIcon: { fontSize: 15 },
   userName:   { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.text, marginBottom: 2 },
   userRole:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
 
