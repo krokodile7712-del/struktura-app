@@ -15,6 +15,7 @@ import {
   getAllStock, getCategories, cleanOrphanCostIngredients, deleteOldCostCards,
   getAllModifierGroups, insertModifierGroup, updateModifierGroup, deleteModifierGroup,
   getCategoryOrder, saveCategoryOrder,
+  getAllCategoriesFull, createCategory, renameCategory, deleteCategory, getCategoryProducts,
   insertModifierOption, updateModifierOption, deleteModifierOption,
   getProductModifierGroups, setProductModifierGroups,
 } from '../db/queries';
@@ -23,6 +24,14 @@ import { getHomeRoute, can } from '../db/session';
 import { colors, fonts, anim } from '../constants/theme';
 
 const fmt = n => (n||0).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+function pluralizeProducts(n) {
+  const num = Math.abs(n || 0);
+  const mod10 = num % 10, mod100 = num % 100;
+  if (mod10 === 1 && mod100 !== 11) return 'товар';
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'товара';
+  return 'товаров';
+}
 
 // ─── Правая панель редактирования товара ─────────────────────────────────────
 function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, allModGroups, onClose, onIngPicker }) {
@@ -276,13 +285,19 @@ export default function ProductsScreen({ navigation }) {
   const [products, setProducts]     = useState([]);
   const [stock, setStock]           = useState([]);
   const [categories, setCategories] = useState([]);
+  const [allCategoryNames, setAllCategoryNames] = useState([]); // включая пустые — для выбора в редакторе товара
   const [catOrder, setCatOrder]     = useState([]);
   const [modGroups, setModGroups]   = useState([]);
   const [search, setSearch]         = useState('');
   const [selected, setSelected]     = useState(null);      // {id, name, ...} | 'new'
   const [expandedCats, setExpandedCats] = useState({});
-  const [orderModal, setOrderModal] = useState(false);
-  const [orderDraft, setOrderDraft] = useState([]);
+  const [catMgmtOpen, setCatMgmtOpen] = useState(false);
+  const [catList, setCatList]       = useState([]); // [{id, name, productCount}]
+  const [catDetail, setCatDetail]   = useState(null); // {id, name, productCount} | null
+  const [catNameDraft, setCatNameDraft] = useState('');
+  const [newCatName, setNewCatName] = useState('');
+  const [catDetailProducts, setCatDetailProducts] = useState([]);
+  const [deletePrompt, setDeletePrompt] = useState(null); // {id, name, count, moveTo} | null
   const [groupModal, setGroupModal] = useState(null);
   const [ingPickerState, setIngPickerState] = useState(null); // {vi}
   const [ingSearch, setIngSearch]           = useState('');
@@ -295,6 +310,7 @@ export default function ProductsScreen({ navigation }) {
       setStock(getAllStock());
       const cats = getCategories();
       setCategories(cats);
+      try { setAllCategoryNames(getAllCategoriesFull().map(c => c.name)); } catch(_) { setAllCategoryNames(cats); }
       const ord = getCategoryOrder();
       setCatOrder(ord.length > 0 ? ord : cats);
       setModGroups(getAllModifierGroups());
@@ -306,6 +322,80 @@ export default function ProductsScreen({ navigation }) {
   }, []);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const loadCategories = useCallback(() => {
+    try { setCatList(getAllCategoriesFull()); } catch(e) { console.error(e); }
+  }, []);
+
+  const openCategoryMgmt = () => {
+    loadCategories();
+    setNewCatName('');
+    setCatDetail(null);
+    setCatMgmtOpen(true);
+  };
+
+  const handleCreateCategory = () => {
+    const trimmed = newCatName.trim();
+    if (!trimmed) return;
+    try {
+      createCategory(trimmed);
+      setNewCatName('');
+      loadCategories();
+      load(); // обновляем список категорий и в основном экране
+    } catch(e) { console.error(e); }
+  };
+
+  const openCategoryDetail = (cat) => {
+    setCatDetail(cat);
+    setCatNameDraft(cat.name);
+    try { setCatDetailProducts(getCategoryProducts(cat.name)); } catch(_) { setCatDetailProducts([]); }
+  };
+
+  const handleRenameCategory = () => {
+    if (!catDetail) return;
+    const trimmed = catNameDraft.trim();
+    if (!trimmed || trimmed === catDetail.name) return;
+    const res = renameCategory(catDetail.id, trimmed);
+    if (res?.error === 'duplicate') { Alert.alert('Такая категория уже есть', 'Придумайте другое название.'); return; }
+    if (res?.error) { Alert.alert('Не удалось переименовать'); return; }
+    loadCategories();
+    load();
+    setCatDetail({ ...catDetail, name: trimmed });
+    try { setCatDetailProducts(getCategoryProducts(trimmed)); } catch(_) {}
+  };
+
+  const requestDeleteCategory = () => {
+    if (!catDetail) return;
+    if (catDetail.productCount > 0) {
+      setDeletePrompt({ id: catDetail.id, name: catDetail.name, count: catDetail.productCount, moveTo: '' });
+    } else {
+      deleteCategory(catDetail.id, null);
+      loadCategories();
+      load();
+      setCatDetail(null);
+    }
+  };
+
+  const confirmDeleteCategory = () => {
+    if (!deletePrompt) return;
+    if (!deletePrompt.moveTo) { Alert.alert('Выберите категорию', 'Укажите, куда перенести товары.'); return; }
+    const res = deleteCategory(deletePrompt.id, deletePrompt.moveTo);
+    if (res?.error) { Alert.alert('Не удалось удалить'); return; }
+    setDeletePrompt(null);
+    loadCategories();
+    load();
+    setCatDetail(null);
+  };
+
+  const reorderCategory = (idx, dir) => {
+    const d = [...catList];
+    const j = idx + dir;
+    if (j < 0 || j >= d.length) return;
+    [d[idx], d[j]] = [d[j], d[idx]];
+    setCatList(d);
+    saveCategoryOrder(d.map(c => c.name));
+    setCatOrder(d.map(c => c.name));
+  };
 
   const filteredStock = (stock || []).filter(s =>
     !ingSearch.trim() || s.name.toLowerCase().includes(ingSearch.toLowerCase())
@@ -383,8 +473,8 @@ export default function ProductsScreen({ navigation }) {
           <View style={{ flexDirection: 'row', gap: 8 }}>
             {tab === 'products' && (
               <>
-                <Pressable style={styles.headerBtn} onPress={() => { setOrderDraft([...catOrder]); setOrderModal(true); }}>
-                  <Text style={styles.headerBtnTxt}>⇅</Text>
+                <Pressable style={styles.headerBtn} onPress={openCategoryMgmt}>
+                  <Text style={styles.headerBtnTxt}>🗂</Text>
                 </Pressable>
                 <Pressable style={styles.addBtn} onPress={() => setSelected('new')}>
                   <Text style={styles.addBtnTxt}>+ Товар</Text>
@@ -493,13 +583,13 @@ export default function ProductsScreen({ navigation }) {
         <View style={styles.right}>
           {selected ? (
             <ProductEditor
-              key={selected === 'new' ? 'new' : selected.id}
+              key={selected?.id ? selected.id : `new-${selected?.category || ''}`}
               product={selected === 'new' ? null : selected}
               onSave={handleSave}
               onDelete={handleDelete}
               onToggleActive={handleToggleActive}
               onClose={() => setSelected(null)}
-              categories={categories}
+              categories={allCategoryNames}
               allModGroups={modGroups}
               onIngPicker={(vi, callback) => { try { setStock(getAllStock()); } catch(_){} setIngPickerState(vi !== null ? { vi } : null); setIngSearch(''); pendingIngCallback.current = callback; }}
             />
@@ -557,50 +647,162 @@ export default function ProductsScreen({ navigation }) {
         </View>
       </Modal>
 
-      {/* Модалка порядка категорий */}
-      <Modal visible={orderModal} transparent animationType="fade" onRequestClose={() => setOrderModal(false)}>
+      {/* Модалка управления категориями */}
+      <Modal visible={catMgmtOpen} transparent animationType="fade" onRequestClose={() => setCatMgmtOpen(false)}>
         <View style={styles.modalOverlay}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setOrderModal(false)} />
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCatMgmtOpen(false)} />
           <View style={styles.orderModalBox}>
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.orderModalTitle}>Порядок категорий</Text>
-                <Text style={styles.orderModalHint}>Порядок влияет на отображение в кассе</Text>
-              </View>
-              <Pressable onPress={() => setOrderModal(false)} hitSlop={12} style={styles.modalCloseBtn}>
-                <Text style={styles.modalCloseTxt}>✕</Text>
+
+            {!catDetail ? (
+              <>
+                {/* ── Список категорий ── */}
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.orderModalTitle}>Категории</Text>
+                    <Text style={styles.orderModalHint}>Стрелками меняете порядок в кассе. Нажмите на категорию, чтобы переименовать, удалить или посмотреть товары.</Text>
+                  </View>
+                  <Pressable onPress={() => setCatMgmtOpen(false)} hitSlop={12} style={styles.modalCloseBtn}>
+                    <Text style={styles.modalCloseTxt}>✕</Text>
+                  </Pressable>
+                </View>
+
+                <View style={styles.newCatRow}>
+                  <TextInput
+                    style={styles.newCatInput}
+                    color={colors.text}
+                    value={newCatName}
+                    onChangeText={setNewCatName}
+                    placeholder="Название новой категории"
+                    placeholderTextColor={colors.muted}
+                    onSubmitEditing={handleCreateCategory}
+                    returnKeyType="done"
+                  />
+                  <Pressable style={styles.newCatBtn} onPress={handleCreateCategory}>
+                    <Text style={styles.newCatBtnTxt}>+</Text>
+                  </Pressable>
+                </View>
+
+                <ScrollView style={{ marginTop: 8 }}>
+                  {catList.length === 0 && (
+                    <Text style={{ color: colors.muted, textAlign: 'center', paddingVertical: 20 }}>Категорий пока нет</Text>
+                  )}
+                  {catList.map((cat, idx) => (
+                    <Pressable key={cat.id} style={styles.orderRow} onPress={() => openCategoryDetail(cat)}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.orderRowTxt}>{cat.name}</Text>
+                        <Text style={styles.catCountTxt}>{cat.productCount} {pluralizeProducts(cat.productCount)}</Text>
+                      </View>
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        {idx > 0 && (
+                          <Pressable style={styles.orderBtn} onPress={(e) => { e.stopPropagation?.(); reorderCategory(idx, -1); }}>
+                            <Text style={styles.orderBtnTxt}>↑</Text>
+                          </Pressable>
+                        )}
+                        {idx < catList.length - 1 && (
+                          <Pressable style={styles.orderBtn} onPress={(e) => { e.stopPropagation?.(); reorderCategory(idx, 1); }}>
+                            <Text style={styles.orderBtnTxt}>↓</Text>
+                          </Pressable>
+                        )}
+                        <Text style={styles.orderRowChevron}>›</Text>
+                      </View>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </>
+            ) : (
+              <>
+                {/* ── Детальный вид категории ── */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <Pressable onPress={() => setCatDetail(null)} hitSlop={12}>
+                    <Text style={styles.catBackTxt}>‹ Категории</Text>
+                  </Pressable>
+                  <Pressable onPress={() => setCatMgmtOpen(false)} hitSlop={12} style={styles.modalCloseBtn}>
+                    <Text style={styles.modalCloseTxt}>✕</Text>
+                  </Pressable>
+                </View>
+
+                <Text style={styles.fieldLabel}>Название категории</Text>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TextInput
+                    style={[styles.input, { flex: 1 }]}
+                    color={colors.text}
+                    value={catNameDraft}
+                    onChangeText={setCatNameDraft}
+                    placeholderTextColor={colors.muted}
+                  />
+                  <Pressable
+                    style={[styles.newCatBtn, catNameDraft.trim() === catDetail.name && { opacity: 0.4 }]}
+                    onPress={handleRenameCategory}
+                    disabled={catNameDraft.trim() === catDetail.name}
+                  >
+                    <Text style={styles.newCatBtnTxt}>✓</Text>
+                  </Pressable>
+                </View>
+
+                <View style={styles.labelRow}>
+                  <Text style={styles.fieldLabel}>Товары в категории ({catDetailProducts.length})</Text>
+                  <Pressable onPress={() => { setCatMgmtOpen(false); setCatDetail(null); setSelected({ id: null, category: catDetail.name }); }}>
+                    <Text style={styles.catAddProductTxt}>+ Добавить товар</Text>
+                  </Pressable>
+                </View>
+
+                <ScrollView style={{ maxHeight: 240 }}>
+                  {catDetailProducts.length === 0 && (
+                    <Text style={{ color: colors.muted, paddingVertical: 12 }}>В этой категории пока нет товаров</Text>
+                  )}
+                  {catDetailProducts.map(p => (
+                    <Pressable
+                      key={p.id}
+                      style={styles.catProductRow}
+                      onPress={() => { setCatMgmtOpen(false); setCatDetail(null); setSelected(p); }}
+                    >
+                      <Text style={styles.catProductTxt}>{p.name}</Text>
+                      <Text style={styles.orderRowChevron}>›</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+
+                <Pressable style={styles.catDeleteBtn} onPress={requestDeleteCategory}>
+                  <Text style={styles.catDeleteTxt}>Удалить категорию</Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Модалка: категория не пуста — куда перенести товары перед удалением */}
+      <Modal visible={!!deletePrompt} transparent animationType="fade" onRequestClose={() => setDeletePrompt(null)}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setDeletePrompt(null)} />
+          <View style={styles.modalBoxSm}>
+            <Text style={styles.orderModalTitle}>Перенести товары</Text>
+            <Text style={styles.orderModalHint}>
+              В категории «{deletePrompt?.name}» ещё {deletePrompt?.count} {pluralizeProducts(deletePrompt?.count)}. Выберите, куда их перенести перед удалением.
+            </Text>
+            <ScrollView style={{ maxHeight: 220 }}>
+              {catList.filter(c => c.id !== deletePrompt?.id).map(c => (
+                <Pressable
+                  key={c.id}
+                  style={[styles.orderRow, deletePrompt?.moveTo === c.name && styles.orderRowActive]}
+                  onPress={() => setDeletePrompt(p => ({ ...p, moveTo: c.name }))}
+                >
+                  <Text style={styles.orderRowTxt}>{c.name}</Text>
+                  {deletePrompt?.moveTo === c.name && <Text style={{ color: colors.orange }}>✓</Text>}
+                </Pressable>
+              ))}
+              {catList.length <= 1 && (
+                <Text style={{ color: colors.muted, paddingVertical: 12 }}>Больше категорий нет — сначала создайте другую категорию, куда можно перенести товары.</Text>
+              )}
+            </ScrollView>
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+              <Pressable style={[styles.cancelBtn, { flex: 1 }]} onPress={() => setDeletePrompt(null)}>
+                <Text style={styles.cancelTxt}>Отмена</Text>
+              </Pressable>
+              <Pressable style={[styles.catDeleteBtn, { flex: 1, marginTop: 0 }]} onPress={confirmDeleteCategory}>
+                <Text style={styles.catDeleteTxt}>Удалить</Text>
               </Pressable>
             </View>
-            <ScrollView>
-              {orderDraft.map((cat, idx) => (
-                <View key={cat} style={styles.orderRow}>
-                  <Text style={styles.orderRowTxt}>{cat}</Text>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
-                    {idx > 0 && (
-                      <Pressable style={styles.orderBtn} onPress={() => {
-                        const d = [...orderDraft];
-                        [d[idx-1], d[idx]] = [d[idx], d[idx-1]];
-                        setOrderDraft(d);
-                      }}>
-                        <Text style={styles.orderBtnTxt}>↑</Text>
-                      </Pressable>
-                    )}
-                    {idx < orderDraft.length-1 && (
-                      <Pressable style={styles.orderBtn} onPress={() => {
-                        const d = [...orderDraft];
-                        [d[idx], d[idx+1]] = [d[idx+1], d[idx]];
-                        setOrderDraft(d);
-                      }}>
-                        <Text style={styles.orderBtnTxt}>↓</Text>
-                      </Pressable>
-                    )}
-                  </View>
-                </View>
-              ))}
-            </ScrollView>
-            <Pressable style={styles.saveBtn} onPress={() => { saveCategoryOrder(orderDraft); setCatOrder(orderDraft); setOrderModal(false); }}>
-              <Text style={styles.saveBtnTxt}>Сохранить порядок</Text>
-            </Pressable>
           </View>
         </View>
       </Modal>
@@ -874,9 +1076,28 @@ const styles = StyleSheet.create({
   modalCloseBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' },
   modalCloseTxt: { fontSize: 14, color: colors.muted, fontFamily: fonts.familySemibold },
   orderRow:  { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+  orderRowActive: { backgroundColor: 'rgba(240,160,80,0.08)', borderRadius: 10, paddingHorizontal: 8 },
   orderRowTxt:{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, flex: 1 },
+  orderRowChevron: { fontSize: 18, color: colors.muted, marginLeft: 4 },
   orderBtn:  { width: 32, height: 32, borderRadius: 8, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   orderBtnTxt:{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
+
+  newCatRow:   { flexDirection: 'row', gap: 8, marginTop: 14 },
+  newCatInput: { flex: 1, paddingVertical: 11, paddingHorizontal: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 14 },
+  newCatBtn:   { width: 44, borderRadius: 12, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center' },
+  newCatBtnTxt:{ fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: '#fff' },
+  catCountTxt: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
+
+  catBackTxt:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
+  catAddProductTxt: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.orange },
+  catProductRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.border },
+  catProductTxt: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.text },
+  catDeleteBtn: { marginTop: 16, paddingVertical: 13, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(160,16,32,0.35)', backgroundColor: 'rgba(160,16,32,0.06)', alignItems: 'center' },
+  catDeleteTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.redLight },
+
+  cancelBtn: { paddingVertical: 13, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
+  cancelTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  modalBoxSm: { width: '40%', minWidth: 320, backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, padding: 24 },
 
   groupModalBox: { width: '55%', maxHeight: '85%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   modalHeader:   { flexDirection: 'row', alignItems: 'center', padding: 18, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface2 },

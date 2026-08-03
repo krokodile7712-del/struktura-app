@@ -653,6 +653,93 @@ export function getCategories() {
            .map(r => r.category);
 }
 
+// ─── Категории товаров (полноценные, с поддержкой пустых) ──────────────────
+
+function ensureCategoriesTable(db) {
+  db.execSync(`CREATE TABLE IF NOT EXISTS categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE)`);
+  const count = db.getFirstSync(`SELECT COUNT(*) as c FROM categories`)?.c || 0;
+  if (count === 0) {
+    // Миграция: заполняем таблицу из уже существующих у товаров категорий,
+    // чтобы ничего не потерялось у тех, кто уже пользовался приложением
+    const existing = db.getAllSync(`SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category != ''`).map(r => r.category);
+    for (const name of existing) {
+      try { db.runSync(`INSERT OR IGNORE INTO categories (name) VALUES (?)`, [name]); } catch (_) {}
+    }
+  }
+}
+
+// Полный список категорий (включая пустые), в текущем порядке отображения
+export function getAllCategoriesFull() {
+  const db = getDb();
+  ensureCategoriesTable(db);
+  const rows = db.getAllSync(`SELECT id, name FROM categories`);
+  const order = getCategoryOrder();
+  const counts = {};
+  db.getAllSync(`SELECT category, COUNT(*) as c FROM products WHERE active = 1 GROUP BY category`)
+    .forEach(r => { counts[r.category] = r.c; });
+  const sorted = [...rows].sort((a, b) => {
+    const ia = order.indexOf(a.name), ib = order.indexOf(b.name);
+    if (ia === -1 && ib === -1) return a.name.localeCompare(b.name, 'ru');
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
+  return sorted.map(r => ({ id: r.id, name: r.name, productCount: counts[r.name] || 0 }));
+}
+
+// Создаёт новую (возможно пустую) категорию, добавляет в конец порядка
+export function createCategory(name) {
+  const db = getDb();
+  ensureCategoriesTable(db);
+  const trimmed = (name || '').trim();
+  if (!trimmed) return null;
+  const existing = db.getFirstSync(`SELECT id FROM categories WHERE name = ?`, [trimmed]);
+  if (existing) return existing.id;
+  const id = db.runSync(`INSERT INTO categories (name) VALUES (?)`, [trimmed]).lastInsertRowId;
+  saveCategoryOrder([...getCategoryOrder(), trimmed]);
+  return id;
+}
+
+// Переименовывает категорию и каскадом переносит все товары на новое имя
+export function renameCategory(id, newName) {
+  const db = getDb();
+  ensureCategoriesTable(db);
+  const trimmed = (newName || '').trim();
+  if (!trimmed) return { error: 'empty' };
+  const row = db.getFirstSync(`SELECT * FROM categories WHERE id = ?`, [id]);
+  if (!row) return { error: 'not_found' };
+  if (row.name === trimmed) return { success: true };
+  const dup = db.getFirstSync(`SELECT id FROM categories WHERE name = ? AND id != ?`, [trimmed, id]);
+  if (dup) return { error: 'duplicate' };
+  db.runSync(`UPDATE categories SET name = ? WHERE id = ?`, [trimmed, id]);
+  db.runSync(`UPDATE products SET category = ? WHERE category = ?`, [trimmed, row.name]);
+  saveCategoryOrder(getCategoryOrder().map(n => n === row.name ? trimmed : n));
+  return { success: true };
+}
+
+// Удаляет категорию. Если внутри есть товары — обязателен moveToName (куда их перенести),
+// иначе возвращает { error: 'has_products', count } и ничего не делает.
+export function deleteCategory(id, moveToName) {
+  const db = getDb();
+  ensureCategoriesTable(db);
+  const row = db.getFirstSync(`SELECT * FROM categories WHERE id = ?`, [id]);
+  if (!row) return { error: 'not_found' };
+  const count = db.getFirstSync(`SELECT COUNT(*) as c FROM products WHERE category = ?`, [row.name])?.c || 0;
+  if (count > 0) {
+    if (!moveToName) return { error: 'has_products', count };
+    db.runSync(`UPDATE products SET category = ? WHERE category = ?`, [moveToName, row.name]);
+  }
+  db.runSync(`DELETE FROM categories WHERE id = ?`, [id]);
+  saveCategoryOrder(getCategoryOrder().filter(n => n !== row.name));
+  return { success: true };
+}
+
+// Товары внутри категории (для просмотра/перехода к редактированию)
+export function getCategoryProducts(name) {
+  const db = getDb();
+  return db.getAllSync(`SELECT * FROM products WHERE category = ? ORDER BY name`, [name]);
+}
+
 export function insertProduct({ name, category, price_s, price_m, price_l, has_milk, has_syrup }) {
   const db = getDb();
   const variants = [];
