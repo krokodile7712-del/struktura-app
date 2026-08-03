@@ -51,6 +51,8 @@ export default function SwipeableRow({
   leftLabel = 'Заметка',
   leftColor = colors.indigo,
   disabled = false,
+  style,     // внешний отступ строки (margin) — кнопки свайпа будут обрезаны точно по этой форме
+  radius = 0, // скругление углов строки — применяется и к кнопкам свайпа через overflow:hidden
 }) {
   const x = useRef(new Animated.Value(0)).current;
   const openSide = useRef(0); // -1 = открыто вправо (видна правая кнопка), 1 = открыто влево (видна левая кнопка), 0 = закрыто
@@ -136,7 +138,7 @@ export default function SwipeableRow({
   };
 
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, radius ? { borderRadius: radius } : null, style]}>
       {/* Левая кнопка (свайп вправо) */}
       {hasLeft && (
         <Animated.View style={[styles.revealLeft, { opacity: leftRevealOpacity }]}>

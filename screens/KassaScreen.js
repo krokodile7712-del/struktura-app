@@ -739,6 +739,8 @@ export default function KassaScreen({ navigation, route }) {
                   onLeftAction={() => setItemNoteModal({ id: item.id, note: item.note || '' })}
                   leftLabel={item.note ? 'Заметка' : '+ Заметка'}
                   leftColor={colors.indigo}
+                  style={{ marginHorizontal: 10, marginBottom: 6 }}
+                  radius={12}
                 >
                   <Pressable
                     style={({ pressed }) => [styles.v2Item, pressed && { opacity: 0.85 }]}
@@ -1633,7 +1635,7 @@ const styles = StyleSheet.create({
   v2EmptyIcon:  { fontSize: 40 },
   v2EmptyText:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   v2ListWrap:   { paddingTop: 6, paddingBottom: 8 },
-  v2Item:       { marginHorizontal: 10, marginBottom: 6, paddingVertical: 12, paddingHorizontal: 14, backgroundColor: colors.surface2, borderRadius: 12 },
+  v2Item:       { paddingVertical: 12, paddingHorizontal: 14, backgroundColor: colors.surface2, borderRadius: 12 },
   v2ItemRow:    { flexDirection: 'row', alignItems: 'center', gap: 8 },
   v2ItemName:   { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, flex: 1, lineHeight: 17 },
   v2Qty:        { flexDirection: 'row', alignItems: 'center', gap: 6 },
