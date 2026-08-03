@@ -570,10 +570,10 @@ function SummaryRow({ icon, label, value }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  progressTrack: { height: 3, backgroundColor: 'rgba(74,77,84,0.3)', overflow: 'hidden' },
+  progressTrack: { height: 3, backgroundColor: 'rgba(64,60,55,0.3)', overflow: 'hidden' },
   progressFill: { height: '100%', backgroundColor: colors.orange, borderRadius: 2 },
   dotsRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, paddingVertical: 14 },
-  dot: { width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(74,77,84,0.3)', alignItems: 'center', justifyContent: 'center' },
+  dot: { width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(64,60,55,0.3)', alignItems: 'center', justifyContent: 'center' },
   dotActive: { backgroundColor: colors.orange },
   dotCheck: { fontSize: 10, color: '#fff', fontWeight: '800' },
 
@@ -615,7 +615,7 @@ const styles = StyleSheet.create({
   presetCheck: { fontSize: 18, color: colors.muted },
   presetDesc: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, lineHeight: 19 },
   presetTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  presetTag: { paddingVertical: 3, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: '#07080a' },
+  presetTag: { paddingVertical: 3, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   presetTagActive: { borderColor: 'rgba(240,160,80,0.4)', backgroundColor: 'rgba(240,160,80,0.08)' },
   presetTagText: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
   presetTagTextActive: { color: colors.orange },
@@ -627,7 +627,7 @@ const styles = StyleSheet.create({
   termTitle: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, marginBottom: 3 },
   termDesc: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, lineHeight: 17 },
   termPresets: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
-  termChip: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: '#07080a' },
+  termChip: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   termChipActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.08)' },
   termChipText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
   termChipTextActive: { color: colors.orange },

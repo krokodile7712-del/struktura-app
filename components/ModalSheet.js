@@ -77,10 +77,10 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   sheet: {
-    backgroundColor: '#0e0f11',
+    backgroundColor: colors.surface,
     borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: 'rgba(74,77,84,0.5)',
+    borderColor: 'rgba(64,60,55,0.5)',
     padding: 24,
     // Тень
     shadowColor: '#000',

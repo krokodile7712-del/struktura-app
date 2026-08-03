@@ -23,11 +23,11 @@ export default function Input({ style, error, ...props }) {
 
 export const inputStyle = {
   padding: 14,
-  backgroundColor: '#07080a',
+  backgroundColor: colors.surface,
   borderWidth: 1,
   borderColor: '#252830',
   borderRadius: radius.sm,
-  color: '#ddd8d0',
+  color: colors.text,
   fontSize: 15,
   fontFamily: 'AnekDevanagari_400Regular',
   marginBottom: 4,

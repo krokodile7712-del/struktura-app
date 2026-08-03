@@ -140,15 +140,15 @@ const CELL_SIZE = 40;
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' },
-  picker:  { width: 320, backgroundColor: '#0e0f11', borderRadius: 20, borderWidth: 1, borderColor: 'rgba(74,77,84,0.5)', overflow: 'hidden' },
+  picker:  { width: 320, backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(64,60,55,0.5)', overflow: 'hidden' },
 
-  header:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.3)' },
+  header:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.3)' },
   title:    { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: colors.text },
-  closeBtn: { width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(74,77,84,0.25)', alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(64,60,55,0.25)', alignItems: 'center', justifyContent: 'center' },
   closeTxt: { fontSize: 12, color: colors.muted, fontFamily: fonts.familySemibold },
 
   navRow:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
-  navBtn:      { width: 32, height: 32, borderRadius: 10, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', alignItems: 'center', justifyContent: 'center' },
+  navBtn:      { width: 32, height: 32, borderRadius: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: 'rgba(64,60,55,0.4)', alignItems: 'center', justifyContent: 'center' },
   navArrow:    { fontSize: 20, color: colors.text, lineHeight: 24 },
   monthLabel:  { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
 
@@ -166,6 +166,6 @@ const styles = StyleSheet.create({
   cellTextToday:    { color: colors.greenLight },
   cellTextWeekend:  { color: 'rgba(160,16,32,0.7)' },
 
-  todayBtn:     { margin: 12, marginTop: 4, paddingVertical: 12, borderRadius: 12, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', alignItems: 'center' },
+  todayBtn:     { margin: 12, marginTop: 4, paddingVertical: 12, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: 'rgba(64,60,55,0.3)', alignItems: 'center' },
   todayBtnText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight },
 });

@@ -542,7 +542,7 @@ const styles = StyleSheet.create({
   },
   rowDivider: {
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(74,77,84,0.18)',
+    borderBottomColor: 'rgba(64,60,55,0.18)',
   },
   rowPressed: { backgroundColor: 'rgba(255,255,255,0.03)' },
 
@@ -593,7 +593,7 @@ const styles = StyleSheet.create({
   // Локации
   locBar:   { maxHeight: 44, borderBottomWidth: 1, borderBottomColor: colors.border },
   locInner: { paddingHorizontal: spacing.lg, paddingVertical: 8, gap: 8, flexDirection: 'row' },
-  locChip:  { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e' },
+  locChip:  { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   locChipActive: { borderColor: 'rgba(240,160,80,0.6)', backgroundColor: 'rgba(240,160,80,0.08)' },
   locChipText:   { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
 
@@ -602,7 +602,7 @@ const styles = StyleSheet.create({
   modalInner: { width: '50%', maxWidth: 480, maxHeight: '88%', backgroundColor: colors.surface, borderRadius: 20, padding: 22, borderWidth: 1, borderColor: colors.border },
   modalHeader:{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 },
   modalTitle: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, flex: 1, marginRight: 12 },
-  modalCloseBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(74,77,84,0.25)', alignItems: 'center', justifyContent: 'center' },
+  modalCloseBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(64,60,55,0.25)', alignItems: 'center', justifyContent: 'center' },
   modalCloseTxt: { fontSize: 13, color: colors.muted, fontFamily: fonts.familySemibold },
 
   curBox:    { padding: 16, backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, marginBottom: 16 },
@@ -615,9 +615,9 @@ const styles = StyleSheet.create({
   curThrVal: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, marginTop: 2 },
   curAvg:    { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.textDim, marginTop: 10 },
 
-  modeList:   { borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(74,77,84,0.25)' },
+  modeList:   { borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(64,60,55,0.25)' },
   modeRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, backgroundColor: colors.surface2 },
-  modeRowDiv: { borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.18)' },
+  modeRowDiv: { borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.18)' },
   modeLabel:  { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text, marginBottom: 2 },
   modeDesc:   { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
   modeArrow:  { fontSize: 18, color: colors.muted },

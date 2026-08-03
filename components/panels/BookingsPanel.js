@@ -9,7 +9,7 @@ const STATUS = {
   pending:   { label: 'Новая',        color: colors.amber,  bg: 'rgba(212,175,106,0.12)' },
   confirmed: { label: 'Подтверждена', color: colors.green,  bg: 'rgba(123,175,142,0.12)' },
   cancelled: { label: 'Отменена',     color: colors.red,    bg: 'rgba(217,95,95,0.12)'   },
-  done:      { label: 'Выполнена',    color: colors.muted,  bg: 'rgba(74,77,84,0.1)'     },
+  done:      { label: 'Выполнена',    color: colors.muted,  bg: 'rgba(64,60,55,0.1)'     },
 };
 
 const FILTERS = [
