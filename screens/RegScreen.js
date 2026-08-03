@@ -31,8 +31,9 @@ export default function RegScreen({ navigation }) {
     if (!fio.trim()) { setError('Введите имя клиента'); return; }
     const code = generateUniqueCode();
     const bd = birthDate.trim().replace(/[^0-9.\-]/g, '');
+    let clientId;
     try {
-      const clientId = insertClient({ fio: fio.trim(), phone: phone.trim(), code, birth_date: bd });
+      clientId = insertClient({ fio: fio.trim(), phone: phone.trim(), code, birth_date: bd });
     } catch (e) {
       setError('Не удалось создать карту. Попробуйте ещё раз.');
       return;
