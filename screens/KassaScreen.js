@@ -825,7 +825,7 @@ export default function KassaScreen({ navigation, route }) {
                   </Pressable>
                 </>
               ) : (
-                <Pressable onPress={() => setClientPickerOpen(true)}>
+                <Pressable style={{ flex: 1 }} onPress={() => setClientPickerOpen(true)}>
                   <Text style={styles.v2ClientAdd}>👤 Добавить клиента</Text>
                 </Pressable>
               )}
@@ -846,7 +846,7 @@ export default function KassaScreen({ navigation, route }) {
             {/* Ручной выбор скидки — недоступен, если скидка уже применяется автоматически (личная/по лояльности) */}
             {loyaltyModel !== 'discount' && can('apply_discounts') && !(forClient?.discount_pct > 0) && (
               appliedDiscount ? (
-                <View style={styles.v2DiscountRow}>
+                <View style={styles.v2Client}>
                   <Pressable style={{ flex: 1 }} onPress={() => setDiscountDropOpen(true)}>
                     <Text style={styles.v2DiscountApplied}>🏷 {appliedDiscount.name}</Text>
                   </Pressable>
@@ -855,9 +855,11 @@ export default function KassaScreen({ navigation, route }) {
                   </Pressable>
                 </View>
               ) : (
-                <Pressable onPress={() => setDiscountDropOpen(true)}>
-                  <Text style={styles.v2ClientAdd}>🏷 Добавить скидку</Text>
-                </Pressable>
+                <View style={styles.v2Client}>
+                  <Pressable style={{ flex: 1 }} onPress={() => setDiscountDropOpen(true)}>
+                    <Text style={styles.v2ClientAdd}>🏷 Добавить скидку</Text>
+                  </Pressable>
+                </View>
               )
             )}
 
@@ -1660,15 +1662,14 @@ const styles = StyleSheet.create({
   v2Mod:        { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
   v2Note:       { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.green, marginTop: 3 },
   v2Footer:     { borderTopWidth: 1, borderTopColor: 'rgba(64,60,55,0.2)', paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14, gap: 10 },
-  v2Client:     { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(64,60,55,0.25)' },
-  v2ClientDot:  { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.green },
-  v2ClientName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.green, flex: 1 },
-  v2ClientBal:  { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
-  v2ClientX:    { fontSize: 13, color: 'rgba(64,60,55,0.5)', paddingHorizontal: 2 },
-  v2ClientAdd:  { fontFamily: fonts.familyRegular, fontSize: 13, color: 'rgba(64,60,55,0.6)' },
-  v2Discount:   { gap: 3 },
-  v2DiscountRow:{ flexDirection: 'row', alignItems: 'center', gap: 8 },
-  v2DiscountApplied: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
+  v2Client:     { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, paddingVertical: 12, paddingHorizontal: 14 },
+  v2ClientDot:  { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.green },
+  v2ClientName: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.green, flex: 1 },
+  v2ClientBal:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+  v2ClientX:    { fontSize: 15, color: colors.muted, paddingHorizontal: 4 },
+  v2ClientAdd:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
+  v2Discount:   { gap: 3, marginTop: 8 },
+  v2DiscountApplied: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
   v2DiscountTxt:{ fontFamily: fonts.familyRegular, fontSize: 12, color: colors.green },
   v2Total:      { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
   v2TotalLabel: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
