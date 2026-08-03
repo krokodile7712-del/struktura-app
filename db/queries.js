@@ -2554,25 +2554,35 @@ export function getBusinessMetrics(pnlFull, businessPreset) {
   const { revenue, foodCostPct, primeCostPct, grossMarginPct, laborCostPct,
           orderCount, avgCheck, shiftsCount, avgCheckPerShift, breakEvenMonthly } = pnlFull;
 
-  if (businessPreset === 'coffee' || !businessPreset) {
+  // Метрика себестоимости материалов/ингредиентов показывается всем, у кого
+  // включён склад — это не зависит от типа бизнеса: парикмахерская расходует
+  // краску и шампунь так же, как кофейня — молоко и зёрна.
+  const stockEnabled = !!getBusinessProfile()?.modules?.stock;
+  const isCoffee = businessPreset === 'coffee';
+
+  if (stockEnabled) {
     metrics.push({
       key: 'foodCost',
-      label: 'Food Cost %',
+      label: isCoffee ? 'Food Cost %' : 'Себестоимость %',
       value: `${foodCostPct}%`,
-      benchmark: '< 30%',
-      ok: foodCostPct > 0 && foodCostPct < 30,
-      warn: foodCostPct >= 30,
-      tip: 'Доля себестоимости в выручке. Норма для кофейни: 25–30%. Выше 35% — пора пересматривать рецептуру или поставщиков.',
+      benchmark: isCoffee ? '< 30%' : null,
+      ok: isCoffee ? (foodCostPct > 0 && foodCostPct < 30) : undefined,
+      warn: isCoffee ? foodCostPct >= 30 : undefined,
+      tip: isCoffee
+        ? 'Доля себестоимости в выручке. Норма для кофейни: 25–30%. Выше 35% — пора пересматривать рецептуру или поставщиков.'
+        : 'Доля себестоимости материалов и ингредиентов в выручке. Норма сильно зависит от отрасли — ориентируйтесь на свою историю, а не на чужие цифры.',
     });
-    metrics.push({
-      key: 'primeCost',
-      label: 'Prime Cost %',
-      value: `${primeCostPct}%`,
-      benchmark: '< 60%',
-      ok: primeCostPct > 0 && primeCostPct < 60,
-      warn: primeCostPct >= 60,
-      tip: 'Себестоимость + Зарплата / Выручка. Главный показатель эффективности F&B. Норма: 55–60%.',
-    });
+    if (isCoffee) {
+      metrics.push({
+        key: 'primeCost',
+        label: 'Prime Cost %',
+        value: `${primeCostPct}%`,
+        benchmark: '< 60%',
+        ok: primeCostPct > 0 && primeCostPct < 60,
+        warn: primeCostPct >= 60,
+        tip: 'Себестоимость + Зарплата / Выручка. Главный показатель эффективности F&B. Норма: 55–60%.',
+      });
+    }
   }
 
   if (businessPreset === 'retail' || !businessPreset) {
@@ -2584,18 +2594,6 @@ export function getBusinessMetrics(pnlFull, businessPreset) {
       ok: grossMarginPct > 40,
       warn: grossMarginPct <= 40,
       tip: 'Процент валовой прибыли от выручки. Для розницы норма зависит от категории: продукты 20–35%, одежда 50–70%.',
-    });
-  }
-
-  if (businessPreset === 'production') {
-    metrics.push({
-      key: 'materialCost',
-      label: 'Материалы %',
-      value: `${foodCostPct}%`,
-      benchmark: '< 50%',
-      ok: foodCostPct > 0 && foodCostPct < 50,
-      warn: foodCostPct >= 50,
-      tip: 'Доля стоимости сырья и материалов в выручке. Норма сильно зависит от отрасли — ориентируйтесь на свою историю, а не на чужие цифры.',
     });
   }
 
