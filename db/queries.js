@@ -61,20 +61,38 @@ const DEFAULT_ROLES = { barista: 'Сотрудник', admin: 'Админист�
 // которые владелец бизнеса может задать произвольно — "Товар", "Продажа", "Услуга" и т.д.)
 export function pluralizeRu(word) {
   if (!word) return word;
+  const lower = word.toLowerCase();
+  const hissingOrVelar = 'гкхжчшщ';
+
+  // -ие / -ье → -ия / -ья (изделие → изделия, варенье → варенья)
+  if (lower.endsWith('ие')) return word.slice(0, -2) + 'ия';
+  if (lower.endsWith('ье')) return word.slice(0, -2) + 'ья';
+
   const last = word.slice(-1);
-  const lower = last.toLowerCase();
-  if (lower === 'а' || lower === 'я' || lower === 'ь') return word.slice(0, -1) + 'и';
-  if ('гкхшщчж'.includes(lower)) return word + 'и';
+  const lastLower = last.toLowerCase();
+
+  if (lastLower === 'я' || lastLower === 'ь') return word.slice(0, -1) + 'и';
+  if (lastLower === 'а') {
+    const prev = word.length > 1 ? word.slice(-2, -1).toLowerCase() : '';
+    return word.slice(0, -1) + (hissingOrVelar.includes(prev) ? 'и' : 'ы');
+  }
+  // средний род на -о/-е (не -ие/-ье, уже обработаны выше): окно → окна, поле → поля
+  if (lastLower === 'о') return word.slice(0, -1) + 'а';
+  if (lastLower === 'е') return word.slice(0, -1) + 'я';
+  if (hissingOrVelar.includes(lastLower)) return word + 'и';
   return word + 'ы';
 }
 
 // Родительный падеж множественного числа (для фраз вида "История заказов", "Нет клиентов")
 export function genitivePluralRu(word) {
   if (!word) return word;
+  const lower = word.toLowerCase();
+  if (lower.endsWith('ие') || lower.endsWith('ье')) return word.slice(0, -1) + 'й'; // изделие → изделий
   const last = word.slice(-1).toLowerCase();
   if (last === 'а') return word.slice(0, -1);
   if (last === 'я') return word.slice(0, -1) + 'й';
   if (last === 'ь') return word.slice(0, -1) + 'ей';
+  if (last === 'о') return word.slice(0, -1); // окно → окон (упрощённо, без беглой гласной)
   if ('жшчщ'.includes(last)) return word + 'ей';
   return word + 'ов';
 }
@@ -85,6 +103,8 @@ export function genitiveSingularRu(word) {
   const last = word.slice(-1).toLowerCase();
   if (last === 'а' || last === 'я') return word.slice(0, -1) + 'и';
   if (last === 'ь') return word.slice(0, -1) + 'я';
+  if (last === 'о') return word.slice(0, -1) + 'а'; // окно → окна
+  if (last === 'е') return word.slice(0, -1) + 'я'; // изделие → изделия, поле → поля
   return word + 'а';
 }
 
