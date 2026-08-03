@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Animated } from 'react-native';
 import { colors, fonts, anim } from '../constants/theme';
-import { getSession } from '../db/session';
 
 const TABS = [
   { key: 'Loyalty', label: 'Лояльность' },
@@ -30,11 +29,6 @@ export default function BottomBar({ navigation, activeTab }) {
   }, [activeIndex]);
 
   const handlePress = (tab) => {
-    if (tab.key === 'Kassa') {
-      const isAdmin = getSession()?.role === 'admin';
-      navigation.navigate(isAdmin ? 'Admin' : 'Dashboard');
-      return;
-    }
     navigation.navigate(tab.key);
   };
 

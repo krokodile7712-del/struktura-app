@@ -470,7 +470,7 @@ export default function KassaScreen({ navigation, route }) {
         'Чтобы провести продажу, сначала откройте смену.',
         [
           { text: 'Отмена', style: 'cancel' },
-          { text: 'Открыть смену', onPress: () => navigation.navigate('Shift') },
+          { text: 'Открыть смену', onPress: () => navigation.navigate('Shift', { returnTo: 'Kassa' }) },
         ]
       );
       return;
@@ -597,7 +597,7 @@ export default function KassaScreen({ navigation, route }) {
     <View style={{ flex: 1 }}>
       <TopBar title="Касса" onBack={() => navigation.navigate(getHomeRoute())} />
 
-      {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift')} />}
+      {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift', { returnTo: 'Kassa' })} />}
       <View style={styles.layout}>
         {/* ── Вертикальная колонка категорий ── */}
         <View style={styles.catRail}>
@@ -1507,7 +1507,7 @@ export default function KassaScreen({ navigation, route }) {
             <Text style={styles.warnText}>Чтобы принять оплату, сначала откройте смену.</Text>
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
               <MetalButton title="Отмена" variant="back" onPress={() => setNoShiftWarning(false)} style={{ flex: 1 }} />
-              <MetalButton title="📅 Открыть смену" variant="action" onPress={() => { setNoShiftWarning(false); navigation.navigate('Shift'); }} style={{ flex: 1 }} />
+              <MetalButton title="📅 Открыть смену" variant="action" onPress={() => { setNoShiftWarning(false); navigation.navigate('Shift', { returnTo: 'Kassa' }); }} style={{ flex: 1 }} />
             </View>
           </View>
         </View>

@@ -4,7 +4,7 @@ import { openShift, getOpenShift } from '../db/queries';
 import { getSession } from '../db/session';
 import { colors, fonts } from '../constants/theme';
 
-export default function ShiftScreen({ navigation }) {
+export default function ShiftScreen({ navigation, route }) {
   const [cash, setCash]   = useState('');
   const [error, setError] = useState('');
   const inputRef          = useRef(null);
@@ -21,6 +21,8 @@ export default function ShiftScreen({ navigation }) {
   useEffect(() => {
     try {
       if (getOpenShift()) {
+        const returnTo = route?.params?.returnTo;
+        if (returnTo) { navigation.replace(returnTo); return; }
         const user = getSession();
         navigation.replace(user?.role === 'admin' ? 'Admin' : 'Dashboard');
         return;
@@ -36,11 +38,15 @@ export default function ShiftScreen({ navigation }) {
     try {
       const user = getSession();
       openShift(parseFloat(cash) || 0, user?.id || null, user?.name || '');
-      navigation.navigate(user?.role === 'admin' ? 'Admin' : 'Dashboard');
+      const returnTo = route?.params?.returnTo;
+      if (returnTo) navigation.navigate(returnTo);
+      else navigation.navigate(user?.role === 'admin' ? 'Admin' : 'Dashboard');
     } catch(e) { setError('Не удалось открыть смену: ' + e.message); }
   };
 
   const handleSkip = () => {
+    const returnTo = route?.params?.returnTo;
+    if (returnTo) { navigation.navigate(returnTo); return; }
     const user = getSession();
     navigation.navigate(user?.role === 'admin' ? 'Admin' : 'Dashboard');
   };
