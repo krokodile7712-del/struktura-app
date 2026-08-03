@@ -5,7 +5,7 @@ import { getOpenShift, getShiftSummary, closeShift, getTerms, pluralizeRu, getPa
 import { useToast } from '../components/Toast';
 import { useFocusEffect } from '@react-navigation/native';
 import { clearSession, getHomeRoute } from '../db/session';
-import { resetKassaCart } from './KassaScreen';
+import { resetKassaCart } from '../db/cartStore';
 import { colors, fonts } from '../constants/theme';
 
 const fmt = (n) => (n || 0).toLocaleString('ru-RU');

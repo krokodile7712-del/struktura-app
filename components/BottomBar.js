@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Animated } from 'react-native';
 import { colors, fonts, anim } from '../constants/theme';
+import { getCartSummary } from '../db/cartStore';
 
 const TABS = [
   { key: 'Loyalty', label: 'Лояльность' },
@@ -12,6 +13,19 @@ export default function BottomBar({ navigation, activeTab }) {
   const [barWidth, setBarWidth] = useState(0);
   const indicatorAnim = useRef(new Animated.Value(Math.max(0, activeIndex))).current;
   const scaleAnims = useRef(TABS.map((_, i) => new Animated.Value(i === activeIndex ? 1 : 0.96))).current;
+
+  // Плавающий бейдж корзины — виден на любом экране, кроме самой Кассы,
+  // если в отложенных чеках уже есть товары
+  const { count: cartCount, total: cartTotal } = getCartSummary();
+  const showCartBadge = cartCount > 0 && activeTab !== 'Kassa';
+  const badgeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (showCartBadge) {
+      badgeAnim.setValue(0);
+      Animated.spring(badgeAnim, { toValue: 1, ...anim.spring, useNativeDriver: true }).start();
+    }
+  }, [showCartBadge]);
 
   useEffect(() => {
     if (activeIndex >= 0) {
@@ -37,7 +51,26 @@ export default function BottomBar({ navigation, activeTab }) {
   const tabWidth = barWidth / TABS.length;
 
   return (
-    <View style={styles.bar} onLayout={e => setBarWidth(e.nativeEvent.layout.width)}>
+    <View style={styles.wrap}>
+      {showCartBadge && (
+        <Animated.View
+          style={[
+            styles.cartBadge,
+            {
+              opacity: badgeAnim,
+              transform: [{ scale: badgeAnim.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1] }) }],
+            },
+          ]}
+        >
+          <Pressable style={styles.cartBadgeInner} onPress={() => navigation.navigate('Kassa')}>
+            <Text style={styles.cartBadgeIcon}>🛒</Text>
+            <Text style={styles.cartBadgeCount}>{cartCount}</Text>
+            <View style={styles.cartBadgeDivider} />
+            <Text style={styles.cartBadgeTotal}>{Math.round(cartTotal)} ₽</Text>
+          </Pressable>
+        </Animated.View>
+      )}
+      <View style={styles.bar} onLayout={e => setBarWidth(e.nativeEvent.layout.width)}>
       {barWidth > 0 && activeIndex >= 0 && (
         <Animated.View
           style={[
@@ -70,11 +103,15 @@ export default function BottomBar({ navigation, activeTab }) {
           </Pressable>
         );
       })}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrap: {
+    position: 'relative',
+  },
   bar: {
     flexDirection: 'row',
     backgroundColor: colors.surface,
@@ -103,5 +140,45 @@ const styles = StyleSheet.create({
   },
   labelActive: {
     color: colors.orange,
+  },
+
+  cartBadge: {
+    position: 'absolute',
+    bottom: '100%',
+    alignSelf: 'center',
+    marginBottom: 12,
+  },
+  cartBadgeInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.orange,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  cartBadgeIcon: {
+    fontSize: 15,
+  },
+  cartBadgeCount: {
+    fontFamily: fonts.family,
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#fff',
+  },
+  cartBadgeDivider: {
+    width: 1,
+    height: 14,
+    backgroundColor: 'rgba(255,255,255,0.35)',
+  },
+  cartBadgeTotal: {
+    fontFamily: fonts.familySemibold,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.9)',
   },
 });

@@ -15,24 +15,8 @@ import ShiftBanner from '../components/ShiftBanner';
 import BottomBar from '../components/BottomBar';
 import InfoTip from '../components/InfoTip';
 import { getAllProducts, getAllClients, getCategories, getCategoryOrder, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, getAllVariantsWithSku, getZones, getOrderTemplates, saveOrderTemplate, deleteOrderTemplate, applyPendingPriceSchedules, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms, getLoyaltyConfig, spendPoints, checkSubscriptionBalance } from '../db/queries';
+import { cartStore } from '../db/cartStore';
 import { colors, fonts, spacing, anim } from '../constants/theme';
-
-// Хранилище корзины вне компонента — переживает перемонтаж экрана Кассы
-// (например, при переходе на открытие смены и возврате обратно).
-// Сбрасывается только явным закрытием слота после оплаты или очисткой заказа.
-const cartStore = {
-  slots: [{ id: 1, order: [], orderNote: '', appliedDiscount: null, pointsToSpend: '', zone: null, forClient: null }],
-  activeSlotId: 1,
-  nextSlotId: 2,
-};
-
-// Сбрасывает корзину Кассы — вызывается при завершении смены / смене пользователя,
-// чтобы следующий кассир не увидел чужой незакрытый заказ.
-export function resetKassaCart() {
-  cartStore.slots = [{ id: 1, order: [], orderNote: '', appliedDiscount: null, pointsToSpend: '', zone: null, forClient: null }];
-  cartStore.activeSlotId = 1;
-  cartStore.nextSlotId = 2;
-}
 
 export default function KassaScreen({ navigation, route }) {
   const loading2 = false; // placeholder
