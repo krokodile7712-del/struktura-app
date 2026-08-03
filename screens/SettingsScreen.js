@@ -1884,7 +1884,7 @@ export default function SettingsScreen({ navigation }) {
         )}
 
       </View>
-      <BottomBar navigation={navigation} activeTab="Kassa" />
+      <BottomBar navigation={navigation} />
 
       {/* Модалка товара */}
       <Modal visible={!!productModal} transparent animationType="slide" onRequestClose={() => setProductModal(null)}>

@@ -433,7 +433,7 @@ export default function ReportsScreen({ navigation }) {
         </View>
       </View>
 
-      <BottomBar navigation={navigation} activeTab="Kassa" />
+      <BottomBar navigation={navigation} />
 
       <DatePicker visible={picker === 'from'} value={customFrom}
         onChange={v => { setCustomFrom(v); setPreset('custom'); setPicker(null); }}

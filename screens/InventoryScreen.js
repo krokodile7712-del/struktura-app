@@ -213,7 +213,7 @@ export default function InventoryScreen({ navigation }) {
         )}
       </Animated.View>
 
-      <BottomBar navigation={navigation} activeTab="Kassa" />
+      <BottomBar navigation={navigation} />
 
       {/* Экран заполнения акта */}
       <Modal visible={!!activeAct} transparent={false} animationType="slide">

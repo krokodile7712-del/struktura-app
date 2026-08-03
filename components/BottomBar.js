@@ -8,17 +8,19 @@ const TABS = [
 ];
 
 export default function BottomBar({ navigation, activeTab }) {
-  const activeIndex = Math.max(0, TABS.findIndex(t => t.key === activeTab));
+  const activeIndex = TABS.findIndex(t => t.key === activeTab); // -1, если экран не Лояльность и не Касса
   const [barWidth, setBarWidth] = useState(0);
-  const indicatorAnim = useRef(new Animated.Value(activeIndex)).current;
+  const indicatorAnim = useRef(new Animated.Value(Math.max(0, activeIndex))).current;
   const scaleAnims = useRef(TABS.map((_, i) => new Animated.Value(i === activeIndex ? 1 : 0.96))).current;
 
   useEffect(() => {
-    Animated.spring(indicatorAnim, {
-      toValue: activeIndex,
-      ...anim.spring,
-      useNativeDriver: true,
-    }).start();
+    if (activeIndex >= 0) {
+      Animated.spring(indicatorAnim, {
+        toValue: activeIndex,
+        ...anim.spring,
+        useNativeDriver: true,
+      }).start();
+    }
     TABS.forEach((_, i) => {
       Animated.spring(scaleAnims[i], {
         toValue: i === activeIndex ? 1 : 0.96,
@@ -36,7 +38,7 @@ export default function BottomBar({ navigation, activeTab }) {
 
   return (
     <View style={styles.bar} onLayout={e => setBarWidth(e.nativeEvent.layout.width)}>
-      {barWidth > 0 && (
+      {barWidth > 0 && activeIndex >= 0 && (
         <Animated.View
           style={[
             styles.indicator,

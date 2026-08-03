@@ -513,7 +513,7 @@ export default function ProductsScreen({ navigation }) {
         </View>
       </View>
 
-      <BottomBar navigation={navigation} activeTab="Kassa" />
+      <BottomBar navigation={navigation} />
 
       {/* Пикер ингредиентов — на уровне экрана */}
       <Modal visible={ingPickerState !== null} transparent animationType="fade" onRequestClose={() => setIngPickerState(null)}>

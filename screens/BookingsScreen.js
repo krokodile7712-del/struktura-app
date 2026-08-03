@@ -229,7 +229,7 @@ export default function BookingsScreen({ navigation }) {
 
       </View>
 
-      <BottomBar navigation={navigation} activeTab="Kassa" />
+      <BottomBar navigation={navigation} />
     </View>
   );
 }

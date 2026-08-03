@@ -334,7 +334,7 @@ export default function StockScreen({ navigation }) {
         </View>
       </Modal>
 
-      <BottomBar navigation={navigation} activeTab="Kassa" />
+      <BottomBar navigation={navigation} />
 
       {/* Модалка */}
       <Modal visible={!!modalItem} transparent animationType="fade" onRequestClose={closeModal}>

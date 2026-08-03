@@ -246,7 +246,7 @@ export default function AdminScreen({ navigation }) {
         </View>
       </View>
 
-      <BottomBar navigation={navigation} activeTab="Kassa" />
+      <BottomBar navigation={navigation} />
     </View>
   );
 }

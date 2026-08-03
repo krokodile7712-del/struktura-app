@@ -270,7 +270,7 @@ export default function ExpensesScreen({ navigation }) {
         </Pressable>
       </Modal>
 
-      <BottomBar navigation={navigation} activeTab="Kassa" />
+      <BottomBar navigation={navigation} />
     </View>
   );
 }

@@ -319,7 +319,7 @@ export default function EmployeesScreen({ navigation }) {
         </View>
       </View>
 
-      <BottomBar navigation={navigation} activeTab="Kassa" />
+      <BottomBar navigation={navigation} />
     </View>
   );
 }

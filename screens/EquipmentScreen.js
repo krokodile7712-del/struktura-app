@@ -310,7 +310,7 @@ export default function EquipmentScreen({ navigation }) {
 
       </View>
 
-      <BottomBar navigation={navigation} activeTab="Kassa" />
+      <BottomBar navigation={navigation} />
       <DatePicker
         visible={showDatePicker}
         value={draft?.purchase_date || new Date().toISOString().slice(0,10)}

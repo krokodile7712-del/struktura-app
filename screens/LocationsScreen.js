@@ -114,7 +114,7 @@ export default function LocationsScreen({ navigation }) {
           </Text>
         </MetalCard>
       </ScrollView>
-      <BottomBar navigation={navigation} activeTab="Kassa" />
+      <BottomBar navigation={navigation} />
 
       <Modal visible={!!modal} transparent animationType="fade" onRequestClose={closeModal}>
         <View style={styles.modalRoot}>

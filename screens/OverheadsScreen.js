@@ -254,7 +254,7 @@ export default function OverheadsScreen({ navigation }) {
 
       </View>
 
-      <BottomBar navigation={navigation} activeTab="Kassa" />
+      <BottomBar navigation={navigation} />
     </View>
   );
 }

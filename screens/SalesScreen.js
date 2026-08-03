@@ -353,7 +353,7 @@ export default function SalesScreen({ navigation }) {
         </View>
       </View>
 
-      <BottomBar navigation={navigation} activeTab="Kassa" />
+      <BottomBar navigation={navigation} />
 
       {/* Пикеры дат */}
       <DatePicker visible={picker === 'from'} value={dateFrom}

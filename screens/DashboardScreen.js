@@ -209,7 +209,7 @@ export default function DashboardScreen({ navigation }) {
 
       </View>
 
-      <BottomBar navigation={navigation} activeTab="Kassa" />
+      <BottomBar navigation={navigation} />
     </View>
   );
 }

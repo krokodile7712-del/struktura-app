@@ -155,7 +155,7 @@ export default function WorkJournalScreen({ navigation }) {
         )}
       </Animated.View>
 
-      <BottomBar navigation={navigation} activeTab="Kassa" />
+      <BottomBar navigation={navigation} />
     </View>
   );
 }

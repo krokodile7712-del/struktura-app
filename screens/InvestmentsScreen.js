@@ -256,7 +256,7 @@ export default function InvestmentsScreen({ navigation }) {
 
       </View>
 
-      <BottomBar navigation={navigation} activeTab="Kassa" />
+      <BottomBar navigation={navigation} />
 
       <DatePicker
         visible={showDatePicker}

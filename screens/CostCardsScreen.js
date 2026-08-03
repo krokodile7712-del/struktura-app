@@ -172,7 +172,7 @@ export default function CostCardsScreen({ navigation }) {
         })()}
       </ScrollView>
 
-      <BottomBar navigation={navigation} activeTab="Kassa" />
+      <BottomBar navigation={navigation} />
 
       {/* Модалка редактирования */}
       <Modal visible={!!editCard} transparent animationType="fade" onRequestClose={() => setEditCard(null)}>
