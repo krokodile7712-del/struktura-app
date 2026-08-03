@@ -5,6 +5,7 @@ import { getOpenShift, getShiftSummary, closeShift, getTerms, pluralizeRu, getPa
 import { useToast } from '../components/Toast';
 import { useFocusEffect } from '@react-navigation/native';
 import { clearSession, getHomeRoute } from '../db/session';
+import { resetKassaCart } from './KassaScreen';
 import { colors, fonts } from '../constants/theme';
 
 const fmt = (n) => (n || 0).toLocaleString('ru-RU');
@@ -78,7 +79,7 @@ export default function ShiftCloseScreen({ navigation }) {
     } catch(e) { console.error(e); }
   };
 
-  const handleFinish = () => { clearSession(); navigation.navigate('Login'); };
+  const handleFinish = () => { resetKassaCart(); clearSession(); navigation.navigate('Login'); };
 
   const animBtn = (to) => Animated.spring(btnScale, { toValue: to, useNativeDriver: true, tension: 200 }).start();
 

@@ -18,6 +18,23 @@ import { colors, fonts, spacing } from '../constants/theme';
 
 const CAT_ICONS = { 'Кофе': '☕', 'Лимонады': '🍹', 'Допы': '🍬', 'Прочее': '🫙' };
 
+// Хранилище корзины вне компонента — переживает перемонтаж экрана Кассы
+// (например, при переходе на открытие смены и возврате обратно).
+// Сбрасывается только явным закрытием слота после оплаты или очисткой заказа.
+const cartStore = {
+  slots: [{ id: 1, order: [], orderNote: '', appliedDiscount: null, pointsToSpend: '', zone: null, forClient: null }],
+  activeSlotId: 1,
+  nextSlotId: 2,
+};
+
+// Сбрасывает корзину Кассы — вызывается при завершении смены / смене пользователя,
+// чтобы следующий кассир не увидел чужой незакрытый заказ.
+export function resetKassaCart() {
+  cartStore.slots = [{ id: 1, order: [], orderNote: '', appliedDiscount: null, pointsToSpend: '', zone: null, forClient: null }];
+  cartStore.activeSlotId = 1;
+  cartStore.nextSlotId = 2;
+}
+
 export default function KassaScreen({ navigation, route }) {
   const loading2 = false; // placeholder
   const toast = useToast();
@@ -45,13 +62,24 @@ export default function KassaScreen({ navigation, route }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [skuMap, setSkuMap] = useState({});       // {sku_lower: product_id}
   // ── Парковка заказов (слоты) ────────────────────────────────────────────────
-  // Каждый слот = один активный чек со своим состоянием
+  // Каждый слот = один активный чек со своим состоянием.
+  // Состояние инициализируется из cartStore, чтобы пережить перемонтаж экрана.
   const [hasShift, setHasShift] = useState(!!getOpenShift());
-  const [slots, setSlots] = useState([
-    { id: 1, order: [], orderNote: '', appliedDiscount: null, pointsToSpend: '', zone: null, forClient: route?.params?.forClient || null }
-  ]);
-  const [activeSlotId, setActiveSlotId] = useState(1);
-  const [nextSlotId, setNextSlotId] = useState(2);
+  const [slots, setSlots] = useState(() => {
+    if (route?.params?.forClient) {
+      cartStore.slots = cartStore.slots.map(s =>
+        s.id === cartStore.activeSlotId ? { ...s, forClient: route.params.forClient } : s
+      );
+    }
+    return cartStore.slots;
+  });
+  const [activeSlotId, setActiveSlotId] = useState(cartStore.activeSlotId);
+  const [nextSlotId, setNextSlotId] = useState(cartStore.nextSlotId);
+
+  // Синхронизируем изменения корзины в постоянное хранилище
+  useEffect(() => { cartStore.slots = slots; }, [slots]);
+  useEffect(() => { cartStore.activeSlotId = activeSlotId; }, [activeSlotId]);
+  useEffect(() => { cartStore.nextSlotId = nextSlotId; }, [nextSlotId]);
 
   // Зоны и шаблоны
   const [zones, setZones]               = useState([]);
