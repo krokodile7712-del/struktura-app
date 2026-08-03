@@ -27,7 +27,8 @@ import { getDb } from '../../db/database';
 import Hint from '../Hint';
 import InfoTip from '../InfoTip';
 import Toggle from '../Toggle';
-import { can, getSession, setPermissions, setUserPermissions } from '../../db/session';
+import { can, getSession, setPermissions, setUserPermissions, clearSession } from '../../db/session';
+import { resetKassaCart } from '../../db/cartStore';
 import EmptyState from '../EmptyState';
 import { colors, fonts, spacing } from '../../constants/theme';
 import { upsertBusiness, syncServicesToSupabase } from '../../db/supabase';
@@ -1642,19 +1643,48 @@ export default function SettingsFullPanel({ navigation }) {
             <Pressable
               style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
               onPress={() => {
-                try {
-                  setSetting('onboarding_done', '');
-                  navigation.navigate('Onboarding');
-                } catch (e) {
-                  console.error('[Мастер настройки] ошибка запуска:', e);
-                  toast.show('Не удалось открыть мастер настройки: ' + (e?.message || 'ошибка'), 'warn');
-                }
+                Alert.alert(
+                  'Перезапустить мастер настройки?',
+                  'Это заново спросит название бизнеса, тип, термины и другие параметры — и ПЕРЕЗАПИШЕТ текущие значения в профиле бизнеса. История продаж, товары, склад и сотрудники не пострадают. Продолжить?',
+                  [
+                    { text: 'Отмена', style: 'cancel' },
+                    {
+                      text: 'Перезапустить', style: 'destructive',
+                      onPress: () => {
+                        try {
+                          setSetting('onboarding_done', '');
+                          navigation.navigate('Onboarding');
+                        } catch (e) {
+                          console.error('[Мастер настройки] ошибка запуска:', e);
+                          toast.show('Не удалось открыть мастер настройки: ' + (e?.message || 'ошибка'), 'warn');
+                        }
+                      },
+                    },
+                  ]
+                );
               }}
             >
               <Text style={{ fontSize: 20, marginRight: 12 }}>🚀</Text>
               <View style={{ flex: 1 }}>
                 <Text style={styles.menuItemName}>Мастер настройки</Text>
                 <Text style={styles.menuItemSub}>Перезапустить первоначальную настройку</Text>
+              </View>
+              <Text style={styles.menuItemArrow}>›</Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [styles.menuRow, styles.menuRowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
+              onPress={() => {
+                Alert.alert('Сменить аккаунт?', 'Вы выйдете из текущего аккаунта и вернётесь на экран входа.', [
+                  { text: 'Отмена', style: 'cancel' },
+                  { text: 'Выйти', style: 'destructive', onPress: () => { resetKassaCart(); clearSession(); navigation.navigate('Login'); } },
+                ]);
+              }}
+            >
+              <Text style={{ fontSize: 20, marginRight: 12 }}>🔑</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.menuItemName}>Сменить аккаунт</Text>
+                <Text style={styles.menuItemSub}>Выйти и войти под другим PIN</Text>
               </View>
               <Text style={styles.menuItemArrow}>›</Text>
             </Pressable>
