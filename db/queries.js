@@ -997,7 +997,9 @@ export function closeShift(shift_id) {
     for (const eq of shiftEquip) {
       db.runSync(`UPDATE equipment SET current_cycles = current_cycles + ? WHERE id = ?`, [eq.cycles_per_use || 1, eq.id]);
     }
-  } catch(_) {}
+  } catch (e) { console.error('[closeShift] Ошибка инкремента оборудования:', e); }
+
+  try { ensureDailyDepreciationExpense(); } catch (e) { console.error('[closeShift] Ошибка автосчёта расходов:', e); }
 }
 
 export function getOpenShift() {
@@ -2385,22 +2387,35 @@ export function getInvestmentSummary() {
 // ─── Блок Ж: Журнал работ ───────────────────────────────────────────────────
 
 // Заказы с заметками (к заказу или к позициям)
-export function getWorkJournal({ dateFrom, dateTo, clientId, limit = 50 } = {}) {
+export function getWorkJournal({ dateFrom, dateTo, limit = 50 } = {}) {
   const db = getDb();
-  let where = `(o.note != '' OR oi.note != '')`;
+  let where = '1=1';
   const params = [];
-  if (dateFrom) { where += ` AND o.created_at >= ?`; params.push(dateFrom + 'T00:00:00'); }
-  if (dateTo)   { where += ` AND o.created_at <= ?`; params.push(dateTo   + 'T23:59:59'); }
-  if (clientId) { where += ` AND o.client_id = ?`;   params.push(clientId); }
+  if (dateFrom) { where += ` AND s.opened_at >= ?`; params.push(dateFrom + 'T00:00:00'); }
+  if (dateTo)   { where += ` AND s.opened_at <= ?`; params.push(dateTo   + 'T23:59:59'); }
   params.push(limit);
   return db.getAllSync(
-    `SELECT DISTINCT o.*, c.fio as client_name
-     FROM orders o
-     LEFT JOIN clients c ON c.id = o.client_id
-     LEFT JOIN order_items oi ON oi.order_id = o.id
+    `SELECT s.*,
+       COALESCE(NULLIF(s.employee_name, ''), u.name, 'Сотрудник') as user_name,
+       (SELECT COUNT(*) FROM orders o WHERE o.shift_id = s.id AND (o.status IS NULL OR o.status != 'returned')) as order_count,
+       (SELECT COALESCE(SUM(total), 0) FROM orders o WHERE o.shift_id = s.id AND (o.status IS NULL OR o.status != 'returned')) as total_revenue
+     FROM shifts s
+     LEFT JOIN users u ON u.id = s.user_id
      WHERE ${where}
-     ORDER BY o.created_at DESC LIMIT ?`,
+     ORDER BY s.opened_at DESC LIMIT ?`,
     params
+  );
+}
+
+// Позиции заказов, проданные в рамках конкретной смены (для раскрытия карточки в Журнале работы)
+export function getShiftOrderItems(shiftId) {
+  const db = getDb();
+  return db.getAllSync(
+    `SELECT oi.* FROM order_items oi
+     JOIN orders o ON o.id = oi.order_id
+     WHERE o.shift_id = ? AND (o.status IS NULL OR o.status != 'returned')
+     ORDER BY oi.id`,
+    [shiftId]
   );
 }
 
@@ -2461,6 +2476,59 @@ function getShiftsInPeriod(dateFrom, dateTo) {
       [dateFrom + 'T00:00:00', dateTo + 'T23:59:59']
     );
   } catch (_) { return []; }
+}
+
+// Раз в день (при первом закрытии смены за сутки) создаёт в Расходах записи
+// по амортизации оборудования и накладным расходам — чтобы вкладка «Расходы»
+// и Отчётность (P&L) считали одинаково, а не расходились в двух формулах.
+// Идемпотентна: повторный вызов в тот же день ничего не задваивает.
+export function ensureDailyDepreciationExpense() {
+  const db = getDb();
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Амортизация оборудования (только линейная/смешанная — по времени, не по циклам)
+  try {
+    const already = db.getFirstSync(
+      `SELECT id FROM expenses WHERE date = ? AND category = 'Амортизация' AND comment = 'Автоматически'`,
+      [today]
+    );
+    if (!already) {
+      const equipment = getEquipment();
+      let daily = 0;
+      for (const eq of equipment) {
+        if (!eq.cost) continue;
+        if ((eq.amort_type === 'linear' || eq.amort_type === 'mixed') && eq.amort_period > 0) {
+          daily += eq.cost / eq.amort_period / 30;
+        }
+      }
+      daily = Math.round(daily * 100) / 100;
+      if (daily > 0) {
+        insertExpense({ date: today, category: 'Амортизация', amount: daily, comment: 'Автоматически' });
+      }
+    }
+  } catch (e) { console.error('[ensureDailyDepreciationExpense] амортизация:', e); }
+
+  // Накладные расходы (месячные/годовые/недельные — приводим к дневной доле)
+  try {
+    const already = db.getFirstSync(
+      `SELECT id FROM expenses WHERE date = ? AND category = 'Накладные' AND comment = 'Автоматически'`,
+      [today]
+    );
+    if (!already) {
+      const overheads = getOverheadItems();
+      let daily = 0;
+      for (const oh of overheads) {
+        const monthly = oh.period === 'year' ? oh.amount / 12
+                       : oh.period === 'week' ? oh.amount * 4.33
+                       : oh.amount;
+        daily += monthly / 30;
+      }
+      daily = Math.round(daily * 100) / 100;
+      if (daily > 0) {
+        insertExpense({ date: today, category: 'Накладные', amount: daily, comment: 'Автоматически' });
+      }
+    }
+  } catch (e) { console.error('[ensureDailyDepreciationExpense] накладные:', e); }
 }
 
 // Полный P&L с накладными, зарплатой и амортизацией

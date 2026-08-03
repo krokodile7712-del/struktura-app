@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Animated } fr
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import { useFocusEffect } from '@react-navigation/native';
-import { getWorkJournal, getOrderItemsWithNotes } from '../db/queries';
+import { getWorkJournal, getShiftOrderItems } from '../db/queries';
 import { getHomeRoute } from '../db/session';
 import { colors, fonts, anim } from '../constants/theme';
 
@@ -46,7 +46,7 @@ export default function WorkJournalScreen({ navigation }) {
     if (expanded === id) { setExpanded(null); return; }
     setExpanded(id);
     if (!itemsMap[id]) {
-      try { setItemsMap(m => ({ ...m, [id]: getOrderItemsWithNotes(id) })); } catch(_) {}
+      try { setItemsMap(m => ({ ...m, [id]: getShiftOrderItems(id) })); } catch(_) {}
     }
   };
 

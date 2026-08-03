@@ -10,7 +10,7 @@ import { getAllExpenses, insertExpense } from '../db/queries';
 import { getHomeRoute, can } from '../db/session';
 import { colors, fonts } from '../constants/theme';
 
-const CATEGORIES = ['Аренда', 'Зарплата', 'Закупка', 'Коммуналка', 'Расходники', 'Реклама', 'Прочее'];
+const CATEGORIES = ['Аренда', 'Зарплата', 'Закупка', 'Коммуналка', 'Расходники', 'Реклама', 'Амортизация', 'Накладные', 'Прочее'];
 const todayStr    = () => new Date().toISOString().slice(0, 10);
 const weekAgoStr  = () => { const d = new Date(); d.setDate(d.getDate()-6); return d.toISOString().slice(0,10); };
 const monthAgoStr = () => { const d = new Date(); d.setDate(d.getDate()-29); return d.toISOString().slice(0,10); };
