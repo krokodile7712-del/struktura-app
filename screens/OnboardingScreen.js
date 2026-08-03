@@ -98,7 +98,9 @@ const NEXT_STEPS = [
 
 // ─── Компонент ───────────────────────────────────────────────────────────────
 
-export default function OnboardingScreen({ navigation }) {
+export default function OnboardingScreen({ navigation, route }) {
+  const testMode = !!route?.params?.testMode;
+  const returnTo = route?.params?.returnTo;
   const [step, setStep]               = useState(0);
   // Шаг 1
   const [bizName, setBizName]         = useState('');
@@ -173,6 +175,12 @@ export default function OnboardingScreen({ navigation }) {
 
   // Финальное сохранение
   const finish = (navTo = null) => {
+    if (testMode) {
+      Alert.alert('Тестовый прогон завершён', 'Это был предпросмотр мастера настройки — ничего не сохранено в профиль бизнеса.', [
+        { text: 'Ок', onPress: () => (returnTo ? navigation.navigate(returnTo) : navigation.goBack()) },
+      ]);
+      return;
+    }
     try {
       const p = BUSINESS_PRESETS[preset];
       updateBusinessProfile({
@@ -212,6 +220,10 @@ export default function OnboardingScreen({ navigation }) {
   };
 
   const skip = () => {
+    if (testMode) {
+      returnTo ? navigation.navigate(returnTo) : navigation.goBack();
+      return;
+    }
     setSetting('onboarding_done', '1');
     navigation.replace('Login');
   };

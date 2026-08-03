@@ -1643,31 +1643,18 @@ export default function SettingsFullPanel({ navigation }) {
             <Pressable
               style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
               onPress={() => {
-                Alert.alert(
-                  'Перезапустить мастер настройки?',
-                  'Это заново спросит название бизнеса, тип, термины и другие параметры — и ПЕРЕЗАПИШЕТ текущие значения в профиле бизнеса. История продаж, товары, склад и сотрудники не пострадают. Продолжить?',
-                  [
-                    { text: 'Отмена', style: 'cancel' },
-                    {
-                      text: 'Перезапустить', style: 'destructive',
-                      onPress: () => {
-                        try {
-                          setSetting('onboarding_done', '');
-                          navigation.navigate('Onboarding');
-                        } catch (e) {
-                          console.error('[Мастер настройки] ошибка запуска:', e);
-                          toast.show('Не удалось открыть мастер настройки: ' + (e?.message || 'ошибка'), 'warn');
-                        }
-                      },
-                    },
-                  ]
-                );
+                try {
+                  navigation.navigate('Onboarding', { testMode: true, returnTo: 'Admin' });
+                } catch (e) {
+                  console.error('[Мастер настройки] ошибка запуска:', e);
+                  toast.show('Не удалось открыть мастер настройки: ' + (e?.message || 'ошибка'), 'warn');
+                }
               }}
             >
               <Text style={{ fontSize: 20, marginRight: 12 }}>🚀</Text>
               <View style={{ flex: 1 }}>
                 <Text style={styles.menuItemName}>Мастер настройки</Text>
-                <Text style={styles.menuItemSub}>Перезапустить первоначальную настройку</Text>
+                <Text style={styles.menuItemSub}>Тестовый прогон — сейчас ничего не сохраняет</Text>
               </View>
               <Text style={styles.menuItemArrow}>›</Text>
             </Pressable>
@@ -1689,6 +1676,7 @@ export default function SettingsFullPanel({ navigation }) {
               <Text style={styles.menuItemArrow}>›</Text>
             </Pressable>
           </View>
+
 
           {/* Данные */}
           <Text style={styles.bizGroupLabel}>Данные</Text>
