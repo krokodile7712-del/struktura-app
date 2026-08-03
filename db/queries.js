@@ -108,6 +108,19 @@ export function genitiveSingularRu(word) {
   return word + 'а';
 }
 
+// "Первый {термин}" в винительном падеже, с согласованием рода —
+// для фраз вида "Оформить первый заказ" / "Оформить первую позицию" / "Оформить первое изделие".
+// Возвращает пару { adj, noun } в нижнем регистре, готовую к вставке во фразу.
+export function firstOneRu(word) {
+  const src = word || 'заказ';
+  const last = src.slice(-1).toLowerCase();
+  if (last === 'а') return { adj: 'первую', noun: (src.slice(0, -1) + 'у').toLowerCase() };
+  if (last === 'я') return { adj: 'первую', noun: (src.slice(0, -1) + 'ю').toLowerCase() };
+  if (last === 'ь') return { adj: 'первую', noun: src.toLowerCase() }; // винительный совпадает с именительным
+  if (last === 'о' || last === 'е') return { adj: 'первое', noun: src.toLowerCase() };
+  return { adj: 'первый', noun: src.toLowerCase() };
+}
+
 export function getTerms() {
   const profile = getBusinessProfile();
   const terms = profile?.terms || {};

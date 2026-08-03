@@ -109,7 +109,7 @@ export default function RegResultScreen({ route, navigation }) {
               navigation.navigate('Kassa', { forClient: { id: clientId, fio, balance: 0, discount_pct: 0 } });
             }}
           >
-            <Text style={styles.secondaryBtnText}>Оформить первый {(terms.order || 'заказ').toLowerCase()}</Text>
+            <Text style={styles.secondaryBtnText}>Оформить первый заказ</Text>
           </Pressable>
 
           <Pressable
