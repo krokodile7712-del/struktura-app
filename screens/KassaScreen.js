@@ -741,7 +741,7 @@ export default function KassaScreen({ navigation, route }) {
                   leftColor={colors.indigo}
                 >
                   <Pressable
-                    style={({ pressed }) => [styles.v2Item, idx < order.length - 1 && styles.v2ItemDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.02)' }]}
+                    style={({ pressed }) => [styles.v2Item, pressed && { opacity: 0.85 }]}
                     onPress={() => editCartItemMods(item)}
                     onLongPress={() => setItemNoteModal({ id: item.id, note: item.note || '' })}
                     delayLongPress={280}
@@ -1632,9 +1632,8 @@ const styles = StyleSheet.create({
   v2Empty:      { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, opacity: 0.35 },
   v2EmptyIcon:  { fontSize: 40 },
   v2EmptyText:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
-  v2ListWrap:   { paddingTop: 4, paddingBottom: 8 },
-  v2Item:       { paddingVertical: 12, paddingHorizontal: 14 },
-  v2ItemDiv:    { borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.13)' },
+  v2ListWrap:   { paddingTop: 6, paddingBottom: 8 },
+  v2Item:       { marginHorizontal: 10, marginBottom: 6, paddingVertical: 12, paddingHorizontal: 14, backgroundColor: colors.surface2, borderRadius: 12 },
   v2ItemRow:    { flexDirection: 'row', alignItems: 'center', gap: 8 },
   v2ItemName:   { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, flex: 1, lineHeight: 17 },
   v2Qty:        { flexDirection: 'row', alignItems: 'center', gap: 6 },
