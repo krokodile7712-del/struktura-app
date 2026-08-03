@@ -1654,6 +1654,19 @@ export function addPurchase(stockName, qty, pricePerUnit) {
     [avgPrice, stockName]
   );
 
+  // Фиксируем закупку как расход — чтобы она попадала в отчёты и Расходы
+  try {
+    const shift = getOpenShift();
+    const stockItem = db.getFirstSync(`SELECT unit FROM stock WHERE LOWER(name) = LOWER(?)`, [stockName]);
+    insertExpense({
+      date: now.slice(0, 10),
+      category: 'Закупка',
+      amount: total,
+      comment: `${stockName}, ${qty} ${stockItem?.unit || ''}`.trim(),
+      shift_id: shift?.id || null,
+    });
+  } catch (e) { console.error('[addPurchase] Ошибка записи расхода:', e); }
+
   return { avgPrice, totalQty };
 }
 

@@ -390,7 +390,7 @@ export default function StockPanel() {
                     </Pressable>
                   </View>
                   <Pressable onPress={() => setPriceCalcOpen(o => !o)}>
-                    <Text style={styles.priceCalcToggle}>{priceCalcOpen ? '✕ скрыть калькулятор' : '🧮 посчитать по сумме закупки'}</Text>
+                    <Text style={styles.priceCalcToggle}>{priceCalcOpen ? '✕ скрыть калькулятор' : '🧮 посчитать по сумме (без записи в Расходы)'}</Text>
                   </Pressable>
                   {priceCalcOpen && (
                     <View style={styles.priceCalcBox}>
@@ -498,6 +498,7 @@ export default function StockPanel() {
                             ≈ {(parseFloat(price) / parseFloat(qty)).toFixed(2)} ₽/{modalItem.unit}
                           </Text>
                         )}
+                        <Text style={styles.purchaseExpenseNote}>💡 Сумма автоматически попадёт в Расходы, категория «Закупка»</Text>
                       </>
                     )}
 
@@ -710,5 +711,6 @@ const styles = StyleSheet.create({
   priceCalcApplyBtn: { paddingVertical: 10, borderRadius: 8, backgroundColor: colors.orange, alignItems: 'center' },
   priceCalcApplyTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: '#fff' },
   purchasePerUnitHint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.green, textAlign: 'center', marginBottom: 4 },
+  purchaseExpenseNote: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, textAlign: 'center', marginTop: 4 },
   histPrice:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.orange, flex: 1, textAlign: 'right' },
 });

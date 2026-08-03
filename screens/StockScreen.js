@@ -399,7 +399,7 @@ export default function StockScreen({ navigation }) {
                     </Pressable>
                   </View>
                   <Pressable onPress={() => setPriceCalcOpen(o => !o)}>
-                    <Text style={styles.priceCalcToggle}>{priceCalcOpen ? '✕ скрыть калькулятор' : '🧮 посчитать по сумме закупки'}</Text>
+                    <Text style={styles.priceCalcToggle}>{priceCalcOpen ? '✕ скрыть калькулятор' : '🧮 посчитать по сумме (без записи в Расходы)'}</Text>
                   </Pressable>
                   {priceCalcOpen && (
                     <View style={styles.priceCalcBox}>
@@ -500,6 +500,7 @@ export default function StockScreen({ navigation }) {
                             ≈ {(parseFloat(price) / parseFloat(qty)).toFixed(2)} ₽/{modalItem.unit}
                           </Text>
                         )}
+                        <Text style={styles.purchaseExpenseNote}>💡 Сумма автоматически попадёт в Расходы, категория «Закупка»</Text>
                       </>
                     )}
 
@@ -688,6 +689,7 @@ const styles = StyleSheet.create({
   inputLabel:  { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, marginTop: 14 },
   inputField:  { padding: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 22, fontFamily: fonts.family, textAlign: 'center', marginBottom: 4 },
   purchasePerUnitHint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.green, textAlign: 'center', marginBottom: 4 },
+  purchaseExpenseNote: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, textAlign: 'center', marginTop: 4 },
 
   previewBox:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, backgroundColor: 'rgba(61,95,168,0.08)', borderRadius: 12, marginVertical: 10, borderWidth: 1, borderColor: 'rgba(61,95,168,0.2)' },
   previewLabel: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
