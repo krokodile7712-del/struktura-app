@@ -908,17 +908,15 @@ export function getClientByCode(code) {
 export function insertClient({ fio, phone, code, birth_date }) {
   const db = getDb();
   const now = new Date().toISOString();
-  db.runSync(
+  const id = db.runSync(
     `INSERT INTO clients (fio, phone, code, balance, visits, total_sum, created_at) VALUES (?, ?, ?, 0, 0, 0, ?)`,
     [fio, phone || '', code, now]
-  );
+  ).lastInsertRowId;
   // birth_date сохраняем отдельным UPDATE (на случай если колонки ещё нет)
   if (birth_date) {
-    try {
-      const c = db.getFirstSync(`SELECT id FROM clients WHERE code = ?`, [code]);
-      if (c) db.runSync(`UPDATE clients SET birth_date = ? WHERE id = ?`, [birth_date, c.id]);
-    } catch (_) {}
+    try { db.runSync(`UPDATE clients SET birth_date = ? WHERE id = ?`, [birth_date, id]); } catch (_) {}
   }
+  return id;
 }
 
 export function updateClient(id, { fio, phone, balance, discount_pct, birth_date }) {

@@ -32,13 +32,13 @@ export default function RegScreen({ navigation }) {
     const code = generateUniqueCode();
     const bd = birthDate.trim().replace(/[^0-9.\-]/g, '');
     try {
-      insertClient({ fio: fio.trim(), phone: phone.trim(), code, birth_date: bd });
+      const clientId = insertClient({ fio: fio.trim(), phone: phone.trim(), code, birth_date: bd });
     } catch (e) {
       setError('Не удалось создать карту. Попробуйте ещё раз.');
       return;
     }
     toast.show(`${terms.client || 'Клиент'} зарегистрирован`);
-    navigation.navigate('RegResult', { fio: fio.trim(), code });
+    navigation.navigate('RegResult', { fio: fio.trim(), code, clientId });
   };
 
   const animBtn = (toVal) => Animated.spring(btnScale, { toValue: toVal, useNativeDriver: true, tension: 200 }).start();
