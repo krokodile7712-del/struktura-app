@@ -190,7 +190,7 @@ export default function InvestmentsScreen({ navigation }) {
 
               {/* Название */}
               <Text style={styles.fieldLabel}>Название <Text style={{ color: colors.orange }}>*</Text></Text>
-              <TextInput style={styles.input} color={colors.text} value={draft.name} onChangeText={v => setDraft(d => ({ ...d, name: v }))} placeholder="Кофемашина, ремонт, вывеска..." placeholderTextColor={colors.muted} autoFocus={isNew} />
+              <TextInput style={styles.input} color={colors.text} value={draft.name} onChangeText={v => setDraft(d => ({ ...d, name: v }))} placeholder="Оборудование, ремонт, вывеска..." placeholderTextColor={colors.muted} autoFocus={isNew} />
 
               {/* Сумма */}
               <View style={styles.labelRow}>

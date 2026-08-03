@@ -41,6 +41,13 @@ const PRESET_LIST = [
     modules: ['Клиенты', 'Лояльность', 'Журнал работ', 'Смены'],
   },
   {
+    key: 'production',
+    icon: '🏭',
+    label: 'Производство',
+    desc: 'Пивоварение, дерево- и металлообработка, пошив и другой выпуск изделий. Складской учёт сырья, себестоимость партии, заказчики.',
+    modules: ['Склад', 'Техкарты', 'Инвентаризация', 'Смены'],
+  },
+  {
     key: 'custom',
     icon: '⚙️',
     label: 'Другое',
@@ -55,21 +62,21 @@ const TERM_CONFIGS = [
     icon: '🛒',
     title: 'Как называть заказ?',
     desc: 'Слово видно при создании нового чека в кассе, в истории продаж и отчётах',
-    presets: ['Заказ', 'Запись', 'Чек', 'Счёт', 'Бронь', 'Позиция'],
+    presets: ['Заказ', 'Запись', 'Чек', 'Счёт', 'Бронь', 'Позиция', 'Партия'],
   },
   {
     key: 'client',
     icon: '👤',
     title: 'Как называть клиента?',
     desc: 'Используется в карточках лояльности, поиске и карточке клиента',
-    presets: ['Клиент', 'Гость', 'Покупатель', 'Пациент', 'Участник', 'Студент'],
+    presets: ['Клиент', 'Гость', 'Покупатель', 'Пациент', 'Участник', 'Студент', 'Заказчик'],
   },
   {
     key: 'item',
     icon: '📦',
     title: 'Как называть товар / услугу?',
     desc: 'Позиция в меню, на складе и в техкартах',
-    presets: ['Товар', 'Услуга', 'Блюдо', 'Позиция', 'Продукт', 'Процедура'],
+    presets: ['Товар', 'Услуга', 'Блюдо', 'Позиция', 'Продукт', 'Процедура', 'Изделие'],
   },
   {
     key: 'category',
@@ -308,7 +315,12 @@ export default function OnboardingScreen({ navigation }) {
               <Pressable
                 key={p.key}
                 style={[styles.presetCard, preset === p.key && styles.presetCardActive]}
-                onPress={() => { setPreset(p.key); setErrors(e => ({ ...e, preset: null })); }}
+                onPress={() => {
+                  setPreset(p.key);
+                  setErrors(e => ({ ...e, preset: null }));
+                  const presetTerms = BUSINESS_PRESETS[p.key]?.terms;
+                  if (presetTerms) setTerms(presetTerms);
+                }}
               >
                 <View style={styles.presetHeader}>
                   <Text style={styles.presetIcon}>{p.icon}</Text>

@@ -131,7 +131,7 @@ export default function EquipmentScreen({ navigation }) {
             {items.length === 0 ? (
               <View style={styles.emptyWrap}>
                 <Text style={styles.emptyTxt}>Нет оборудования</Text>
-                <Text style={styles.emptyHint}>Добавьте кофемашину, холодильник и другую технику чтобы отслеживать амортизацию</Text>
+                <Text style={styles.emptyHint}>Добавьте станок, холодильник и другую технику чтобы отслеживать амортизацию</Text>
               </View>
             ) : (
               <View style={styles.listCard}>
@@ -186,13 +186,13 @@ export default function EquipmentScreen({ navigation }) {
               <View style={styles.amortHint}>
                 <Text style={styles.amortHintTitle}>Что такое амортизация?</Text>
                 <Text style={styles.amortHintText}>
-                  Амортизация — это постепенное списание стоимости оборудования. Например, кофемашина за 150 000 ₽ со сроком 36 месяцев будет «стоить» 4 167 ₽ каждый месяц — эта сумма учитывается в себестоимости продукции.
+                  Амортизация — это постепенное списание стоимости оборудования. Например, станок за 150 000 ₽ со сроком 36 месяцев будет «стоить» 4 167 ₽ каждый месяц — эта сумма учитывается в себестоимости продукции.
                 </Text>
               </View>
 
               {/* Название */}
               <Text style={styles.fieldLabel}>Название <Text style={{ color: colors.orange }}>*</Text></Text>
-              <TextInput style={styles.input} color={colors.text} value={draft.name} onChangeText={v => setDraft(d => ({ ...d, name: v }))} placeholder="Кофемашина, Холодильник..." placeholderTextColor={colors.muted} autoFocus={isNew} />
+              <TextInput style={styles.input} color={colors.text} value={draft.name} onChangeText={v => setDraft(d => ({ ...d, name: v }))} placeholder="Станок, холодильник, инструмент..." placeholderTextColor={colors.muted} autoFocus={isNew} />
 
               {/* Стоимость */}
               <View style={styles.labelRow}>

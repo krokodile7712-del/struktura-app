@@ -115,7 +115,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
           color={colors.text}
           value={name}
           onChangeText={setName}
-          placeholder="Латте, Круассан, Услуга..."
+          placeholder="Название товара или услуги"
           placeholderTextColor={colors.muted}
           autoFocus={isNew}
         />
@@ -868,7 +868,7 @@ function ModGroupModal({ group, onSave, onDelete, onClose, stock }) {
 
             <Text style={styles.fieldLabel}>Название группы</Text>
             <TextInput style={styles.input} color={colors.text} value={name}
-              onChangeText={setName} placeholder="Молоко, Топпинг, Размер..." placeholderTextColor={colors.muted} autoFocus={isNew} />
+              onChangeText={setName} placeholder="Название группы (Размер, Цвет, Начинка...)" placeholderTextColor={colors.muted} autoFocus={isNew} />
 
             <Text style={styles.fieldLabel}>Режим</Text>
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 4 }}>

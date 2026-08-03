@@ -1988,7 +1988,7 @@ export default function SettingsScreen({ navigation }) {
                 <Pressable style={styles.productAddVariant} onPress={addVariantRow}>
                   <Text style={styles.productAddVariantText}>+ Добавить вариант</Text>
                 </Pressable>
-                <Text style={styles.productHint}>💡 Несколько вариантов — например Латте S и Латте L с разными ценами</Text>
+                <Text style={styles.productHint}>💡 Несколько вариантов — например S и L с разными ценами</Text>
 
                 {/* Модификаторы */}
                 {modifierGroups.length > 0 && (
@@ -2318,9 +2318,9 @@ export default function SettingsScreen({ navigation }) {
 
                 {/* Позиции */}
                 {[
-                  { name: 'Американо', price: 100 },
-                  { name: 'Латте S',   price: 90  },
-                  { name: 'Круассан',  price: 120 },
+                  { name: 'Позиция 1', price: 100 },
+                  { name: 'Позиция 2', price: 90  },
+                  { name: 'Позиция 3', price: 120 },
                 ].map((item, i) => (
                   <View key={i} style={styles.receiptRow}>
                     <Text style={styles.receiptItem}>{item.name}</Text>
@@ -2750,7 +2750,7 @@ export default function SettingsScreen({ navigation }) {
                 <Pressable onPress={() => setGroupModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
               </View>
               <Text style={styles.fieldLabel}>Название группы</Text>
-              <TextInput style={styles.input} value={groupModal.name} onChangeText={(v) => setGroupModal(m => ({ ...m, name: v }))} placeholder="напр. Молоко" placeholderTextColor={colors.muted} />
+              <TextInput style={styles.input} value={groupModal.name} onChangeText={(v) => setGroupModal(m => ({ ...m, name: v }))} placeholder="напр. Размер" placeholderTextColor={colors.muted} />
               <View style={styles.chipsRowSmall}>
                 <Pressable style={[styles.chipSmall, groupModal.selectionType === 'single' && styles.chipSmallActive]} onPress={() => setGroupModal(m => ({ ...m, selectionType: 'single' }))}>
                   <Text style={[styles.chipSmallLabel, groupModal.selectionType === 'single' && styles.chipSmallLabelActive]}>Один вариант</Text>
@@ -2797,11 +2797,11 @@ export default function SettingsScreen({ navigation }) {
               <TextInput style={styles.input} keyboardType="numeric" value={optionModal.priceDelta} onChangeText={(v) => setOptionModal(m => ({ ...m, priceDelta: v }))} placeholderTextColor={colors.muted} />
 
               <Text style={styles.fieldLabel}>Заменяет ингредиент склада на (если это замена)</Text>
-              <TextInput style={styles.input} value={optionModal.ingrToReplace} onChangeText={(v) => setOptionModal(m => ({ ...m, ingrToReplace: v }))} placeholder="напр. Овсяное молоко" placeholderTextColor={colors.muted} />
-              <Text style={styles.hintText}>Сработает, если в техкарте {genitiveSingularRu(terms.item).toLowerCase()} есть ингредиент с названием как у группы модификатора (напр. группа «Молоко» → ингредиент «Молоко»).</Text>
+              <TextInput style={styles.input} value={optionModal.ingrToReplace} onChangeText={(v) => setOptionModal(m => ({ ...m, ingrToReplace: v }))} placeholder="Название как на складе" placeholderTextColor={colors.muted} />
+              <Text style={styles.hintText}>Сработает, если в техкарте {genitiveSingularRu(terms.item).toLowerCase()} есть ингредиент с таким же названием, как у группы модификатора.</Text>
 
               <Text style={styles.fieldLabel}>Или списывает дополнительно (если это добавка)</Text>
-              <TextInput style={styles.input} value={optionModal.ingrToDeduct} onChangeText={(v) => setOptionModal(m => ({ ...m, ingrToDeduct: v }))} placeholder="напр. Сироп ваниль" placeholderTextColor={colors.muted} />
+              <TextInput style={styles.input} value={optionModal.ingrToDeduct} onChangeText={(v) => setOptionModal(m => ({ ...m, ingrToDeduct: v }))} placeholder="напр. Упаковка подарочная" placeholderTextColor={colors.muted} />
               <View style={{ flexDirection: 'row', gap: 10 }}>
                 <View style={{ flex: 2 }}>
                   <Text style={styles.fieldLabel}>Расход</Text>

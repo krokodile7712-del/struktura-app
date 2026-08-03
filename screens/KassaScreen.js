@@ -190,7 +190,7 @@ export default function KassaScreen({ navigation, route }) {
         ? [...savedOrder.filter(o => cats.includes(o)), ...cats.filter(o => !savedOrder.includes(o))]
         : cats;
       setGroups(orderedCats);
-      setActiveCat(cats.find(c => c === 'Кофе') || cats[0] || null);
+      setActiveCat(cats[0] || null);
       setDiscounts(disc);
       setCurrentShift(shift);
     } catch (e) { console.error('[KassaScreen] loadData error:', e); }

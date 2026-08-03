@@ -24,6 +24,13 @@ export const BUSINESS_PRESETS = {
     roles: { barista: 'Мастер', admin: 'Администратор' },
     units: ['шт', 'ч', 'сеанс'],
   },
+  production: {
+    label: 'Производство',
+    modules: { stock: true, shifts: true, clients: true, loyalty: false, modifiers: false, inventory: true },
+    terms: { item: 'Изделие', client: 'Заказчик', order: 'Партия', category: 'Категория' },
+    roles: { barista: 'Работник', admin: 'Администратор' },
+    units: ['кг', 'г', 'л', 'мл', 'шт', 'м', 'м²', 'м³', 'лист', 'рулон', 'партия'],
+  },
 };
 
 function safeParse(json, fallback) {
@@ -746,11 +753,11 @@ export function insertProduct({ name, category, price_s, price_m, price_l, has_m
   if (price_s > 0) variants.push({ size: 'Маленький', price: price_s });
   if (price_m > 0) variants.push({ size: 'Средний', price: price_m });
   if (price_l > 0) variants.push({ size: 'Большой', price: price_l });
-  db.runSync(
+  return db.runSync(
     `INSERT INTO products (name, category, price_s, price_m, price_l, has_milk, has_syrup, variants)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     [name, category, price_s || 0, price_m || 0, price_l || 0, has_milk ? 1 : 0, has_syrup ? 1 : 0, JSON.stringify(variants)]
-  );
+  ).lastInsertRowId;
 }
 
 export function updateProductVariants(id, variants) {
@@ -2547,7 +2554,7 @@ export function getBusinessMetrics(pnlFull, businessPreset) {
   const { revenue, foodCostPct, primeCostPct, grossMarginPct, laborCostPct,
           orderCount, avgCheck, shiftsCount, avgCheckPerShift, breakEvenMonthly } = pnlFull;
 
-  if (businessPreset === 'coffee' || businessPreset === 'services' || !businessPreset) {
+  if (businessPreset === 'coffee' || !businessPreset) {
     metrics.push({
       key: 'foodCost',
       label: 'Food Cost %',
@@ -2577,6 +2584,18 @@ export function getBusinessMetrics(pnlFull, businessPreset) {
       ok: grossMarginPct > 40,
       warn: grossMarginPct <= 40,
       tip: 'Процент валовой прибыли от выручки. Для розницы норма зависит от категории: продукты 20–35%, одежда 50–70%.',
+    });
+  }
+
+  if (businessPreset === 'production') {
+    metrics.push({
+      key: 'materialCost',
+      label: 'Материалы %',
+      value: `${foodCostPct}%`,
+      benchmark: '< 50%',
+      ok: foodCostPct > 0 && foodCostPct < 50,
+      warn: foodCostPct >= 50,
+      tip: 'Доля стоимости сырья и материалов в выручке. Норма сильно зависит от отрасли — ориентируйтесь на свою историю, а не на чужие цифры.',
     });
   }
 
