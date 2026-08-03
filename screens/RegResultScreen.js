@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Animated, Clipboard } from 'react-native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import { getTerms, getLoyaltyConfig } from '../db/queries';
+import { getTerms, getLoyaltyConfig, genitiveSingularRu } from '../db/queries';
 import { colors, fonts, anim } from '../constants/theme';
 import { useToast } from '../components/Toast';
 
 function loyaltyBlurb(model, config, terms) {
-  const clientWord = (terms.client || 'клиент').toLowerCase();
+  const clientGen = genitiveSingularRu(terms.client || 'Клиент').toLowerCase();
   if (model === 'points') {
     return {
       icon: '★',
@@ -21,14 +21,14 @@ function loyaltyBlurb(model, config, terms) {
     return {
       icon: '🏷',
       title: 'Постоянная скидка',
-      text: `На все покупки этого ${clientWord}а автоматически действует скидка ${config.pct}%.`,
+      text: `На все покупки этого ${clientGen} автоматически действует скидка ${config.pct}%.`,
     };
   }
   if (model === 'subscription') {
     return {
       icon: '🎟',
       title: 'Абонемент',
-      text: `Каждое посещение будет списывать ${config.deduct_per_visit} ${config.deduct_per_visit === 1 ? 'визит' : 'визита'} с баланса — пополнить его можно в карточке ${clientWord}а.`,
+      text: `Каждое посещение будет списывать ${config.deduct_per_visit} ${config.deduct_per_visit === 1 ? 'визит' : 'визита'} с баланса — пополнить его можно в карточке ${clientGen}.`,
     };
   }
   return null;
@@ -100,7 +100,7 @@ export default function RegResultScreen({ route, navigation }) {
             style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.88 }]}
             onPress={() => clientId && navigation.navigate('ClientCard', { clientId })}
           >
-            <Text style={styles.primaryBtnText}>Открыть карточку {(terms.client || 'клиента').toLowerCase()}</Text>
+            <Text style={styles.primaryBtnText}>Открыть карточку {genitiveSingularRu(terms.client || 'Клиент').toLowerCase()}</Text>
           </Pressable>
 
           <Pressable
