@@ -1641,7 +1641,15 @@ export default function SettingsFullPanel({ navigation }) {
           <View style={styles.menuCard}>
             <Pressable
               style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
-              onPress={() => { setSetting('onboarding_done', ''); null; }}
+              onPress={() => {
+                try {
+                  setSetting('onboarding_done', '');
+                  navigation.navigate('Onboarding');
+                } catch (e) {
+                  console.error('[Мастер настройки] ошибка запуска:', e);
+                  toast.show('Не удалось открыть мастер настройки: ' + (e?.message || 'ошибка'), 'warn');
+                }
+              }}
             >
               <Text style={{ fontSize: 20, marginRight: 12 }}>🚀</Text>
               <View style={{ flex: 1 }}>
