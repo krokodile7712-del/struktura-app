@@ -7,16 +7,15 @@ import { useFocusEffect } from '@react-navigation/native';
 import { getHomeRoute, getCurrentLocationId, can, getSession } from '../db/session';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
-  FlatList, Modal, ActivityIndicator, TextInput, Alert,
+  FlatList, Modal, ActivityIndicator, TextInput, Alert, Animated,
 } from 'react-native';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import ShiftBanner from '../components/ShiftBanner';
 import BottomBar from '../components/BottomBar';
+import InfoTip from '../components/InfoTip';
 import { getAllProducts, getAllClients, getCategories, getCategoryOrder, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, getAllVariantsWithSku, getZones, getOrderTemplates, saveOrderTemplate, deleteOrderTemplate, applyPendingPriceSchedules, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms, getLoyaltyConfig, spendPoints, checkSubscriptionBalance } from '../db/queries';
-import { colors, fonts, spacing } from '../constants/theme';
-
-const CAT_ICONS = { 'Кофе': '☕', 'Лимонады': '🍹', 'Допы': '🍬', 'Прочее': '🫙' };
+import { colors, fonts, spacing, anim } from '../constants/theme';
 
 // Хранилище корзины вне компонента — переживает перемонтаж экрана Кассы
 // (например, при переходе на открытие смены и возврате обратно).
@@ -61,6 +60,16 @@ export default function KassaScreen({ navigation, route }) {
   // Поиск
   const [searchQuery, setSearchQuery] = useState('');
   const [skuMap, setSkuMap] = useState({});       // {sku_lower: product_id}
+
+  // Анимация появления экрана + лёгкое затухание сетки при смене категории
+  const fadeAnim = useState(new Animated.Value(0))[0];
+  const gridFadeAnim = useState(new Animated.Value(1))[0];
+  const switchCategory = (cat) => {
+    setActiveCat(cat);
+    setSearchQuery('');
+    gridFadeAnim.setValue(0.4);
+    Animated.timing(gridFadeAnim, { toValue: 1, duration: 180, useNativeDriver: true }).start();
+  };
   // ── Парковка заказов (слоты) ────────────────────────────────────────────────
   // Каждый слот = один активный чек со своим состоянием.
   // Состояние инициализируется из cartStore, чтобы пережить перемонтаж экрана.
@@ -148,14 +157,10 @@ export default function KassaScreen({ navigation, route }) {
     });
   }; // для оплаты баллами
 
-  // Модалка оплаты
-  const [payModalOpen, setPayModalOpen] = useState(false);
+  // Оплата (значение способа/смешанной оплаты используется в предмодалке ── Оплата)
   const [payMethod, setPayMethod] = useState('Наличные'); // Наличные | Карта | QR | Смешанная
   const [mixedCash, setMixedCash] = useState('');
   const [mixedCard, setMixedCard] = useState('');
-
-  // Модалка скидки
-  const [discountModalOpen, setDiscountModalOpen] = useState(false);
 
   useEffect(() => { loadData(); }, []);
 
@@ -206,6 +211,7 @@ export default function KassaScreen({ navigation, route }) {
       setCurrentShift(shift);
     } catch (e) { console.error('[KassaScreen] loadData error:', e); }
     setLoading(false);
+    Animated.timing(fadeAnim, { toValue: 1, duration: anim.fadeDuration, useNativeDriver: true }).start();
   };
 
   // Фильтр товаров по поиску (имя + SKU)
@@ -489,8 +495,6 @@ export default function KassaScreen({ navigation, route }) {
 
   // ─── Оплата ──────────────────────────────────────────────────────────────
 
-  const [noShiftWarning, setNoShiftWarning] = useState(false);
-
   const openPrePay = () => {
     if (!hasShift) {
       Alert.alert(
@@ -519,20 +523,6 @@ export default function KassaScreen({ navigation, route }) {
     setClientSearch('');
     setPrePayOpen(true);
   };
-
-  const openPayModal = () => {
-    if (order.length === 0) return;
-    if (shiftsEnabled && !currentShift) {
-      setNoShiftWarning(true);
-      return;
-    }
-    const firstMethod = payMethods.find(m => m.active !== false) || payMethods[0];
-    setPayMethod(firstMethod?.name || 'Наличные');
-    setMixedCash('');
-    setMixedCard('');
-    setPayModalOpen(true);
-  };
-  const closePayModal = () => setPayModalOpen(false);
 
   const handleMixedCashChange = (v) => {
     setMixedCash(v);
@@ -604,7 +594,7 @@ export default function KassaScreen({ navigation, route }) {
   };
 
   if (loading) {
-    return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color={colors.greenLight} /></View>;
+    return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color={colors.orange} /></View>;
   }
 
   if (allProducts.length === 0) {
@@ -626,7 +616,7 @@ export default function KassaScreen({ navigation, route }) {
       <TopBar title="Касса" onBack={() => navigation.navigate(getHomeRoute())} />
 
       {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift', { returnTo: 'Kassa' })} />}
-      <View style={styles.layout}>
+      <Animated.View style={[styles.layout, { opacity: fadeAnim }]}>
         {/* ── Вертикальная колонка категорий ── */}
         <View style={styles.catRail}>
           {groups.map(group => {
@@ -635,10 +625,9 @@ export default function KassaScreen({ navigation, route }) {
               <Pressable
                 key={group}
                 style={[styles.catRailItem, isActive && styles.catRailItemActive]}
-                onPress={() => { setActiveCat(group); setSearchQuery(''); }}
+                onPress={() => switchCategory(group)}
               >
-                <Text style={styles.catRailIcon}>{CAT_ICONS[group] || '🫙'}</Text>
-                <Text style={[styles.catRailLabel, isActive && styles.catRailLabelActive]} numberOfLines={2}>
+                <Text style={[styles.catRailLabel, isActive && styles.catRailLabelActive]} numberOfLines={3}>
                   {group}
                 </Text>
                 {isActive ? <View style={styles.catRailBar} /> : null}
@@ -659,7 +648,7 @@ export default function KassaScreen({ navigation, route }) {
               clearButtonMode="while-editing"
             />
           </View>
-          <ScrollView contentContainerStyle={styles.menuGrid}>
+          <Animated.ScrollView contentContainerStyle={styles.menuGrid} style={{ opacity: gridFadeAnim }}>
             {filteredProducts.map((item) => {
               const { price, hasRange } = displayPrice(item);
               const cartQty = cartQtyByProduct[item.id] || 0;
@@ -691,7 +680,7 @@ export default function KassaScreen({ navigation, route }) {
                 <Text style={{ color: colors.muted, fontFamily: fonts.familyRegular, fontSize: 14 }}>Ничего не найдено</Text>
               </View>
             )}
-          </ScrollView>
+          </Animated.ScrollView>
         </View>
 
         <View style={styles.orderPanel}>
@@ -867,6 +856,12 @@ export default function KassaScreen({ navigation, route }) {
                   <Text style={styles.v2ActLbl}>Шаблоны</Text>
                 </Pressable>
               )}
+              {templatesEnabled && order.length > 0 && (
+                <Pressable style={styles.v2Act} onPress={() => { setTemplateNameInput(''); setTemplateModalOpen(true); }}>
+                  <Text style={styles.v2ActIco}>⚡</Text>
+                  <Text style={styles.v2ActLbl}>Как шаблон</Text>
+                </Pressable>
+              )}
               <Pressable style={styles.v2Act} onPress={parkAndNew}>
                 <Text style={styles.v2ActIco}>⏸</Text>
                 <Text style={styles.v2ActLbl}>Отложить</Text>
@@ -892,7 +887,7 @@ export default function KassaScreen({ navigation, route }) {
 
           </View>
         </View>
-      </View>
+      </Animated.View>
 
       <BottomBar navigation={navigation} activeTab="Kassa" />
 
@@ -925,7 +920,7 @@ export default function KassaScreen({ navigation, route }) {
                 {(discountAmount > 0 || pointsDiscount > 0) && (
                   <View style={styles.payTotalRow}>
                     <Text style={styles.payTotalRowLbl}>Скидка</Text>
-                    <Text style={[styles.payTotalRowVal, { color: colors.greenLight }]}>−{discountAmount + pointsDiscount} ₽</Text>
+                    <Text style={[styles.payTotalRowVal, { color: colors.green }]}>−{discountAmount + pointsDiscount} ₽</Text>
                   </View>
                 )}
                 <View style={styles.payTotalRow}>
@@ -972,7 +967,7 @@ export default function KassaScreen({ navigation, route }) {
                   <View style={styles.payInfoRow}>
                     <Text style={styles.payInfoIcon}>🏷</Text>
                     <Text style={styles.payInfoVal} numberOfLines={1}>{effectiveDiscount.name} −{effectiveDiscount.pct}%</Text>
-                    <Text style={[styles.payInfoSub, { color: colors.greenLight }]}>−{discountAmount} ₽</Text>
+                    <Text style={[styles.payInfoSub, { color: colors.green }]}>−{discountAmount} ₽</Text>
                     <Pressable onPress={() => setAppliedDiscount(null)} hitSlop={8}>
                       <Text style={styles.payInfoX}>✕</Text>
                     </Pressable>
@@ -986,17 +981,20 @@ export default function KassaScreen({ navigation, route }) {
 
               {/* Баллы */}
               {loyaltyModel === 'points' && loyaltyConfig.allow_spend && forClient && (forClient.balance||0) > 0 && (
-                <View style={styles.payPointsRow}>
-                  <Text style={styles.payInfoIcon}>★</Text>
-                  <TextInput
-                    style={styles.payPointsInput}
-                    keyboardType="numeric"
-                    value={pointsToSpend}
-                    onChangeText={v => setPointsToSpend(v)}
-                    placeholder={`0 из ${forClient.balance}`}
-                    placeholderTextColor={colors.muted}
-                  />
-                  {pointsDiscount > 0 && <Text style={[styles.payInfoSub, { color: colors.greenLight }]}>−{pointsDiscount} ₽</Text>}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <View style={[styles.payPointsRow, { flex: 1 }]}>
+                    <Text style={styles.payInfoIcon}>★</Text>
+                    <TextInput
+                      style={styles.payPointsInput}
+                      keyboardType="numeric"
+                      value={pointsToSpend}
+                      onChangeText={v => setPointsToSpend(v)}
+                      placeholder={`0 из ${forClient.balance}`}
+                      placeholderTextColor={colors.muted}
+                    />
+                    {pointsDiscount > 0 && <Text style={[styles.payInfoSub, { color: colors.green }]}>−{pointsDiscount} ₽</Text>}
+                  </View>
+                  <InfoTip title="Оплата баллами" text="Клиент может списать часть баллов в счёт покупки. Сумма списания ограничена настройками программы лояльности — если ввести больше, чем разрешено, система применит максимально допустимую сумму." />
                 </View>
               )}
 
@@ -1010,7 +1008,7 @@ export default function KassaScreen({ navigation, route }) {
                     onPress={() => setPayMethod(m.name)}
                   >
                     {m.icon ? <Text style={styles.payMethodChipIcon}>{m.icon}</Text> : null}
-                    <Text style={[styles.payMethodChipTxt, payMethod === m.name && { color: colors.greenLight }]}>{m.name}</Text>
+                    <Text style={[styles.payMethodChipTxt, payMethod === m.name && { color: colors.orange }]}>{m.name}</Text>
                   </Pressable>
                 ))}
               </View>
@@ -1018,6 +1016,10 @@ export default function KassaScreen({ navigation, route }) {
               {/* Смешанная */}
               {payMethods.find(m => m.name === payMethod)?.type === 'mixed' && (
                 <View style={styles.mixedPayBox}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+                    <Text style={styles.mixedPayHint}>Впишите одну сумму — вторая подставится сама</Text>
+                    <InfoTip title="Смешанная оплата" text="Укажите, сколько клиент платит наличными или картой — оставшаяся часть суммы автоматически подставится во второе поле." />
+                  </View>
                   <View style={styles.mixedPayRow}>
                     <Text style={styles.mixedPayLabel}>Наличными</Text>
                     <TextInput style={styles.mixedPayInput} placeholder="0" placeholderTextColor={colors.muted} keyboardType="numeric" value={mixedCash} onChangeText={handleMixedCashChange} />
@@ -1119,7 +1121,7 @@ export default function KassaScreen({ navigation, route }) {
                 style={[styles.discountListRow, !appliedDiscount && styles.discountListRowActive]}
                 onPress={() => { setAppliedDiscount(null); setDiscountDropOpen(false); }}
               >
-                <Text style={[styles.discountListName, !appliedDiscount && { color: colors.greenLight }]}>Без скидки</Text>
+                <Text style={[styles.discountListName, !appliedDiscount && { color: colors.orange }]}>Без скидки</Text>
                 {!appliedDiscount ? <Text style={styles.discountListCheck}>✓</Text> : null}
               </Pressable>
               {discounts.map((d, i) => {
@@ -1131,7 +1133,7 @@ export default function KassaScreen({ navigation, route }) {
                     onPress={() => { setAppliedDiscount(d); setDiscountDropOpen(false); }}
                   >
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.discountListName, isActive && { color: colors.greenLight }]}>{d.name}</Text>
+                      <Text style={[styles.discountListName, isActive && { color: colors.orange }]}>{d.name}</Text>
                       <Text style={styles.discountListSub}>−{d.pct}%  ≈ −{Math.round(rawTotal * d.pct / 100)} ₽</Text>
                     </View>
                     {isActive ? <Text style={styles.discountListCheck}>✓</Text> : null}
@@ -1152,6 +1154,9 @@ export default function KassaScreen({ navigation, route }) {
               <Text style={styles.modalTitle}>⚡ Сохранить шаблон</Text>
               <Pressable onPress={() => setTemplateModalOpen(false)} hitSlop={12}><Text style={styles.modalCloseText}>✕</Text></Pressable>
             </View>
+            <Text style={{ fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginBottom: 12, lineHeight: 17 }}>
+              Сохранит текущий набор позиций — потом соберёте такой же заказ в один тап из списка шаблонов.
+            </Text>
             <TextInput
               style={styles.input}
               value={templateNameInput}
@@ -1180,7 +1185,7 @@ export default function KassaScreen({ navigation, route }) {
               <Pressable onPress={() => setTemplatesListOpen(false)} hitSlop={12}><Text style={styles.modalCloseText}>✕</Text></Pressable>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
-              {templates.length === 0 && <Text style={{ color: colors.muted, textAlign: 'center', paddingVertical: 20 }}>Шаблонов пока нет. Оформите заказ и нажмите «Сохранить как шаблон» в корзине.</Text>}
+              {templates.length === 0 && <Text style={{ color: colors.muted, textAlign: 'center', paddingVertical: 20 }}>Шаблонов пока нет. Соберите заказ и нажмите «Как шаблон» внизу корзины.</Text>}
               {templates.map(t => (
                 <View key={t.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
                   <Pressable style={{ flex: 1 }} onPress={() => {
@@ -1329,7 +1334,7 @@ export default function KassaScreen({ navigation, route }) {
                           onPress={() => setSelVariantId(v.id)}
                         >
                           <Text style={[styles.itemModalRowText, selVariantId === v.id && styles.itemModalRowTextActive]}>{v.label || '—'}</Text>
-                          <Text style={[styles.itemModalRowPrice, selVariantId === v.id && { color: colors.greenLight }]}>{v.price} ₽</Text>
+                          <Text style={[styles.itemModalRowPrice, selVariantId === v.id && { color: colors.orange }]}>{v.price} ₽</Text>
                           {selVariantId === v.id && <Text style={styles.itemModalRowCheck}>✓</Text>}
                         </Pressable>
                       ))}
@@ -1385,9 +1390,9 @@ export default function KassaScreen({ navigation, route }) {
                                       <View style={[styles.modCheck, selected && styles.modCheckOn]}>
                                         {selected && <Text style={{ color:'#fff', fontSize: 11, fontWeight:'700' }}>✓</Text>}
                                       </View>
-                                      <Text style={[styles.modName, selected && { color: colors.greenLight }]}>{opt.name}</Text>
+                                      <Text style={[styles.modName, selected && { color: colors.orange }]}>{opt.name}</Text>
                                       {opt.price_delta > 0 && (
-                                        <Text style={[styles.modPrice, selected && { color: colors.greenLight }]}>+{opt.price_delta} ₽</Text>
+                                        <Text style={[styles.modPrice, selected && { color: colors.orange }]}>+{opt.price_delta} ₽</Text>
                                       )}
                                     </Pressable>
                                   );
@@ -1415,131 +1420,6 @@ export default function KassaScreen({ navigation, route }) {
         </View>
       </Modal>
 
-      {/* Модалка скидки */}
-      <Modal visible={discountModalOpen} transparent animationType="fade" onRequestClose={() => setDiscountModalOpen(false)}>
-        <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setDiscountModalOpen(false)} />
-          <View style={styles.modalInner}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Скидка на {terms.order.toLowerCase()}</Text>
-              <Pressable onPress={() => setDiscountModalOpen(false)} hitSlop={12}><Text style={styles.modalCloseText}>✕</Text></Pressable>
-            </View>
-            {discounts.length === 0 && <Text style={styles.emptyOrder}>Скидки не настроены</Text>}
-            <View style={styles.discountGrid}>
-              <Pressable
-                style={[styles.discountCard, !appliedDiscount && styles.discountCardActive]}
-                onPress={() => { setAppliedDiscount(null); setDiscountModalOpen(false); }}
-              >
-                <Text style={styles.discountCardPct}>0%</Text>
-                <Text style={styles.discountCardName}>Без скидки</Text>
-              </Pressable>
-              {discounts.map((d, i) => {
-                const isActive = appliedDiscount?.name === d.name && appliedDiscount?.pct === d.pct;
-                return (
-                  <Pressable
-                    key={i}
-                    style={[styles.discountCard, isActive && styles.discountCardActive]}
-                    onPress={() => { setAppliedDiscount(d); setDiscountModalOpen(false); }}
-                  >
-                    <Text style={[styles.discountCardPct, isActive && styles.discountCardPctActive]}>−{d.pct}%</Text>
-                    <Text style={styles.discountCardName}>{d.name}</Text>
-                    {isActive && <Text style={styles.discountCardCheck}>✓</Text>}
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Модалка оплаты — Apple стиль */}
-      <Modal visible={payModalOpen} transparent animationType="fade" onRequestClose={closePayModal}>
-        <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={closePayModal} />
-          <View style={[styles.modalInner, { width: '44%' }]}>
-            {/* Сумма */}
-            <View style={styles.payModalHeader}>
-              <View>
-                <Text style={styles.payModalLabel}>К оплате</Text>
-                <Text style={styles.payModalTotal}>{total} ₽</Text>
-              </View>
-              <Pressable onPress={closePayModal} hitSlop={14} style={styles.itemModalClose}>
-                <Text style={styles.itemModalCloseText}>✕</Text>
-              </Pressable>
-            </View>
-
-            {/* Способы оплаты — строки */}
-            <Text style={styles.payModalSectionLabel}>Способ оплаты</Text>
-            <View style={styles.payMethodsList}>
-              {payMethods.map(m => (
-                <Pressable
-                  key={m.id}
-                  style={[styles.payMethodRow, payMethod === m.name && styles.payMethodRowActive]}
-                  onPress={() => setPayMethod(m.name)}
-                >
-                  {m.icon ? <Text style={styles.payMethodIcon}>{m.icon}</Text> : null}
-                  <Text style={[styles.payMethodName, payMethod === m.name && { color: colors.greenLight }]}>{m.name}</Text>
-                  {payMethod === m.name && <Text style={styles.payMethodCheck}>✓</Text>}
-                </Pressable>
-              ))}
-            </View>
-
-            {/* Смешанная оплата */}
-            {payMethods.find(m => m.name === payMethod)?.type === 'mixed' && (
-              <View style={styles.mixedPayBox}>
-                <View style={styles.mixedPayRow}>
-                  <Text style={styles.mixedPayLabel}>Наличными</Text>
-                  <TextInput
-                    style={styles.mixedPayInput}
-                    placeholder="0"
-                    placeholderTextColor={colors.muted}
-                    keyboardType="numeric"
-                    value={mixedCash}
-                    onChangeText={handleMixedCashChange}
-                  />
-                  <Text style={styles.mixedPayUnit}>₽</Text>
-                </View>
-                <View style={styles.mixedPayRow}>
-                  <Text style={styles.mixedPayLabel}>Картой</Text>
-                  <TextInput
-                    style={styles.mixedPayInput}
-                    placeholder="0"
-                    placeholderTextColor={colors.muted}
-                    keyboardType="numeric"
-                    value={mixedCard}
-                    onChangeText={handleMixedCardChange}
-                  />
-                  <Text style={styles.mixedPayUnit}>₽</Text>
-                </View>
-              </View>
-            )}
-
-            {/* Кнопка подтверждения */}
-            <Pressable
-              style={({ pressed }) => [styles.payConfirmBtn, pressed && { opacity: 0.88 }]}
-              onPress={confirmPay}
-            >
-              <Text style={styles.payConfirmText}>Принять оплату · {total} ₽</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Модалка: смена не открыта */}
-      <Modal visible={noShiftWarning} transparent animationType="fade" onRequestClose={() => setNoShiftWarning(false)}>
-        <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setNoShiftWarning(false)} />
-          <View style={styles.modalInner}>
-            <Text style={styles.warnIcon}>⚠️</Text>
-            <Text style={styles.warnTitle}>Смена не открыта</Text>
-            <Text style={styles.warnText}>Чтобы принять оплату, сначала откройте смену.</Text>
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
-              <MetalButton title="Отмена" variant="back" onPress={() => setNoShiftWarning(false)} style={{ flex: 1 }} />
-              <MetalButton title="📅 Открыть смену" variant="action" onPress={() => { setNoShiftWarning(false); navigation.navigate('Shift', { returnTo: 'Kassa' }); }} style={{ flex: 1 }} />
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -1548,28 +1428,28 @@ const styles = StyleSheet.create({
   layout: { flex: 1, flexDirection: 'row' },
 
   /* ── Категории (вертикальный рейл) ── */
-  catRail:          { width: 72, backgroundColor: '#07080a', borderRightWidth: 1, borderRightColor: 'rgba(74,77,84,0.2)', paddingVertical: 8 },
-  catRailItem:      { alignItems: 'center', paddingVertical: 14, paddingHorizontal: 4, position: 'relative' },
+  catRail:          { width: 88, backgroundColor: colors.surface, borderRightWidth: 1, borderRightColor: colors.border, paddingVertical: 10 },
+  catRailItem:      { alignItems: 'center', justifyContent: 'center', minHeight: 64, paddingVertical: 12, paddingHorizontal: 8, position: 'relative' },
   catRailItemActive:{ backgroundColor: 'rgba(240,160,80,0.08)' },
-  catRailIcon:      { fontSize: 22, marginBottom: 4 },
-  catRailLabel:     { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.muted, textAlign: 'center', lineHeight: 13 },
-  catRailLabelActive:{ color: colors.greenLight },
-  catRailBar:       { position: 'absolute', left: 0, top: '20%', bottom: '20%', width: 3, borderRadius: 2, backgroundColor: colors.greenLight },
-  left: { flex: 1, backgroundColor: colors.surface },
+  catRailLabel:     { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textAlign: 'center', lineHeight: 15 },
+  catRailLabelActive:{ color: colors.orange },
+  catRailBar:       { position: 'absolute', left: 0, top: '22%', bottom: '22%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
+  left: { flex: 1, backgroundColor: colors.bg },
   catList: { paddingHorizontal: 10, paddingVertical: 6 },
-  catBtn: { height: 34, paddingHorizontal: 14, borderRadius: 17, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', backgroundColor: 'transparent', flexDirection: 'row', alignItems: 'center', gap: 5, marginRight: 6 },
+  catBtn: { height: 34, paddingHorizontal: 14, borderRadius: 17, borderWidth: 1, borderColor: 'rgba(64,60,55,0.3)', backgroundColor: 'transparent', flexDirection: 'row', alignItems: 'center', gap: 5, marginRight: 6 },
   catBtnActive: { borderColor: 'rgba(240,160,80,0.7)', backgroundColor: 'rgba(240,160,80,0.12)' },
   catActiveDot: { display: 'none' },
   catIcon: { fontSize: 13 },
   catLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, letterSpacing: 0.5 },
-  catLabelActive: { color: colors.greenLight },
-  menuGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 10, alignContent: 'flex-start' },
-  menuItem: { width: '30%', minWidth: 100, paddingVertical: 14, paddingHorizontal: 10, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', backgroundColor: '#0b0c0f', alignItems: 'center', position: 'relative', gap: 5 },
-  menuItemInCart: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.07)' },
-  menuItemName: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.text, textAlign: 'center', letterSpacing: 0.3 },
-  menuItemPrice: { fontFamily: fonts.family, fontSize: 13, fontWeight: '700', color: colors.greenLight, textAlign: 'center' },
+  catLabelActive: { color: colors.orange },
+  menuGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, padding: 12, alignContent: 'flex-start' },
+  menuItem: { width: '31%', minWidth: 112, minHeight: 84, paddingVertical: 16, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', position: 'relative', gap: 6 },
+  menuItemPressed: { opacity: 0.8 },
+  menuItemInCart: { borderColor: 'rgba(240,160,80,0.55)', backgroundColor: 'rgba(240,160,80,0.08)' },
+  menuItemName: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, textAlign: 'center', letterSpacing: 0.2, lineHeight: 17 },
+  menuItemPrice: { fontFamily: fonts.family, fontSize: 14, fontWeight: '700', color: colors.green, textAlign: 'center' },
   menuItemPriceNone: { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, textAlign: 'center', fontStyle: 'italic' },
-  prePaySummary: { padding: 12, backgroundColor: '#07080a', borderRadius: 12, marginBottom: 16, borderWidth: 1, borderColor: colors.border },
+  prePaySummary: { padding: 12, backgroundColor: colors.surface, borderRadius: 12, marginBottom: 16, borderWidth: 1, borderColor: colors.border },
   prePaySummaryTitle: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, marginBottom: 6 },
   prePaySummaryItem: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginBottom: 2 },
   prePaySummaryMore: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 4, fontStyle: 'italic' },
@@ -1578,59 +1458,59 @@ const styles = StyleSheet.create({
   prePayClientName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
   prePayClientSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
   prePayClientRemove: { padding: 6 },
-  prePayDiscountChip: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: '#07080a' },
+  prePayDiscountChip: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   prePayDiscountChipText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.text },
-  clientDropdown: { position: 'absolute', top: 48, left: 0, right: 0, zIndex: 200, backgroundColor: '#0b0c0f', borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', maxHeight: 220, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 20 },
-  clientDropdownItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.2)' },
+  clientDropdown: { position: 'absolute', top: 48, left: 0, right: 0, zIndex: 200, backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', maxHeight: 220, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 20 },
+  clientDropdownItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.2)' },
   clientDropdownName: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
   clientDropdownSub: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
-  prePayTotalBox: { marginTop: 16, padding: 14, backgroundColor: '#07080a', borderRadius: 14, borderWidth: 1, borderColor: colors.border, gap: 6 },
+  prePayTotalBox: { marginTop: 16, padding: 14, backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, gap: 6 },
   prePayTotalLabel: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
   prePayTotalTitle: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
-  prePayTotalValue: { fontFamily: fonts.family, fontSize: 24, fontWeight: '800', color: colors.greenLight },
-  prePayCancelBtn: { padding: 14, alignItems: 'center', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)' },
+  prePayTotalValue: { fontFamily: fonts.family, fontSize: 24, fontWeight: '800', color: colors.green },
+  prePayCancelBtn: { padding: 14, alignItems: 'center', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(64,60,55,0.3)' },
   prePayCancelText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
 
   // Список скидок
   discountScrollBox: { borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', maxHeight: 160 },
-  discountDropdown: { position: 'absolute', top: 42, left: 0, right: 0, zIndex: 200, backgroundColor: '#0b0c0f', borderRadius: 12, borderWidth: 1, borderColor: colors.border, maxHeight: 200, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 20 },
-  discountListRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.15)' },
+  discountDropdown: { position: 'absolute', top: 42, left: 0, right: 0, zIndex: 200, backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, maxHeight: 200, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 20 },
+  discountListRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.15)' },
   discountListRowActive: { backgroundColor: 'rgba(240,160,80,0.07)' },
   discountListName: { flex: 1, fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
   discountListSub: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
-  discountListCheck: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight, marginLeft: 8 },
+  discountListCheck: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange, marginLeft: 8 },
 
   // Модалка товара — Apple стиль
   itemModalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 16, marginBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
   itemModalName: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, flex: 1, marginRight: 12 },
-  itemModalClose: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(74,77,84,0.25)', alignItems: 'center', justifyContent: 'center' },
+  itemModalClose: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(64,60,55,0.25)', alignItems: 'center', justifyContent: 'center' },
   itemModalCloseText: { fontSize: 14, color: colors.muted, fontFamily: fonts.familySemibold },
-  modAllCard:      { backgroundColor: '#07080a', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', overflow: 'hidden' },
+  modAllCard:      { backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(64,60,55,0.3)', overflow: 'hidden' },
   modGroupRow:     { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 14, gap: 10 },
   modGroupName:    { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
-  modGroupSel:     { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.greenLight, marginTop: 2 },
+  modGroupSel:     { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.orange, marginTop: 2 },
   modGroupNone:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
   modChevron:      { fontSize: 20, color: colors.muted, transform: [{ rotate: '90deg' }] },
   modChevronOpen:  { transform: [{ rotate: '-90deg' }] },
-  modOptionsWrap:  { borderTopWidth: 1, borderTopColor: 'rgba(74,77,84,0.2)' },
+  modOptionsWrap:  { borderTopWidth: 1, borderTopColor: 'rgba(64,60,55,0.2)' },
   modGroupHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
   modGroupType: { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
-  modCard:    { backgroundColor: '#07080a', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', overflow: 'hidden', marginBottom: 4 },
+  modCard:    { backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(64,60,55,0.3)', overflow: 'hidden', marginBottom: 4 },
   modRow:     { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, gap: 10 },
-  modRowDiv:  { borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.15)' },
-  modCheck:   { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: 'rgba(74,77,84,0.5)', alignItems: 'center', justifyContent: 'center' },
-  modCheckOn: { backgroundColor: colors.greenLight, borderColor: colors.greenLight },
+  modRowDiv:  { borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.15)' },
+  modCheck:   { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: 'rgba(64,60,55,0.5)', alignItems: 'center', justifyContent: 'center' },
+  modCheckOn: { backgroundColor: colors.orange, borderColor: colors.orange },
   modName:    { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, flex: 1 },
   modPrice:   { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
   itemModalSection: { marginBottom: 4 },
   itemModalSectionLabel: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 14 },
-  itemModalRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 14, borderRadius: 12, marginBottom: 4, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(74,77,84,0.2)' },
+  itemModalRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 14, borderRadius: 12, marginBottom: 4, backgroundColor: colors.surface, borderWidth: 1, borderColor: 'rgba(64,60,55,0.2)' },
   itemModalRowActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.07)' },
   itemModalRowText: { flex: 1, fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
-  itemModalRowTextActive: { color: colors.greenLight },
+  itemModalRowTextActive: { color: colors.orange },
   itemModalRowPrice: { fontFamily: fonts.family, fontSize: 13, color: colors.muted, marginRight: 6 },
-  itemModalRowCheck: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight },
-  itemModalAddBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, paddingVertical: 16, paddingHorizontal: 20, borderRadius: 16, backgroundColor: 'rgba(122,158,82,0.85)' },
+  itemModalRowCheck: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
+  itemModalAddBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, paddingVertical: 16, paddingHorizontal: 20, borderRadius: 16, backgroundColor: colors.orange },
   itemModalAddText: { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff' },
   itemModalAddPrice: { fontFamily: fonts.familySemibold, fontSize: 15, color: 'rgba(255,255,255,0.85)' },
 
@@ -1639,52 +1519,53 @@ const styles = StyleSheet.create({
   payModalLabel: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
   payModalTotal: { fontFamily: fonts.family, fontSize: 28, fontWeight: '800', color: colors.text, marginTop: 2 },
   payModalSectionLabel: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginTop: 14, marginBottom: 8 },
-  payMethodsList: { borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(74,77,84,0.25)' },
-  payMethodRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.15)', backgroundColor: '#07080a', gap: 10 },
+  payMethodsList: { borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(64,60,55,0.25)' },
+  payMethodRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.15)', backgroundColor: colors.surface, gap: 10 },
   payMethodRowActive: { backgroundColor: 'rgba(240,160,80,0.07)' },
   payMethodIcon: { fontSize: 18, width: 24, textAlign: 'center' },
   payMethodName: { flex: 1, fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
-  payMethodCheck: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.greenLight },
-  mixedPayBox: { marginTop: 14, padding: 14, backgroundColor: '#07080a', borderRadius: 12, borderWidth: 1, borderColor: colors.border, gap: 10 },
+  payMethodCheck: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.orange },
+  mixedPayBox: { marginTop: 14, padding: 14, backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, gap: 10 },
   mixedPayRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  mixedPayHint: { flex: 1, fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
   mixedPayLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, width: 80 },
-  mixedPayInput: { flex: 1, padding: 10, backgroundColor: '#0e0f11', borderRadius: 10, borderWidth: 1, borderColor: colors.border, color: colors.text, fontFamily: fonts.family, fontSize: 16, textAlign: 'right' },
+  mixedPayInput: { flex: 1, padding: 10, backgroundColor: colors.surface, borderRadius: 10, borderWidth: 1, borderColor: colors.border, color: colors.text, fontFamily: fonts.family, fontSize: 16, textAlign: 'right' },
   mixedPayUnit: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, width: 16 },
 
   /* ── Горизонтальная модалка оплаты ── */
   paySheetRoot:    { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
-  paySheet:        { flexDirection: 'row', width: '62%', height: '58%', backgroundColor: '#0e0f11', borderRadius: 24, borderWidth: 1, borderColor: 'rgba(74,77,84,0.4)', overflow: 'hidden' },
-  payLeft:         { flex: 1, padding: 24, borderRightWidth: 1, borderRightColor: 'rgba(74,77,84,0.2)' },
+  paySheet:        { flexDirection: 'row', width: '62%', height: '58%', backgroundColor: colors.surface, borderRadius: 24, borderWidth: 1, borderColor: 'rgba(64,60,55,0.4)', overflow: 'hidden' },
+  payLeft:         { flex: 1, padding: 24, borderRightWidth: 1, borderRightColor: 'rgba(64,60,55,0.2)' },
   payLeftHead:     { marginBottom: 16 },
   paySheetTitle:   { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text },
   paySheetSub:     { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
   payOrderItem:    { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 9, alignItems: 'center' },
-  payOrderItemDiv: { borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.15)' },
+  payOrderItemDiv: { borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.15)' },
   payOrderName:    { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, flex: 1, marginRight: 8 },
   payOrderPrice:   { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
-  payLeftTotal:    { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(74,77,84,0.25)', gap: 4 },
+  payLeftTotal:    { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(64,60,55,0.25)', gap: 4 },
   payTotalRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   payTotalRowLbl:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
   payTotalRowVal:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
   payTotalBigLbl:  { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
   payTotalBigVal:  { fontFamily: fonts.family, fontSize: 26, fontWeight: '800', color: colors.text },
-  payDivider:      { width: 1, backgroundColor: 'rgba(74,77,84,0.2)' },
+  payDivider:      { width: 1, backgroundColor: 'rgba(64,60,55,0.2)' },
   payRight:        { flex: 1, padding: 24, gap: 10 },
   payRightHead:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  payCloseBtn:     { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(74,77,84,0.25)', alignItems: 'center', justifyContent: 'center' },
+  payCloseBtn:     { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(64,60,55,0.25)', alignItems: 'center', justifyContent: 'center' },
   payCloseTxt:     { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
-  payInfoRow:      { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: 'rgba(74,77,84,0.1)', borderRadius: 12 },
+  payInfoRow:      { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: 'rgba(64,60,55,0.1)', borderRadius: 12 },
   payInfoIcon:     { fontSize: 15 },
   payInfoVal:      { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, flex: 1 },
   payInfoSub:      { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
-  payInfoX:        { fontFamily: fonts.familySemibold, fontSize: 13, color: 'rgba(74,77,84,0.6)' },
-  payInfoAdd:      { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)', borderStyle: 'dashed' },
-  payInfoAddTxt:   { fontFamily: fonts.familySemibold, fontSize: 13, color: 'rgba(74,77,84,0.6)' },
-  payPointsRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4, paddingHorizontal: 12, backgroundColor: 'rgba(74,77,84,0.1)', borderRadius: 12 },
+  payInfoX:        { fontFamily: fonts.familySemibold, fontSize: 13, color: 'rgba(64,60,55,0.6)' },
+  payInfoAdd:      { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(64,60,55,0.3)', borderStyle: 'dashed' },
+  payInfoAddTxt:   { fontFamily: fonts.familySemibold, fontSize: 13, color: 'rgba(64,60,55,0.6)' },
+  payPointsRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4, paddingHorizontal: 12, backgroundColor: 'rgba(64,60,55,0.1)', borderRadius: 12 },
   payPointsInput:  { flex: 1, fontFamily: fonts.family, fontSize: 13, color: colors.text, paddingVertical: 6 },
   payMethodsLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
   payMethodsRow:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  payMethodChip:   { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(74,77,84,0.35)', backgroundColor: '#07080a' },
+  payMethodChip:   { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(64,60,55,0.35)', backgroundColor: colors.surface },
   payMethodChipActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.08)' },
   payMethodChipIcon:   { fontSize: 14, marginRight: 4 },
   payMethodChipTxt:    { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
@@ -1697,12 +1578,12 @@ const styles = StyleSheet.create({
   noteModalBtnPrimaryText: { fontFamily: fonts.family, fontSize: 14, fontWeight: '700', color: '#fff' },
   noteModalBtnSecondary: { paddingVertical: 14, paddingHorizontal: 18, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(160,16,32,0.4)', alignItems: 'center' },
   noteModalBtnSecondaryText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.redLight },
-  cartBadge: { position: 'absolute', top: -6, right: -6, minWidth: 20, height: 20, borderRadius: 10, backgroundColor: colors.greenLight, alignItems: 'center', justifyContent: 'center', zIndex: 1, paddingHorizontal: 4 },
+  cartBadge: { position: 'absolute', top: -6, right: -6, minWidth: 20, height: 20, borderRadius: 10, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center', zIndex: 1, paddingHorizontal: 4 },
   cartBadgeText: { fontFamily: fonts.familySemibold, fontSize: 11, color: '#000' },
-  searchWrap: { paddingHorizontal: 10, paddingTop: 8, paddingBottom: 4 },
-  searchInput: { padding: 10, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 14, color: colors.text, fontSize: 14, fontFamily: fonts.family },
-  orderNotePreview: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.greenLight, paddingHorizontal: 14, paddingBottom: 4, fontStyle: 'italic' },
-  orderHeaderBtn: { paddingVertical: 8, paddingHorizontal: 13, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(74,77,84,0.35)', backgroundColor: '#0e0f11' },
+  searchWrap: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 6 },
+  searchInput: { padding: 13, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 14, color: colors.text, fontSize: 15, fontFamily: fonts.family },
+  orderNotePreview: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.indigo, paddingHorizontal: 14, paddingBottom: 4, fontStyle: 'italic' },
+  orderHeaderBtn: { paddingVertical: 8, paddingHorizontal: 13, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(64,60,55,0.35)', backgroundColor: colors.surface },
   orderHeaderBtnActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.1)' },
   orderHeaderBtnDanger: { borderColor: 'rgba(160,16,32,0.35)', backgroundColor: 'rgba(160,16,32,0.06)' },
   orderHeaderBtnIcon: { fontSize: 12 },
@@ -1710,53 +1591,53 @@ const styles = StyleSheet.create({
   orderHeaderBtnText: { fontSize: 11, color: colors.muted },
   orderItemMain: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 12, paddingTop: 10 },
   orderItemControls: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingBottom: 8, paddingTop: 4 },
-  qtyBtn: { width: 28, height: 28, borderRadius: 8, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  qtyBtn: { width: 28, height: 28, borderRadius: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   qtyBtnText: { fontFamily: fonts.family, fontSize: 16, color: colors.text, lineHeight: 20 },
   qtyVal: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, minWidth: 22, textAlign: 'center' },
   editTextBtn: { marginLeft: 8, paddingHorizontal: 12, height: 28, borderRadius: 8, backgroundColor: 'rgba(61,95,168,0.12)', borderWidth: 1, borderColor: 'rgba(61,95,168,0.3)', alignItems: 'center', justifyContent: 'center' },
-  editTextBtnText: { fontFamily: fonts.familySemibold, fontSize: 11, color: '#7a9be8' },
+  editTextBtnText: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.indigo },
   removeBtn: { marginLeft: 2, paddingHorizontal: 10, height: 28, borderRadius: 8, backgroundColor: 'rgba(160,16,32,0.12)', borderWidth: 1, borderColor: 'rgba(160,16,32,0.3)', alignItems: 'center', justifyContent: 'center' },
   removeBtnText: { fontSize: 13, color: colors.redLight },
   modsToggle: { fontSize: 10, color: colors.muted },
-  cartItemNote: { fontFamily: fonts.familyRegular, fontSize: 11, color: '#7a9be8', marginTop: 2 },
-  cartItemNoteHint: { fontFamily: fonts.familyRegular, fontSize: 9, color: 'rgba(74,77,84,0.5)', marginTop: 1, fontStyle: 'italic' },
-  itemNoteIndicator: { fontSize: 10, color: '#7a9be8' },
-  input: { padding: 13, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 15, fontFamily: fonts.family },
+  cartItemNote: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.indigo, marginTop: 2 },
+  cartItemNoteHint: { fontFamily: fonts.familyRegular, fontSize: 9, color: 'rgba(64,60,55,0.5)', marginTop: 1, fontStyle: 'italic' },
+  itemNoteIndicator: { fontSize: 10, color: colors.indigo },
+  input: { padding: 13, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 15, fontFamily: fonts.family },
 
   /* ── Корзина ── */
-  cartClientRow:      { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.2)' },
+  cartClientRow:      { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.2)' },
   cartClientRowActive:{ backgroundColor: 'rgba(240,160,80,0.05)' },
   cartClientAvatar:   { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(240,160,80,0.18)', alignItems: 'center', justifyContent: 'center' },
-  cartClientAvatarTxt:{ fontFamily: fonts.family, fontSize: 12, fontWeight: '800', color: colors.greenLight },
-  cartClientName:     { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.greenLight },
+  cartClientAvatarTxt:{ fontFamily: fonts.family, fontSize: 12, fontWeight: '800', color: colors.green },
+  cartClientName:     { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.green },
   cartClientSub:      { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 1 },
   cartClientIcon:     { fontSize: 15, width: 28, textAlign: 'center' },
   cartClientEmpty:    { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, flex: 1 },
-  cartClientChevron:  { fontSize: 17, color: 'rgba(74,77,84,0.4)' },
-  cartClientRemove:   { width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(74,77,84,0.2)', alignItems: 'center', justifyContent: 'center' },
+  cartClientChevron:  { fontSize: 17, color: 'rgba(64,60,55,0.4)' },
+  cartClientRemove:   { width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(64,60,55,0.2)', alignItems: 'center', justifyContent: 'center' },
   cartClientRemoveTxt:{ fontSize: 11, color: colors.muted, fontFamily: fonts.familySemibold },
-  cartNoteRow:        { flexDirection: 'row', alignItems: 'center', paddingVertical: 7, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.2)', backgroundColor: 'rgba(122,158,82,0.06)' },
-  cartNoteText:       { fontFamily: fonts.familyRegular, fontSize: 12, color: '#7a9e52', flex: 1 },
+  cartNoteRow:        { flexDirection: 'row', alignItems: 'center', paddingVertical: 7, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.2)', backgroundColor: 'rgba(240,160,80,0.06)' },
+  cartNoteText:       { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.green, flex: 1 },
   cartEmpty:          { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
   cartEmptyIcon:      { fontSize: 36, opacity: 0.3 },
   cartEmptyTitle:     { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted },
-  cartEmptyHint:      { fontFamily: fonts.familyRegular, fontSize: 12, color: 'rgba(74,77,84,0.6)', textAlign: 'center' },
+  cartEmptyHint:      { fontFamily: fonts.familyRegular, fontSize: 12, color: 'rgba(64,60,55,0.6)', textAlign: 'center' },
   cartItem:           { paddingVertical: 12, paddingHorizontal: 14, flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
-  cartItemDiv:        { borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.15)' },
+  cartItemDiv:        { borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.15)' },
   cartItemTop:        { flexDirection: 'row', justifyContent: 'space-between', gap: 8, marginBottom: 2 },
   cartItemName:       { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, flex: 1, lineHeight: 18 },
   cartItemTotal:      { fontFamily: fonts.family, fontSize: 14, fontWeight: '700', color: colors.text },
   cartItemUnit:       { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
   cartItemMods:       { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 5 },
-  cartItemModChip:    { paddingVertical: 2, paddingHorizontal: 7, borderRadius: 6, backgroundColor: 'rgba(74,77,84,0.18)' },
+  cartItemModChip:    { paddingVertical: 2, paddingHorizontal: 7, borderRadius: 6, backgroundColor: 'rgba(64,60,55,0.18)' },
   cartItemModTxt:     { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted },
-  cartItemNote:       { fontFamily: fonts.familyRegular, fontSize: 11, color: '#7a9e52', marginTop: 4 },
+  cartItemNote:       { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.green, marginTop: 4 },
   cartQtyRow:         { flexDirection: 'column', alignItems: 'center', gap: 2 },
-  cartQtyBtn:         { width: 28, height: 28, borderRadius: 8, backgroundColor: 'rgba(74,77,84,0.2)', alignItems: 'center', justifyContent: 'center' },
+  cartQtyBtn:         { width: 28, height: 28, borderRadius: 8, backgroundColor: 'rgba(64,60,55,0.2)', alignItems: 'center', justifyContent: 'center' },
   cartQtyBtnTxt:      { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text, lineHeight: 20 },
   cartQtyVal:         { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, minWidth: 20, textAlign: 'center' },
-  cartFooter:         { borderTopWidth: 1, borderTopColor: 'rgba(74,77,84,0.25)', paddingHorizontal: 14, paddingTop: 10, paddingBottom: 14, gap: 8 },
-  cartPricingRows:    { gap: 4, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.2)' },
+  cartFooter:         { borderTopWidth: 1, borderTopColor: 'rgba(64,60,55,0.25)', paddingHorizontal: 14, paddingTop: 10, paddingBottom: 14, gap: 8 },
+  cartPricingRows:    { gap: 4, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.2)' },
   cartPricingRow:     { flexDirection: 'row', justifyContent: 'space-between' },
   cartPricingLabel:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
   cartPricingVal:     { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
@@ -1764,10 +1645,10 @@ const styles = StyleSheet.create({
   cartTotalLabel:     { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
   cartTotalVal:       { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.text },
   cartActions:        { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
-  cartActionBtn:      { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10, backgroundColor: 'rgba(74,77,84,0.15)', borderWidth: 1, borderColor: 'rgba(74,77,84,0.3)' },
+  cartActionBtn:      { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10, backgroundColor: 'rgba(64,60,55,0.15)', borderWidth: 1, borderColor: 'rgba(64,60,55,0.3)' },
   cartActionTxt:      { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
-  cartPayBtn:         { paddingVertical: 15, borderRadius: 16, backgroundColor: colors.greenLight, alignItems: 'center', justifyContent: 'center' },
-  cartPayBtnOff:      { backgroundColor: 'rgba(74,77,84,0.25)' },
+  cartPayBtn:         { paddingVertical: 15, borderRadius: 16, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center' },
+  cartPayBtnOff:      { backgroundColor: 'rgba(64,60,55,0.25)' },
   cartPayBtnTxt:      { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: '#fff' },
 
 
@@ -1777,35 +1658,35 @@ const styles = StyleSheet.create({
   v2EmptyText:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   v2ListWrap:   { paddingTop: 4, paddingBottom: 8 },
   v2Item:       { paddingVertical: 12, paddingHorizontal: 14 },
-  v2ItemDiv:    { borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.13)' },
+  v2ItemDiv:    { borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.13)' },
   v2ItemRow:    { flexDirection: 'row', alignItems: 'center', gap: 8 },
   v2ItemName:   { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, flex: 1, lineHeight: 17 },
   v2Qty:        { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  v2QtyBtn:     { width: 26, height: 26, borderRadius: 8, backgroundColor: 'rgba(74,77,84,0.22)', alignItems: 'center', justifyContent: 'center' },
+  v2QtyBtn:     { width: 26, height: 26, borderRadius: 8, backgroundColor: 'rgba(64,60,55,0.22)', alignItems: 'center', justifyContent: 'center' },
   v2QtyBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text, lineHeight: 19 },
   v2QtyVal:     { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, minWidth: 18, textAlign: 'center' },
   v2ItemPrice:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, minWidth: 52, textAlign: 'right' },
   v2Mods:       { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 5, marginLeft: 0 },
   v2Mod:        { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
-  v2Note:       { fontFamily: fonts.familyRegular, fontSize: 11, color: '#7a9e52', marginTop: 3 },
-  v2Footer:     { borderTopWidth: 1, borderTopColor: 'rgba(74,77,84,0.2)', paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14, gap: 10 },
-  v2Client:     { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(74,77,84,0.25)' },
-  v2ClientDot:  { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.greenLight },
-  v2ClientName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight, flex: 1 },
+  v2Note:       { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.green, marginTop: 3 },
+  v2Footer:     { borderTopWidth: 1, borderTopColor: 'rgba(64,60,55,0.2)', paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14, gap: 10 },
+  v2Client:     { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(64,60,55,0.25)' },
+  v2ClientDot:  { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.green },
+  v2ClientName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.green, flex: 1 },
   v2ClientBal:  { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
-  v2ClientX:    { fontSize: 13, color: 'rgba(74,77,84,0.5)', paddingHorizontal: 2 },
-  v2ClientAdd:  { fontFamily: fonts.familyRegular, fontSize: 13, color: 'rgba(74,77,84,0.6)' },
+  v2ClientX:    { fontSize: 13, color: 'rgba(64,60,55,0.5)', paddingHorizontal: 2 },
+  v2ClientAdd:  { fontFamily: fonts.familyRegular, fontSize: 13, color: 'rgba(64,60,55,0.6)' },
   v2Discount:   { gap: 3 },
-  v2DiscountTxt:{ fontFamily: fonts.familyRegular, fontSize: 12, color: colors.greenLight },
+  v2DiscountTxt:{ fontFamily: fonts.familyRegular, fontSize: 12, color: colors.green },
   v2Total:      { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
   v2TotalLabel: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
   v2TotalAmt:   { fontFamily: fonts.family, fontSize: 28, fontWeight: '800', color: colors.text },
   v2Acts:       { flexDirection: 'row', gap: 6 },
-  v2Act:        { flex: 1, alignItems: 'center', gap: 3, paddingVertical: 8, borderRadius: 12, backgroundColor: 'rgba(74,77,84,0.12)' },
+  v2Act:        { flex: 1, alignItems: 'center', gap: 3, paddingVertical: 8, borderRadius: 12, backgroundColor: 'rgba(64,60,55,0.12)' },
   v2ActIco:     { fontSize: 16 },
   v2ActLbl:     { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.muted },
-  v2Pay:        { paddingVertical: 16, borderRadius: 16, backgroundColor: colors.greenLight, alignItems: 'center' },
-  v2PayOff:     { backgroundColor: 'rgba(74,77,84,0.2)' },
+  v2Pay:        { paddingVertical: 16, borderRadius: 16, backgroundColor: colors.orange, alignItems: 'center' },
+  v2PayOff:     { backgroundColor: 'rgba(64,60,55,0.2)' },
   v2PayTxt:     { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: '#fff', letterSpacing: 0.3 },
 
   orderPanel: { width: '33%', minWidth: 240, borderLeftWidth: 1, borderLeftColor: colors.border, backgroundColor: colors.surface },
@@ -1816,97 +1697,97 @@ const styles = StyleSheet.create({
   // Слоты парковки
   slotBar: { maxHeight: 44, borderBottomWidth: 1, borderBottomColor: colors.border },
   slotBarInner: { paddingHorizontal: 10, paddingVertical: 8, gap: 6, flexDirection: 'row', alignItems: 'center' },
-  slotTab: { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: '#07080a' },
+  slotTab: { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   slotTabActive: { borderColor: 'rgba(61,95,168,0.6)', backgroundColor: 'rgba(61,95,168,0.15)' },
   slotTabText: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
-  slotTabTextActive: { color: '#7a9be8' },
+  slotTabTextActive: { color: colors.indigo },
   slotTabNew: { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', borderStyle: 'dashed' },
-  slotTabNewText: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.greenLight },
+  slotTabNewText: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.orange },
   // Зоны
   zoneBar: { maxHeight: 44, borderBottomWidth: 1, borderBottomColor: colors.border },
   zoneBarInner: { paddingHorizontal: 10, paddingVertical: 8, gap: 6, flexDirection: 'row', alignItems: 'center' },
-  zoneChip: { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: '#07080a' },
-  zoneChipActive: { borderColor: 'rgba(122,158,82,0.5)', backgroundColor: 'rgba(122,158,82,0.12)' },
+  zoneChip: { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  zoneChipActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.12)' },
   zoneChipText: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
-  zoneChipTextActive: { color: colors.greenLight },
+  zoneChipTextActive: { color: colors.orange },
   orderItemName: { fontFamily: fonts.family, fontSize: 14, color: colors.text },
   orderItemMod: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
   orderItemPrice: { fontFamily: fonts.family, fontSize: 14, fontWeight: '700', color: colors.text },
   emptyOrder: { textAlign: 'center', color: colors.muted, padding: 20, fontFamily: fonts.familyRegular },
   emptyTitle: { fontFamily: fonts.family, fontSize: 18, color: colors.text, marginBottom: 8 },
   emptyHint: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center', marginBottom: 24, lineHeight: 20 },
-  orderFooter: { padding: 14, borderTopWidth: 1, borderTopColor: 'rgba(74,77,84,0.3)', backgroundColor: '#08090b' },
-  footerSummary: { marginBottom: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.2)' },
+  orderFooter: { padding: 14, borderTopWidth: 1, borderTopColor: 'rgba(64,60,55,0.3)', backgroundColor: colors.surface },
+  footerSummary: { marginBottom: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.2)' },
   footerSummaryLine: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginBottom: 2 },
   footerTotalRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'flex-end', gap: 8, marginBottom: 12 },
   footerRawTotal: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textDecorationLine: 'line-through' },
   footerTotal: { fontFamily: fonts.family, fontSize: 28, fontWeight: '800', color: colors.text },
-  payBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 16, paddingHorizontal: 18, borderRadius: 16, backgroundColor: 'rgba(122,158,82,0.85)', gap: 8 },
-  payBtnDisabled: { backgroundColor: 'rgba(74,77,84,0.3)' },
+  payBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 16, paddingHorizontal: 18, borderRadius: 16, backgroundColor: colors.orange, gap: 8 },
+  payBtnDisabled: { backgroundColor: 'rgba(64,60,55,0.3)' },
   payBtnIcon: { fontSize: 18 },
   payBtnText: { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff', flex: 1 },
   payBtnTotal: { fontFamily: fonts.familySemibold, fontSize: 15, color: 'rgba(255,255,255,0.85)' },
   discountRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  pointsInput: { width: 70, paddingVertical: 4, paddingHorizontal: 8, backgroundColor: '#07080a', borderWidth: 1, borderColor: 'rgba(122,158,82,0.5)', borderRadius: 8, color: colors.greenLight, fontSize: 13, fontFamily: fonts.family, textAlign: 'center' },
-  discountText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.greenLight },
+  pointsInput: { width: 70, paddingVertical: 4, paddingHorizontal: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: 'rgba(240,160,80,0.5)', borderRadius: 8, color: colors.green, fontSize: 13, fontFamily: fonts.family, textAlign: 'center' },
+  discountText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.green },
   discountRemove: { fontSize: 14, color: colors.muted, paddingHorizontal: 6 },
   rawTotal: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'center', marginBottom: 2 },
-  orderTotal: { fontFamily: fonts.family, fontSize: 28, fontWeight: '800', color: colors.greenLight, textAlign: 'center', marginBottom: 10 },
+  orderTotal: { fontFamily: fonts.family, fontSize: 28, fontWeight: '800', color: colors.green, textAlign: 'center', marginBottom: 10 },
   modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center' },
-  modalInner: { width: '55%', maxWidth: 540, backgroundColor: '#0e0f11', borderRadius: 20, padding: 24, borderWidth: 1, borderColor: colors.borderHi },
+  modalInner: { width: '55%', maxWidth: 540, backgroundColor: colors.surface, borderRadius: 20, padding: 24, borderWidth: 1, borderColor: colors.borderHi },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   modalTitle: { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.text, textTransform: 'uppercase', letterSpacing: 2, flex: 1 },
   modalCloseBtn: { padding: 6 },
   modalCloseText: { fontSize: 18, color: colors.muted },
   modalSection: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 2, marginTop: 14, marginBottom: 8 },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: '#0b0c0e' },
+  chip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   chipActive: { borderColor: 'rgba(240,160,80,0.6)', backgroundColor: 'rgba(240,160,80,0.18)' },
-  chipDisabled: { borderColor: 'rgba(74,77,84,0.3)', backgroundColor: 'rgba(14,15,17,0.4)', opacity: 0.45 },
+  chipDisabled: { borderColor: 'rgba(64,60,55,0.3)', backgroundColor: 'rgba(14,15,17,0.4)', opacity: 0.45 },
   chipLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
-  chipLabelActive: { color: colors.greenLight },
+  chipLabelActive: { color: colors.orange },
   chipLabelDisabled: { color: colors.muted },
   modalFooter: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 20 },
   modalPrice: { fontFamily: fonts.family, fontSize: 26, fontWeight: '800', color: colors.text, minWidth: 80, textAlign: 'right' },
   discountGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
   discountCard: {
-    width: '47%', backgroundColor: '#0b0c0e', borderWidth: 1, borderColor: colors.border,
+    width: '47%', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
     borderRadius: 14, paddingVertical: 14, paddingHorizontal: 12, alignItems: 'center', position: 'relative',
   },
   discountCardActive: { borderColor: 'rgba(240,160,80,0.75)', backgroundColor: 'rgba(240,160,80,0.14)' },
   discountCardPct: { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.text },
-  discountCardPctActive: { color: colors.greenLight },
+  discountCardPctActive: { color: colors.orange },
   discountCardName: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 4, textAlign: 'center' },
-  discountCardCheck: { position: 'absolute', top: 8, right: 10, fontSize: 13, color: colors.greenLight, fontWeight: '800' },
-  mixedInput: { padding: 13, backgroundColor: '#07080a', borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 16, marginBottom: 10, textAlign: 'center', fontFamily: fonts.family },
+  discountCardCheck: { position: 'absolute', top: 8, right: 10, fontSize: 13, color: colors.orange, fontWeight: '800' },
+  mixedInput: { padding: 13, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 16, marginBottom: 10, textAlign: 'center', fontFamily: fonts.family },
   clientBadgeWrap: { paddingHorizontal: 14, paddingTop: 10, paddingBottom: 2 },
-  clientRow:         { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(74,77,84,0.2)', backgroundColor: '#07080a' },
+  clientRow:         { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.2)', backgroundColor: colors.surface },
   clientRowActive:   { backgroundColor: 'rgba(240,160,80,0.06)' },
   clientRowAvatar:   { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(240,160,80,0.2)', alignItems: 'center', justifyContent: 'center' },
-  clientRowAvatarTxt:{ fontFamily: fonts.family, fontSize: 13, fontWeight: '800', color: colors.greenLight },
-  clientRowName:     { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.greenLight },
+  clientRowAvatarTxt:{ fontFamily: fonts.family, fontSize: 13, fontWeight: '800', color: colors.green },
+  clientRowName:     { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.green },
   clientRowSub:      { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 1 },
   clientRowIcon:     { fontSize: 15 },
   clientRowEmpty:    { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, flex: 1 },
-  clientRowChevron:  { fontSize: 18, color: 'rgba(74,77,84,0.4)' },
+  clientRowChevron:  { fontSize: 18, color: 'rgba(64,60,55,0.4)' },
   orderItemTopRow:   { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6 },
   orderItemUnitPrice:{ fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 1 },
   orderItemMods:     { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 5 },
-  orderItemModChip:  { paddingVertical: 2, paddingHorizontal: 7, borderRadius: 6, backgroundColor: 'rgba(74,77,84,0.2)' },
+  orderItemModChip:  { paddingVertical: 2, paddingHorizontal: 7, borderRadius: 6, backgroundColor: 'rgba(64,60,55,0.2)' },
   orderItemModText:  { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
   clientBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 10, alignSelf: 'flex-start',
-    backgroundColor: '#0e0f11', borderWidth: 1, borderColor: 'rgba(122,158,82,0.45)',
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: 'rgba(240,160,80,0.45)',
     borderRadius: 18, paddingVertical: 7, paddingHorizontal: 12, paddingRight: 16,
-    shadowColor: '#7a9e52', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 0 }, elevation: 3,
+    shadowColor: colors.green, shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 0 }, elevation: 3,
   },
   clientAvatar: {
     width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'rgba(122,158,82,0.18)', borderWidth: 1, borderColor: 'rgba(122,158,82,0.55)',
+    backgroundColor: 'rgba(240,160,80,0.18)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.55)',
   },
-  clientAvatarText: { fontFamily: fonts.family, fontWeight: '800', fontSize: 13, color: colors.greenLight },
+  clientAvatarText: { fontFamily: fonts.family, fontWeight: '800', fontSize: 13, color: colors.green },
   clientBadgeName: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
-  clientBadgeSub: { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.greenLight, marginTop: 1 },
+  clientBadgeSub: { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.green, marginTop: 1 },
   warnIcon: { fontSize: 40, textAlign: 'center', marginBottom: 8 },
   warnTitle: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, textAlign: 'center', marginBottom: 8 },
   warnText: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center' },
