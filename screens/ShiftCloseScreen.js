@@ -79,7 +79,13 @@ export default function ShiftCloseScreen({ navigation }) {
     } catch(e) { console.error(e); }
   };
 
-  const handleFinish = () => { resetKassaCart(); clearSession(); navigation.navigate('Login'); };
+  const handleFinish = () => {
+    setShowResult(false);
+    setClosed(false);
+    resetKassaCart();
+    clearSession();
+    navigation.navigate('Login');
+  };
 
   const animBtn = (to) => Animated.spring(btnScale, { toValue: to, useNativeDriver: true, tension: 200 }).start();
 
