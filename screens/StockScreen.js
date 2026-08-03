@@ -49,6 +49,9 @@ export default function StockScreen({ navigation }) {
   const [catModal, setCatModal]     = useState(false);
   const [stockCats, setStockCats]   = useState([]);
   const [catModal2, setCatModal2]   = useState(null); // {oldName, newName}
+  const [priceCalcOpen, setPriceCalcOpen] = useState(false);
+  const [priceCalcQty, setPriceCalcQty]   = useState('');
+  const [priceCalcSum, setPriceCalcSum]   = useState('');
 
   useFocusEffect(useCallback(() => {
     try {
@@ -74,6 +77,9 @@ export default function StockScreen({ navigation }) {
     setQty('');
     setPrice('');
     setShowHistory(false);
+    setPriceCalcOpen(false);
+    setPriceCalcQty('');
+    setPriceCalcSum('');
     try { setHistory(getStockHistory(item.id).slice(0, 10)); } catch (_) { setHistory([]); }
   };
   const closeModal = () => { setModalItem(null); setMode(null); };
@@ -102,7 +108,9 @@ export default function StockScreen({ navigation }) {
       const name = modalItem.name;
       const cur  = modalItem['остаток'] || 0;
       if (mode === 'purchase') {
-        addPurchase(name, n, parseFloat(price) || 0);
+        const totalSum = parseFloat(price) || 0;
+        const perUnit = n > 0 ? totalSum / n : 0;
+        addPurchase(name, n, perUnit);
         setTimeout(() => { try { updateMaxOstatok(id); } catch (_) {} }, 80);
       } else if (locEnabled && selectedLocId) {
         if (mode === 'add')      adjustStockForLocation(id, selectedLocId, n);
@@ -370,7 +378,7 @@ export default function StockScreen({ navigation }) {
                       </View>
                     )}
                   </View>
-                  {/* Цена за единицу — редактируемая */}
+                  {/* Цена за единицу — редактируемая, с калькулятором по сумме закупки */}
                   <View style={styles.priceRow}>
                     <Text style={styles.curAvg}>Цена за единицу:</Text>
                     <TextInput
@@ -390,6 +398,52 @@ export default function StockScreen({ navigation }) {
                       <Text style={styles.priceSaveTxt}>✓</Text>
                     </Pressable>
                   </View>
+                  <Pressable onPress={() => setPriceCalcOpen(o => !o)}>
+                    <Text style={styles.priceCalcToggle}>{priceCalcOpen ? '✕ скрыть калькулятор' : '🧮 посчитать по сумме закупки'}</Text>
+                  </Pressable>
+                  {priceCalcOpen && (
+                    <View style={styles.priceCalcBox}>
+                      <View style={styles.priceCalcRow}>
+                        <TextInput
+                          color={colors.text}
+                          style={styles.priceCalcInput}
+                          keyboardType="numeric"
+                          value={priceCalcQty}
+                          onChangeText={setPriceCalcQty}
+                          placeholder={`Кол-во, ${modalItem.unit}`}
+                          placeholderTextColor={colors.muted}
+                        />
+                        <TextInput
+                          color={colors.text}
+                          style={styles.priceCalcInput}
+                          keyboardType="numeric"
+                          value={priceCalcSum}
+                          onChangeText={setPriceCalcSum}
+                          placeholder="Сумма, ₽"
+                          placeholderTextColor={colors.muted}
+                        />
+                      </View>
+                      {!!priceCalcQty && !!priceCalcSum && parseFloat(priceCalcQty) > 0 && (
+                        <Text style={styles.purchasePerUnitHint}>
+                          ≈ {(parseFloat(priceCalcSum) / parseFloat(priceCalcQty)).toFixed(2)} ₽/{modalItem.unit}
+                        </Text>
+                      )}
+                      <Pressable
+                        style={({ pressed }) => [styles.priceCalcApplyBtn, pressed && { opacity: 0.8 }]}
+                        onPress={() => {
+                          const q = parseFloat(priceCalcQty), s = parseFloat(priceCalcSum);
+                          if (!q || q <= 0 || isNaN(s)) return;
+                          const per = s / q;
+                          setModalItem(m => ({ ...m, avg_price: per.toFixed(2) }));
+                          savePrice(String(per));
+                          setPriceCalcOpen(false);
+                          setPriceCalcQty(''); setPriceCalcSum('');
+                        }}
+                      >
+                        <Text style={styles.priceCalcApplyTxt}>Применить</Text>
+                      </Pressable>
+                    </View>
+                  )}
                 </View>
 
                 {/* Режимы */}
@@ -432,7 +486,7 @@ export default function StockScreen({ navigation }) {
 
                     {mode === 'purchase' && (
                       <>
-                        <Text style={styles.inputLabel}>Цена закупки, ₽/ед.</Text>
+                        <Text style={styles.inputLabel}>Сумма закупки, ₽</Text>
                         <TextInput
                           style={styles.inputField}
                           value={price}
@@ -441,6 +495,11 @@ export default function StockScreen({ navigation }) {
                           placeholder="0"
                           placeholderTextColor={colors.muted}
                         />
+                        {!!qty && !!price && parseFloat(qty) > 0 && (
+                          <Text style={styles.purchasePerUnitHint}>
+                            ≈ {(parseFloat(price) / parseFloat(qty)).toFixed(2)} ₽/{modalItem.unit}
+                          </Text>
+                        )}
                       </>
                     )}
 
@@ -628,6 +687,7 @@ const styles = StyleSheet.create({
   backBtnText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.greenLight },
   inputLabel:  { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, marginTop: 14 },
   inputField:  { padding: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 22, fontFamily: fonts.family, textAlign: 'center', marginBottom: 4 },
+  purchasePerUnitHint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.green, textAlign: 'center', marginBottom: 4 },
 
   previewBox:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, backgroundColor: 'rgba(61,95,168,0.08)', borderRadius: 12, marginVertical: 10, borderWidth: 1, borderColor: 'rgba(61,95,168,0.2)' },
   previewLabel: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
@@ -646,5 +706,11 @@ const styles = StyleSheet.create({
   priceInput: { paddingVertical: 4, paddingHorizontal: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: 'rgba(64,60,55,0.4)', borderRadius: 8, color: colors.text, fontFamily: fonts.family, fontSize: 14, minWidth: 70, textAlign: 'center' },
   priceSaveBtn: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 8, backgroundColor: 'rgba(240,160,80,0.15)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)' },
   priceSaveTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight },
+  priceCalcToggle: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.orange, marginTop: 8 },
+  priceCalcBox: { marginTop: 8, padding: 10, backgroundColor: colors.surface, borderRadius: 10, borderWidth: 1, borderColor: colors.border, gap: 8 },
+  priceCalcRow: { flexDirection: 'row', gap: 8 },
+  priceCalcInput: { flex: 1, paddingVertical: 8, paddingHorizontal: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 8, color: colors.text, fontFamily: fonts.family, fontSize: 14, textAlign: 'center' },
+  priceCalcApplyBtn: { paddingVertical: 10, borderRadius: 8, backgroundColor: colors.orange, alignItems: 'center' },
+  priceCalcApplyTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: '#fff' },
   histPrice:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.greenLight, flex: 1, textAlign: 'right' },
 });

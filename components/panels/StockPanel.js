@@ -46,6 +46,9 @@ export default function StockPanel() {
   const [catModal, setCatModal]     = useState(false);
   const [stockCats, setStockCats]   = useState([]);
   const [catModal2, setCatModal2]   = useState(null); // {oldName, newName}
+  const [priceCalcOpen, setPriceCalcOpen] = useState(false);
+  const [priceCalcQty, setPriceCalcQty]   = useState('');
+  const [priceCalcSum, setPriceCalcSum]   = useState('');
 
   useEffect(() => {
     try {
@@ -71,6 +74,9 @@ export default function StockPanel() {
     setQty('');
     setPrice('');
     setShowHistory(false);
+    setPriceCalcOpen(false);
+    setPriceCalcQty('');
+    setPriceCalcSum('');
     try { setHistory(getStockHistory(item.id).slice(0, 10)); } catch (_) { setHistory([]); }
   };
   const closeModal = () => { setModalItem(null); setMode(null); };
@@ -99,7 +105,9 @@ export default function StockPanel() {
       const name = modalItem.name;
       const cur  = modalItem['остаток'] || 0;
       if (mode === 'purchase') {
-        addPurchase(name, n, parseFloat(price) || 0);
+        const totalSum = parseFloat(price) || 0;
+        const perUnit = n > 0 ? totalSum / n : 0;
+        addPurchase(name, n, perUnit);
         setTimeout(() => { try { updateMaxOstatok(id); } catch (_) {} }, 80);
       } else if (locEnabled && selectedLocId) {
         if (mode === 'add')      adjustStockForLocation(id, selectedLocId, n);
@@ -361,7 +369,7 @@ export default function StockPanel() {
                       <Text style={{ fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, marginTop: 4 }}>Изменение порога недоступно</Text>
                     )}
                   </View>
-                  {/* Цена за единицу — редактируемая */}
+                  {/* Цена за единицу — редактируемая, с калькулятором по сумме закупки */}
                   <View style={styles.priceRow}>
                     <Text style={styles.curAvg}>Цена за единицу:</Text>
                     <TextInput
@@ -381,6 +389,52 @@ export default function StockPanel() {
                       <Text style={styles.priceSaveTxt}>✓</Text>
                     </Pressable>
                   </View>
+                  <Pressable onPress={() => setPriceCalcOpen(o => !o)}>
+                    <Text style={styles.priceCalcToggle}>{priceCalcOpen ? '✕ скрыть калькулятор' : '🧮 посчитать по сумме закупки'}</Text>
+                  </Pressable>
+                  {priceCalcOpen && (
+                    <View style={styles.priceCalcBox}>
+                      <View style={styles.priceCalcRow}>
+                        <TextInput
+                          color={colors.text}
+                          style={styles.priceCalcInput}
+                          keyboardType="numeric"
+                          value={priceCalcQty}
+                          onChangeText={setPriceCalcQty}
+                          placeholder={`Кол-во, ${modalItem.unit}`}
+                          placeholderTextColor={colors.muted}
+                        />
+                        <TextInput
+                          color={colors.text}
+                          style={styles.priceCalcInput}
+                          keyboardType="numeric"
+                          value={priceCalcSum}
+                          onChangeText={setPriceCalcSum}
+                          placeholder="Сумма, ₽"
+                          placeholderTextColor={colors.muted}
+                        />
+                      </View>
+                      {!!priceCalcQty && !!priceCalcSum && parseFloat(priceCalcQty) > 0 && (
+                        <Text style={styles.purchasePerUnitHint}>
+                          ≈ {(parseFloat(priceCalcSum) / parseFloat(priceCalcQty)).toFixed(2)} ₽/{modalItem.unit}
+                        </Text>
+                      )}
+                      <Pressable
+                        style={({ pressed }) => [styles.priceCalcApplyBtn, pressed && { opacity: 0.8 }]}
+                        onPress={() => {
+                          const q = parseFloat(priceCalcQty), s = parseFloat(priceCalcSum);
+                          if (!q || q <= 0 || isNaN(s)) return;
+                          const per = s / q;
+                          setModalItem(m => ({ ...m, avg_price: per.toFixed(2) }));
+                          savePrice(String(per));
+                          setPriceCalcOpen(false);
+                          setPriceCalcQty(''); setPriceCalcSum('');
+                        }}
+                      >
+                        <Text style={styles.priceCalcApplyTxt}>Применить</Text>
+                      </Pressable>
+                    </View>
+                  )}
 
                 </View>
 
@@ -429,7 +483,7 @@ export default function StockPanel() {
 
                     {mode === 'purchase' && (
                       <>
-                        <Text style={styles.inputLabel}>Цена закупки, ₽/ед.</Text>
+                        <Text style={styles.inputLabel}>Сумма закупки, ₽</Text>
 
                         <TextInput
                           style={styles.inputField}
@@ -439,6 +493,11 @@ export default function StockPanel() {
                           placeholder="0"
                           placeholderTextColor={colors.muted}
                         />
+                        {!!qty && !!price && parseFloat(qty) > 0 && (
+                          <Text style={styles.purchasePerUnitHint}>
+                            ≈ {(parseFloat(price) / parseFloat(qty)).toFixed(2)} ₽/{modalItem.unit}
+                          </Text>
+                        )}
                       </>
                     )}
 
@@ -644,5 +703,12 @@ const styles = StyleSheet.create({
   priceInput: { paddingVertical: 4, paddingHorizontal: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 8, color: colors.text, fontFamily: fonts.family, fontSize: 14, minWidth: 70, textAlign: 'center' },
   priceSaveBtn: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 8, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)' },
   priceSaveTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
+  priceCalcToggle: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.orange, marginTop: 8 },
+  priceCalcBox: { marginTop: 8, padding: 10, backgroundColor: colors.surface, borderRadius: 10, borderWidth: 1, borderColor: colors.border, gap: 8 },
+  priceCalcRow: { flexDirection: 'row', gap: 8 },
+  priceCalcInput: { flex: 1, paddingVertical: 8, paddingHorizontal: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 8, color: colors.text, fontFamily: fonts.family, fontSize: 14, textAlign: 'center' },
+  priceCalcApplyBtn: { paddingVertical: 10, borderRadius: 8, backgroundColor: colors.orange, alignItems: 'center' },
+  priceCalcApplyTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: '#fff' },
+  purchasePerUnitHint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.green, textAlign: 'center', marginBottom: 4 },
   histPrice:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.orange, flex: 1, textAlign: 'right' },
 });
