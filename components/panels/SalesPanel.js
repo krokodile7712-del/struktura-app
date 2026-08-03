@@ -166,7 +166,7 @@ export default function SalesPanel({ onDataChange }) {
               <Pressable
                 key={p.key}
                 style={[styles.periodBtn, period === p.key && styles.periodBtnActive]}
-                onPress={() => p.key === 'custom' ? setPicker('from') : setPeriod(p.key)}
+                onPress={() => p.key === 'custom' ? setPicker('range') : setPeriod(p.key)}
               >
                 {period === p.key && <View style={styles.periodBar} />}
                 <Text style={[styles.periodTxt, period === p.key && styles.periodTxtActive]}>
@@ -347,13 +347,15 @@ export default function SalesPanel({ onDataChange }) {
       </View>
 
 
-      {/* Пикеры дат */}
-      <DatePicker visible={picker === 'from'} value={dateFrom}
-        onChange={v => { setDateFrom(v); setPeriod('custom'); setPicker('to'); }}
-        onClose={() => setPicker(null)} title="Начало периода" />
-      <DatePicker visible={picker === 'to'} value={dateTo}
-        onChange={v => { setDateTo(v); setPeriod('custom'); setPicker(null); }}
-        onClose={() => setPicker(null)} title="Конец периода" />
+      {/* Пикер периода — один календарь, тап на начало и конец */}
+      <DatePicker
+        visible={picker === 'range'}
+        mode="range"
+        rangeFrom={dateFrom}
+        rangeTo={dateTo}
+        onRangeChange={(from, to) => { setDateFrom(from); setDateTo(to); setPeriod('custom'); }}
+        onClose={() => setPicker(null)}
+      />
 
       {/* Модалка редактирования */}
       <Modal visible={!!editOrder} transparent animationType="fade" onRequestClose={() => setEditOrder(null)}>
