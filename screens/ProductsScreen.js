@@ -562,8 +562,15 @@ export default function ProductsScreen({ navigation }) {
         <View style={styles.modalOverlay}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setOrderModal(false)} />
           <View style={styles.orderModalBox}>
-            <Text style={styles.orderModalTitle}>Порядок категорий</Text>
-            <Text style={styles.orderModalHint}>Порядок влияет на отображение в кассе</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.orderModalTitle}>Порядок категорий</Text>
+                <Text style={styles.orderModalHint}>Порядок влияет на отображение в кассе</Text>
+              </View>
+              <Pressable onPress={() => setOrderModal(false)} hitSlop={12} style={styles.modalCloseBtn}>
+                <Text style={styles.modalCloseTxt}>✕</Text>
+              </Pressable>
+            </View>
             <ScrollView>
               {orderDraft.map((cat, idx) => (
                 <View key={cat} style={styles.orderRow}>
@@ -713,7 +720,12 @@ function ModGroupModal({ group, onSave, onDelete, onClose, stock }) {
             <View style={styles.modalOverlay}>
               <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setIngPicker(null)} />
               <View style={styles.ingPickerBox}>
-                <Text style={styles.ingPickerTitle}>Что заменяет</Text>
+                <View style={styles.ingPickerHeader}>
+                  <Text style={styles.ingPickerTitle}>Что заменяет</Text>
+                  <Pressable onPress={() => setIngPicker(null)} hitSlop={12}>
+                    <Text style={{ color: colors.muted, fontSize: 18 }}>✕</Text>
+                  </Pressable>
+                </View>
                 <TextInput style={styles.ingPickerSearch} color={colors.text}
                   value={ingSearch} onChangeText={setIngSearch} placeholder="Поиск..." placeholderTextColor={colors.muted} autoFocus />
                 <ScrollView>
@@ -859,6 +871,8 @@ const styles = StyleSheet.create({
   orderModalBox:   { width: '45%', maxHeight: '70%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, padding: 24 },
   orderModalTitle: { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.text, marginBottom: 4 },
   orderModalHint:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginBottom: 16 },
+  modalCloseBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' },
+  modalCloseTxt: { fontSize: 14, color: colors.muted, fontFamily: fonts.familySemibold },
   orderRow:  { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
   orderRowTxt:{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, flex: 1 },
   orderBtn:  { width: 32, height: 32, borderRadius: 8, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },

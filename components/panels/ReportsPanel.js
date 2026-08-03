@@ -411,7 +411,12 @@ export default function ReportsPanel() {
         <View style={styles.modalRoot}>
           <Pressable style={{ ...StyleSheet.absoluteFillObject }} onPress={() => setShowCustom(false)} />
           <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Свой период</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <Text style={[styles.modalTitle, { marginBottom: 0 }]}>Свой период</Text>
+              <Pressable onPress={() => setShowCustom(false)} hitSlop={12} style={styles.modalCloseBtn}>
+                <Text style={styles.modalCloseTxt}>✕</Text>
+              </Pressable>
+            </View>
             <Text style={styles.fieldLabel}>Начало</Text>
             <Pressable style={styles.dateBtn} onPress={() => { setShowCustom(false); setPicker('from'); }}>
               <Text style={styles.dateTxt}>{customFrom.split('-').reverse().join('.')}</Text>
@@ -505,6 +510,8 @@ const styles = StyleSheet.create({
   modalRoot:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 24 },
   modalBox:   { width: '100%', maxWidth: 360, backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, padding: 24 },
   modalTitle: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: 16 },
+  modalCloseBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' },
+  modalCloseTxt: { fontSize: 14, color: colors.muted, fontFamily: fonts.familySemibold },
   fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 6, marginTop: 14 },
   dateBtn:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 13 },
   dateTxt:    { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },

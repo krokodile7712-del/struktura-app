@@ -22,54 +22,90 @@ const THRESHOLD = 72; // ширина кнопки удаления
  * - color: string — цвет кнопки (default red)
  * - disabled: bool — отключить свайп
  */
+/**
+ * SwipeableRow — обёртка для строки списка.
+ * Свайп влево → появляется правое действие (по умолчанию «Удалить»).
+ * Свайп вправо → появляется левое действие, если передан onLeftAction (например «Заметка»).
+ *
+ * Использование:
+ * <SwipeableRow onAction={() => removeItem(id)} label="Удалить"
+ *               onLeftAction={() => addNote(id)} leftLabel="Заметка" leftColor={colors.indigo}>
+ *   <View style={styles.row}>...</View>
+ * </SwipeableRow>
+ *
+ * Props:
+ * - onAction: fn — действие по правой кнопке (свайп влево)
+ * - label: string — текст правой кнопки (default 'Удалить')
+ * - color: string — цвет правой кнопки (default red)
+ * - onLeftAction: fn — действие по левой кнопке (свайп вправо). Если не передан — свайп вправо отключён
+ * - leftLabel: string — текст левой кнопки (default 'Заметка')
+ * - leftColor: string — цвет левой кнопки (default indigo)
+ * - disabled: bool — отключить свайп целиком
+ */
 export default function SwipeableRow({
   children,
   onAction,
   label = 'Удалить',
   color = colors.redLight,
+  onLeftAction,
+  leftLabel = 'Заметка',
+  leftColor = colors.indigo,
   disabled = false,
 }) {
   const x = useRef(new Animated.Value(0)).current;
-  const isOpen = useRef(false);
+  const openSide = useRef(0); // -1 = открыто вправо (видна правая кнопка), 1 = открыто влево (видна левая кнопка), 0 = закрыто
+  const hasLeft = !!onLeftAction;
 
   const close = () => {
     Animated.spring(x, {
       toValue: 0, useNativeDriver: true,
       bounciness: 3, speed: 18,
-    }).start(() => { isOpen.current = false; });
+    }).start(() => { openSide.current = 0; });
   };
 
-  const open = () => {
+  const openRight = () => {
     Animated.spring(x, {
       toValue: -THRESHOLD, useNativeDriver: true,
       bounciness: 2, speed: 16,
-    }).start(() => { isOpen.current = true; });
+    }).start(() => { openSide.current = -1; });
+  };
+
+  const openLeft = () => {
+    Animated.spring(x, {
+      toValue: THRESHOLD, useNativeDriver: true,
+      bounciness: 2, speed: 16,
+    }).start(() => { openSide.current = 1; });
   };
 
   const pan = PanResponder.create({
     onStartShouldSetPanResponder: () => {
       // Если строка открыта — захватываем тач, закрываем,
       // не передаём событие вложенным Pressable
-      if (isOpen.current) { close(); return true; }
+      if (openSide.current !== 0) { close(); return true; }
       return false;
     },
     onMoveShouldSetPanResponder: (_, g) => {
       if (disabled) return false;
+      if (!hasLeft && g.dx > 0) return false; // без левого действия свайп вправо не перехватываем
       return Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5;
     },
     onPanResponderGrant: () => {
       x.stopAnimation();
     },
     onPanResponderMove: (_, g) => {
-      const base = isOpen.current ? -THRESHOLD : 0;
-      const next = base + g.dx;
-      x.setValue(Math.min(0, Math.max(next, -THRESHOLD - 16)));
+      const base = openSide.current === -1 ? -THRESHOLD : openSide.current === 1 ? THRESHOLD : 0;
+      let next = base + g.dx;
+      const min = -THRESHOLD - 16;
+      const max = hasLeft ? THRESHOLD + 16 : 0;
+      x.setValue(Math.min(max, Math.max(next, min)));
     },
     onPanResponderRelease: (_, g) => {
-      const base = isOpen.current ? -THRESHOLD : 0;
+      const base = openSide.current === -1 ? -THRESHOLD : openSide.current === 1 ? THRESHOLD : 0;
       const delta = base + g.dx;
       if (delta < -THRESHOLD / 2) {
-        open();
+        openRight();
+      } else if (hasLeft && delta > THRESHOLD / 2) {
+        openLeft();
       } else {
         close();
       }
@@ -83,14 +119,39 @@ export default function SwipeableRow({
     extrapolate: 'clamp',
   });
 
+  const leftRevealOpacity = x.interpolate({
+    inputRange: [0, 4, THRESHOLD],
+    outputRange: [0, 0.5, 1],
+    extrapolate: 'clamp',
+  });
+
   const handleAction = () => {
     close();
     onAction?.();
   };
 
+  const handleLeftAction = () => {
+    close();
+    onLeftAction?.();
+  };
+
   return (
     <View style={styles.wrap}>
-      {/* Кнопка под строкой */}
+      {/* Левая кнопка (свайп вправо) */}
+      {hasLeft && (
+        <Animated.View style={[styles.revealLeft, { opacity: leftRevealOpacity }]}>
+          <Pressable
+            style={[styles.actionBtn, { backgroundColor: leftColor }]}
+            onPress={handleLeftAction}
+            accessibilityLabel={leftLabel}
+            accessibilityRole="button"
+          >
+            <Text style={styles.actionLabel}>{leftLabel}</Text>
+          </Pressable>
+        </Animated.View>
+      )}
+
+      {/* Правая кнопка (свайп влево) */}
       <Animated.View style={[styles.reveal, { opacity: revealOpacity }]}>
         <Pressable
           style={[styles.actionBtn, { backgroundColor: color }]}
@@ -102,7 +163,7 @@ export default function SwipeableRow({
         </Pressable>
       </Animated.View>
 
-      {/* Сама строка — едет влево, без лишней Pressable-обёртки */}
+      {/* Сама строка — едет в обе стороны, без лишней Pressable-обёртки */}
       <Animated.View
         style={{ transform: [{ translateX: x }] }}
         {...pan.panHandlers}
@@ -121,6 +182,15 @@ const styles = StyleSheet.create({
   reveal: {
     position: 'absolute',
     right: 0,
+    top: 0,
+    bottom: 0,
+    width: THRESHOLD,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  revealLeft: {
+    position: 'absolute',
+    left: 0,
     top: 0,
     bottom: 0,
     width: THRESHOLD,

@@ -748,7 +748,14 @@ export default function KassaScreen({ navigation, route }) {
               </View>
             ) : (
               order.map((item, idx) => (
-                <SwipeableRow key={item.id} onAction={() => removeFromOrder(item.id)} label="Удалить">
+                <SwipeableRow
+                  key={item.id}
+                  onAction={() => removeFromOrder(item.id)}
+                  label="Удалить"
+                  onLeftAction={() => setItemNoteModal({ id: item.id, note: item.note || '' })}
+                  leftLabel={item.note ? 'Заметка' : '+ Заметка'}
+                  leftColor={colors.indigo}
+                >
                   <Pressable
                     style={({ pressed }) => [styles.v2Item, idx < order.length - 1 && styles.v2ItemDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.02)' }]}
                     onPress={() => editCartItemMods(item)}
