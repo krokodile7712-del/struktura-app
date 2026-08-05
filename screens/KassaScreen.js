@@ -557,7 +557,6 @@ export default function KassaScreen({ navigation, route }) {
         const visitResult = addClientVisit(forClient.id, total); // total = после скидки
       }
       setExpandedCartId(null);
-      setPayModalOpen(false);
       closeSlot(activeSlotId);
       // Fix 3: обратная связь по баллам
       let toastMsg = `Оплата ${total} ₽ принята ✓`;
