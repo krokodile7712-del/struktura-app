@@ -65,6 +65,7 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
         { label: 'Инвестиции',  screen: 'Investments', always: true },
         { label: 'Журнал работы',  screen: 'WorkJournal',  always: true },
         { label: 'Инвентаризация',  screen: 'Inventory',    always: true },
+        { label: 'Локации',    screen: 'Locations',   adminOnly: true },
       ],
     },
     {

@@ -96,6 +96,7 @@ export default function KassaScreen({ navigation, route }) {
   const [clientPickerOpen, setClientPickerOpen]   = useState(false);
   const [clientSearch, setClientSearch]   = useState('');
   const [clientsList, setClientsList]     = useState([]);
+  const [slotEditModal, setSlotEditModal] = useState(null); // { id, name }
 
   // ── Хелперы активного слота ─────────────────────────────────────────────────
   const activeSlot = slots.find(s => s.id === activeSlotId) || slots[0];
@@ -140,6 +141,33 @@ export default function KassaScreen({ navigation, route }) {
       return remaining[remaining.length - 1].id;
     });
   }; // для оплаты баллами
+
+  // Название вкладки слота: своё имя → зона/стол → «Чек N» по порядку
+  const slotLabel = (s, i) => s.customLabel || (s.zone ? (s.table ? `${s.zone.name}·${s.table.name}` : s.zone.name) : `Чек ${i + 1}`);
+
+  const openSlotEdit = (s, i) => setSlotEditModal({ id: s.id, name: s.customLabel || slotLabel(s, i) });
+
+  const saveSlotName = () => {
+    if (!slotEditModal) return;
+    const name = slotEditModal.name.trim();
+    setSlots(prev => prev.map(s => s.id === slotEditModal.id ? { ...s, customLabel: name || null } : s));
+    setSlotEditModal(null);
+  };
+
+  const deleteSlot = () => {
+    if (!slotEditModal) return;
+    const target = slots.find(s => s.id === slotEditModal.id);
+    const hasItems = target && target.order.length > 0;
+    const doDelete = () => { closeSlot(slotEditModal.id); setSlotEditModal(null); };
+    if (hasItems) {
+      Alert.alert('Удалить чек?', 'В нём есть товары — они будут потеряны без возможности восстановить.', [
+        { text: 'Отмена', style: 'cancel' },
+        { text: 'Удалить', style: 'destructive', onPress: doDelete },
+      ]);
+    } else {
+      doDelete();
+    }
+  };
 
   // Оплата (значение способа/смешанной оплаты используется в предмодалке ── Оплата)
   const [payMethod, setPayMethod] = useState('Наличные'); // Наличные | Карта | QR | Смешанная
@@ -678,9 +706,11 @@ export default function KassaScreen({ navigation, route }) {
                 return (
                   <Pressable key={s.id}
                     style={[styles.slotTab, isActive && styles.slotTabActive]}
-                    onPress={() => { setActiveSlotId(s.id); setExpandedCartId(null); }}>
+                    onPress={() => { setActiveSlotId(s.id); setExpandedCartId(null); }}
+                    onLongPress={() => openSlotEdit(s, i)}
+                    delayLongPress={320}>
                     <Text style={[styles.slotTabText, isActive && styles.slotTabTextActive]}>
-                      {`${s.zone ? (s.table ? `${s.zone.name}·${s.table.name}` : s.zone.name) : `Чек ${i+1}`}${qty > 0 ? ` · ${qty}` : ''}`}
+                      {`${slotLabel(s, i)}${qty > 0 ? ` · ${qty}` : ''}`}
                     </Text>
                   </Pressable>
                 );
@@ -1223,6 +1253,41 @@ export default function KassaScreen({ navigation, route }) {
                     setItemNoteModal(null);
                   }}
                 >
+                  <Text style={styles.noteModalBtnPrimaryText}>Сохранить</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+        </View>
+      </Modal>
+
+      {/* Модалка переименования/удаления чека (слота) */}
+      <Modal visible={!!slotEditModal} transparent animationType="fade" onRequestClose={() => setSlotEditModal(null)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setSlotEditModal(null)} />
+          {slotEditModal && (
+            <View style={[styles.modalInner, { width: '45%' }]}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>✏️ Название чека</Text>
+                <Pressable onPress={() => setSlotEditModal(null)} hitSlop={12}>
+                  <Text style={styles.modalCloseText}>✕</Text>
+                </Pressable>
+              </View>
+              <TextInput
+                style={styles.input}
+                value={slotEditModal.name}
+                onChangeText={v => setSlotEditModal(m => ({ ...m, name: v }))}
+                placeholder="Стол 5, Иван..."
+                placeholderTextColor={colors.muted}
+                autoFocus
+              />
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+                {slots.length > 1 && (
+                  <Pressable style={styles.noteModalBtnSecondary} onPress={deleteSlot}>
+                    <Text style={[styles.noteModalBtnSecondaryText, { color: colors.red }]}>Удалить чек</Text>
+                  </Pressable>
+                )}
+                <Pressable style={[styles.noteModalBtnPrimary, { flex: 1 }]} onPress={saveSlotName}>
                   <Text style={styles.noteModalBtnPrimaryText}>Сохранить</Text>
                 </Pressable>
               </View>

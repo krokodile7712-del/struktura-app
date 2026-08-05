@@ -2281,9 +2281,36 @@ export function deleteEquipment(id) {
 export function incrementEquipmentCycles(orderId, items) {
   const db = getDb(); ensureEquipment(db);
 
+  // Оборудование с типом "По циклам" не покрывается дневным расчётом амортизации
+  // (тот считает только линейную/смешанную по времени) — начисляем сразу при
+  // использовании, добавляя к тому же дневному расходу "Амортизация · Автоматически",
+  // чтобы не плодить отдельную строку на каждый заказ.
+  const chargeCycleDepreciation = (eq, addedCycles) => {
+    if (eq.amort_type !== 'production') return; // "Смешанная" уже учтена по времени — не дублируем
+    const totalCycles = parseInt(eq.amort_cycles) || 0;
+    const cost = parseFloat(eq.cost) || 0;
+    if (!totalCycles || !cost || !addedCycles) return;
+    const amount = (cost / totalCycles) * addedCycles;
+    if (amount <= 0) return;
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const existing = db.getFirstSync(
+        `SELECT id, amount FROM expenses WHERE date = ? AND category = 'Амортизация' AND comment = 'Автоматически'`,
+        [today]
+      );
+      if (existing) {
+        db.runSync(`UPDATE expenses SET amount = ? WHERE id = ?`, [Math.round((existing.amount + amount) * 100) / 100, existing.id]);
+      } else {
+        insertExpense({ date: today, category: 'Амортизация', amount: Math.round(amount * 100) / 100, comment: 'Автоматически' });
+      }
+    } catch (e) { console.error('[incrementEquipmentCycles] расход по циклам:', e); }
+  };
+
   const byOrder = db.getAllSync(`SELECT * FROM equipment WHERE counter_type = 'order' AND active = 1`);
   for (const eq of byOrder) {
-    db.runSync(`UPDATE equipment SET current_cycles = current_cycles + ? WHERE id = ?`, [eq.cycles_per_use||1, eq.id]);
+    const added = eq.cycles_per_use || 1;
+    db.runSync(`UPDATE equipment SET current_cycles = current_cycles + ? WHERE id = ?`, [added, eq.id]);
+    chargeCycleDepreciation(eq, added);
   }
 
   const byProduct = db.getAllSync(`SELECT * FROM equipment WHERE counter_type = 'product' AND active = 1`);
@@ -2293,7 +2320,9 @@ export function incrementEquipmentCycles(orderId, items) {
       const qty = item.quantity || 1;
       for (const eq of byProduct) {
         if (eq.counter_product_id !== item.product_id) continue;
-        db.runSync(`UPDATE equipment SET current_cycles = current_cycles + ? WHERE id = ?`, [(eq.cycles_per_use||1) * qty, eq.id]);
+        const added = (eq.cycles_per_use||1) * qty;
+        db.runSync(`UPDATE equipment SET current_cycles = current_cycles + ? WHERE id = ?`, [added, eq.id]);
+        chargeCycleDepreciation(eq, added);
       }
     }
   }
