@@ -1590,12 +1590,14 @@ export default function SettingsScreen({ navigation }) {
           <Pressable
             style={styles.termsAccordionHeader}
             onPress={() => {
-              LayoutAnimation.configureNext({
-                duration: 220,
-                create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
-                update: { type: LayoutAnimation.Types.easeInEaseOut },
-                delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
-              });
+              try {
+                LayoutAnimation.configureNext({
+                  duration: 220,
+                  create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+                  update: { type: LayoutAnimation.Types.easeInEaseOut },
+                  delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+                });
+              } catch (e) { console.error('[Термины] LayoutAnimation error:', e); }
               setTermsOpen(o => !o);
             }}
           >
