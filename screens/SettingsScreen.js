@@ -37,6 +37,39 @@ import { upsertBusiness, syncServicesToSupabase } from '../db/supabase';
 import { useToast } from '../components/Toast';
 
 // SectionAccordion — в 2-колоночном layout просто передаёт children
+// Пресеты терминологии — та же логика, что в мастере настройки (Онбординг),
+// но доступна отдельно в Настройках без прохождения всего мастера заново
+const TERM_CONFIGS = [
+  {
+    key: 'order',
+    icon: '🛒',
+    title: 'Как называть заказ?',
+    desc: 'Слово видно при создании нового чека в кассе, в истории продаж и отчётах',
+    presets: ['Заказ', 'Запись', 'Чек', 'Счёт', 'Бронь', 'Позиция', 'Партия'],
+  },
+  {
+    key: 'client',
+    icon: '👤',
+    title: 'Как называть клиента?',
+    desc: 'Используется в карточках лояльности, поиске и карточке клиента',
+    presets: ['Клиент', 'Гость', 'Покупатель', 'Пациент', 'Участник', 'Студент', 'Заказчик'],
+  },
+  {
+    key: 'item',
+    icon: '📦',
+    title: 'Как называть товар / услугу?',
+    desc: 'Позиция в меню, на складе и в техкартах',
+    presets: ['Товар', 'Услуга', 'Блюдо', 'Позиция', 'Продукт', 'Процедура', 'Изделие'],
+  },
+  {
+    key: 'category',
+    icon: '🗂',
+    title: 'Как называть категорию?',
+    desc: 'Группировка товаров/услуг в меню кассы',
+    presets: ['Категория', 'Раздел', 'Группа', 'Тип', 'Вид', 'Секция'],
+  },
+];
+
 function SectionAccordion({ sectionKey, selectedSection, children }) {
   if (selectedSection !== sectionKey) return null;
   return <View style={{ flex: 1 }}>{children}</View>;
@@ -165,6 +198,7 @@ export default function SettingsScreen({ navigation }) {
         instagram:     profile.instagram      || '',
         vk:            profile.vk             || '',
         website:       profile.website        || '',
+        terms:         getTerms(),
         theme:         profile.theme          || 'dark',
       });
     }
@@ -200,7 +234,7 @@ export default function SettingsScreen({ navigation }) {
         website:       bizDraft.website,
         theme:         bizDraft.theme,
         modules:       profile?.modules || {},
-        terms:         profile?.terms   || {},
+        terms:         bizDraft.terms   || {},
         roles:         profile?.roles   || {},
         units:         profile?.units   || [],
         accessKey:     profile?.access_key || '',
@@ -1550,6 +1584,45 @@ export default function SettingsScreen({ navigation }) {
           <Pressable style={({ pressed }) => [styles.bizPreviewBtn, pressed && { opacity: 0.8 }]} onPress={() => setReceiptPreview(true)}>
             <Text style={styles.bizPreviewBtnText}>👁 Предпросмотр чека</Text>
           </Pressable>
+
+          {/* ТЕРМИНОЛОГИЯ */}
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={styles.bizGroupLabel}>Термины</Text>
+            <InfoTip
+              title="Термины"
+              text="Как называть заказ, клиента, товар и категорию в интерфейсе — эти слова используются в кнопках, заголовках и отчётах по всему приложению. Выберите готовый вариант или впишите своё слово."
+            />
+          </View>
+          {TERM_CONFIGS.map(tc => (
+            <View key={tc.key} style={styles.termBlock}>
+              <View style={styles.termHeader}>
+                <Text style={styles.termIcon}>{tc.icon}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.termTitle}>{tc.title}</Text>
+                  <Text style={styles.termDesc}>{tc.desc}</Text>
+                </View>
+              </View>
+              <View style={styles.termPresets}>
+                {tc.presets.map(p => (
+                  <Pressable
+                    key={p}
+                    style={[styles.termChip, bizDraft.terms?.[tc.key] === p && styles.termChipActive]}
+                    onPress={() => setBizDraft(d => ({ ...d, terms: { ...d.terms, [tc.key]: p } }))}
+                  >
+                    <Text style={[styles.termChipText, bizDraft.terms?.[tc.key] === p && styles.termChipTextActive]}>{p}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <TextInput
+                style={[styles.input, styles.termInput]}
+                color={colors.text}
+                value={bizDraft.terms?.[tc.key] || ''}
+                onChangeText={v => setBizDraft(d => ({ ...d, terms: { ...d.terms, [tc.key]: v } }))}
+                placeholder="Или введите своё слово..."
+                placeholderTextColor={colors.muted}
+              />
+            </View>
+          ))}
 
           {/* ВАЛЮТА */}
           <Text style={styles.bizGroupLabel}>Валюта и формат</Text>
@@ -3114,6 +3187,18 @@ const styles = StyleSheet.create({
   fiscalStatusCard: { marginTop: 8, marginBottom: 8, backgroundColor: 'rgba(240,160,80,0.06)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(240,160,80,0.2)', padding: 12 },
   fiscalStatusTxt:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.orange, marginBottom: 4 },
   fiscalStatusHint: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, lineHeight: 16 },
+
+  termBlock: { marginBottom: 14, padding: 16, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border },
+  termHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 12 },
+  termIcon: { fontSize: 22, marginTop: 2 },
+  termTitle: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, marginBottom: 3 },
+  termDesc: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, lineHeight: 17 },
+  termPresets: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
+  termChip: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface2 },
+  termChipActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.08)' },
+  termChipText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  termChipTextActive: { color: colors.orange },
+  termInput: { marginTop: 4, marginBottom: 0, fontSize: 14 },
   bizCurrencyChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface2 },
   bizCurrencyChipActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.08)' },
   bizCurrencyText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
