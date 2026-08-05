@@ -990,10 +990,12 @@ export function openShift(cashOpen = 0, userId = null, employeeName = '') {
   try { db.execSync(`ALTER TABLE shifts ADD COLUMN cash_open REAL DEFAULT 0`); } catch (_) {}
   const existing = db.getFirstSync(`SELECT * FROM shifts WHERE status='open' ORDER BY opened_at DESC LIMIT 1`);
   if (existing) return existing.id;
-  return db.runSync(
+  const id = db.runSync(
     `INSERT INTO shifts (opened_at, status, cash_open, user_id, employee_name) VALUES (?, 'open', ?, ?, ?)`,
     [now, cashOpen, userId || null, employeeName || '']
   ).lastInsertRowId;
+  try { ensureDailyDepreciationExpense(); } catch (e) { console.error('[openShift] Ошибка автосчёта расходов:', e); }
+  return id;
 }
 
 export function closeShift(shift_id) {

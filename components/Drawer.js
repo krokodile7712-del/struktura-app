@@ -51,7 +51,6 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
       items: [
         { label: 'Продажи',   screen: 'Sales',       perm: 'drawer_sales' },
         { label: 'Клиенты',   screen: 'ClientsList', perm: 'drawer_clients', module: 'clients' },
-        { label: 'Расходы',   screen: 'Expenses',    perm: 'drawer_expenses' },
         { label: 'Склад',     screen: 'Stock',       perm: 'drawer_stock' },
         { label: 'Товары',    screen: 'Products',    adminOnly: true },
       ],
