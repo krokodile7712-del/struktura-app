@@ -1585,8 +1585,9 @@ export default function SettingsFullPanel({ navigation }) {
           </Pressable>
 
           {/* ТЕРМИНОЛОГИЯ */}
+          <Text style={styles.bizGroupLabel}>Термины</Text>
           <Pressable
-            style={styles.termsAccordionHeader}
+            style={[styles.menuCard, styles.termsAccordionHeader]}
             onPress={() => {
               try {
                 LayoutAnimation.configureNext({
@@ -1599,14 +1600,15 @@ export default function SettingsFullPanel({ navigation }) {
               setTermsOpen(o => !o);
             }}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-              <Text style={styles.bizGroupLabel}>Термины</Text>
-              <InfoTip
-                title="Термины"
-                text="Как называть заказ, клиента, товар и категорию в интерфейсе — эти слова используются в кнопках, заголовках и отчётах по всему приложению. Выберите готовый вариант или впишите своё слово."
-              />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.menuItemName}>Заказ, клиент, товар, категория</Text>
+              <Text style={styles.menuItemSub}>Как эти слова звучат в приложении</Text>
             </View>
-            <Text style={styles.termsAccordionChevron}>{termsOpen ? '⌄' : '›'}</Text>
+            <InfoTip
+              title="Термины"
+              text="Как называть заказ, клиента, товар и категорию в интерфейсе — эти слова используются в кнопках, заголовках и отчётах по всему приложению. Выберите готовый вариант или впишите своё слово."
+            />
+            <Text style={styles.menuItemArrow}>{termsOpen ? '⌄' : '›'}</Text>
           </Pressable>
           {termsOpen && TERM_CONFIGS.map(tc => (
             <View key={tc.key} style={styles.termBlock}>
@@ -3202,8 +3204,7 @@ const styles = StyleSheet.create({
   fiscalStatusTxt:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.orange, marginBottom: 4 },
   fiscalStatusHint: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, lineHeight: 16 },
 
-  termsAccordionHeader: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
-  termsAccordionChevron: { fontSize: 18, color: colors.muted, fontFamily: fonts.familySemibold },
+  termsAccordionHeader: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, gap: 8, marginBottom: 12 },
 
   termBlock: { marginBottom: 14, padding: 16, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border },
   termHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 12 },
