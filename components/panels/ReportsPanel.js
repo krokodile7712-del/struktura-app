@@ -33,7 +33,7 @@ const prevPeriod  = (from, to) => {
 const PRESETS = [
   { key: 'today',   label: 'Сегодня', from: todayStr,     to: todayStr },
   { key: 'week',    label: 'Неделя',  from: startOfWeek,  to: todayStr },
-  { key: 'month',   label: 'Месяц',   from: startOfMonth, to: todayStr },
+  { key: 'month',   label: 'С начала месяца', from: startOfMonth, to: todayStr },
   { key: 'month30', label: '30 дней', from: () => nDaysAgo(29), to: todayStr },
   { key: 'quarter', label: 'Квартал', from: () => nDaysAgo(89), to: todayStr },
   { key: 'year',    label: 'Год',     from: startOfYear,  to: todayStr },
