@@ -940,6 +940,13 @@ export function updateClient(id, { fio, phone, balance, discount_pct, birth_date
   );
 }
 
+// Удаляет клиента. История его прошлых заказов сохраняется (orders.client_id
+// просто перестаёт указывать на существующую карточку) — сами продажи не теряются.
+export function deleteClient(id) {
+  const db = getDb();
+  db.runSync(`DELETE FROM clients WHERE id = ?`, [id]);
+}
+
 export function checkSubscriptionBalance(client_id) {
   const db = getDb();
   const { model } = getLoyaltyConfig();

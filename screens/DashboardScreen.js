@@ -7,6 +7,7 @@ import ShiftBanner from '../components/ShiftBanner';
 import SalesPanel    from '../components/panels/SalesPanel';
 import ExpensesPanel from '../components/panels/ExpensesPanel';
 import StockPanel    from '../components/panels/StockPanel';
+import ClientsPanel  from '../components/panels/ClientsPanel';
 import {
   getOpenShift, getBusinessProfile, getTerms, pluralizeRu,
   getDashboardStats, getRoleNames,
@@ -23,19 +24,6 @@ function getGreeting() {
 function fmt(n) { return (n || 0).toLocaleString('ru-RU'); }
 
 // Панели доступные сотруднику
-function ClientsPanel({ navigation }) {
-  return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-      <Pressable
-        style={{ backgroundColor: colors.orange, borderRadius: 14, paddingVertical: 15, paddingHorizontal: 32 }}
-        onPress={() => navigation.navigate('ClientsList')}
-      >
-        <Text style={{ fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: '#fff' }}>Открыть клиентов</Text>
-      </Pressable>
-    </View>
-  );
-}
-
 function DashPanel({ stats, sessionName, navigation }) {
   return (
     <ScrollView contentContainerStyle={styles.dashContent}>

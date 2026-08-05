@@ -12,6 +12,7 @@ import {
 import { getBookings } from '../db/supabase';
 import { getSession } from '../db/session';
 import SalesPanel from '../components/panels/SalesPanel';
+import ClientsPanel from '../components/panels/ClientsPanel';
 import ReportsPanel from '../components/panels/ReportsPanel';
 import StockPanel from '../components/panels/StockPanel';
 import ExpensesPanel from '../components/panels/ExpensesPanel';
@@ -128,19 +129,6 @@ const SECTIONS = [
   { key: 'Bookings',    label: 'Записи' },
   { key: 'Settings',    label: 'Настройки' },
 ];
-
-function ClientsPanel({ navigation }) {
-  return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-      <Pressable
-        style={{ backgroundColor: colors.orange, borderRadius: 14, paddingVertical: 15, paddingHorizontal: 32 }}
-        onPress={() => navigation.navigate('ClientsList')}
-      >
-        <Text style={{ fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: '#fff' }}>Открыть клиентов</Text>
-      </Pressable>
-    </View>
-  );
-}
 
 export default function AdminScreen({ navigation }) {
   const [profile, setProfile]         = useState(null);
