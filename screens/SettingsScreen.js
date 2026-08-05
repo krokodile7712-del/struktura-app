@@ -134,6 +134,7 @@ export default function SettingsScreen({ navigation }) {
   const [menuSearch, setMenuSearch]   = useState('');
   const [stockSearch, setStockSearch]   = useState('');
   const [bizDraft, setBizDraft]         = useState(null);
+  const [termsOpen, setTermsOpen]       = useState(false);
   const [receiptPreview, setReceiptPreview] = useState(false);
   const [stockSearchOpen, setStockSearchOpen] = useState(false);
   const [openStockCats, setOpenStockCats] = useState({});
@@ -1403,10 +1404,10 @@ export default function SettingsScreen({ navigation }) {
             ))}
             <View style={styles.bizFieldRow}>
               <Text style={styles.bizFieldLabel}>Часы работы</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <TextInput color={colors.text} style={[styles.bizInput, { width: 70, textAlign: 'center' }]} value={bizDraft.hoursFrom} onChangeText={v => setBizDraft(d => ({ ...d, hoursFrom: v }))} placeholder="09:00" placeholderTextColor={colors.muted} keyboardType="numbers-and-punctuation" />
-                <Text style={{ color: colors.muted }}>—</Text>
-                <TextInput color={colors.text} style={[styles.bizInput, { width: 70, textAlign: 'center' }]} value={bizDraft.hoursTo} onChangeText={v => setBizDraft(d => ({ ...d, hoursTo: v }))} placeholder="21:00" placeholderTextColor={colors.muted} keyboardType="numbers-and-punctuation" />
+              <View style={styles.hoursGroup}>
+                <TextInput color={colors.text} style={[styles.bizInput, styles.hoursInput]} value={bizDraft.hoursFrom} onChangeText={v => setBizDraft(d => ({ ...d, hoursFrom: v }))} placeholder="09:00" placeholderTextColor={colors.muted} keyboardType="numbers-and-punctuation" />
+                <Text style={styles.hoursDash}>—</Text>
+                <TextInput color={colors.text} style={[styles.bizInput, styles.hoursInput]} value={bizDraft.hoursTo} onChangeText={v => setBizDraft(d => ({ ...d, hoursTo: v }))} placeholder="21:00" placeholderTextColor={colors.muted} keyboardType="numbers-and-punctuation" />
               </View>
             </View>
           </View>
@@ -1586,14 +1587,28 @@ export default function SettingsScreen({ navigation }) {
           </Pressable>
 
           {/* ТЕРМИНОЛОГИЯ */}
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={styles.bizGroupLabel}>Термины</Text>
-            <InfoTip
-              title="Термины"
-              text="Как называть заказ, клиента, товар и категорию в интерфейсе — эти слова используются в кнопках, заголовках и отчётах по всему приложению. Выберите готовый вариант или впишите своё слово."
-            />
-          </View>
-          {TERM_CONFIGS.map(tc => (
+          <Pressable
+            style={styles.termsAccordionHeader}
+            onPress={() => {
+              LayoutAnimation.configureNext({
+                duration: 220,
+                create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+                update: { type: LayoutAnimation.Types.easeInEaseOut },
+                delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+              });
+              setTermsOpen(o => !o);
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+              <Text style={styles.bizGroupLabel}>Термины</Text>
+              <InfoTip
+                title="Термины"
+                text="Как называть заказ, клиента, товар и категорию в интерфейсе — эти слова используются в кнопках, заголовках и отчётах по всему приложению. Выберите готовый вариант или впишите своё слово."
+              />
+            </View>
+            <Text style={styles.termsAccordionChevron}>{termsOpen ? '⌄' : '›'}</Text>
+          </Pressable>
+          {termsOpen && TERM_CONFIGS.map(tc => (
             <View key={tc.key} style={styles.termBlock}>
               <View style={styles.termHeader}>
                 <Text style={styles.termIcon}>{tc.icon}</Text>
@@ -3181,12 +3196,18 @@ const styles = StyleSheet.create({
   bizFieldRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, gap: 12 },
   bizFieldLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, width: 140 },
   bizInput: { flex: 1, fontFamily: fonts.familyRegular, fontSize: 13, color: colors.text, textAlign: 'right', padding: 0 },
+  hoursGroup: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 6 },
+  hoursInput: { flex: 0, width: 56, textAlign: 'center' },
+  hoursDash: { color: colors.muted, fontSize: 13 },
   bizPreviewBtn: { marginTop: 8, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', backgroundColor: 'rgba(240,160,80,0.06)' },
   bizPreviewBtnText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
 
   fiscalStatusCard: { marginTop: 8, marginBottom: 8, backgroundColor: 'rgba(240,160,80,0.06)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(240,160,80,0.2)', padding: 12 },
   fiscalStatusTxt:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.orange, marginBottom: 4 },
   fiscalStatusHint: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, lineHeight: 16 },
+
+  termsAccordionHeader: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
+  termsAccordionChevron: { fontSize: 18, color: colors.muted, fontFamily: fonts.familySemibold },
 
   termBlock: { marginBottom: 14, padding: 16, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border },
   termHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 12 },
