@@ -70,6 +70,25 @@ const TERM_CONFIGS = [
   },
 ];
 
+// Модули — какие разделы функциональности включены для бизнеса в целом
+// (не путать с правами доступа сотрудника — те настраиваются отдельно, в Сотрудниках)
+const MODULE_LIST = [
+  { key: 'stock',      label: 'Склад',      desc: 'Учёт остатков, закупки, списания' },
+  { key: 'shifts',     label: 'Смены',      desc: 'Открытие/закрытие смен, касса наличных' },
+  { key: 'clients',    label: 'Клиенты',    desc: 'База клиентов, карточки, история покупок' },
+  { key: 'loyalty',    label: 'Лояльность', desc: 'Баллы, скидки или абонементы для клиентов' },
+  { key: 'modifiers',  label: 'Модификаторы', desc: 'Опции у товара — размер, вкус, добавки' },
+  { key: 'inventory',  label: 'Инвентаризация', desc: 'Сверка фактических остатков склада' },
+  { key: 'locations',  label: 'Локации',    desc: 'Несколько точек хранения/продажи' },
+  { key: 'zones',      label: 'Зоны и столы', desc: 'Нумерация мест в зале' },
+  { key: 'templates',  label: 'Шаблоны заказов', desc: 'Быстрый повтор частых заказов' },
+];
+
+const ROLE_LIST = [
+  { key: 'barista', label: 'Рядовой сотрудник', placeholder: 'напр. Кассир, Мастер, Продавец' },
+  { key: 'admin',   label: 'Администратор',     placeholder: 'напр. Управляющий, Директор' },
+];
+
 function SectionAccordion({ sectionKey, selectedSection, children }) {
   if (selectedSection !== sectionKey) return null;
   return <View style={{ flex: 1 }}>{children}</View>;
@@ -113,12 +132,6 @@ export default function SettingsScreen({ navigation }) {
   const [loyaltyConfig, setLoyaltyConfig] = useState({ earn_pct: 10, allow_spend: false, point_value: 1, pct: 5, deduct_per_visit: 1 });
   const [exporting, setExporting] = useState(false);
 
-  // ── Скрытый доступ к профилю бизнеса ──
-  const [titleTaps, setTitleTaps]         = useState(0);
-  const [profileUnlocked, setProfileUnlocked] = useState(false);
-  const [keyPromptOpen, setKeyPromptOpen] = useState(false);
-  const [keyInput, setKeyInput]           = useState('');
-  const [profileDraft, setProfileDraft]   = useState(null);
   const toast = useToast();
   const { width: SW } = useWindowDimensions();
   const isPhone = SW < 600;
@@ -135,6 +148,8 @@ export default function SettingsScreen({ navigation }) {
   const [stockSearch, setStockSearch]   = useState('');
   const [bizDraft, setBizDraft]         = useState(null);
   const [termsOpen, setTermsOpen]       = useState(false);
+  const [modulesOpen, setModulesOpen]   = useState(false);
+  const [rolesOpen, setRolesOpen]       = useState(false);
   const [receiptPreview, setReceiptPreview] = useState(false);
   const [stockSearchOpen, setStockSearchOpen] = useState(false);
   const [openStockCats, setOpenStockCats] = useState({});
@@ -200,6 +215,8 @@ export default function SettingsScreen({ navigation }) {
         vk:            profile.vk             || '',
         website:       profile.website        || '',
         terms:         getTerms(),
+        modules:       profile.modules || {},
+        roles:         getRoleNames(),
         theme:         profile.theme          || 'dark',
       });
     }
@@ -234,9 +251,9 @@ export default function SettingsScreen({ navigation }) {
         vk:            bizDraft.vk,
         website:       bizDraft.website,
         theme:         bizDraft.theme,
-        modules:       profile?.modules || {},
+        modules:       bizDraft.modules || {},
         terms:         bizDraft.terms   || {},
-        roles:         profile?.roles   || {},
+        roles:         bizDraft.roles   || {},
         units:         profile?.units   || [],
         accessKey:     profile?.access_key || '',
         preset:        profile?.preset  || 'custom',
@@ -721,72 +738,6 @@ export default function SettingsScreen({ navigation }) {
     if (!optionModal?.id) return;
     try { deleteModifierOption(optionModal.id); loadAll(); } catch (e) { console.error(e); }
     setOptionModal(null);
-  };
-
-  // ── Профиль бизнеса (скрытый доступ) ──
-  const handleTitleTap = () => {
-    const next = titleTaps + 1;
-    setTitleTaps(next);
-    if (next >= 5) {
-      setTitleTaps(0);
-      if (profile?.access_key) setKeyPromptOpen(true);
-      else openProfileEditor(); // ключ ещё не задан — пускаем сразу один раз, чтобы можно было его установить
-    }
-  };
-  const checkKey = () => {
-    if (keyInput === profile?.access_key) {
-      setKeyPromptOpen(false);
-      setKeyInput('');
-      openProfileEditor();
-    } else {
-      setKeyInput('');
-    }
-  };
-  const openProfileEditor = () => {
-    setProfileDraft({
-      businessName: profile?.business_name || '',
-      modules: { ...(profile?.modules || {}) },
-      terms: { ...(profile?.terms || {}) },
-      roles: { ...(profile?.roles || {}) },
-      units: [...(profile?.units || [])],
-      accessKey: profile?.access_key || '',
-      unitInput: '',
-    });
-    setProfileUnlocked(true);
-  };
-  const applyPresetDraft = (key) => {
-    const preset = BUSINESS_PRESETS[key];
-    if (!preset) return;
-    setProfileDraft(d => ({ ...d, modules: { ...preset.modules }, terms: { ...preset.terms }, roles: { ...(preset.roles || {}) }, units: [...preset.units] }));
-  };
-  const toggleModuleDraft = (key) => {
-    setProfileDraft(d => ({ ...d, modules: { ...d.modules, [key]: !d.modules[key] } }));
-  };
-  const setTermDraft = (key, value) => {
-    setProfileDraft(d => ({ ...d, terms: { ...d.terms, [key]: value } }));
-  };
-  const addUnitDraft = () => {
-    const val = profileDraft.unitInput.trim();
-    if (!val || profileDraft.units.includes(val)) return;
-    setProfileDraft(d => ({ ...d, units: [...d.units, val], unitInput: '' }));
-  };
-  const removeUnitDraft = (u) => {
-    setProfileDraft(d => ({ ...d, units: d.units.filter(x => x !== u) }));
-  };
-  const saveProfileDraft = () => {
-    if (!profileDraft) return;
-    try {
-      updateBusinessProfile({
-        businessName: profileDraft.businessName,
-        modules: profileDraft.modules,
-        terms: profileDraft.terms,
-        roles: profileDraft.roles,
-        units: profileDraft.units,
-        accessKey: profileDraft.accessKey,
-      });
-      loadAll();
-    } catch (e) { console.error(e); }
-    setProfileUnlocked(false);
   };
 
   // ── Экспорт / бэкап ──
@@ -1642,6 +1593,93 @@ export default function SettingsScreen({ navigation }) {
               />
             </View>
           ))}
+
+          {/* МОДУЛИ */}
+          <Text style={styles.bizGroupLabel}>Модули</Text>
+          <Pressable
+            style={[styles.menuCard, styles.termsAccordionHeader]}
+            onPress={() => {
+              try {
+                LayoutAnimation.configureNext({
+                  duration: 220,
+                  create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+                  update: { type: LayoutAnimation.Types.easeInEaseOut },
+                  delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+                });
+              } catch (e) { console.error('[Модули] LayoutAnimation error:', e); }
+              setModulesOpen(o => !o);
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={styles.menuItemName}>Какие разделы включены</Text>
+              <Text style={styles.menuItemSub}>Склад, смены, лояльность и другие — для всего бизнеса</Text>
+            </View>
+            <InfoTip
+              title="Модули"
+              text="Включает или отключает целые разделы функциональности для всего бизнеса — например, если у вас нет склада, выключите модуль «Склад», и он пропадёт из меню у всех сотрудников. Это не права доступа — те настраиваются отдельно, в разделе «Сотрудники»."
+            />
+            <Text style={styles.menuItemArrow}>{modulesOpen ? '⌄' : '›'}</Text>
+          </Pressable>
+          {modulesOpen && (
+            <View style={styles.menuCard}>
+              {MODULE_LIST.map((m, idx) => (
+                <View key={m.key} style={[styles.menuRow, idx < MODULE_LIST.length - 1 && styles.menuRowDiv]}>
+                  <View style={{ flex: 1, marginRight: 8 }}>
+                    <Text style={styles.menuItemName}>{m.label}</Text>
+                    <Text style={styles.menuItemSub}>{m.desc}</Text>
+                  </View>
+                  <Toggle
+                    value={bizDraft.modules?.[m.key] !== false}
+                    onValueChange={() => setBizDraft(d => ({ ...d, modules: { ...d.modules, [m.key]: d.modules?.[m.key] === false } }))}
+                  />
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* РОЛИ */}
+          <Text style={styles.bizGroupLabel}>Роли</Text>
+          <Pressable
+            style={[styles.menuCard, styles.termsAccordionHeader]}
+            onPress={() => {
+              try {
+                LayoutAnimation.configureNext({
+                  duration: 220,
+                  create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+                  update: { type: LayoutAnimation.Types.easeInEaseOut },
+                  delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+                });
+              } catch (e) { console.error('[Роли] LayoutAnimation error:', e); }
+              setRolesOpen(o => !o);
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={styles.menuItemName}>Как называются должности</Text>
+              <Text style={styles.menuItemSub}>Только отображение — права доступа не меняются</Text>
+            </View>
+            <InfoTip
+              title="Роли"
+              text="Как называются роли сотрудников в интерфейсе — например, «Мастер» вместо «Сотрудник» для салона. Это только текст, права доступа настраиваются отдельно в разделе «Сотрудники»."
+            />
+            <Text style={styles.menuItemArrow}>{rolesOpen ? '⌄' : '›'}</Text>
+          </Pressable>
+          {rolesOpen && (
+            <View style={styles.menuCard}>
+              {ROLE_LIST.map((r, idx) => (
+                <View key={r.key} style={[styles.bizFieldRow, idx < ROLE_LIST.length - 1 && styles.menuRowDiv]}>
+                  <Text style={styles.bizFieldLabel}>{r.label}</Text>
+                  <TextInput
+                    color={colors.text}
+                    style={styles.bizInput}
+                    value={bizDraft.roles?.[r.key] || ''}
+                    onChangeText={v => setBizDraft(d => ({ ...d, roles: { ...d.roles, [r.key]: v } }))}
+                    placeholder={r.placeholder}
+                    placeholderTextColor={colors.muted}
+                  />
+                </View>
+              ))}
+            </View>
+          )}
 
           {/* ВАЛЮТА */}
           <Text style={styles.bizGroupLabel}>Валюта и формат</Text>
@@ -2940,21 +2978,6 @@ export default function SettingsScreen({ navigation }) {
         </View>
       </Modal>
 
-      {/* Модалка ввода ключа доступа к профилю бизнеса */}
-      <Modal visible={keyPromptOpen} transparent animationType="fade" onRequestClose={() => setKeyPromptOpen(false)}>
-        <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setKeyPromptOpen(false)} />
-          <View style={styles.modalInner}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Ключ доступа</Text>
-              <Pressable onPress={() => setKeyPromptOpen(false)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
-            </View>
-            <TextInput style={styles.input} secureTextEntry value={keyInput} onChangeText={setKeyInput} placeholderTextColor={colors.muted} />
-            <MetalButton title="Войти" variant="success" onPress={checkKey} style={{ marginTop: 10 }} />
-          </View>
-        </View>
-      </Modal>
-
       {/* Модалка переименования категории склада */}
       <Modal visible={!!stockCatModal} transparent animationType="fade" onRequestClose={() => setStockCatModal(null)}>
         <View style={styles.modalRoot}>
@@ -2981,98 +3004,6 @@ export default function SettingsScreen({ navigation }) {
                 onPress={() => renameStockCategory(stockCatModal.oldName, stockCatModal.newName)}
                 style={{ marginTop: 12 }}
               />
-            </View>
-          )}
-        </View>
-      </Modal>
-
-      {/* Модалка профиля бизнеса */}
-      <Modal visible={profileUnlocked} transparent animationType="fade" onRequestClose={() => setProfileUnlocked(false)}>
-        <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setProfileUnlocked(false)} />
-          {profileDraft && (
-            <View style={[styles.modalInner, { maxHeight: '88%' }]}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Профиль бизнеса</Text>
-                <Pressable onPress={() => setProfileUnlocked(false)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
-              </View>
-              <ScrollView showsVerticalScrollIndicator={false}>
-                <Text style={styles.fieldLabel}>Название бизнеса</Text>
-                <TextInput style={styles.input} value={profileDraft.businessName} onChangeText={(v) => setProfileDraft(d => ({ ...d, businessName: v }))} placeholderTextColor={colors.muted} />
-
-                <Text style={styles.sectionTitle}>Быстрый старт (пресет)</Text>
-                <View style={styles.chipsRowSmall}>
-                  {Object.keys(BUSINESS_PRESETS).map(key => (
-                    <Pressable key={key} style={styles.chipSmall} onPress={() => applyPresetDraft(key)}>
-                      <Text style={styles.chipSmallLabel}>{BUSINESS_PRESETS[key].label}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-                <Text style={styles.hintText}>Применяет стартовый набор модулей/терминов/единиц — дальше можно поменять вручную.</Text>
-
-                <Text style={styles.sectionTitle}>Модули</Text>
-                {[
-                  ['stock',      'Склад'],
-                  ['shifts',     'Смены'],
-                  ['clients',    'Клиенты'],
-                  ['loyalty',    'Лояльность'],
-                  ['modifiers',  'Модификаторы'],
-                  ['inventory',  'Инвентаризация'],
-                  ['locations',  'Локации (несколько точек хранения)'],
-                  ['zones',      'Зоны / Столы (нумерация мест)'],
-                  ['templates',  'Шаблоны заказов'],
-                ].map(([key, label]) => (
-                  <Pressable key={key} style={styles.checkRow} onPress={() => toggleModuleDraft(key)}>
-                    <Text style={styles.rowName}>{label}</Text>
-                    <Toggle value={!!profileDraft.modules[key]} onValueChange={() => toggleModuleDraft(key)} />
-                  </Pressable>
-                ))}
-
-                <Text style={styles.sectionTitle}>Терминология</Text>
-                {[
-                  ['item', 'Товар/услуга'], ['client', 'Клиент'], ['order', 'Заказ'], ['category', 'Категория'],
-                ].map(([key, label]) => (
-                  <View key={key}>
-                    <Text style={styles.fieldLabel}>{label}</Text>
-                    <TextInput style={styles.input} value={profileDraft.terms[key] || ''} onChangeText={(v) => setTermDraft(key, v)} placeholderTextColor={colors.muted} />
-                  </View>
-                ))}
-
-                <Text style={styles.sectionTitle}>Названия должностей</Text>
-                <Text style={styles.hintText}>Как называются роли в вашем бизнесе. Права доступа не меняются — только отображение.</Text>
-                {[
-                  ['barista', 'Рядовой сотрудник (бариста / кассир / мастер...)'],
-                  ['admin',   'Администратор / управляющий / владелец...'],
-                ].map(([key, label]) => (
-                  <View key={key}>
-                    <Text style={styles.fieldLabel}>{label}</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={profileDraft.roles?.[key] || ''}
-                      onChangeText={(v) => setProfileDraft(d => ({ ...d, roles: { ...(d.roles || {}), [key]: v } }))}
-                      placeholder={key === 'barista' ? 'напр. Кассир, Мастер, Продавец' : 'напр. Управляющий, Директор'}
-                      placeholderTextColor={colors.muted}
-                    />
-                  </View>
-                ))}
-
-                <Text style={styles.sectionTitle}>Единицы измерения</Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-                  {profileDraft.units.map(u => (
-                    <Pressable key={u} style={styles.unitChip} onPress={() => removeUnitDraft(u)}>
-                      <Text style={styles.catChipLabel}>{u} ✕</Text>
-                    </Pressable>
-                  ))}
-                </View>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <TextInput style={[styles.input, { flex: 1 }]} value={profileDraft.unitInput} onChangeText={(v) => setProfileDraft(d => ({ ...d, unitInput: v }))} placeholder="напр. шт" placeholderTextColor={colors.muted} />
-                  <MetalButton title="+" variant="default" onPress={addUnitDraft} style={{ width: 50 }} />
-                </View>
-
-                <Text style={styles.sectionTitle}>Ключ доступа к этому разделу</Text>
-                <TextInput style={styles.input} value={profileDraft.accessKey} onChangeText={(v) => setProfileDraft(d => ({ ...d, accessKey: v }))} placeholder="оставь пустым — раздел без пароля" placeholderTextColor={colors.muted} />
-              </ScrollView>
-              <MetalButton title="Сохранить профиль" variant="success" onPress={saveProfileDraft} style={{ marginTop: 10 }} />
             </View>
           )}
         </View>
