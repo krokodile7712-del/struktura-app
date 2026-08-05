@@ -1921,7 +1921,7 @@ export default function SettingsScreen({ navigation }) {
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
         <Text style={{ fontSize: 32, marginBottom: 16 }}>🔒</Text>
         <Text style={{ fontFamily: 'AnekDevanagari_700Bold', fontSize: 18, color: colors.text, textAlign: 'center' }}>Нет доступа</Text>
-        <Text style={{ fontFamily: 'AnekDevanagari_400Regular', fontSize: 14, color: colors.muted, textAlign: 'center', marginTop: 8 }}>Настройки доступны только администратору.</Text>
+        <Text style={{ fontFamily: 'AnekDevanagari_400Regular', fontSize: 14, color: colors.muted, textAlign: 'center', marginTop: 8 }}>Обратитесь к администратору, чтобы получить доступ к этому разделу.</Text>
       </View>
     </View>
   );
@@ -2276,6 +2276,9 @@ export default function SettingsScreen({ navigation }) {
                           { key: 'view_reports', label: 'Отчётность и P&L' },
                           { key: 'add_expenses', label: 'Добавлять расходы' },
                           { key: 'view_revenue', label: 'Видеть выручку смены' },
+                        ]},
+                        { group: 'Настройки', items: [
+                          { key: 'access_settings', label: 'Доступ к разделу Настройки' },
                         ]},
                         { group: 'Смена', items: [
                           { key: 'open_shift',  label: 'Открывать смену' },
