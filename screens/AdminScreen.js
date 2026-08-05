@@ -119,14 +119,28 @@ function DashPanel({ stats, name, navigation }) {
 import { useEffect } from 'react';
 
 const SECTIONS = [
-  { key: 'dash',     label: 'Обзор' },
-  { key: 'Sales',    label: 'Продажи' },
-  { key: 'Reports',  label: 'Отчётность' },
-  { key: 'Stock',    label: 'Склад' },
-  { key: 'Expenses', label: 'Расходы' },
-  { key: 'Bookings', label: 'Записи' },
-  { key: 'Settings', label: 'Настройки' },
+  { key: 'dash',        label: 'Обзор' },
+  { key: 'Sales',       label: 'Продажи' },
+  { key: 'ClientsList', label: 'Клиенты' },
+  { key: 'Reports',     label: 'Отчётность' },
+  { key: 'Stock',       label: 'Склад' },
+  { key: 'Expenses',    label: 'Расходы' },
+  { key: 'Bookings',    label: 'Записи' },
+  { key: 'Settings',    label: 'Настройки' },
 ];
+
+function ClientsPanel({ navigation }) {
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      <Pressable
+        style={{ backgroundColor: colors.orange, borderRadius: 14, paddingVertical: 15, paddingHorizontal: 32 }}
+        onPress={() => navigation.navigate('ClientsList')}
+      >
+        <Text style={{ fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: '#fff' }}>Открыть клиентов</Text>
+      </Pressable>
+    </View>
+  );
+}
 
 export default function AdminScreen({ navigation }) {
   const [profile, setProfile]         = useState(null);
@@ -180,6 +194,7 @@ export default function AdminScreen({ navigation }) {
   const renderRight = () => {
     switch(active) {
       case 'Sales':    return <SalesPanel onDataChange={loadStats} />;
+      case 'ClientsList': return <ClientsPanel navigation={navigation} />;
       case 'Reports':  return <ReportsPanel />;
       case 'Stock':    return <StockPanel />;
       case 'Expenses': return <ExpensesPanel />;

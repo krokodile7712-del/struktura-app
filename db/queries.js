@@ -2801,8 +2801,6 @@ export const DEFAULT_PERMISSIONS = {
   view_stock:         true,
   edit_stock:         false,
   edit_thresholds:    true,   // Допустимый остаток — разрешено по умолчанию
-  // Боковое меню
-  drawer_clients:     true,
   // Меню
   edit_cost_cards:    true,   // Себестоимость — разрешено по умолчанию
   edit_products:      false,

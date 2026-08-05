@@ -49,7 +49,6 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
     {
       title: 'Работа',
       items: [
-        { label: 'Клиенты',   screen: 'ClientsList', perm: 'drawer_clients', module: 'clients' },
         { label: 'Товары',    screen: 'Products',    adminOnly: true },
         { label: 'Настройки', screen: 'Settings',    perm: 'access_settings' },
       ],

@@ -2279,9 +2279,6 @@ export default function SettingsFullPanel({ navigation }) {
                           { key: 'open_shift',  label: 'Открывать смену' },
                           { key: 'close_shift', label: 'Закрывать смену' },
                         ]},
-                      { group: 'Боковое меню', items: [
-                          { key: 'drawer_clients',  label: 'Клиенты' },
-                        ]},
                       ].map(group => (
                         <View key={group.group} style={{ marginBottom: 12 }}>
                           <Text style={styles.catHeader}>{group.group}</Text>
