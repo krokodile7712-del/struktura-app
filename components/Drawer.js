@@ -49,9 +49,7 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
     {
       title: 'Работа',
       items: [
-        { label: 'Продажи',   screen: 'Sales',       perm: 'drawer_sales' },
         { label: 'Клиенты',   screen: 'ClientsList', perm: 'drawer_clients', module: 'clients' },
-        { label: 'Склад',     screen: 'Stock',       perm: 'drawer_stock' },
         { label: 'Товары',    screen: 'Products',    adminOnly: true },
         { label: 'Настройки', screen: 'Settings',    perm: 'access_settings' },
       ],
@@ -66,12 +64,6 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
         { label: 'Журнал работы',  screen: 'WorkJournal',  adminOnly: true },
         { label: 'Инвентаризация',  screen: 'Inventory',    adminOnly: true },
         { label: 'Локации',    screen: 'Locations',   adminOnly: true },
-      ],
-    },
-    {
-      title: 'Система',
-      adminOnly: true,
-      items: [
       ],
     },
   ];
