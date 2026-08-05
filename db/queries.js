@@ -2845,7 +2845,7 @@ export function getOrdersByHour(from, to) {
   try {
     return db.getAllSync(
       `SELECT strftime('%H', created_at) as hour, COUNT(*) as count, SUM(total) as total
-       FROM orders WHERE date(created_at) BETWEEN ? AND ? AND status != 'cancelled'
+       FROM orders WHERE date(created_at) BETWEEN ? AND ? AND (status IS NULL OR status != 'returned')
        GROUP BY hour ORDER BY hour`,
       [from, to]
     );
@@ -2858,7 +2858,7 @@ export function getRevenueByEmployee(from, to) {
     return db.getAllSync(
       `SELECT u.name, COUNT(o.id) as orders, SUM(o.total) as revenue
        FROM orders o JOIN users u ON o.cashier_id = u.id
-       WHERE date(o.created_at) BETWEEN ? AND ? AND o.status != 'cancelled'
+       WHERE date(o.created_at) BETWEEN ? AND ? AND (o.status IS NULL OR o.status != 'returned')
        GROUP BY u.id ORDER BY revenue DESC`,
       [from, to]
     );
@@ -2869,9 +2869,9 @@ export function getPaymentBreakdown(from, to) {
   const db = getDb();
   try {
     return db.getAllSync(
-      `SELECT pay_method, COUNT(*) as count, SUM(total) as total
-       FROM orders WHERE date(created_at) BETWEEN ? AND ? AND status != 'cancelled'
-       GROUP BY pay_method ORDER BY total DESC`,
+      `SELECT method as pay_method, COUNT(*) as count, SUM(total) as total
+       FROM orders WHERE date(created_at) BETWEEN ? AND ? AND (status IS NULL OR status != 'returned')
+       GROUP BY method ORDER BY total DESC`,
       [from, to]
     );
   } catch (_) { return []; }
