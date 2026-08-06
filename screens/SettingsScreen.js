@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TouchableOpacity, Modal, TextInput, Share, Animated, LayoutAnimation, Platform, Alert, BackHandler, useWindowDimensions, Dimensions, Image, Clipboard } from 'react-native';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
@@ -22,7 +24,7 @@ import {
   getUnlinkedCostCards,
   getBusinessProfile, updateBusinessProfile, applyBusinessPreset, BUSINESS_PRESETS,
   getTerms, getRoleNames, pluralizeRu, genitivePluralRu, genitiveSingularRu,
-  exportAllData,
+  exportAllData, importAllData, BACKUP_TABLES_INFO,
 } from '../db/queries';
 import { canConvert, conversionFactor } from '../constants/units';
 import { getDb } from '../db/database';
@@ -130,7 +132,6 @@ export default function SettingsScreen({ navigation }) {
   // ── Общие настройки ──
   const [loyaltyModel,  setLoyaltyModel]  = useState('points');
   const [loyaltyConfig, setLoyaltyConfig] = useState({ earn_pct: 10, allow_spend: false, point_value: 1, pct: 5, deduct_per_visit: 1 });
-  const [exporting, setExporting] = useState(false);
 
   const toast = useToast();
   const { width: SW } = useWindowDimensions();
@@ -740,15 +741,62 @@ export default function SettingsScreen({ navigation }) {
     setOptionModal(null);
   };
 
-  // ── Экспорт / бэкап ──
-  const handleExport = async () => {
-    setExporting(true);
+  // ── Импорт / восстановление из бэкапа ──
+  const [importing, setImporting] = useState(false);
+
+  const doImport = (data) => {
+    setImporting(true);
     try {
-      const data = exportAllData();
-      const json = JSON.stringify(data, null, 2);
-      await Share.share({ title: `Бэкап ${new Date().toISOString().slice(0, 10)}`, message: json });
-    } catch (e) { console.error(e); }
-    setExporting(false);
+      const res = importAllData(data);
+      setImporting(false);
+      if (!res.ok) {
+        Alert.alert('Ошибка', res.error || 'Не удалось восстановить данные');
+        return;
+      }
+      let msg = `Восстановлено разделов: ${res.restored.length} из ${BACKUP_TABLES_INFO.length}.`;
+      if (res.skipped.length > 0) {
+        msg += `\n\nПропущено (отсутствовали в файле):\n${res.skipped.map(l => '• ' + l).join('\n')}`;
+      }
+      if (res.errors.length > 0) {
+        msg += `\n\nОшибки при восстановлении:\n${res.errors.map(l => '• ' + l).join('\n')}`;
+      }
+      Alert.alert('Восстановление завершено', msg, [
+        { text: 'Ок', onPress: () => { resetKassaCart(); clearSession(); navigation.navigate('Login'); } },
+      ]);
+    } catch (e) {
+      setImporting(false);
+      console.error('[doImport]', e);
+      toast.show('Ошибка восстановления: ' + (e?.message || ''), 'warn');
+    }
+  };
+
+  const handleImport = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: 'application/json', copyToCacheDirectory: true });
+      if (result.canceled) return;
+      const file = result.assets?.[0];
+      if (!file) return;
+      setImporting(true);
+      const content = await FileSystem.readAsStringAsync(file.uri);
+      let data;
+      try { data = JSON.parse(content); }
+      catch (_) { throw new Error('Файл повреждён или это не резервная копия (не JSON)'); }
+      setImporting(false);
+
+      const list = BACKUP_TABLES_INFO.map(t => '• ' + t.label).join('\n');
+      Alert.alert(
+        'Восстановить из резервной копии?',
+        `Это ПОЛНОСТЬЮ заменит все текущие данные приложения на данные из файла:\n\n${list}\n\nОтменить это действие нельзя. Продолжить?`,
+        [
+          { text: 'Отмена', style: 'cancel' },
+          { text: 'Восстановить', style: 'destructive', onPress: () => doImport(data) },
+        ]
+      );
+    } catch (e) {
+      setImporting(false);
+      console.error('[handleImport]', e);
+      toast.show('Не удалось прочитать файл: ' + (e?.message || 'ошибка'), 'warn');
+    }
   };
 
   const categories = [...new Set(products.map(p => p.category))];
@@ -1831,14 +1879,27 @@ export default function SettingsScreen({ navigation }) {
               onPress={async () => {
                 try {
                   const data = exportAllData();
-                  await Share.share({ message: data, title: 'Резервная копия СТРУКТУРА' });
-                } catch (e) { console.error(e); }
+                  const json = JSON.stringify(data, null, 2);
+                  await Share.share({ message: json, title: 'Резервная копия СТРУКТУРА' });
+                } catch (e) { console.error(e); toast.show('Не удалось создать копию', 'warn'); }
               }}
             >
               <Text style={{ fontSize: 20, marginRight: 12 }}>💾</Text>
               <View style={{ flex: 1 }}>
                 <Text style={styles.menuItemName}>Сохранить резервную копию</Text>
                 <Text style={styles.menuItemSub}>Товары, клиенты, продажи, настройки — всё в одном файле</Text>
+              </View>
+              <Text style={styles.menuItemArrow}>›</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.menuRow, styles.menuRowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
+              onPress={handleImport}
+              disabled={importing}
+            >
+              <Text style={{ fontSize: 20, marginRight: 12 }}>📥</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.menuItemName}>Восстановить из резервной копии</Text>
+                <Text style={styles.menuItemSub}>{importing ? 'Восстановление...' : 'Заменит все текущие данные файлом бэкапа'}</Text>
               </View>
               <Text style={styles.menuItemArrow}>›</Text>
             </Pressable>
