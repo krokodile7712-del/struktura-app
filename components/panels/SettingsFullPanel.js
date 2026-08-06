@@ -807,7 +807,8 @@ export default function SettingsFullPanel({ navigation }) {
       const file = result.assets?.[0];
       if (!file) return;
       setImporting(true);
-      const content = await FileSystem.readAsStringAsync(file.uri);
+      const response = await fetch(file.uri);
+      const content = await response.text();
       let data;
       try { data = JSON.parse(content); }
       catch (_) { throw new Error('Файл повреждён или это не резервная копия (не JSON)'); }
