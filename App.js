@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
   useFonts,
   AnekDevanagari_400Regular,
@@ -111,7 +112,7 @@ export default function App() {
   }
 
   return (
-    <>
+    <SafeAreaProvider>
       <StatusBar style="light" backgroundColor={colors.bg} />
       <ToastProvider>
       <NavigationContainer theme={navTheme}>
@@ -159,6 +160,6 @@ export default function App() {
         </AppBackground>
       </NavigationContainer>
       </ToastProvider>
-    </>
+    </SafeAreaProvider>
   );
 }

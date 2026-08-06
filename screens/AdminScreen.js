@@ -222,8 +222,14 @@ export default function AdminScreen({ navigation }) {
                 <Pressable key={s.key}
                   style={[styles.menuItem, styles.menuItemInactive]}
                   onPress={() => setActiveAnimated(s.key)}>
-                  <Text style={styles.menuLabelInactive}>{s.label}</Text>
-                  <Text style={styles.menuSub}>Не подключено</Text>
+                  {active === 'dash' ? (
+                    <>
+                      <Text style={styles.menuLabelInactive}>{s.label}</Text>
+                      <Text style={styles.menuSub}>Не подключено</Text>
+                    </>
+                  ) : (
+                    <View style={styles.menuDot} />
+                  )}
                 </Pressable>
               );
               return (

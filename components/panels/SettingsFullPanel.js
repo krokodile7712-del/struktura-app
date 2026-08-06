@@ -2827,9 +2827,13 @@ export default function SettingsFullPanel({ navigation }) {
               <Text style={styles.fieldLabel}>Процент</Text>
               <TextInput style={styles.input} keyboardType="numeric" value={discountModal.pct} onChangeText={(v) => setDiscountModal(m => ({ ...m, pct: v }))} placeholderTextColor={colors.muted} />
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
-                <MetalButton title="Сохранить" variant="success" onPress={saveDiscountModal} style={{ flex: 1 }} />
+                <Pressable style={({ pressed }) => [styles.discSaveBtn, { flex: 1 }, pressed && { opacity: 0.85 }]} onPress={saveDiscountModal}>
+                  <Text style={styles.discSaveBtnTxt}>Сохранить</Text>
+                </Pressable>
                 {discountModal.index !== -1 && (
-                  <MetalButton title="Удалить" variant="danger" onPress={deleteDiscountModal} style={{ flex: 1 }} />
+                  <Pressable style={({ pressed }) => [styles.discDeleteBtn, { flex: 1 }, pressed && { opacity: 0.85 }]} onPress={deleteDiscountModal}>
+                    <Text style={styles.discDeleteBtnTxt}>Удалить</Text>
+                  </Pressable>
                 )}
               </View>
             </View>
@@ -3147,6 +3151,11 @@ const styles = StyleSheet.create({
 
   termsAccordionHeader: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, gap: 8, marginBottom: 12 },
 
+  discSaveBtn: { backgroundColor: colors.orange, borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
+  discSaveBtnTxt: { fontFamily: fonts.family, fontSize: 14, fontWeight: '700', color: '#fff' },
+  discDeleteBtn: { borderRadius: 14, paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(160,16,32,0.35)', backgroundColor: 'rgba(160,16,32,0.06)' },
+  discDeleteBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red },
+
   termBlock: { marginBottom: 14, padding: 16, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border },
   termHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 12 },
   termIcon: { fontSize: 22, marginTop: 2 },
@@ -3259,7 +3268,7 @@ const styles = StyleSheet.create({
   menuCatName: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
   // Карточка товаров
   menuCard: { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
-  menuRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16 },
+  menuRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, gap: 12 },
   menuRowDiv: { borderBottomWidth: 1, borderBottomColor: colors.border },
   menuItemName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, flex: 1, marginRight: 8 },
   menuItemSub: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },

@@ -383,7 +383,7 @@ export default function ReportsPanel() {
 
                 <View style={[styles.card, { marginTop: 10 }]}>
                   <Text style={styles.cardTitle}>Пиковые часы</Text>
-                  <Text style={styles.hintTxt}>Количество заказов по часам — видно когда наплыв клиентов</Text>
+                  <Text style={[styles.hintTxt, { paddingHorizontal: 14 }]}>Количество заказов по часам — видно когда наплыв клиентов</Text>
                   <HeatMap data={ordersByHour} />
                 </View>
 

@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts } from '../constants/theme';
 import Drawer from './Drawer';
 
 export default function TopBar({ title, onBack, rightElement, syncPending, navigation, activeScreen }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const insets = useSafeAreaInsets();
 
   return (
     <>
-      <View style={styles.bar}>
+      <View style={[styles.bar, { paddingTop: insets.top, height: 52 + insets.top }]}>
         <View style={styles.side}>
           {onBack ? (
             <Pressable onPress={onBack} style={styles.backBtn} hitSlop={12} accessibilityLabel="Назад" accessibilityRole="button">
