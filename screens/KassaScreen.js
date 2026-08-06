@@ -177,7 +177,7 @@ export default function KassaScreen({ navigation, route }) {
   useEffect(() => { loadData(); }, []);
 
   // Перезагружаем настройки при каждом возврате на экран
-  // (зоны, шаблоны, модули могли измениться в Настройках)
+  // (зоны, шаблоны, модули, лояльность могли измениться в Настройках)
   useFocusEffect(useCallback(() => {
     try {
       setHasShift(!!getOpenShift());
@@ -189,6 +189,9 @@ export default function KassaScreen({ navigation, route }) {
       if (zonesOn) setZones(getZones());
       if (templatesOn) setTemplates(getOrderTemplates());
       setPayMethods(getPayMethods().filter(m => m.active !== false));
+      const lc = getLoyaltyConfig();
+      setLoyaltyModel(lc.model);
+      setLoyaltyConfig(lc.config);
     } catch (e) { console.error(e); }
   }, []));
 
