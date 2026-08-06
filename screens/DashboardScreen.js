@@ -137,7 +137,7 @@ export default function DashboardScreen({ navigation }) {
 
   return (
     <View style={styles.root}>
-      <TopBar title={roleNames.barista || 'Сотрудник'} navigation={navigation} activeScreen="Dashboard" />
+      <TopBar title={active === 'dash' ? (roleNames.barista || 'Сотрудник') : (SECTIONS.find(s => s.key === active)?.label || '')} navigation={navigation} activeScreen="Dashboard" />
       {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift')} />}
 
       <View style={styles.layout}>

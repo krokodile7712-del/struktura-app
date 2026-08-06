@@ -148,7 +148,7 @@ export default function AdminScreen({ navigation }) {
     setActive(key);
     if (key === 'dash') setTimeout(() => loadStats(), 50);
     Animated.spring(animWidth, {
-      toValue: key === 'dash' ? 220 : 52,
+      toValue: key === 'dash' ? 220 : 72,
       useNativeDriver: false,
       tension: 40,
       friction: 10,
@@ -194,7 +194,7 @@ export default function AdminScreen({ navigation }) {
 
   return (
     <View style={styles.root}>
-      <TopBar title={roleNames.admin || 'Администратор'} navigation={navigation} activeScreen="Admin" />
+      <TopBar title={active === 'dash' ? (roleNames.admin || 'Администратор') : (SECTIONS.find(s => s.key === active)?.label || '')} navigation={navigation} activeScreen="Admin" />
       {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift')} />}
 
       <View style={styles.layout}>
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
 
   divider:     { height: 1, backgroundColor: colors.border, marginHorizontal: 12, marginVertical: 4 },
 
-  menuItem:       { paddingVertical: 12, paddingHorizontal: 16, position: 'relative' },
+  menuItem:       { paddingVertical: 14, paddingHorizontal: 16, position: 'relative' },
   menuItemActive: { backgroundColor: 'rgba(245,240,232,0.06)' },
   menuItemInactive:{ paddingVertical: 12, paddingHorizontal: 16, opacity: 0.45 },
   activeBar:      { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
   menuLabelActive:{ color: colors.text },
   menuLabelInactive:{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   menuSub:        { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, marginTop: 1 },
-  menuDot:        { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.border, marginVertical: 2 },
+  menuDot:        { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.border, marginVertical: 3, alignSelf: 'center' },
   logoutBtn:      { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14 },
   logoutIcon:     { fontSize: 18, color: colors.muted, width: 20, textAlign: 'center' },
   logoutLabel:    { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
