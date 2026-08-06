@@ -28,6 +28,7 @@ export default function ExpensesScreen({ navigation }) {
   const [expenses, setExpenses]     = useState([]);
   const [addModal, setAddModal]     = useState(false);
   const [category, setCategory]     = useState(CATEGORIES[0]);
+  const [containerWidth, setContainerWidth] = useState(0);
   const [amount, setAmount]         = useState('');
   const [comment, setComment]       = useState('');
   const amountRef = useRef(null);
@@ -132,10 +133,10 @@ export default function ExpensesScreen({ navigation }) {
         ))}
       </View>
 
-      <Animated.View style={[styles.layout, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+      <Animated.View style={[styles.layout, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]} onLayout={e => setContainerWidth(e.nativeEvent.layout.width)}>
 
         {/* Левая колонка — сводка */}
-        <View style={styles.left}>
+        <View style={[styles.left, containerWidth > 0 && { width: Math.min(380, Math.max(260, containerWidth * 0.3)) }]}>
           {/* Итого */}
           <View style={styles.totalCard}>
             <Text style={styles.totalLabel}>За период</Text>

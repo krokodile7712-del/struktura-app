@@ -116,6 +116,7 @@ export default function ReportsScreen({ navigation }) {
   const [customFrom, setCustomFrom] = useState(nDaysAgo(29));
   const [customTo, setCustomTo]     = useState(todayStr());
   const [showCustom, setShowCustom] = useState(false);
+  const [containerWidth, setContainerWidth] = useState(0);
   const [tab, setTab]               = useState('pnl');
   const [compare, setCompare]       = useState(false);
   const [picker, setPicker]         = useState(null);
@@ -209,10 +210,10 @@ export default function ReportsScreen({ navigation }) {
         }
       />
 
-      <View style={styles.layout}>
+      <View style={styles.layout} onLayout={e => setContainerWidth(e.nativeEvent.layout.width)}>
 
         {/* ── Левая панель ── */}
-        <View style={styles.left}>
+        <View style={[styles.left, containerWidth > 0 && { width: Math.min(380, Math.max(260, containerWidth * 0.3)) }]}>
           {/* Период */}
           <Text style={styles.sectionLabel}>Период</Text>
           <View style={styles.presetList}>

@@ -2014,7 +2014,7 @@ export default function SettingsScreen({ navigation }) {
 
         {/* Левая панель навигации */}
         {(!isPhone || !selectedSection) && (
-          <View style={styles.leftPanel}>
+          <View style={[styles.leftPanel, { width: Math.min(380, Math.max(260, SW * 0.3)) }]}>
             <ScrollView showsVerticalScrollIndicator={false}>
               {visibleSections.map(s => (
                 <Pressable

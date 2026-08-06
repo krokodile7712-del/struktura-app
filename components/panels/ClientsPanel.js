@@ -278,6 +278,7 @@ export default function ClientsPanel({ navigation }) {
   const [query, setQuery]       = useState('');
   const [clients, setClients]   = useState([]);
   const [selected, setSelected] = useState(null);
+  const [containerWidth, setContainerWidth] = useState(0);
   const cardAnim = useState(new Animated.Value(0))[0];
   const cardSlide = useState(new Animated.Value(24))[0];
 
@@ -310,9 +311,9 @@ export default function ClientsPanel({ navigation }) {
   const filtered = query.length >= 1 ? searchClients(query) : clients;
 
   return (
-    <View style={styles.layout}>
+    <View style={styles.layout} onLayout={e => setContainerWidth(e.nativeEvent.layout.width)}>
       {/* Левая колонка — список */}
-      <View style={styles.listCol}>
+      <View style={[styles.listCol, containerWidth > 0 && { width: Math.min(380, Math.max(260, containerWidth * 0.3)) }]}>
         <View style={styles.searchWrap}>
           <TextInput
             color={colors.text}

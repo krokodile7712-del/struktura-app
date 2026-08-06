@@ -75,6 +75,7 @@ export default function SalesScreen({ navigation }) {
   const [editMethod, setEditMethod]     = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [returnTarget, setReturnTarget] = useState(null);
+  const [containerWidth, setContainerWidth] = useState(0);
 
   // Анимации
   const fadeAnim  = useState(new Animated.Value(0))[0];
@@ -162,10 +163,10 @@ export default function SalesScreen({ navigation }) {
         onBack={() => navigation.navigate(getHomeRoute())}
       />
 
-      <View style={styles.layout}>
+      <View style={styles.layout} onLayout={e => setContainerWidth(e.nativeEvent.layout.width)}>
 
         {/* ── Левая панель: фильтры + статистика ── */}
-        <View style={styles.left}>
+        <View style={[styles.left, containerWidth > 0 && { width: Math.min(380, Math.max(260, containerWidth * 0.3)) }]}>
           {/* Периоды */}
           <Text style={styles.sectionLabel}>Период</Text>
           <View style={styles.periodList}>

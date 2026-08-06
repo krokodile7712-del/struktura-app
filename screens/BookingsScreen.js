@@ -37,6 +37,7 @@ export default function BookingsScreen({ navigation }) {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [expanded, setExpanded] = useState(null);
+  const [containerWidth, setContainerWidth] = useState(0);
   const [filter, setFilter]     = useState('all');
 
   const fadeAnim  = useState(new Animated.Value(0))[0];
@@ -98,10 +99,10 @@ export default function BookingsScreen({ navigation }) {
         }
       />
 
-      <View style={styles.layout}>
+      <View style={styles.layout} onLayout={e => setContainerWidth(e.nativeEvent.layout.width)}>
 
         {/* Левая панель */}
-        <View style={styles.left}>
+        <View style={[styles.left, containerWidth > 0 && { width: Math.min(380, Math.max(260, containerWidth * 0.3)) }]}>
           <Text style={styles.sectionLabel}>Фильтр</Text>
           {FILTERS.map(f => {
             const count = f.key === 'all' ? bookings.length : (counts[f.key] || 0);

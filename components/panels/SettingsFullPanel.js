@@ -146,6 +146,7 @@ export default function SettingsFullPanel({ navigation }) {
   const [menuSearch, setMenuSearch]   = useState('');
   const [stockSearch, setStockSearch]   = useState('');
   const [bizDraft, setBizDraft]         = useState(null);
+  const [panelWidth, setPanelWidth]     = useState(0);
   const [termsOpen, setTermsOpen]       = useState(false);
   const [modulesOpen, setModulesOpen]   = useState(false);
   const [rolesOpen, setRolesOpen]       = useState(false);
@@ -2006,11 +2007,11 @@ export default function SettingsFullPanel({ navigation }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <View style={styles.twoCol}>
+      <View style={styles.twoCol} onLayout={e => setPanelWidth(e.nativeEvent.layout.width)}>
 
         {/* Левая панель навигации */}
         {(!isPhone || !selectedSection) && (
-          <View style={styles.leftPanel}>
+          <View style={[styles.leftPanel, panelWidth > 0 && { width: Math.min(380, Math.max(260, panelWidth * 0.3)) }]}>
             <ScrollView showsVerticalScrollIndicator={false}>
               {visibleSections.map(s => (
                 <Pressable
