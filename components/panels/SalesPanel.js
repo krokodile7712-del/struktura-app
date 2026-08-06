@@ -460,21 +460,21 @@ const styles = StyleSheet.create({
   periodTxt:  { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
   periodTxtActive: { color: colors.orange },
   statRow:    { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
-  statLabel:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
-  statVal:    { fontFamily: fonts.familySemibold, fontSize: 13 },
+  statLabel:  { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
+  statVal:    { fontFamily: fonts.familySemibold, fontSize: 15 },
 
   // Правая панель
   right:       { flex: 1 },
   searchWrap:  { padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
-  searchInput: { backgroundColor: colors.surface, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14, fontFamily: fonts.familyRegular, fontSize: 14, color: colors.text },
+  searchInput: { backgroundColor: colors.surface, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14, fontFamily: fonts.familyRegular, fontSize: 16, color: colors.text },
 
   emptyWrap:  { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
   emptyTxt:   { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted },
   emptyHint:  { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center', marginTop: 8, opacity: 0.7, lineHeight: 20 },
 
   dayHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10 },
-  dayLabel:   { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
-  dayTotal:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+  dayLabel:   { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
+  dayTotal:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
   dayCard:    { backgroundColor: colors.surface, marginHorizontal: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', marginBottom: 8 },
 
   orderRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, gap: 10 },

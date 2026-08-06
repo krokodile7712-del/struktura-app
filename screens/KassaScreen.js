@@ -1626,7 +1626,7 @@ const styles = StyleSheet.create({
   cartBadge: { position: 'absolute', top: -6, right: -6, minWidth: 20, height: 20, borderRadius: 10, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center', zIndex: 1, paddingHorizontal: 4 },
   cartBadgeText: { fontFamily: fonts.familySemibold, fontSize: 11, color: '#000' },
   searchWrap: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 6 },
-  searchInput: { padding: 13, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 14, color: colors.text, fontSize: 15, fontFamily: fonts.family },
+  searchInput: { padding: 13, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 14, color: colors.text, fontSize: 16, fontFamily: fonts.family },
   orderNotePreview: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.indigo, paddingHorizontal: 14, paddingBottom: 4, fontStyle: 'italic' },
   orderHeaderBtn: { paddingVertical: 8, paddingHorizontal: 13, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(64,60,55,0.35)', backgroundColor: colors.surface },
   orderHeaderBtnActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.1)' },

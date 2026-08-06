@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
   content: { flex: 1 },
 
   searchWrap:  { padding: 12, paddingBottom: 4 },
-  searchInput: { backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, paddingVertical: 11, paddingHorizontal: 14, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 14 },
+  searchInput: { backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, paddingVertical: 12, paddingHorizontal: 14, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 16 },
 
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
   emptyTxt:  { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted },

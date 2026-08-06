@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
   listCol:    { width: 280, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface },
   cardCol:    { flex: 1, backgroundColor: colors.bg },
   searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
-  searchInput:{ flex: 1, backgroundColor: colors.surface2, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 12, fontFamily: fonts.familyRegular, fontSize: 13, color: colors.text },
+  searchInput:{ flex: 1, backgroundColor: colors.surface2, borderRadius: 10, paddingVertical: 11, paddingHorizontal: 12, fontFamily: fonts.familyRegular, fontSize: 16, color: colors.text },
   addBtn:     { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(240,160,80,0.15)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
   addBtnTxt:  { fontSize: 18, color: colors.orange, lineHeight: 24 },
 

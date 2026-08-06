@@ -345,7 +345,7 @@ const styles = StyleSheet.create({
   addIngTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight },
 
   stockRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 16 },
-  searchInput: { padding: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: 'rgba(64,60,55,0.4)', borderRadius: 12, color: colors.text, fontFamily: fonts.family, fontSize: 14 },
+  searchInput: { padding: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: 'rgba(64,60,55,0.4)', borderRadius: 12, color: colors.text, fontFamily: fonts.family, fontSize: 16 },
 
   modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   modalBox:  { width: '50%', maxHeight: '88%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(64,60,55,0.5)', overflow: 'hidden' },

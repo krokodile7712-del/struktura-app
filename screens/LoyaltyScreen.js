@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
   right:      { flex: 1, backgroundColor: colors.bg },
 
   searchWrap: { padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
-  searchInput:{ backgroundColor: colors.surface, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14, fontFamily: fonts.familyRegular, fontSize: 14, color: colors.text },
+  searchInput:{ backgroundColor: colors.surface, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14, fontFamily: fonts.familyRegular, fontSize: 16, color: colors.text },
 
   separator:  { height: 1, backgroundColor: colors.border, marginLeft: 68 },
   clientRow:  { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16, gap: 12 },

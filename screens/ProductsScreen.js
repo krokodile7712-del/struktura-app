@@ -961,7 +961,7 @@ const styles = StyleSheet.create({
   tabTxtActive: { color: colors.orange },
 
   searchWrap: { padding: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
-  searchInput:{ backgroundColor: colors.surface2, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 12, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 13 },
+  searchInput:{ backgroundColor: colors.surface2, borderRadius: 10, paddingVertical: 11, paddingHorizontal: 12, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 16 },
 
   catHeader:  { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
   catLabel:   { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, flex: 1 },

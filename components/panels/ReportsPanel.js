@@ -455,8 +455,8 @@ const styles = StyleSheet.create({
   presetTxtActive: { color: colors.orange },
 
   statRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 7 },
-  statLabel:{ fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
-  statVal:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
+  statLabel:{ fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
+  statVal:  { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
 
   compareRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   compareTxt: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
