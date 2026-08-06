@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
-  TextInput, Modal, useWindowDimensions,
+  TextInput, Modal,
 } from 'react-native';
 import EmptyState from '../EmptyState';
 import {
@@ -29,12 +29,14 @@ const MODES = [
   { key: 'set',      label: 'Установить', desc: 'Задать точное значение' },
 ];
 
+// Единая реализация Склада — используется и отдельным экраном (StockScreen),
+// и встроенной панелью внутри Admin/Dashboard (раньше это были два отдельных
+// файла с продублированной логикой, из-за чего они периодически расходились).
 export default function StockPanel() {
-  const { width: W } = useWindowDimensions();
   const toast = useToast();
   const [stock, setStock]           = useState([]);
   const [search, setSearch]         = useState('');
-  const [modalItem, setModalItem]   = useState(null);
+  const [selected, setSelected]     = useState(null);
   const [mode, setMode]             = useState(null);
   const [qty, setQty]               = useState('');
   const [price, setPrice]           = useState('');
@@ -49,6 +51,7 @@ export default function StockPanel() {
   const [priceCalcOpen, setPriceCalcOpen] = useState(false);
   const [priceCalcQty, setPriceCalcQty]   = useState('');
   const [priceCalcSum, setPriceCalcSum]   = useState('');
+  const [containerWidth, setContainerWidth] = useState(0);
 
   useEffect(() => {
     try {
@@ -68,8 +71,8 @@ export default function StockPanel() {
 
   const reload = () => { try { setStock(getAllStock()); } catch (_) {} };
 
-  const openModal = (item) => {
-    setModalItem(item);
+  const selectItem = (item) => {
+    setSelected(item);
     setMode(null);
     setQty('');
     setPrice('');
@@ -79,31 +82,29 @@ export default function StockPanel() {
     setPriceCalcSum('');
     try { setHistory(getStockHistory(item.id).slice(0, 10)); } catch (_) { setHistory([]); }
   };
-  const closeModal = () => { setModalItem(null); setMode(null); };
 
   const savePrice = (newPrice) => {
-    if (!modalItem) return;
+    if (!selected) return;
     const p = parseFloat(newPrice);
     if (isNaN(p) || p < 0) return;
     try {
       const db = getDb();
-      db.runSync(`UPDATE stock SET avg_price = ?, last_price = ? WHERE id = ?`, [p, p, modalItem.id]);
-      // Обновляем техкарты
-      db.runSync(`UPDATE cost_ingredients SET price_per_unit = ? WHERE LOWER(name) = LOWER(?)`, [p, modalItem.name]);
+      db.runSync(`UPDATE stock SET avg_price = ?, last_price = ? WHERE id = ?`, [p, p, selected.id]);
+      db.runSync(`UPDATE cost_ingredients SET price_per_unit = ? WHERE LOWER(name) = LOWER(?)`, [p, selected.name]);
       reload();
-      setModalItem(m => ({ ...m, avg_price: p }));
+      setSelected(m => ({ ...m, avg_price: p }));
       toast.show(`Цена ${p} ₽/ед. сохранена ✓`, 'info');
     } catch(e) { console.error(e); toast.show('Ошибка сохранения', 'warn'); }
   };
 
   const confirm = () => {
-    if (!modalItem || !qty) return;
+    if (!selected || !qty) return;
     const n = parseFloat(qty);
     if (isNaN(n) || n < 0) return;
     try {
-      const id  = modalItem.id;
-      const name = modalItem.name;
-      const cur  = modalItem['остаток'] || 0;
+      const id  = selected.id;
+      const name = selected.name;
+      const cur  = selected['остаток'] || 0;
       if (mode === 'purchase') {
         const totalSum = parseFloat(price) || 0;
         const perUnit = n > 0 ? totalSum / n : 0;
@@ -118,8 +119,10 @@ export default function StockPanel() {
         if (mode === 'subtract') updateStockLocal(id, Math.max(0, cur - n));
         if (mode === 'set')      updateStockLocal(id, n);
       }
-      reload();
-      closeModal();
+      const fresh = getAllStock();
+      setStock(fresh);
+      const updated = fresh.find(s => s.id === id);
+      if (updated) selectItem(updated); else { setMode(null); setQty(''); setPrice(''); }
     } catch (e) { console.error(e); }
   };
 
@@ -130,7 +133,7 @@ export default function StockPanel() {
 
   const previewQty = (() => {
     const n = parseFloat(qty) || 0;
-    const cur = modalItem?.['остаток'] || 0;
+    const cur = selected?.['остаток'] || 0;
     if (mode === 'add')      return cur + n;
     if (mode === 'subtract') return Math.max(0, cur - n);
     if (mode === 'set')      return n;
@@ -141,7 +144,7 @@ export default function StockPanel() {
   const actionLabel = (() => {
     const n = parseFloat(qty);
     if (!n || !mode) return 'Применить';
-    const u = modalItem?.unit || '';
+    const u = selected?.unit || '';
     if (mode === 'purchase') return `Принять ${n} ${u}`;
     if (mode === 'add')      return `Добавить ${n} ${u}`;
     if (mode === 'subtract') return `Списать ${n} ${u}`;
@@ -150,111 +153,312 @@ export default function StockPanel() {
   })();
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={styles.layout} onLayout={e => setContainerWidth(e.nativeEvent.layout.width)}>
 
-      {locEnabled && locations.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}
-          style={styles.locBar} contentContainerStyle={styles.locInner}>
-          {locations.map(l => (
-            <Pressable key={l.id}
-              style={[styles.locChip, selectedLocId === l.id && styles.locChipActive]}
-              onPress={() => { setCurrentLocationId(l.id); setSelectedLocId(l.id); reload(); }}>
-              <Text style={[styles.locChipText, selectedLocId === l.id && styles.locChipActive]}>
-                {l.name}
-              </Text>
-            </Pressable>
-          ))}
+      {/* Левая колонка — список */}
+      <View style={[styles.left, containerWidth > 0 && { width: Math.min(380, Math.max(260, containerWidth * 0.3)) }]}>
+
+        {locEnabled && locations.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}
+            style={styles.locBar} contentContainerStyle={styles.locInner}>
+            {locations.map(l => (
+              <Pressable key={l.id}
+                style={[styles.locChip, selectedLocId === l.id && styles.locChipActive]}
+                onPress={() => { setCurrentLocationId(l.id); setSelectedLocId(l.id); reload(); }}>
+                <Text style={[styles.locChipText, selectedLocId === l.id && styles.locChipActive]}>
+                  {l.name}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
+
+        <View style={styles.searchWrap}>
+          <TextInput
+            style={[styles.searchInput, { flex: 1 }]}
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Поиск..."
+            placeholderTextColor={colors.muted}
+          />
+          <Pressable onPress={() => setCatModal(true)} hitSlop={8} style={styles.catBtn}>
+            <Text style={styles.catBtnText}>⚙</Text>
+          </Pressable>
+        </View>
+
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.inner}
+          keyboardShouldPersistTaps="handled">
+          {filtered.length === 0 ? (
+            <EmptyState icon="📦" title="Склад пуст"
+              text="Добавьте ингредиенты через Настройки → Техкарты." />
+          ) : cats.map(cat => {
+            const items = filtered.filter(i => (i.category || 'Без категории') === cat);
+            const hasLow = items.some(i => i['порог'] > 0 && i['остаток'] <= i['порог']);
+            return (
+              <View key={cat} style={styles.catGroup}>
+                <View style={styles.catHeadRow}>
+                  <Text style={[styles.catName, hasLow && styles.catNameWarn]}>{cat}</Text>
+                  {hasLow && <Text style={styles.catWarnDot}>⚠️</Text>}
+                </View>
+
+                <View style={styles.catCard}>
+                  {items.map((item, idx) => {
+                    const cur   = item['остаток'] ?? 0;
+                    const thr   = item['порог']   ?? 0;
+                    const isNeg = cur < 0;
+                    const isLow = thr > 0 && cur <= thr;
+                    const isOk  = !isNeg && !isLow;
+                    const isLast = idx === items.length - 1;
+                    const isActive = selected?.id === item.id;
+
+                    return (
+                      <Pressable
+                        key={item.id}
+                        style={({ pressed }) => [
+                          styles.row,
+                          !isLast && styles.rowDivider,
+                          isActive && styles.rowActive,
+                          pressed && !isActive && styles.rowPressed,
+                        ]}
+                        onPress={() => can('view_stock') && selectItem(item)}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.itemName, isActive && { color: colors.orange }]} numberOfLines={1}>{item.name}</Text>
+                          {thr > 0 && (
+                            <Text style={styles.itemThreshold}>порог {thr} {item.unit}</Text>
+                          )}
+                        </View>
+
+                        <View style={styles.itemRight}>
+                          <Text style={[
+                            styles.itemQty,
+                            isNeg && styles.qtyNeg,
+                            isLow && !isNeg && styles.qtyLow,
+                          ]}>
+                            {cur} <Text style={styles.itemUnit}>{item.unit}</Text>
+                          </Text>
+                          <Text style={[
+                            styles.itemStatus,
+                            isNeg && styles.statusNeg,
+                            isLow && !isNeg && styles.statusLow,
+                            isOk && styles.statusOk,
+                          ]}>
+                            {isNeg ? 'минус' : isLow ? 'мало' : 'норма'}
+                          </Text>
+                        </View>
+
+                        <Text style={styles.rowArrow}>›</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            );
+          })}
         </ScrollView>
-      )}
-
-      <View style={styles.searchWrap}>
-        <TextInput
-          style={styles.searchInput}
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Поиск..."
-          placeholderTextColor={colors.muted}
-        />
       </View>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.inner}
-        keyboardShouldPersistTaps="handled">
-        {filtered.length === 0 ? (
-          <EmptyState icon="📦" title="Склад пуст"
-            text="Добавьте ингредиенты через Настройки → Техкарты." />
-        ) : cats.map(cat => {
-          const items = filtered.filter(i => (i.category || 'Без категории') === cat);
-          const hasLow = items.some(i => i['порог'] > 0 && i['остаток'] <= i['порог']);
-          return (
-            <View key={cat} style={styles.catGroup}>
+      {/* Правая колонка — карточка товара */}
+      <View style={styles.right}>
+        {!selected ? (
+          <View style={styles.emptyRight}>
+            <Text style={{ fontSize: 48 }}>📦</Text>
+            <Text style={styles.emptyRightTxt}>Выберите товар</Text>
+          </View>
+        ) : (
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 22, maxWidth: 520 }}>
+            <Text style={styles.detailTitle} numberOfLines={2}>{selected.name}</Text>
 
-              {/* Заголовок категории — выразительный */}
-              <View style={styles.catHeadRow}>
-                <Text style={[styles.catName, hasLow && styles.catNameWarn]}>{cat}</Text>
-                {hasLow && (
-                  <Text style={styles.catWarnDot}>⚠️</Text>
+            {/* Текущий остаток */}
+            <View style={styles.curBox}>
+              <View style={styles.curRow}>
+                <View>
+                  <Text style={styles.curLabel}>Текущий остаток</Text>
+                  <Text style={[
+                    styles.curVal,
+                    selected['остаток'] < 0 && styles.qtyNeg,
+                    selected['порог'] > 0 && selected['остаток'] <= selected['порог'] && styles.qtyLow,
+                  ]}>
+                    {selected['остаток']} <Text style={styles.curUnit}>{selected.unit}</Text>
+                  </Text>
+                </View>
+                {selected['порог'] > 0 && (
+                  <View style={styles.curThrBox}>
+                    <Text style={styles.curThrLabel}>порог</Text>
+                    <Text style={styles.curThrVal}>{selected['порог']} {selected.unit}</Text>
+                  </View>
+                )}
+                {!can('edit_thresholds') && selected['порог'] > 0 && (
+                  <Text style={{ fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, marginTop: 4 }}>Изменение порога недоступно</Text>
                 )}
               </View>
 
-              {/* Карточка со списком */}
-              <View style={styles.catCard}>
-                {items.map((item, idx) => {
-                  const cur   = item['остаток'] ?? 0;
-                  const thr   = item['порог']   ?? 0;
-                  const isNeg = cur < 0;
-                  const isLow = thr > 0 && cur <= thr;
-                  const isOk  = !isNeg && !isLow;
-                  const isLast = idx === items.length - 1;
-
-                  return (
-                    <Pressable
-                      key={item.id}
-                      style={({ pressed }) => [
-                        styles.row,
-                        !isLast && styles.rowDivider,
-                        pressed && styles.rowPressed,
-                      ]}
-                      onPress={() => can('view_stock') && openModal(item)}
-                    >
-                      {/* Левая часть: название + порог */}
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
-                        {thr > 0 && (
-                          <Text style={styles.itemThreshold}>
-                            порог {thr} {item.unit}
-                          </Text>
-                        )}
-                      </View>
-
-                      {/* Правая часть: остаток + статус */}
-                      <View style={styles.itemRight}>
-                        <Text style={[
-                          styles.itemQty,
-                          isNeg && styles.qtyNeg,
-                          isLow && !isNeg && styles.qtyLow,
-                        ]}>
-                          {cur} <Text style={styles.itemUnit}>{item.unit}</Text>
-                        </Text>
-                        <Text style={[
-                          styles.itemStatus,
-                          isNeg && styles.statusNeg,
-                          isLow && !isNeg && styles.statusLow,
-                          isOk && styles.statusOk,
-                        ]}>
-                          {isNeg ? 'минус' : isLow ? 'мало' : 'норма'}
-                        </Text>
-                      </View>
-
-                      <Text style={styles.rowArrow}>›</Text>
-                    </Pressable>
-                  );
-                })}
+              <View style={styles.priceRow}>
+                <Text style={styles.curAvg}>Цена за единицу:</Text>
+                <TextInput
+                  color={colors.text}
+                  style={styles.priceInput}
+                  keyboardType="numeric"
+                  value={String(selected.avg_price || '')}
+                  placeholder="0"
+                  placeholderTextColor={colors.muted}
+                  onChangeText={v => setSelected(m => ({ ...m, avg_price: v }))}
+                />
+                <Text style={styles.curAvg}>₽/ед.</Text>
+                <Pressable
+                  style={({ pressed }) => [styles.priceSaveBtn, pressed && { opacity: 0.7, backgroundColor: 'rgba(240,160,80,0.3)' }]}
+                  onPress={() => savePrice(String(selected.avg_price || ''))}
+                >
+                  <Text style={styles.priceSaveTxt}>✓</Text>
+                </Pressable>
               </View>
+              <Pressable onPress={() => setPriceCalcOpen(o => !o)}>
+                <Text style={styles.priceCalcToggle}>{priceCalcOpen ? '✕ скрыть калькулятор' : '🧮 посчитать по сумме (без записи в Расходы)'}</Text>
+              </Pressable>
+              {priceCalcOpen && (
+                <View style={styles.priceCalcBox}>
+                  <View style={styles.priceCalcRow}>
+                    <TextInput
+                      color={colors.text}
+                      style={styles.priceCalcInput}
+                      keyboardType="numeric"
+                      value={priceCalcQty}
+                      onChangeText={setPriceCalcQty}
+                      placeholder={`Кол-во, ${selected.unit}`}
+                      placeholderTextColor={colors.muted}
+                    />
+                    <TextInput
+                      color={colors.text}
+                      style={styles.priceCalcInput}
+                      keyboardType="numeric"
+                      value={priceCalcSum}
+                      onChangeText={setPriceCalcSum}
+                      placeholder="Сумма, ₽"
+                      placeholderTextColor={colors.muted}
+                    />
+                  </View>
+                  {!!priceCalcQty && !!priceCalcSum && parseFloat(priceCalcQty) > 0 && (
+                    <Text style={styles.purchasePerUnitHint}>
+                      ≈ {(parseFloat(priceCalcSum) / parseFloat(priceCalcQty)).toFixed(2)} ₽/{selected.unit}
+                    </Text>
+                  )}
+                  <Pressable
+                    style={({ pressed }) => [styles.priceCalcApplyBtn, pressed && { opacity: 0.8 }]}
+                    onPress={() => {
+                      const q = parseFloat(priceCalcQty), s = parseFloat(priceCalcSum);
+                      if (!q || q <= 0 || isNaN(s)) return;
+                      const per = s / q;
+                      setSelected(m => ({ ...m, avg_price: per.toFixed(2) }));
+                      savePrice(String(per));
+                      setPriceCalcOpen(false);
+                      setPriceCalcQty(''); setPriceCalcSum('');
+                    }}
+                  >
+                    <Text style={styles.priceCalcApplyTxt}>Применить</Text>
+                  </Pressable>
+                </View>
+              )}
             </View>
-          );
-        })}
-      </ScrollView>
 
+            {/* Режимы */}
+            {!can('edit_stock') ? (
+              <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+                <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted }}>Изменение остатков недоступно</Text>
+              </View>
+            ) : !mode ? (
+              <View style={styles.modeList}>
+                {MODES.filter(m => m.key !== 'set' || can('edit_thresholds')).map((m, i, arr) => (
+                  <Pressable
+                    key={m.key}
+                    style={({ pressed }) => [
+                      styles.modeRow,
+                      i < arr.length - 1 && styles.modeRowDiv,
+                      pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
+                    ]}
+                    onPress={() => setMode(m.key)}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.modeLabel}>{m.label}</Text>
+                      <Text style={styles.modeDesc}>{m.desc}</Text>
+                    </View>
+                    <Text style={styles.modeArrow}>›</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : (
+              <View>
+                <Pressable style={styles.backBtn} onPress={() => { setMode(null); setQty(''); setPrice(''); }}>
+                  <Text style={styles.backBtnText}>← {MODES.find(m => m.key === mode)?.label}</Text>
+                </Pressable>
+
+                <Text style={styles.inputLabel}>Количество, {selected.unit}</Text>
+                <TextInput
+                  style={styles.inputField}
+                  value={qty}
+                  onChangeText={setQty}
+                  keyboardType="numeric"
+                  placeholder="0"
+                  placeholderTextColor={colors.muted}
+                  autoFocus
+                />
+
+                {mode === 'purchase' && (
+                  <>
+                    <Text style={styles.inputLabel}>Сумма закупки, ₽</Text>
+                    <TextInput
+                      style={styles.inputField}
+                      value={price}
+                      onChangeText={setPrice}
+                      keyboardType="numeric"
+                      placeholder="0"
+                      placeholderTextColor={colors.muted}
+                    />
+                    {!!qty && !!price && parseFloat(qty) > 0 && (
+                      <Text style={styles.purchasePerUnitHint}>
+                        ≈ {(parseFloat(price) / parseFloat(qty)).toFixed(2)} ₽/{selected.unit}
+                      </Text>
+                    )}
+                    <Text style={styles.purchaseExpenseNote}>💡 Сумма автоматически попадёт в Расходы, категория «Закупка»</Text>
+                  </>
+                )}
+
+                {qty !== '' && (
+                  <View style={styles.previewBox}>
+                    <Text style={styles.previewLabel}>Станет</Text>
+                    <Text style={[
+                      styles.previewVal,
+                      previewQty < 0 && styles.qtyNeg,
+                      selected['порог'] > 0 && previewQty <= selected['порог'] && previewQty >= 0 && styles.qtyLow,
+                    ]}>
+                      {previewQty.toFixed(1)} {selected.unit}
+                    </Text>
+                  </View>
+                )}
+
+                <Pressable
+                  style={({ pressed }) => [styles.confirmBtn, !qty && styles.confirmBtnOff, pressed && qty && { opacity: 0.88 }]}
+                  onPress={confirm} disabled={!qty}
+                >
+                  <Text style={styles.confirmBtnText}>{actionLabel}</Text>
+                </Pressable>
+              </View>
+            )}
+
+            {history.length > 0 && (
+              <Pressable style={styles.histToggle} onPress={() => setShowHistory(v => !v)}>
+                <Text style={styles.histToggleText}>{showHistory ? '▲' : '▼'} История движения</Text>
+              </Pressable>
+            )}
+            {showHistory && history.map((h, i) => (
+              <View key={i} style={styles.histRow}>
+                <Text style={styles.histDate}>{h.date?.slice(0, 10) || '—'}</Text>
+                <Text style={styles.histQty}>{h.qty > 0 ? '+' : ''}{h.qty} {selected.unit}</Text>
+                {h.price > 0 && <Text style={styles.histPrice}>{h.price} ₽/ед.</Text>}
+              </View>
+            ))}
+          </ScrollView>
+        )}
+      </View>
 
       {/* Модалка категорий */}
       <Modal visible={catModal} transparent animationType="fade" onRequestClose={() => setCatModal(false)}>
@@ -329,226 +533,23 @@ export default function StockPanel() {
           </View>
         </View>
       </Modal>
-
-
-      {/* Модалка */}
-      <Modal visible={!!modalItem} transparent animationType="fade" onRequestClose={closeModal}>
-        <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={closeModal} />
-          {modalItem && (
-            <View style={styles.modalInner}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle} numberOfLines={2}>{modalItem.name}</Text>
-                <Pressable onPress={closeModal} hitSlop={14} style={styles.modalCloseBtn}>
-                  <Text style={styles.modalCloseTxt}>✕</Text>
-                </Pressable>
-              </View>
-
-              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                {/* Текущий остаток */}
-                <View style={styles.curBox}>
-                  <View style={styles.curRow}>
-                    <View>
-                      <Text style={styles.curLabel}>Текущий остаток</Text>
-
-                      <Text style={[
-                        styles.curVal,
-                        modalItem['остаток'] < 0 && styles.qtyNeg,
-                        modalItem['порог'] > 0 && modalItem['остаток'] <= modalItem['порог'] && styles.qtyLow,
-                      ]}>
-                        {modalItem['остаток']} <Text style={styles.curUnit}>{modalItem.unit}</Text>
-                      </Text>
-                    </View>
-                    {modalItem['порог'] > 0 && (
-                      <View style={styles.curThrBox}>
-                        <Text style={styles.curThrLabel}>порог</Text>
-                        <Text style={styles.curThrVal}>{modalItem['порог']} {modalItem.unit}</Text>
-                      </View>
-                    )}
-                    {!can('edit_thresholds') && modalItem['порог'] > 0 && (
-                      <Text style={{ fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, marginTop: 4 }}>Изменение порога недоступно</Text>
-                    )}
-                  </View>
-                  {/* Цена за единицу — редактируемая, с калькулятором по сумме закупки */}
-                  <View style={styles.priceRow}>
-                    <Text style={styles.curAvg}>Цена за единицу:</Text>
-                    <TextInput
-                      color={colors.text}
-                      style={styles.priceInput}
-                      keyboardType="numeric"
-                      value={String(modalItem.avg_price || '')}
-                      placeholder="0"
-                      placeholderTextColor={colors.muted}
-                      onChangeText={v => setModalItem(m => ({ ...m, avg_price: v }))}
-                    />
-                    <Text style={styles.curAvg}>₽/ед.</Text>
-                    <Pressable
-                      style={({ pressed }) => [styles.priceSaveBtn, pressed && { opacity: 0.7, backgroundColor: 'rgba(240,160,80,0.3)' }]}
-                      onPress={() => savePrice(String(modalItem.avg_price || ''))}
-                    >
-                      <Text style={styles.priceSaveTxt}>✓</Text>
-                    </Pressable>
-                  </View>
-                  <Pressable onPress={() => setPriceCalcOpen(o => !o)}>
-                    <Text style={styles.priceCalcToggle}>{priceCalcOpen ? '✕ скрыть калькулятор' : '🧮 посчитать по сумме (без записи в Расходы)'}</Text>
-                  </Pressable>
-                  {priceCalcOpen && (
-                    <View style={styles.priceCalcBox}>
-                      <View style={styles.priceCalcRow}>
-                        <TextInput
-                          color={colors.text}
-                          style={styles.priceCalcInput}
-                          keyboardType="numeric"
-                          value={priceCalcQty}
-                          onChangeText={setPriceCalcQty}
-                          placeholder={`Кол-во, ${modalItem.unit}`}
-                          placeholderTextColor={colors.muted}
-                        />
-                        <TextInput
-                          color={colors.text}
-                          style={styles.priceCalcInput}
-                          keyboardType="numeric"
-                          value={priceCalcSum}
-                          onChangeText={setPriceCalcSum}
-                          placeholder="Сумма, ₽"
-                          placeholderTextColor={colors.muted}
-                        />
-                      </View>
-                      {!!priceCalcQty && !!priceCalcSum && parseFloat(priceCalcQty) > 0 && (
-                        <Text style={styles.purchasePerUnitHint}>
-                          ≈ {(parseFloat(priceCalcSum) / parseFloat(priceCalcQty)).toFixed(2)} ₽/{modalItem.unit}
-                        </Text>
-                      )}
-                      <Pressable
-                        style={({ pressed }) => [styles.priceCalcApplyBtn, pressed && { opacity: 0.8 }]}
-                        onPress={() => {
-                          const q = parseFloat(priceCalcQty), s = parseFloat(priceCalcSum);
-                          if (!q || q <= 0 || isNaN(s)) return;
-                          const per = s / q;
-                          setModalItem(m => ({ ...m, avg_price: per.toFixed(2) }));
-                          savePrice(String(per));
-                          setPriceCalcOpen(false);
-                          setPriceCalcQty(''); setPriceCalcSum('');
-                        }}
-                      >
-                        <Text style={styles.priceCalcApplyTxt}>Применить</Text>
-                      </Pressable>
-                    </View>
-                  )}
-
-                </View>
-
-                {/* Режимы */}
-                {!can('edit_stock') ? (
-                  <View style={{ paddingVertical: 16, alignItems: 'center' }}>
-                    <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted }}>Изменение остатков недоступно</Text>
-                  </View>
-                ) : !mode ? (
-                  <View style={styles.modeList}>
-                    {MODES.filter(m => m.key !== 'set' || can('edit_thresholds')).map((m, i) => (
-                      <Pressable
-                        key={m.key}
-                        style={({ pressed }) => [
-                          styles.modeRow,
-                          i < MODES.length - 1 && styles.modeRowDiv,
-                          pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
-                        ]}
-                        onPress={() => setMode(m.key)}
-                      >
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.modeLabel}>{m.label}</Text>
-                          <Text style={styles.modeDesc}>{m.desc}</Text>
-                        </View>
-                        <Text style={styles.modeArrow}>›</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                ) : (
-                  <View>
-                    <Pressable style={styles.backBtn} onPress={() => { setMode(null); setQty(''); setPrice(''); }}>
-                      <Text style={styles.backBtnText}>← {MODES.find(m => m.key === mode)?.label}</Text>
-                    </Pressable>
-
-                    <Text style={styles.inputLabel}>Количество, {modalItem.unit}</Text>
-
-                    <TextInput
-                      style={styles.inputField}
-                      value={qty}
-                      onChangeText={setQty}
-                      keyboardType="numeric"
-                      placeholder="0"
-                      placeholderTextColor={colors.muted}
-                      autoFocus
-                    />
-
-                    {mode === 'purchase' && (
-                      <>
-                        <Text style={styles.inputLabel}>Сумма закупки, ₽</Text>
-
-                        <TextInput
-                          style={styles.inputField}
-                          value={price}
-                          onChangeText={setPrice}
-                          keyboardType="numeric"
-                          placeholder="0"
-                          placeholderTextColor={colors.muted}
-                        />
-                        {!!qty && !!price && parseFloat(qty) > 0 && (
-                          <Text style={styles.purchasePerUnitHint}>
-                            ≈ {(parseFloat(price) / parseFloat(qty)).toFixed(2)} ₽/{modalItem.unit}
-                          </Text>
-                        )}
-                        <Text style={styles.purchaseExpenseNote}>💡 Сумма автоматически попадёт в Расходы, категория «Закупка»</Text>
-                      </>
-                    )}
-
-                    {qty !== '' && (
-                      <View style={styles.previewBox}>
-                        <Text style={styles.previewLabel}>Станет</Text>
-                        <Text style={[
-                          styles.previewVal,
-                          previewQty < 0 && styles.qtyNeg,
-                          modalItem['порог'] > 0 && previewQty <= modalItem['порог'] && previewQty >= 0 && styles.qtyLow,
-                        ]}>
-                          {previewQty.toFixed(1)} {modalItem.unit}
-                        </Text>
-                      </View>
-                    )}
-
-                    <Pressable
-                      style={({ pressed }) => [styles.confirmBtn, !qty && styles.confirmBtnOff, pressed && qty && { opacity: 0.88 }]}
-                      onPress={confirm} disabled={!qty}
-                    >
-                      <Text style={styles.confirmBtnText}>{actionLabel}</Text>
-                    </Pressable>
-                  </View>
-                )}
-
-                {history.length > 0 && (
-                  <Pressable style={styles.histToggle} onPress={() => setShowHistory(v => !v)}>
-                    <Text style={styles.histToggleText}>{showHistory ? '▲' : '▼'} История движения</Text>
-                  </Pressable>
-                )}
-                {showHistory && history.map((h, i) => (
-                  <View key={i} style={styles.histRow}>
-                    <Text style={styles.histDate}>{h.date?.slice(0, 10) || '—'}</Text>
-                    <Text style={styles.histQty}>{h.qty > 0 ? '+' : ''}{h.qty} {modalItem.unit}</Text>
-                    {h.price > 0 && <Text style={styles.histPrice}>{h.price} ₽/ед.</Text>}
-                  </View>
-                ))}
-              </ScrollView>
-            </View>
-          )}
-        </View>
-      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  layout: { flex: 1, flexDirection: 'row' },
+  left:   { borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface },
+  right:  { flex: 1, backgroundColor: colors.bg },
+
+  emptyRight:    { flex: 1, alignItems: 'center', justifyContent: 'center', opacity: 0.3 },
+  emptyRightTxt: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted, marginTop: 12 },
+  detailTitle:   { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.text, marginBottom: 16 },
+
   inner: { paddingBottom: 24 },
 
   searchWrap: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingHorizontal: spacing.lg,
     paddingVertical: 10,
     borderBottomWidth: 1,
@@ -564,79 +565,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: fonts.family,
   },
+  catBtn: { width: 38, height: 38, borderRadius: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  catBtnText: { fontSize: 16, color: colors.muted },
 
-  // Категории
   catGroup: { marginTop: 24, paddingHorizontal: spacing.lg },
 
-  catHeadRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 10,
-  },
-  catName: {
-    fontFamily: fonts.family,
-    fontSize: 20,
-    fontWeight: '800',
-    color: colors.text,
-    letterSpacing: -0.3,
-  },
+  catHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  catName: { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.text, letterSpacing: -0.3 },
   catNameWarn: { color: '#e0906a' },
   catWarnDot:  { fontSize: 14 },
 
-  // Карточка категории
-  catCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-  },
+  catCard: { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
 
-  // Строки
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-  },
-  rowDivider: {
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(64,60,55,0.18)',
-  },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16 },
+  rowDivider: { borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.18)' },
   rowPressed: { backgroundColor: 'rgba(255,255,255,0.03)' },
+  rowActive:  { backgroundColor: 'rgba(240,160,80,0.07)' },
 
-  itemName: {
-    fontFamily: fonts.familySemibold,
-    fontSize: 15,
-    color: colors.text,
-    marginBottom: 3,
-  },
-  itemThreshold: {
-    fontFamily: fonts.familyRegular,
-    fontSize: 12,
-    color: colors.muted,
-  },
+  itemName: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text, marginBottom: 3 },
+  itemThreshold: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
 
-  // Правая часть
   itemRight: { alignItems: 'flex-end', marginRight: 10 },
-  itemQty: {
-    fontFamily: fonts.family,
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  itemUnit: {
-    fontFamily: fonts.familyRegular,
-    fontSize: 12,
-    color: colors.muted,
-    fontWeight: '400',
-  },
-  itemStatus: {
-    fontFamily: fonts.familySemibold,
-    fontSize: 11,
-    marginTop: 2,
-  },
+  itemQty: { fontFamily: fonts.family, fontSize: 17, fontWeight: '700', color: colors.text },
+  itemUnit: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, fontWeight: '400' },
+  itemStatus: { fontFamily: fonts.familySemibold, fontSize: 11, marginTop: 2 },
 
   statusOk:  { color: colors.green },
   statusLow: { color: colors.red },
@@ -644,26 +596,26 @@ const styles = StyleSheet.create({
   qtyLow:    { color: colors.red },
   qtyNeg:    { color: '#ff3b30' },
 
-  rowArrow: {
-    fontFamily: fonts.family,
-    fontSize: 20,
-    color: colors.border,
-  },
+  rowArrow: { fontFamily: fonts.family, fontSize: 20, color: colors.border },
 
-  // Локации
   locBar:   { maxHeight: 44, borderBottomWidth: 1, borderBottomColor: colors.border },
   locInner: { paddingHorizontal: spacing.lg, paddingVertical: 8, gap: 8, flexDirection: 'row' },
   locChip:  { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   locChipActive: { borderColor: 'rgba(240,160,80,0.6)', backgroundColor: 'rgba(240,160,80,0.08)' },
   locChipText:   { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
 
-  // Модалка
-  modalRoot:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  modalInner: { width: '50%', maxWidth: 480, maxHeight: '88%', backgroundColor: colors.surface, borderRadius: 20, padding: 22, borderWidth: 1, borderColor: colors.border },
-  modalHeader:{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  catModalBox: { width: '45%', maxWidth: 420, maxHeight: '80%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  modalHeader:{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
   modalTitle: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, flex: 1, marginRight: 12 },
-  modalCloseBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(64,60,55,0.25)', alignItems: 'center', justifyContent: 'center' },
+  modalClose: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' },
   modalCloseTxt: { fontSize: 13, color: colors.muted, fontFamily: fonts.familySemibold },
+  sectionLabel: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, lineHeight: 17 },
+  card: { backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  catRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 16 },
+  rowDiv: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  catArrow: { fontSize: 18, color: colors.muted },
+  input: { padding: 12, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 14 },
 
   curBox:    { padding: 16, backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, marginBottom: 16 },
   curRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
