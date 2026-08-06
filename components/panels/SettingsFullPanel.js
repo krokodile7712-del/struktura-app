@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TouchableOpacity, Modal, TextInput, Share, Animated, LayoutAnimation, Platform, Alert, BackHandler, useWindowDimensions, Dimensions, Image, Clipboard } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import MetalCard from '../MetalCard';
 import MetalButton from '../MetalButton';
 import {
@@ -739,6 +739,36 @@ export default function SettingsFullPanel({ navigation }) {
     if (!optionModal?.id) return;
     try { deleteModifierOption(optionModal.id); loadAll(); } catch (e) { console.error(e); }
     setOptionModal(null);
+  };
+
+  // ── Экспорт / сохранение бэкапа на устройство ──
+  const handleExportSave = async () => {
+    try {
+      const data = exportAllData();
+      const json = JSON.stringify(data, null, 2);
+      const fileName = `struktura-backup-${new Date().toISOString().slice(0, 10)}.json`;
+
+      if (Platform.OS === 'android') {
+        const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+        if (!permissions.granted) return;
+        const fileUri = await FileSystem.StorageAccessFramework.createFileAsync(permissions.directoryUri, fileName, 'application/json');
+        await FileSystem.writeAsStringAsync(fileUri, json, { encoding: FileSystem.EncodingType.UTF8 });
+        toast.show('Резервная копия сохранена ✓', 'info');
+      } else {
+        await Share.share({ message: json, title: fileName });
+      }
+    } catch (e) {
+      console.error('[handleExportSave]', e);
+      toast.show('Не удалось сохранить копию: ' + (e?.message || ''), 'warn');
+    }
+  };
+
+  const handleExportShare = async () => {
+    try {
+      const data = exportAllData();
+      const json = JSON.stringify(data, null, 2);
+      await Share.share({ message: json, title: 'Резервная копия СТРУКТУРА' });
+    } catch (e) { console.error(e); toast.show('Не удалось создать копию', 'warn'); }
   };
 
   // ── Импорт / восстановление из бэкапа ──
@@ -1877,16 +1907,25 @@ export default function SettingsFullPanel({ navigation }) {
               style={({ pressed }) => [styles.menuRow, styles.menuRowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
               onPress={async () => {
                 try {
-                  const data = exportAllData();
-                  const json = JSON.stringify(data, null, 2);
-                  await Share.share({ message: json, title: 'Резервная копия СТРУКТУРА' });
-                } catch (e) { console.error(e); toast.show('Не удалось создать копию', 'warn'); }
+                  await handleExportSave();
+                } catch (e) { console.error(e); }
               }}
             >
               <Text style={{ fontSize: 20, marginRight: 12 }}>💾</Text>
               <View style={{ flex: 1 }}>
                 <Text style={styles.menuItemName}>Сохранить резервную копию</Text>
-                <Text style={styles.menuItemSub}>Товары, клиенты, продажи, настройки — всё в одном файле</Text>
+                <Text style={styles.menuItemSub}>Выберите папку на устройстве — товары, клиенты, продажи, настройки</Text>
+              </View>
+              <Text style={styles.menuItemArrow}>›</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.menuRow, styles.menuRowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
+              onPress={handleExportShare}
+            >
+              <Text style={{ fontSize: 20, marginRight: 12 }}>📤</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.menuItemName}>Поделиться копией</Text>
+                <Text style={styles.menuItemSub}>Отправить в мессенджер или облако вместо сохранения на устройство</Text>
               </View>
               <Text style={styles.menuItemArrow}>›</Text>
             </Pressable>
