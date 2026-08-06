@@ -258,9 +258,9 @@ const styles = StyleSheet.create({
 
   bookingRow:  { flexDirection: 'row', alignItems: 'center', padding: 13, gap: 10 },
   rowDiv:      { borderBottomWidth: 1, borderBottomColor: colors.border },
-  bookingTime: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text, width: 46 },
-  bookingName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
-  bookingSub:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
+  bookingTime: { fontFamily: fonts.familySemibold, fontSize: 17, color: colors.text, width: 50 },
+  bookingName: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
+  bookingSub:  { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 2 },
   bookingNote: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.indigo, marginTop: 2 },
 
   statusBadge: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 10 },

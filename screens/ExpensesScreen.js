@@ -297,9 +297,9 @@ const styles = StyleSheet.create({
   catTitle:   { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 12 },
   catRow:     { paddingVertical: 10 },
   catRowDiv:  { borderBottomWidth: 1, borderBottomColor: colors.border },
-  catName:    { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, marginBottom: 6 },
+  catName:    { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text, marginBottom: 6 },
   catRight:   { gap: 4 },
-  catVal:     { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+  catVal:     { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
   catBar:     { height: 3, backgroundColor: colors.orange, borderRadius: 2, opacity: 0.7 },
 
   hintCard:   { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 16 },

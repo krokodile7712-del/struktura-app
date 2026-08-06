@@ -512,15 +512,15 @@ const styles = StyleSheet.create({
   rowDiv:  { borderTopWidth: 1, borderTopColor: colors.border },
 
   metricRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14 },
-  metricLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
-  metricValue: { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: colors.text },
-  metricSub:   { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
+  metricLabel: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
+  metricValue: { fontFamily: fonts.family, fontSize: 17, fontWeight: '700', color: colors.text },
+  metricSub:   { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 2 },
   deltaText:   { fontFamily: fonts.familySemibold, fontSize: 11 },
 
   profitCard:  { borderRadius: 16, borderWidth: 1, padding: 20, marginTop: 10, alignItems: 'center' },
   profitLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8 },
   profitVal:   { fontFamily: fonts.family, fontSize: 40, fontWeight: '800', marginBottom: 4 },
-  profitSub:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+  profitSub:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
 
   hintCard:  { backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, padding: 16, marginTop: 10 },
   hintTxt:   { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, lineHeight: 20 },
