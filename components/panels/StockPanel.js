@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
-  TextInput, Modal,
+  TextInput, Modal, Animated,
 } from 'react-native';
 import EmptyState from '../EmptyState';
 import {
@@ -52,6 +52,27 @@ export default function StockPanel() {
   const [priceCalcQty, setPriceCalcQty]   = useState('');
   const [priceCalcSum, setPriceCalcSum]   = useState('');
   const [containerWidth, setContainerWidth] = useState(0);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const slideAnim = useState(new Animated.Value(0))[0];
+
+  const openMode = (key) => {
+    setMode(key);
+    setQty('');
+    setPrice('');
+    if (!panelOpen) {
+      setPanelOpen(true);
+      Animated.spring(slideAnim, { toValue: 1, useNativeDriver: false, tension: 60, friction: 12 }).start();
+    }
+  };
+
+  const closeSlidePanel = () => {
+    Animated.spring(slideAnim, { toValue: 0, useNativeDriver: false, tension: 60, friction: 12 }).start(() => {
+      setPanelOpen(false);
+      setMode(null);
+      setQty('');
+      setPrice('');
+    });
+  };
 
   useEffect(() => {
     try {
@@ -80,6 +101,8 @@ export default function StockPanel() {
     setPriceCalcOpen(false);
     setPriceCalcQty('');
     setPriceCalcSum('');
+    setPanelOpen(false);
+    slideAnim.setValue(0);
     try { setHistory(getStockHistory(item.id).slice(0, 10)); } catch (_) { setHistory([]); }
   };
 
@@ -122,7 +145,16 @@ export default function StockPanel() {
       const fresh = getAllStock();
       setStock(fresh);
       const updated = fresh.find(s => s.id === id);
-      if (updated) selectItem(updated); else { setMode(null); setQty(''); setPrice(''); }
+      Animated.spring(slideAnim, { toValue: 0, useNativeDriver: false, tension: 60, friction: 12 }).start(() => {
+        setPanelOpen(false);
+        setMode(null);
+        setQty('');
+        setPrice('');
+        if (updated) {
+          setSelected(updated);
+          try { setHistory(getStockHistory(id).slice(0, 10)); } catch (_) {}
+        }
+      });
     } catch (e) { console.error(e); }
   };
 
@@ -266,6 +298,7 @@ export default function StockPanel() {
             <Text style={styles.emptyRightTxt}>Выберите товар</Text>
           </View>
         ) : (
+          <View style={{ flex: 1, flexDirection: 'row' }}>
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 22, maxWidth: 520 }}>
             <Text style={styles.detailTitle} numberOfLines={2}>{selected.name}</Text>
 
@@ -365,7 +398,7 @@ export default function StockPanel() {
               <View style={{ paddingVertical: 16, alignItems: 'center' }}>
                 <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted }}>Изменение остатков недоступно</Text>
               </View>
-            ) : !mode ? (
+            ) : (
               <View style={styles.modeList}>
                 {MODES.filter(m => m.key !== 'set' || can('edit_thresholds')).map((m, i, arr) => (
                   <Pressable
@@ -373,9 +406,10 @@ export default function StockPanel() {
                     style={({ pressed }) => [
                       styles.modeRow,
                       i < arr.length - 1 && styles.modeRowDiv,
+                      panelOpen && mode === m.key && styles.modeRowActive,
                       pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
                     ]}
-                    onPress={() => setMode(m.key)}
+                    onPress={() => openMode(m.key)}
                   >
                     <View style={{ flex: 1 }}>
                       <Text style={styles.modeLabel}>{m.label}</Text>
@@ -385,11 +419,33 @@ export default function StockPanel() {
                   </Pressable>
                 ))}
               </View>
-            ) : (
-              <View>
-                <Pressable style={styles.backBtn} onPress={() => { setMode(null); setQty(''); setPrice(''); }}>
-                  <Text style={styles.backBtnText}>← {MODES.find(m => m.key === mode)?.label}</Text>
-                </Pressable>
+            )}
+
+            {history.length > 0 && (
+              <Pressable style={styles.histToggle} onPress={() => setShowHistory(v => !v)}>
+                <Text style={styles.histToggleText}>{showHistory ? '▲' : '▼'} История движения</Text>
+              </Pressable>
+            )}
+            {showHistory && history.map((h, i) => (
+              <View key={i} style={styles.histRow}>
+                <Text style={styles.histDate}>{h.date?.slice(0, 10) || '—'}</Text>
+                <Text style={styles.histQty}>{h.qty > 0 ? '+' : ''}{h.qty} {selected.unit}</Text>
+                {h.price > 0 && <Text style={styles.histPrice}>{h.price} ₽/ед.</Text>}
+              </View>
+            ))}
+          </ScrollView>
+
+          {/* Выезжающая панель действия — Закупка/Добавить/Списать/Установить */}
+          <Animated.View style={[styles.slidePanel, { width: slideAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 400] }) }]}>
+            {panelOpen && mode && (
+              <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
+                <View style={styles.slidePanelHeader}>
+                  <Text style={styles.slidePanelTitle}>{MODES.find(m => m.key === mode)?.label}</Text>
+                  <Pressable onPress={closeSlidePanel} hitSlop={12} style={styles.slidePanelClose}>
+                    <Text style={styles.slidePanelCloseTxt}>✕</Text>
+                  </Pressable>
+                </View>
+                <Text style={styles.slidePanelDesc}>{MODES.find(m => m.key === mode)?.desc}</Text>
 
                 <Text style={styles.inputLabel}>Количество, {selected.unit}</Text>
                 <TextInput
@@ -441,22 +497,10 @@ export default function StockPanel() {
                 >
                   <Text style={styles.confirmBtnText}>{actionLabel}</Text>
                 </Pressable>
-              </View>
+              </ScrollView>
             )}
-
-            {history.length > 0 && (
-              <Pressable style={styles.histToggle} onPress={() => setShowHistory(v => !v)}>
-                <Text style={styles.histToggleText}>{showHistory ? '▲' : '▼'} История движения</Text>
-              </Pressable>
-            )}
-            {showHistory && history.map((h, i) => (
-              <View key={i} style={styles.histRow}>
-                <Text style={styles.histDate}>{h.date?.slice(0, 10) || '—'}</Text>
-                <Text style={styles.histQty}>{h.qty > 0 ? '+' : ''}{h.qty} {selected.unit}</Text>
-                {h.price > 0 && <Text style={styles.histPrice}>{h.price} ₽/ед.</Text>}
-              </View>
-            ))}
-          </ScrollView>
+          </Animated.View>
+          </View>
         )}
       </View>
 
@@ -633,6 +677,14 @@ const styles = StyleSheet.create({
   modeLabel:  { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text, marginBottom: 2 },
   modeDesc:   { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
   modeArrow:  { fontSize: 18, color: colors.muted },
+  modeRowActive: { backgroundColor: 'rgba(240,160,80,0.08)' },
+
+  slidePanel: { overflow: 'hidden', borderLeftWidth: 1, borderLeftColor: colors.border, backgroundColor: colors.surface },
+  slidePanelHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  slidePanelTitle: { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text },
+  slidePanelClose: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' },
+  slidePanelCloseTxt: { fontSize: 13, color: colors.muted, fontFamily: fonts.familySemibold },
+  slidePanelDesc: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginBottom: 12 },
 
   backBtn:     { paddingVertical: 10, marginBottom: 8 },
   backBtnText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
