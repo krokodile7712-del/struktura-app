@@ -3051,35 +3051,6 @@ export default function SettingsFullPanel({ navigation }) {
 const styles = StyleSheet.create({
   // Двухколоночный layout
   twoCol: { flex: 1, flexDirection: 'row' },
-
-  // Левая панель навигации
-  leftPanel: {
-    width: 220,
-    backgroundColor: colors.surface2,
-    borderRightWidth: 1,
-    borderRightColor: colors.border,
-    paddingVertical: 12,
-  },
-  navItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 13,
-    paddingHorizontal: 18,
-    position: 'relative',
-  },
-  navItemActive: {
-    backgroundColor: 'rgba(240,160,80,0.08)',
-  },
-  navIcon:  { fontSize: 17, width: 24, textAlign: 'center' },
-  navLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, flex: 1 },
-  navLabelActive: { color: colors.orange, fontFamily: fonts.family },
-  navActiveBar: {
-    position: 'absolute',
-    left: 0, top: '15%', bottom: '15%',
-    width: 3, borderRadius: 2,
-    backgroundColor: colors.orange,
-  },
   navArrow: { fontSize: 16, color: colors.muted },
 
   // Правая панель
@@ -3101,10 +3072,10 @@ const styles = StyleSheet.create({
   // Двухколоночный layout
   twoCol: { flex: 1, flexDirection: 'row' },
   leftPanel: { width: 220, backgroundColor: colors.surface, borderRightWidth: 1, borderRightColor: colors.border, paddingVertical: 12 },
-  navItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, paddingHorizontal: 18, position: 'relative' },
+  navItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 17, paddingHorizontal: 18, position: 'relative' },
   navItemActive: { backgroundColor: 'rgba(240,160,80,0.06)' },
   navIcon: { fontSize: 17, width: 24, textAlign: 'center' },
-  navLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, flex: 1 },
+  navLabel: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted, flex: 1 },
   navLabelActive: { color: colors.orange, fontFamily: fonts.family },
   navActiveBar: { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
   navArrow: { fontSize: 16, color: colors.muted },

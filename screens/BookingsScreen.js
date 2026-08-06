@@ -244,10 +244,10 @@ const styles = StyleSheet.create({
   sectionLabel: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8 },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 12 },
 
-  filterBtn:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 10, borderRadius: 10, position: 'relative', gap: 8 },
+  filterBtn:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, paddingHorizontal: 14, borderRadius: 12, position: 'relative', gap: 8 },
   filterBtnActive: { backgroundColor: 'rgba(240,160,80,0.08)' },
   filterBar:   { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
-  filterTxt:   { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, flex: 1 },
+  filterTxt:   { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted, flex: 1 },
   filterTxtActive: { color: colors.orange },
   countBadge:  { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10, backgroundColor: colors.surface2 },
   countBadgeNew: { backgroundColor: 'rgba(212,175,106,0.2)' },

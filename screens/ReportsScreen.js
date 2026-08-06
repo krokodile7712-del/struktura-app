@@ -484,10 +484,10 @@ const styles = StyleSheet.create({
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 14 },
 
   presetList:    { gap: 2 },
-  presetBtn:     { paddingVertical: 9, paddingHorizontal: 12, borderRadius: 10, position: 'relative' },
+  presetBtn:     { paddingVertical: 15, paddingHorizontal: 14, borderRadius: 12, position: 'relative' },
   presetBtnActive: { backgroundColor: 'rgba(240,160,80,0.08)' },
   presetActiveBar: { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
-  presetTxt:     { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  presetTxt:     { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
   presetTxtActive: { color: colors.orange },
 
   statRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 7 },
