@@ -6,7 +6,7 @@
     "orientation": "landscape",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "backgroundColor": "#060608",
+    "backgroundColor": "#171513",
     "newArchEnabled": false,
     "ios": {
       "supportsTablet": true
@@ -14,7 +14,7 @@
     "android": {
       "package": "com.struktura.app",
       "adaptiveIcon": {
-        "backgroundColor": "#060608",
+        "backgroundColor": "#171513",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
