@@ -1,38 +1,25 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { colors, gradients, radius, shadows } from '../constants/theme';
+import { colors, radius } from '../constants/theme';
 
+// Тот же интерфейс пропсов, что был у металлической версии — заменена
+// только сама отрисовка (плоский стиль вместо градиента/тиснения).
 export default function MetalCard({ children, style }) {
   return (
-    <View style={[styles.shadowWrap, shadows.card, style]}>
-      <View style={styles.inner}>
-        <LinearGradient
-          colors={gradients.cardSurface}
-          locations={gradients.cardSurfaceLocations}
-          start={{ x: 0.1, y: 0 }}
-          end={{ x: 0.9, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-        <View style={styles.content}>{children}</View>
-      </View>
+    <View style={[styles.card, style]}>
+      <View style={styles.content}>{children}</View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  shadowWrap: {
-    borderRadius: radius.lg,
-    marginBottom: 14,
-  },
-  inner: {
+  card: {
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    borderTopColor: colors.borderHi,
-    borderBottomColor: colors.borderLo,
     backgroundColor: colors.surface,
     overflow: 'hidden',
+    marginBottom: 14,
   },
   content: {
     padding: 20,

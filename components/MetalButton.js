@@ -1,149 +1,55 @@
-import React, { useRef } from 'react';
-import { Pressable, Text, Animated, StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { colors, gradients, radius, shadows, fonts } from '../constants/theme';
+import React from 'react';
+import { Pressable, Text, StyleSheet } from 'react-native';
+import { colors, radius, fonts } from '../constants/theme';
 
 // variant: 'default' | 'action' | 'success' | 'pay' | 'danger' | 'selected' | 'back'
+// Сохранён тот же набор вариантов и пропсов, что был у металлической версии —
+// заменена только сама отрисовка (плоский стиль вместо градиента/свечения),
+// чтобы не переписывать десятки мест использования по всему приложению.
 const VARIANT_STYLES = {
-  default: {
-    border: colors.borderHi,
-    glowColor: 'transparent',
-    overlay: gradients.oliveGlow,
-    textColor: colors.text,
-  },
-  action: {
-    border: 'rgba(138,78,170,0.55)',
-    glowColor: colors.purpleGlow,
-    overlay: gradients.purpleGlow,
-    textColor: colors.text,
-  },
-  success: {
-    border: 'rgba(123,175,142,0.55)',
-    glowColor: colors.greenGlow,
-    overlay: gradients.greenGlow,
-    textColor: colors.greenLight,
-  },
-  pay: {
-    border: 'rgba(61,95,168,0.55)',
-    glowColor: colors.blueGlow,
-    overlay: gradients.blueGlow,
-    textColor: colors.text,
-  },
-  danger: {
-    border: 'rgba(160,16,32,0.65)',
-    glowColor: colors.redGlow,
-    overlay: gradients.redGlow,
-    textColor: colors.redLight,
-  },
-  selected: {
-    border: 'rgba(123,175,142,0.85)',
-    glowColor: colors.greenGlow,
-    overlay: gradients.greenGlow,
-    textColor: colors.greenLight,
-  },
-  back: {
-    border: 'rgba(255,255,255,0.08)',
-    glowColor: 'transparent',
-    overlay: null,
-    textColor: colors.muted,
-  },
+  default:  { bg: colors.surface2, border: colors.border, text: colors.text },
+  action:   { bg: colors.surface2, border: 'rgba(139,127,212,0.4)', text: colors.text },
+  success:  { bg: colors.orange, border: colors.orange, text: '#fff' },
+  pay:      { bg: colors.orange, border: colors.orange, text: '#fff' },
+  danger:   { bg: 'rgba(160,16,32,0.06)', border: 'rgba(160,16,32,0.35)', text: colors.red },
+  selected: { bg: 'rgba(240,160,80,0.08)', border: 'rgba(240,160,80,0.5)', text: colors.orange },
+  back:     { bg: colors.surface2, border: colors.border, text: colors.muted },
 };
 
 export default function MetalButton({ title, onPress, variant = 'default', style, textStyle, disabled }) {
   const v = VARIANT_STYLES[variant] || VARIANT_STYLES.default;
-  const pressAnim = useRef(new Animated.Value(0)).current; // 0 = up, 1 = pressed
-
-  const handlePressIn = () => {
-    Animated.timing(pressAnim, { toValue: 1, duration: 80, useNativeDriver: true }).start();
-  };
-  const handlePressOut = () => {
-    Animated.timing(pressAnim, { toValue: 0, duration: 120, useNativeDriver: true }).start();
-  };
-
-  const translateY = pressAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 3] });
-  const brightness = pressAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.18] });
-
-  const containerShadow = v.glowColor !== 'transparent' ? shadows.glow(v.glowColor) : shadows.button;
 
   return (
-    <Animated.View
-      style={[
-        styles.shadowWrap,
-        containerShadow,
-        { transform: [{ translateY }] },
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityState={{ disabled: !!disabled }}
+      style={({ pressed }) => [
+        styles.pressable,
+        { backgroundColor: v.bg, borderColor: v.border, opacity: disabled ? 0.4 : pressed ? 0.85 : 1 },
         style,
       ]}
     >
-      <Pressable
-        onPress={onPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        disabled={disabled}
-        accessibilityRole="button"
-        accessibilityLabel={title}
-        accessibilityState={{ disabled: !!disabled }}
-        style={[styles.pressable, { borderColor: v.border, opacity: disabled ? 0.4 : 1 }]}
-      >
-        {/* Базовый металлический слой */}
-        <LinearGradient
-          colors={gradients.metalBase}
-          locations={gradients.metalBaseLocations}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-        {/* Цветная подсветка изнутри */}
-        {v.overlay && (
-          <LinearGradient
-            colors={v.overlay}
-            locations={gradients.glowLocations}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
-        )}
-        {/* Затемнение при нажатии (имитация brightness(0.88)) */}
-        <Animated.View
-          pointerEvents="none"
-          style={[StyleSheet.absoluteFill, { backgroundColor: '#000', opacity: brightness }]}
-        />
-        {/* Верхний блик */}
-        <LinearGradient
-          colors={['rgba(255,255,255,0.08)', 'transparent']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 0.45 }}
-          style={[StyleSheet.absoluteFill, { borderRadius: radius.md }]}
-        />
-        <Text style={[styles.text, { color: disabled ? 'rgba(221,216,208,0.35)' : v.textColor }, textStyle]}>{title}</Text>
-      </Pressable>
-    </Animated.View>
+      <Text style={[styles.text, { color: disabled ? colors.muted : v.text }, textStyle]}>{title}</Text>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  shadowWrap: {
-    borderRadius: radius.md,
-    marginVertical: 5,
-  },
   pressable: {
     borderRadius: radius.md,
     borderWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.14)',
-    paddingVertical: 16,
+    paddingVertical: 15,
     paddingHorizontal: 16,
-    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surface2,
+    marginVertical: 5,
   },
   text: {
     fontFamily: fonts.family,
     fontSize: 14,
     fontWeight: '700',
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    textShadowColor: 'rgba(0,0,0,0.95)',
-    textShadowOffset: { width: 0, height: 3 },
-    textShadowRadius: 8,
   },
 });
