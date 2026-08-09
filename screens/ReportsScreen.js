@@ -14,7 +14,7 @@ import {
   getOrdersByHour, getRevenueByEmployee, getPaymentBreakdown,
   exportAllData,
 } from '../db/queries';
-import { getHomeRoute, can } from '../db/session';
+import { getHomeRoute, goBackSmart, can } from '../db/session';
 import DatePicker from '../components/DatePicker';
 import { colors, fonts } from '../constants/theme';
 
@@ -182,7 +182,7 @@ export default function ReportsScreen({ navigation }) {
 
   if (!can('view_reports')) return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <TopBar title="Отчётность" onBack={() => navigation.navigate(getHomeRoute())} />
+      <TopBar title="Отчётность" onBack={() => goBackSmart(navigation)} />
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
         <Text style={{ fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, textAlign: 'center' }}>Нет доступа</Text>
         <Text style={{ fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', marginTop: 8 }}>Обратитесь к администратору.</Text>
@@ -200,7 +200,7 @@ export default function ReportsScreen({ navigation }) {
     <View style={styles.root}>
       <TopBar
         title="Отчётность"
-        onBack={() => navigation.navigate(getHomeRoute())}
+        onBack={() => goBackSmart(navigation)}
         rightElement={
           <Pressable style={styles.exportBtn} onPress={async () => {
             try { const d = exportAllData(); await Share.share({ message: d, title: 'Отчёт СТРУКТУРА' }); } catch(_) {}

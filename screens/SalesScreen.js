@@ -13,7 +13,7 @@ import {
   returnOrder, getTerms, pluralizeRu, getPayMethods,
 } from '../db/queries';
 import { useToast } from '../components/Toast';
-import { getSession, getHomeRoute } from '../db/session';
+import { getSession, getHomeRoute, goBackSmart } from '../db/session';
 import { colors, fonts } from '../constants/theme';
 
 // ─── Утилиты ─────────────────────────────────────────────────────────────────
@@ -160,7 +160,7 @@ export default function SalesScreen({ navigation }) {
     <View style={styles.root}>
       <TopBar
         title={pluralizeRu(terms.order)}
-        onBack={() => navigation.navigate(getHomeRoute())}
+        onBack={() => goBackSmart(navigation)}
       />
 
       <View style={styles.layout} onLayout={e => setContainerWidth(e.nativeEvent.layout.width)}>

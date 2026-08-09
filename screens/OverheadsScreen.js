@@ -5,7 +5,7 @@ import BottomBar from '../components/BottomBar';
 import InfoTip from '../components/InfoTip';
 import { useFocusEffect } from '@react-navigation/native';
 import { getOverheadItems, addOverheadItem, updateOverheadItem, deleteOverheadItem } from '../db/queries';
-import { getHomeRoute } from '../db/session';
+import { getHomeRoute, goBackSmart } from '../db/session';
 import { colors, fonts, anim } from '../constants/theme';
 
 const PERIODS = [
@@ -93,7 +93,7 @@ export default function OverheadsScreen({ navigation }) {
     <View style={styles.root}>
       <TopBar
         title="Накладные расходы"
-        onBack={() => navigation.navigate(getHomeRoute())}
+        onBack={() => goBackSmart(navigation)}
         rightElement={
           <Pressable style={styles.addBtn} onPress={openNew}>
             <Text style={styles.addBtnTxt}>+ Добавить</Text>

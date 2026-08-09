@@ -31,7 +31,7 @@ import { getDb } from '../db/database';
 import Hint from '../components/Hint';
 import InfoTip from '../components/InfoTip';
 import Toggle from '../components/Toggle';
-import { can, getSession, setPermissions, setUserPermissions, clearSession } from '../db/session';
+import { can, getSession, setPermissions, setUserPermissions, clearSession, goBackSmart } from '../db/session';
 import { resetKassaCart } from '../db/cartStore';
 import EmptyState from '../components/EmptyState';
 import { colors, fonts, spacing } from '../constants/theme';
@@ -2030,7 +2030,7 @@ export default function SettingsScreen({ navigation }) {
 
   if (!can('access_settings')) return (
     <View style={{ flex: 1 }}>
-      <TopBar title="Настройки" onBack={() => navigation.navigate(getHomeRoute())} />
+      <TopBar title="Настройки" onBack={() => goBackSmart(navigation)} />
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
         <Text style={{ fontSize: 32, marginBottom: 16 }}>🔒</Text>
         <Text style={{ fontFamily: 'AnekDevanagari_700Bold', fontSize: 18, color: colors.text, textAlign: 'center' }}>Нет доступа</Text>

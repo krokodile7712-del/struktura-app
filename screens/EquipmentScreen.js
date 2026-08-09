@@ -7,7 +7,7 @@ import Toggle from '../components/Toggle';
 import { useFocusEffect } from '@react-navigation/native';
 import DatePicker from '../components/DatePicker';
 import { getEquipment, addEquipment, updateEquipment, deleteEquipment, getAllProducts } from '../db/queries';
-import { getHomeRoute } from '../db/session';
+import { getHomeRoute, goBackSmart } from '../db/session';
 import { colors, fonts, anim } from '../constants/theme';
 
 const AMORT_TYPES = [
@@ -114,7 +114,7 @@ export default function EquipmentScreen({ navigation }) {
     <View style={styles.root}>
       <TopBar
         title="Оборудование"
-        onBack={() => navigation.navigate(getHomeRoute())}
+        onBack={() => goBackSmart(navigation)}
         rightElement={
           <Pressable style={styles.addBtn} onPress={openNew}>
             <Text style={styles.addBtnTxt}>+ Добавить</Text>

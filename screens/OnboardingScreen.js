@@ -4,7 +4,8 @@ import {
   Pressable, KeyboardAvoidingView, Platform, Alert,
   BackHandler, Image, Animated,
 } from 'react-native';
-import { setSetting, updateBusinessProfile, getBusinessProfile, BUSINESS_PRESETS, addUser } from '../db/queries';
+import { setSetting, updateBusinessProfile, getBusinessProfile, BUSINESS_PRESETS, addUser, getUserByPin } from '../db/queries';
+import { getHomeRoute, setSession, setPermissions } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
 
 // ─── Константы ───────────────────────────────────────────────────────────────
@@ -203,14 +204,30 @@ export default function OnboardingScreen({ navigation, route }) {
         roles: p?.roles || {},
         units: p?.units || [],
       });
+      let sessionUser = null;
       if (empName.trim() && empPin.length >= 4) {
-        try { addUser(empName.trim(), empPin, 'admin'); } catch (_) {}
+        try {
+          const res = addUser(empName.trim(), empPin, 'admin');
+          if (res?.ok) sessionUser = getUserByPin(empPin);
+        } catch (_) {}
       }
       setSetting('onboarding_done', '1');
-      if (navTo) {
-        navigation.replace('Login');
-        setTimeout(() => navigation.navigate(navTo), 300);
+
+      if (sessionUser) {
+        // Сразу входим под только что созданным администратором — раньше экран
+        // просто "пролетал" через Логин без реального входа, и сессия оставалась
+        // не установлена, из-за чего проверки прав на следующем экране могли вести себя неверно.
+        setSession(sessionUser);
+        setPermissions(null); // admin — без ограничений
+        const home = getHomeRoute();
+        if (navTo && navTo !== home) {
+          navigation.reset({ index: 1, routes: [{ name: home }, { name: navTo }] });
+        } else {
+          navigation.reset({ index: 0, routes: [{ name: home }] });
+        }
       } else {
+        // Администратор не создан во время настройки — не можем безопасно
+        // установить сессию, пусть войдёт по PIN как обычно.
         navigation.replace('Login');
       }
     } catch (e) {

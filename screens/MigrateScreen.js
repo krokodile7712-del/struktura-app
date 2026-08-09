@@ -1,13 +1,13 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import TopBar from '../components/TopBar';
-import { getHomeRoute } from '../db/session';
+import { getHomeRoute, goBackSmart } from '../db/session';
 import { colors, fonts } from '../constants/theme';
 
 export default function MigrateScreen({ navigation }) {
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title="Импорт" onBack={() => navigation.navigate(getHomeRoute())} />
+      <TopBar title="Импорт" onBack={() => goBackSmart(navigation)} />
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
         <Text style={{ fontSize: 32, marginBottom: 16 }}>📥</Text>
         <Text style={{ fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, textAlign: 'center' }}>

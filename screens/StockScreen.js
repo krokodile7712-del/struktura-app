@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import StockPanel from '../components/panels/StockPanel';
-import { getHomeRoute } from '../db/session';
+import { getHomeRoute, goBackSmart } from '../db/session';
 import { colors } from '../constants/theme';
 
 // Отдельный полноэкранный маршрут Склада — вся реальная логика (список,
@@ -12,7 +12,7 @@ import { colors } from '../constants/theme';
 export default function StockScreen({ navigation }) {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <TopBar title="Склад" onBack={() => navigation.navigate(getHomeRoute())} />
+      <TopBar title="Склад" onBack={() => goBackSmart(navigation)} />
       <StockPanel />
       <BottomBar navigation={navigation} />
     </View>

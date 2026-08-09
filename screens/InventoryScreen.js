@@ -9,7 +9,7 @@ import {
   setInventoryItemActual, confirmInventoryAct,
   getAllStock,
 } from '../db/queries';
-import { getHomeRoute } from '../db/session';
+import { getHomeRoute, goBackSmart } from '../db/session';
 import { colors, fonts, anim } from '../constants/theme';
 
 const fmt = n => Math.round(n||0).toLocaleString('ru-RU');
@@ -114,7 +114,7 @@ export default function InventoryScreen({ navigation }) {
     <View style={styles.root}>
       <TopBar
         title="Инвентаризация"
-        onBack={() => navigation.navigate(getHomeRoute())}
+        onBack={() => goBackSmart(navigation)}
         rightElement={
           <Pressable style={styles.addBtn} onPress={() => setShowSetup(true)}>
             <Text style={styles.addBtnTxt}>+ Новый акт</Text>

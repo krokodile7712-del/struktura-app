@@ -11,7 +11,7 @@ import {
   saveCostCardForVariant, saveCostCardForProductSize,
 } from '../db/queries';
 import { getDb } from '../db/database';
-import { getHomeRoute } from '../db/session';
+import { getHomeRoute, goBackSmart } from '../db/session';
 import { colors, fonts } from '../constants/theme';
 
 const fmt = n => (n || 0).toFixed(2);
@@ -105,7 +105,7 @@ export default function CostCardsScreen({ navigation }) {
     <View style={{ flex: 1 }}>
       <TopBar
         title="Техкарты"
-        onBack={() => navigation.navigate(getHomeRoute())}
+        onBack={() => goBackSmart(navigation)}
         rightElement={
           <InfoTip
             title="Себестоимость"

@@ -4,7 +4,7 @@ import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import { useFocusEffect } from '@react-navigation/native';
 import { getWorkJournal, getShiftOrderItems } from '../db/queries';
-import { getHomeRoute } from '../db/session';
+import { getHomeRoute, goBackSmart } from '../db/session';
 import { colors, fonts, anim } from '../constants/theme';
 
 const fmt = n => Math.round(n||0).toLocaleString('ru-RU');
@@ -58,7 +58,7 @@ export default function WorkJournalScreen({ navigation }) {
 
   return (
     <View style={styles.root}>
-      <TopBar title="Журнал работы" onBack={() => navigation.navigate(getHomeRoute())} />
+      <TopBar title="Журнал работы" onBack={() => goBackSmart(navigation)} />
 
       <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
         {/* Поиск */}

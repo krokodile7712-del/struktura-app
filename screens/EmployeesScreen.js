@@ -4,7 +4,7 @@ import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import { getAllUsers, addUser, updateUser, toggleUserActive, getRoleNames, deleteUser } from '../db/queries';
 import { useToast } from '../components/Toast';
-import { getHomeRoute } from '../db/session';
+import { getHomeRoute, goBackSmart } from '../db/session';
 import { colors, fonts } from '../constants/theme';
 
 const SALARY_TYPES = [
@@ -124,7 +124,7 @@ export default function EmployeesScreen({ navigation }) {
     <View style={styles.root}>
       <TopBar
         title="Сотрудники"
-        onBack={() => navigation.navigate(getHomeRoute())}
+        onBack={() => goBackSmart(navigation)}
         rightElement={
           <Pressable style={styles.addBtn} onPress={openNew}>
             <Text style={styles.addBtnTxt}>+ Добавить</Text>

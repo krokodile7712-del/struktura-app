@@ -4,7 +4,7 @@ LogBox.ignoreLogs(['Text strings must be rendered', 'Each child in a list', 'Vir
 import SwipeableRow from '../components/SwipeableRow';
 import { useToast } from '../components/Toast';
 import { useFocusEffect } from '@react-navigation/native';
-import { getHomeRoute, getCurrentLocationId, can, getSession } from '../db/session';
+import { getHomeRoute, goBackSmart, getCurrentLocationId, can, getSession } from '../db/session';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
   FlatList, Modal, ActivityIndicator, TextInput, Alert, Animated,
@@ -614,11 +614,11 @@ export default function KassaScreen({ navigation, route }) {
   if (allProducts.length === 0) {
     return (
       <View style={{ flex: 1 }}>
-        <TopBar title="Касса" onBack={() => navigation.navigate(getHomeRoute())} />
+        <TopBar title="Касса" onBack={() => goBackSmart(navigation)} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
           <Text style={styles.emptyTitle}>Меню пустое</Text>
           <Text style={styles.emptyHint}>Добавьте товары в разделе Товары</Text>
-          <MetalButton title="← Назад" variant="back" onPress={() => navigation.navigate(getHomeRoute())} />
+          <MetalButton title="← Назад" variant="back" onPress={() => goBackSmart(navigation)} />
         </View>
         <BottomBar navigation={navigation} activeTab="Kassa" />
       </View>
@@ -627,7 +627,7 @@ export default function KassaScreen({ navigation, route }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title="Касса" onBack={() => navigation.navigate(getHomeRoute())} />
+      <TopBar title="Касса" onBack={() => goBackSmart(navigation)} />
 
       {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift', { returnTo: 'Kassa' })} />}
       <Animated.View style={[styles.layout, { opacity: fadeAnim }]}>

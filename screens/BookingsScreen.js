@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
-import { getHomeRoute } from '../db/session';
+import { getHomeRoute, goBackSmart } from '../db/session';
 import { getBookings, updateBookingStatus } from '../db/supabase';
 import { getBusinessProfile } from '../db/queries';
 import { colors, fonts } from '../constants/theme';
@@ -91,7 +91,7 @@ export default function BookingsScreen({ navigation }) {
     <View style={styles.root}>
       <TopBar
         title="Записи"
-        onBack={() => navigation.navigate(getHomeRoute())}
+        onBack={() => goBackSmart(navigation)}
         rightElement={
           <Pressable onPress={load} hitSlop={12}>
             <Text style={styles.refreshBtn}>↻</Text>

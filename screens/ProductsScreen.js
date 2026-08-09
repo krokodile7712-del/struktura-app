@@ -21,7 +21,7 @@ import {
   getBusinessProfile,
 } from '../db/queries';
 import { getDb } from '../db/database';
-import { getHomeRoute, can } from '../db/session';
+import { getHomeRoute, goBackSmart, can } from '../db/session';
 import { colors, fonts, anim } from '../constants/theme';
 
 const fmt = n => (n||0).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -471,7 +471,7 @@ export default function ProductsScreen({ navigation }) {
     <View style={styles.root}>
       <TopBar
         title="Товары"
-        onBack={() => navigation.navigate(getHomeRoute())}
+        onBack={() => goBackSmart(navigation)}
         rightElement={
           <View style={{ flexDirection: 'row', gap: 8 }}>
             {tab === 'products' && (

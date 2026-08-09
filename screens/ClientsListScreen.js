@@ -7,7 +7,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { getAllClients, searchClients, getClientOrders, getTerms, pluralizeRu,
          getLoyaltyConfig, updateClientNote, getClientById } from '../db/queries';
 import { updateClient } from '../db/queries';
-import { getHomeRoute, getSession } from '../db/session';
+import { getHomeRoute, goBackSmart, getSession } from '../db/session';
 import { colors, fonts } from '../constants/theme';
 
 function fmtDate(iso) {
@@ -303,7 +303,7 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
     <View style={{ flex: 1 }}>
       <TopBar
         title={pluralizeRu(terms.client)}
-        onBack={() => navigation.navigate(getHomeRoute())}
+        onBack={() => goBackSmart(navigation)}
         rightElement={
           <Pressable style={styles.addBtn} onPress={() => navigation.navigate('Loyalty')} hitSlop={8}>
             <Text style={styles.addBtnTxt}>＋</Text>

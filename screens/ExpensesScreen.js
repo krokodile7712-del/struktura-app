@@ -7,7 +7,7 @@ import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
 import { useFocusEffect } from '@react-navigation/native';
 import { getAllExpenses, insertExpense } from '../db/queries';
-import { getHomeRoute, can } from '../db/session';
+import { getHomeRoute, goBackSmart, can } from '../db/session';
 import { colors, fonts } from '../constants/theme';
 
 const CATEGORIES = ['Аренда', 'Зарплата', 'Закупка', 'Коммуналка', 'Расходники', 'Реклама', 'Амортизация', 'Накладные', 'Прочее'];
@@ -101,7 +101,7 @@ export default function ExpensesScreen({ navigation }) {
     <View style={styles.root}>
       <TopBar
         title="Расходы"
-        onBack={() => navigation.navigate(getHomeRoute())}
+        onBack={() => goBackSmart(navigation)}
         rightElement={
           can('add_expense') !== false && (
             <Animated.View style={{ transform: [{ scale: btnScale }] }}>

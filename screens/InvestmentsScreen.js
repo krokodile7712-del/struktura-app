@@ -6,7 +6,7 @@ import InfoTip from '../components/InfoTip';
 import DatePicker from '../components/DatePicker';
 import { useFocusEffect } from '@react-navigation/native';
 import { getInvestments, addInvestment, updateInvestment, deleteInvestment, getInvestmentSummary, getPnL } from '../db/queries';
-import { getHomeRoute } from '../db/session';
+import { getHomeRoute, goBackSmart } from '../db/session';
 import { colors, fonts, anim } from '../constants/theme';
 
 const CATEGORIES = [
@@ -99,7 +99,7 @@ export default function InvestmentsScreen({ navigation }) {
     <View style={styles.root}>
       <TopBar
         title="Инвестиции"
-        onBack={() => navigation.navigate(getHomeRoute())}
+        onBack={() => goBackSmart(navigation)}
         rightElement={
           <Pressable style={styles.addBtn} onPress={openNew}>
             <Text style={styles.addBtnTxt}>+ Добавить</Text>

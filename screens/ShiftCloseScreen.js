@@ -4,7 +4,7 @@ import TopBar from '../components/TopBar';
 import { getOpenShift, getShiftSummary, closeShift, getTerms, pluralizeRu, getPayMethods } from '../db/queries';
 import { useToast } from '../components/Toast';
 import { useFocusEffect } from '@react-navigation/native';
-import { clearSession, getHomeRoute } from '../db/session';
+import { clearSession, getHomeRoute, goBackSmart } from '../db/session';
 import { resetKassaCart } from '../db/cartStore';
 import { colors, fonts } from '../constants/theme';
 
@@ -162,11 +162,11 @@ export default function ShiftCloseScreen({ navigation }) {
 
   if (!summary) return (
     <View style={styles.root}>
-      <TopBar title="Закрытие смены" onBack={() => navigation.navigate(getHomeRoute())} />
+      <TopBar title="Закрытие смены" onBack={() => goBackSmart(navigation)} />
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
         <Text style={styles.emptyTitle}>Смена не открыта</Text>
         <Text style={styles.emptyText}>Нечего закрывать — сначала откройте смену на главном экране.</Text>
-        <Pressable style={styles.backBtn} onPress={() => navigation.navigate(getHomeRoute())}>
+        <Pressable style={styles.backBtn} onPress={() => goBackSmart(navigation)}>
           <Text style={styles.backBtnTxt}>Вернуться назад</Text>
         </Pressable>
       </View>
@@ -176,7 +176,7 @@ export default function ShiftCloseScreen({ navigation }) {
   return (
     <View style={styles.root}>
       <ResultModal />
-      <TopBar title="Конец рабочего дня" onBack={() => navigation.navigate(getHomeRoute())} />
+      <TopBar title="Конец рабочего дня" onBack={() => goBackSmart(navigation)} />
       <ScrollView contentContainerStyle={styles.inner}>
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
 

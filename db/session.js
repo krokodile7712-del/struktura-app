@@ -10,6 +10,16 @@ export const isLoggedIn   = () => global.__session !== null;
 // Домашний экран в зависимости от роли — используется всеми кнопками "назад"
 export const getHomeRoute = () => (global.__session?.role === 'admin' ? 'Admin' : 'Dashboard');
 
+// Умный "Назад" — возвращает туда, откуда реально пришёл пользователь (по истории
+// навигации), а не всегда жёстко на главный экран. Если истории нет (экран открыт
+// напрямую, например сразу после логина) — как и раньше, уходит домой.
+export function goBackSmart(navigation) {
+  try {
+    if (navigation?.canGoBack?.()) { navigation.goBack(); return; }
+  } catch (_) {}
+  navigation.navigate(getHomeRoute());
+}
+
 // Права доступа текущего пользователя
 if (!global.__permissions) global.__permissions = null;
 if (!global.__userPermissions) global.__userPermissions = {}; // права всех пользователей по id
