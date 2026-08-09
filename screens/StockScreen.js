@@ -13,7 +13,7 @@ export default function StockScreen({ navigation }) {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <TopBar title="Склад" onBack={() => goBackSmart(navigation)} />
-      <StockPanel />
+      <StockPanel navigation={navigation} />
       <BottomBar navigation={navigation} />
     </View>
   );

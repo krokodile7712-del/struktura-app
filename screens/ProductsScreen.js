@@ -4,6 +4,7 @@ import {
   TextInput, Modal, Alert, Animated,
 } from 'react-native';
 import TopBar from '../components/TopBar';
+import EmptyState from '../components/EmptyState';
 import BottomBar from '../components/BottomBar';
 import Toggle from '../components/Toggle';
 import InfoTip from '../components/InfoTip';
@@ -518,10 +519,10 @@ export default function ProductsScreen({ navigation }) {
               {/* Список по категориям */}
               <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
                 {catGroups.length === 0 ? (
-                  <View style={styles.emptyWrap}>
-                    <Text style={styles.emptyTxt}>{search ? 'Ничего не найдено' : 'Нет товаров'}</Text>
-                    <Text style={styles.emptyHint}>Нажмите «+ Товар» чтобы добавить</Text>
-                  </View>
+                  <EmptyState icon="🛍" title={search ? 'Ничего не найдено' : 'Нет товаров'}
+                    text={search ? undefined : 'Добавьте первый товар или услугу, чтобы начать продавать'}
+                    action={search ? undefined : '+ Добавить товар'}
+                    onAction={search ? undefined : () => setSelected('new')} />
                 ) : (
                   catGroups.map(({ cat, items }) => {
                     const isOpen = expandedCats[cat] !== false;

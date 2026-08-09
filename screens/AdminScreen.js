@@ -187,7 +187,7 @@ export default function AdminScreen({ navigation }) {
       case 'Sales':    return <SalesPanel onDataChange={loadStats} />;
       case 'ClientsList': return <ClientsPanel navigation={navigation} />;
       case 'Reports':  return <ReportsPanel />;
-      case 'Stock':    return <StockPanel />;
+      case 'Stock':    return <StockPanel navigation={navigation} />;
       case 'Expenses': return <ExpensesPanel />;
       case 'Bookings': return <BookingsPanel />;
       case 'Settings': return <SettingsFullPanel navigation={navigation} />;

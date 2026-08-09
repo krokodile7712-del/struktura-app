@@ -32,7 +32,7 @@ const MODES = [
 // Единая реализация Склада — используется и отдельным экраном (StockScreen),
 // и встроенной панелью внутри Admin/Dashboard (раньше это были два отдельных
 // файла с продублированной логикой, из-за чего они периодически расходились).
-export default function StockPanel() {
+export default function StockPanel({ navigation }) {
   const toast = useToast();
   const [stock, setStock]           = useState([]);
   const [search, setSearch]         = useState('');
@@ -222,7 +222,9 @@ export default function StockPanel() {
           keyboardShouldPersistTaps="handled">
           {filtered.length === 0 ? (
             <EmptyState icon="📦" title="Склад пуст"
-              text="Добавьте ингредиенты через Настройки → Техкарты." />
+              text="Добавьте ингредиенты через Настройки → Техкарты."
+              action={navigation ? 'Открыть товары' : undefined}
+              onAction={navigation ? () => navigation.navigate('Products') : undefined} />
           ) : cats.map(cat => {
             const items = filtered.filter(i => (i.category || 'Без категории') === cat);
             const hasLow = items.some(i => i['порог'] > 0 && i['остаток'] <= i['порог']);

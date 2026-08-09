@@ -117,7 +117,9 @@ export default function CostCardsScreen({ navigation }) {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.inner}>
         {cards.length === 0 ? (
           <EmptyState icon="🧾" title="Техкарт нет"
-            text="Создайте техкарту в Настройки → Меню и цены → откройте карточку товара → Техкарта." />
+            text="Создайте техкарту в Настройки → Меню и цены → откройте карточку товара → Техкарта."
+            action="Открыть товары"
+            onAction={() => navigation.navigate('Products')} />
         ) : (() => {
           // Группируем по категории
           const cats = [...new Set(cards.map(c => c.product_category || 'Без категории'))];

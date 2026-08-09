@@ -130,7 +130,7 @@ export default function DashboardScreen({ navigation }) {
     switch(active) {
       case 'Sales':       return <SalesPanel />;
       case 'Expenses':    return <ExpensesPanel />;
-      case 'Stock':       return <StockPanel />;
+      case 'Stock':       return <StockPanel navigation={navigation} />;
       case 'ClientsList': return <ClientsPanel navigation={navigation} />;
       default:            return <DashPanel stats={stats} sessionName={sessionName} navigation={navigation} />;
     }
