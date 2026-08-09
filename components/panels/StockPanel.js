@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import EmptyState from '../EmptyState';
 import {
-  getAllStock, addPurchase, updateMaxOstatok,
+  getAllStock, addPurchase, updateMaxOstatok, insertStockItem,
   setStockForLocation, adjustStockForLocation,
   getStockHistory, getLocations,
   getCurrentLocationId, setCurrentLocationId,
@@ -15,6 +15,7 @@ import { getDb } from '../../db/database';
 import { can } from '../../db/session';
 import { colors, fonts, spacing } from '../../constants/theme';
 import { useToast } from '../Toast';
+import InfoTip from '../InfoTip';
 
 function updateStockLocal(itemId, newValue) {
   const db = getDb();
@@ -46,6 +47,7 @@ export default function StockPanel({ navigation }) {
   const [selectedLocId, setSelectedLocId] = useState(null);
   const [locEnabled, setLocEnabled] = useState(false);
   const [catModal, setCatModal]     = useState(false);
+  const [newItemModal, setNewItemModal] = useState(null); // { name, unit, category, threshold }
   const [stockCats, setStockCats]   = useState([]);
   const [catModal2, setCatModal2]   = useState(null); // {oldName, newName}
   const [priceCalcOpen, setPriceCalcOpen] = useState(false);
@@ -91,6 +93,22 @@ export default function StockPanel({ navigation }) {
   }, []);
 
   const reload = () => { try { setStock(getAllStock()); } catch (_) {} };
+
+  const saveNewItem = () => {
+    if (!newItemModal?.name?.trim()) return;
+    const res = insertStockItem({
+      name: newItemModal.name,
+      unit: newItemModal.unit?.trim() || 'шт',
+      category: newItemModal.category?.trim() || 'Прочее',
+      threshold: parseFloat(newItemModal.threshold) || 0,
+    });
+    if (!res.ok) { toast.show(res.error, 'warn'); return; }
+    reload();
+    setStockCats(prev => [...new Set([...prev, newItemModal.category?.trim() || 'Прочее'])].sort());
+    setNewItemModal(null);
+    const created = getAllStock().find(s => s.id === res.id);
+    if (created) selectItem(created);
+  };
 
   const selectItem = (item) => {
     setSelected(item);
@@ -213,6 +231,9 @@ export default function StockPanel({ navigation }) {
             placeholder="Поиск..."
             placeholderTextColor={colors.muted}
           />
+          <Pressable onPress={() => setNewItemModal({ name: '', unit: 'шт', category: '', threshold: '' })} hitSlop={8} style={styles.addStockBtn}>
+            <Text style={styles.addStockBtnText}>+ Позиция</Text>
+          </Pressable>
           <Pressable onPress={() => setCatModal(true)} hitSlop={8} style={styles.catBtn}>
             <Text style={styles.catBtnText}>⚙</Text>
           </Pressable>
@@ -222,9 +243,9 @@ export default function StockPanel({ navigation }) {
           keyboardShouldPersistTaps="handled">
           {filtered.length === 0 ? (
             <EmptyState icon="📦" title="Склад пуст"
-              text="Добавьте ингредиенты через Настройки → Техкарты."
-              action={navigation ? 'Открыть товары' : undefined}
-              onAction={navigation ? () => navigation.navigate('Products') : undefined} />
+              text="Добавьте первую позицию — то, что физически заканчивается: ингредиенты, расходники, товары для перепродажи."
+              action="+ Добавить позицию"
+              onAction={() => setNewItemModal({ name: '', unit: 'шт', category: '', threshold: '' })} />
           ) : cats.map(cat => {
             const items = filtered.filter(i => (i.category || 'Без категории') === cat);
             const hasLow = items.some(i => i['порог'] > 0 && i['остаток'] <= i['порог']);
@@ -506,6 +527,78 @@ export default function StockPanel({ navigation }) {
         )}
       </View>
 
+      {/* Модалка новой позиции склада */}
+      <Modal visible={!!newItemModal} transparent animationType="fade" onRequestClose={() => setNewItemModal(null)}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setNewItemModal(null)} />
+          {newItemModal && (
+            <View style={styles.catModalBox}>
+              <View style={styles.modalHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                  <Text style={styles.modalTitle}>Новая позиция склада</Text>
+                  <InfoTip title="Позиция склада" text="Это то, что физически есть в ограниченном количестве и заканчивается: ингредиенты, расходники, товары для перепродажи. Отдельно от «Товаров» — там то, что вы продаёте клиенту." />
+                </View>
+                <Pressable onPress={() => setNewItemModal(null)} hitSlop={14} style={styles.modalClose}>
+                  <Text style={styles.modalCloseTxt}>✕</Text>
+                </Pressable>
+              </View>
+              <View style={{ padding: 16 }}>
+                <Text style={styles.sectionLabel}>Название</Text>
+                <TextInput
+                  color={colors.text}
+                  style={[styles.input, { marginBottom: 12 }]}
+                  value={newItemModal.name}
+                  onChangeText={v => setNewItemModal(m => ({ ...m, name: v }))}
+                  placeholder="напр. Молоко"
+                  placeholderTextColor={colors.muted}
+                  autoFocus
+                />
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.sectionLabel}>Единица</Text>
+                    <TextInput
+                      color={colors.text}
+                      style={[styles.input, { marginBottom: 12 }]}
+                      value={newItemModal.unit}
+                      onChangeText={v => setNewItemModal(m => ({ ...m, unit: v }))}
+                      placeholder="шт, кг, мл..."
+                      placeholderTextColor={colors.muted}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.sectionLabel}>Порог (необязательно)</Text>
+                    <TextInput
+                      color={colors.text}
+                      style={[styles.input, { marginBottom: 12 }]}
+                      value={newItemModal.threshold}
+                      onChangeText={v => setNewItemModal(m => ({ ...m, threshold: v }))}
+                      keyboardType="numeric"
+                      placeholder="0"
+                      placeholderTextColor={colors.muted}
+                    />
+                  </View>
+                </View>
+                <Text style={styles.sectionLabel}>Категория</Text>
+                <TextInput
+                  color={colors.text}
+                  style={styles.input}
+                  value={newItemModal.category}
+                  onChangeText={v => setNewItemModal(m => ({ ...m, category: v }))}
+                  placeholder="напр. Сиропы и пюре"
+                  placeholderTextColor={colors.muted}
+                />
+                <Pressable
+                  style={({ pressed }) => [styles.confirmBtn, { marginTop: 14 }, pressed && { opacity: 0.88 }]}
+                  onPress={saveNewItem}
+                >
+                  <Text style={styles.confirmBtnText}>Создать</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+        </View>
+      </Modal>
+
       {/* Модалка категорий */}
       <Modal visible={catModal} transparent animationType="fade" onRequestClose={() => setCatModal(false)}>
         <View style={styles.modalOverlay}>
@@ -613,6 +706,8 @@ const styles = StyleSheet.create({
   },
   catBtn: { width: 38, height: 38, borderRadius: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   catBtnText: { fontSize: 16, color: colors.muted },
+  addStockBtn: { paddingHorizontal: 12, height: 38, borderRadius: 10, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
+  addStockBtnText: { fontSize: 13, color: colors.orange, fontFamily: fonts.familySemibold },
 
   catGroup: { marginTop: 24, paddingHorizontal: spacing.lg },
 

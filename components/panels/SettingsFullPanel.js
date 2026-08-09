@@ -1210,8 +1210,8 @@ export default function SettingsFullPanel({ navigation }) {
           <Text style={styles.menuTopTitle}>Способы оплаты</Text>
           <View style={styles.menuFloatBtns} pointerEvents="box-none">
             <View style={styles.menuFloatRow}>
-              <Pressable onPress={openNewPayMethod} hitSlop={14} style={[styles.menuBadge, styles.menuBadgeAdd]}>
-                <Text style={[styles.menuBadgeText, { color: colors.orange }]}>+</Text>
+              <Pressable onPress={openNewPayMethod} hitSlop={14} style={styles.addPayMethodBtn}>
+                <Text style={styles.addPayMethodBtnText}>+ Способ</Text>
               </Pressable>
             </View>
           </View>
@@ -1240,6 +1240,7 @@ export default function SettingsFullPanel({ navigation }) {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.menuItemName}>{m.name}</Text>
                     <Text style={styles.menuItemSub}>{typeLabel}</Text>
+                    <Text style={styles.payEditHint}>Нажмите для редактирования</Text>
                   </View>
                   <Text style={styles.menuItemArrow}>›</Text>
                 </Pressable>
@@ -3336,6 +3337,9 @@ const styles = StyleSheet.create({
   menuSearchRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   menuSearchInput: { flex: 1, padding: 9, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 14, fontFamily: fonts.family },
   menuBadge: { width: 36, height: 36, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  addPayMethodBtn: { paddingHorizontal: 14, height: 36, borderRadius: 12, backgroundColor: 'rgba(240,160,80,0.08)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
+  addPayMethodBtnText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
+  payEditHint: { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, marginTop: 2, opacity: 0.7 },
   menuBadgeAdd: { borderColor: 'rgba(240,160,80,0.4)', backgroundColor: 'rgba(240,160,80,0.08)' },
   menuBadgeText: { fontSize: 16, color: colors.muted },
   // Категории меню

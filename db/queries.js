@@ -1064,6 +1064,22 @@ export function insertExpense({ date, category, amount, comment, shift_id }) {
 
 // ─── Склад ────────────────────────────────────────────────────────────────
 
+// Создаёт новую позицию склада с нуля. Раньше такой функции не было вообще —
+// склад мог только пополняться закупкой у уже существующей позиции.
+export function insertStockItem({ name, unit = 'шт', category = 'Прочее', threshold = 0, initialQty = 0 }) {
+  const db = getDb();
+  if (!name?.trim()) return { ok: false, error: 'Укажите название' };
+  const exists = db.getFirstSync(`SELECT id FROM stock WHERE LOWER(name) = LOWER(?)`, [name.trim()]);
+  if (exists) return { ok: false, error: 'Такая позиция уже есть на складе', id: exists.id };
+  const result = db.runSync(
+    `INSERT INTO stock (name, остаток, unit, порог, category) VALUES (?, ?, ?, ?, ?)`,
+    [name.trim(), initialQty || 0, unit, threshold || 0, category || 'Прочее']
+  );
+  const id = result.lastInsertRowId;
+  try { db.execSync(`UPDATE stock SET max_ostatok = ${initialQty || 0} WHERE id = ${id}`); } catch (_) {}
+  return { ok: true, id };
+}
+
 export function getAllStock() {
   const db = getDb();
   return db.getAllSync(`SELECT * FROM stock ORDER BY category, name`);

@@ -8,12 +8,13 @@ import EmptyState from '../components/EmptyState';
 import BottomBar from '../components/BottomBar';
 import Toggle from '../components/Toggle';
 import InfoTip from '../components/InfoTip';
+import { useToast } from '../components/Toast';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   getAllProductsAdmin, insertProduct, setProductActive, deleteProduct,
   getProductVariants, upsertProductVariants,
   getCostCardForVariant, saveCostCardForVariant,
-  getAllStock, getCategories, cleanOrphanCostIngredients, deleteOldCostCards,
+  getAllStock, getCategories, cleanOrphanCostIngredients, deleteOldCostCards, insertStockItem,
   getAllModifierGroups, insertModifierGroup, updateModifierGroup, deleteModifierGroup,
   getCategoryOrder, saveCategoryOrder,
   getAllCategoriesFull, createCategory, renameCategory, deleteCategory, getCategoryProducts,
@@ -58,7 +59,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
     try { return product?.id ? getProductModifierGroups(product.id).map(g => Number(g.id)) : []; } catch { return []; }
   });
   const [ingPickerVar, setIngPickerVar] = useState(null); // индекс варианта
-  const [expandedVar, setExpandedVar] = useState(0);
+  const [expandedVar, setExpandedVar] = useState(-1);
 
   const slideAnim = useState(new Animated.Value(20))[0];
   const fadeAnim  = useState(new Animated.Value(0))[0];
@@ -177,48 +178,64 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
                 </View>
               </View>
 
-              {/* Техкарта */}
-              {canEditCost ? (
-              <>
-              <Pressable style={styles.techToggle} onPress={() => setExpandedVar(isOpen ? -1 : vi)}>
-                <Text style={styles.techToggleTxt}>
-                  Техкарта{(Array.isArray(v.ings) && v.ings.length > 0) ? ` · ${v.ings.length} поз. · ${cost.toFixed(2)} ₽` : ' · не задана'}
-                </Text>
-                <Text style={[styles.chevron, isOpen && styles.chevronOpen]}>›</Text>
-              </Pressable>
-
-              {isOpen && (
-                <View style={styles.techBody}>
-                  {(Array.isArray(v.ings) ? v.ings : []).map((ing, ii) => (
-                    <View key={ii} style={styles.ingRow}>
-                      <Text style={styles.ingName} numberOfLines={1}>{ing.name}</Text>
-                      <TextInput style={styles.ingInput} color={colors.text}
-                        keyboardType="numeric" value={ing.amount}
-                        onChangeText={val => setIngField(vi, ii, 'amount', val)}
-                        placeholder="0" placeholderTextColor={colors.muted} />
-                      <Text style={styles.ingUnit}>{ing.unit}</Text>
-                      <TextInput style={[styles.ingInput, { width: 58 }]} color={colors.text}
-                        keyboardType="numeric" value={ing.price_per_unit}
-                        onChangeText={val => setIngField(vi, ii, 'price_per_unit', val)}
-                        placeholder="авто" placeholderTextColor={colors.muted} />
-                      <Text style={styles.ingUnit}>₽</Text>
-                      <Pressable onPress={() => removeIng(vi, ii)} hitSlop={10}>
-                        <Text style={{ color: colors.muted, fontSize: 16 }}>✕</Text>
-                      </Pressable>
+              {/* Списание со склада (была "Техкарта") */}
+              {canEditCost ? (() => {
+                const hasIngs = Array.isArray(v.ings) && v.ings.length > 0;
+                const deductOn = isOpen || hasIngs;
+                return (
+                <>
+                {!deductOn ? (
+                  <View style={styles.deductQuestion}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                      <Text style={styles.deductQuestionTxt}>Списывать со склада при продаже?</Text>
+                      <InfoTip title="Списание со склада" text="Если для этого товара или услуги расходуются материалы — краска, ингредиенты, расходники — укажите их здесь. Каждая продажа автоматически уменьшит остаток на складе. Полностью необязательно, можно пропустить." />
                     </View>
-                  ))}
-                  <Pressable style={styles.addIngBtn} onPress={() => { setIngPickerVar(vi); onIngPicker?.(vi, (s) => addIng(vi, s)); }}>
-                    <Text style={styles.addIngTxt}>+ Добавить из склада</Text>
-                  </Pressable>
-                  {v.ings.length === 0 && (
-                    <Text style={styles.ingHint}>Не обязательно — нужно для автосписания и расчёта маржи</Text>
-                  )}
-                </View>
-              )}
-              </>
-              ) : (
+                    <Toggle value={false} onValueChange={() => setExpandedVar(vi)} size="sm" />
+                  </View>
+                ) : (
+                <>
+                <Pressable style={styles.techToggle} onPress={() => setExpandedVar(hasIngs ? (isOpen ? -1 : vi) : vi)}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                    <Text style={styles.techToggleTxt}>
+                      Списывать со склада{hasIngs ? ` · ${v.ings.length} поз. · ${cost.toFixed(2)} ₽` : ''}
+                    </Text>
+                    <InfoTip title="Списание со склада" text="Каждая продажа автоматически уменьшит остаток указанных позиций на складе. Уберите все позиции, чтобы отключить списание для этого товара." />
+                  </View>
+                  <Toggle value={true} onValueChange={() => setExpandedVar(-1)} size="sm" />
+                </Pressable>
+
+                {isOpen && (
+                  <View style={styles.techBody}>
+                    {(Array.isArray(v.ings) ? v.ings : []).map((ing, ii) => (
+                      <View key={ii} style={styles.ingRow}>
+                        <Text style={styles.ingName} numberOfLines={1}>{ing.name}</Text>
+                        <TextInput style={styles.ingInput} color={colors.text}
+                          keyboardType="numeric" value={ing.amount}
+                          onChangeText={val => setIngField(vi, ii, 'amount', val)}
+                          placeholder="0" placeholderTextColor={colors.muted} />
+                        <Text style={styles.ingUnit}>{ing.unit}</Text>
+                        <TextInput style={[styles.ingInput, { width: 58 }]} color={colors.text}
+                          keyboardType="numeric" value={ing.price_per_unit}
+                          onChangeText={val => setIngField(vi, ii, 'price_per_unit', val)}
+                          placeholder="авто" placeholderTextColor={colors.muted} />
+                        <Text style={styles.ingUnit}>₽</Text>
+                        <Pressable onPress={() => removeIng(vi, ii)} hitSlop={10}>
+                          <Text style={{ color: colors.muted, fontSize: 16 }}>✕</Text>
+                        </Pressable>
+                      </View>
+                    ))}
+                    <Pressable style={styles.addIngBtn} onPress={() => { setIngPickerVar(vi); onIngPicker?.(vi, (s) => addIng(vi, s)); }}>
+                      <Text style={styles.addIngTxt}>+ Добавить со склада</Text>
+                    </Pressable>
+                  </View>
+                )}
+                </>
+                )}
+                </>
+                );
+              })() : (
               <View style={[styles.techToggle, { opacity: 0.4 }]}>
-                <Text style={styles.techToggleTxt}>Техкарта · нет доступа</Text>
+                <Text style={styles.techToggleTxt}>Списание со склада · нет доступа</Text>
               </View>
               )}
             </View>
@@ -283,6 +300,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
 
 // ─── Главный экран ─────────────────────────────────────────────────────────────
 export default function ProductsScreen({ navigation }) {
+  const toast = useToast();
   const [tab, setTab]               = useState('products'); // products | modifiers
   const [modules, setModules]       = useState({});
   const [products, setProducts]     = useState([]);
@@ -630,6 +648,25 @@ export default function ProductsScreen({ navigation }) {
               autoFocus
             />
             <ScrollView keyboardShouldPersistTaps="handled">
+              {ingSearch.trim().length > 0 && (
+                <Pressable
+                  style={styles.ingPickerCreateRow}
+                  onPress={() => {
+                    const res = insertStockItem({ name: ingSearch.trim(), unit: 'шт' });
+                    if (!res.ok) { toast.show(res.error, 'warn'); return; }
+                    const created = { id: res.id, name: ingSearch.trim(), unit: 'шт' };
+                    try { setStock(getAllStock()); } catch (_) {}
+                    if (pendingIngCallback.current) {
+                      pendingIngCallback.current(created);
+                      pendingIngCallback.current = null;
+                    }
+                    setIngPickerState(null);
+                    setIngSearch('');
+                  }}
+                >
+                  <Text style={styles.ingPickerCreateTxt}>+ Создать «{ingSearch.trim()}» на складе</Text>
+                </Pressable>
+              )}
               {filteredStock.map(s => (
                 <Pressable key={s.id} style={styles.ingPickerRow} onPress={() => {
                   if (pendingIngCallback.current) {
@@ -1027,6 +1064,8 @@ const styles = StyleSheet.create({
   techToggleTxt: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, flex: 1 },
   chevron:    { fontSize: 16, color: colors.muted, transform: [{ rotate: '90deg' }] },
   chevronOpen:{ transform: [{ rotate: '-90deg' }] },
+  deductQuestion: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 12, borderTopWidth: 1, borderTopColor: colors.border },
+  deductQuestionTxt: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, flex: 1 },
 
   techBody:   { padding: 12, borderTopWidth: 1, borderTopColor: colors.border },
   ingRow:     { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
@@ -1073,6 +1112,8 @@ const styles = StyleSheet.create({
   ingPickerName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, flex: 1 },
   ingPickerUnit: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, backgroundColor: colors.surface2, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   ingPickerEmpty:{ fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center', padding: 32 },
+  ingPickerCreateRow: { paddingVertical: 14, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: 'rgba(240,160,80,0.06)' },
+  ingPickerCreateTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
 
   orderModalBox:   { width: '45%', maxHeight: '70%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, padding: 24 },
   orderModalTitle: { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.text, marginBottom: 4 },
