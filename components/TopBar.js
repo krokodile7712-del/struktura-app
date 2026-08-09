@@ -2,11 +2,16 @@ import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts } from '../constants/theme';
+import { getSession } from '../db/session';
+import { useNextStepsProgress } from './NextStepsCard';
 import Drawer from './Drawer';
 
 export default function TopBar({ title, onBack, rightElement, syncPending, navigation, activeScreen }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const insets = useSafeAreaInsets();
+  const isAdmin = getSession()?.role === 'admin';
+  const { doneCount, visible: stepsVisible } = useNextStepsProgress();
+  const showBanner = isAdmin && stepsVisible && navigation;
 
   return (
     <>
@@ -33,6 +38,13 @@ export default function TopBar({ title, onBack, rightElement, syncPending, navig
           {rightElement || null}
         </View>
       </View>
+
+      {showBanner && (
+        <Pressable style={styles.stepsBanner} onPress={() => navigation.navigate('Admin')}>
+          <Text style={styles.stepsBannerTxt}>Настройка не завершена · выполнено {doneCount} из 6</Text>
+          <Text style={styles.stepsBannerArrow}>→</Text>
+        </Pressable>
+      )}
 
       {navigation && (
         <Drawer
@@ -110,5 +122,25 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(122,158,82,0.3)',
     backgroundColor: 'rgba(122,158,82,0.08)',
+  },
+  stepsBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(240,160,80,0.1)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(240,160,80,0.25)',
+  },
+  stepsBannerTxt: {
+    fontFamily: fonts.familySemibold,
+    fontSize: 12,
+    color: colors.orange,
+  },
+  stepsBannerArrow: {
+    fontFamily: fonts.familySemibold,
+    fontSize: 13,
+    color: colors.orange,
   },
 });

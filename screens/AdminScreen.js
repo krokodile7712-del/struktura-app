@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, Anima
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
+import NextStepsCard from '../components/NextStepsCard';
 import ShiftBanner from '../components/ShiftBanner';
 import {
   getOpenShift, getBusinessProfile, getTerms, pluralizeRu,
@@ -65,6 +66,8 @@ function DashPanel({ stats, name, navigation }) {
 
       <Text style={styles.panelGreeting}>{getGreeting()}{name ? `, ${name}` : ''}</Text>
       <Text style={styles.panelSub}>Сводка за сегодня</Text>
+
+      <NextStepsCard navigation={navigation} />
 
       <View style={styles.statsGrid}>
         {[

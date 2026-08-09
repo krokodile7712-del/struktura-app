@@ -1824,7 +1824,34 @@ export function resetDatabase(includeUsers = false) {
   }
 }
 
-// ─── Инвентаризация ─────────────────────────────────────────────────────────
+// ─── Прогресс первых шагов после регистрации ───────────────────────────────
+// Определяется не по отдельному флагу, а по реальному наличию данных —
+// работает, даже если человек сделал что-то не через чек-лист, а сам.
+export function getNextStepsStatus() {
+  try {
+    const db = getDb();
+    const products = getAllProductsAdmin();
+    const payConfigured = !!getSetting('payMethodsV2');
+    const users = getAllUsers();
+    const overheads = getOverheadItems();
+    const loyaltyRow = db.getFirstSync(`SELECT loyalty_config FROM business_profile ORDER BY id LIMIT 1`);
+    const loyaltyConfigured = !!(loyaltyRow?.loyalty_config && loyaltyRow.loyalty_config !== '{}' && loyaltyRow.loyalty_config !== 'null');
+    const stock = getAllStock();
+    return {
+      products:   products.length > 0,
+      payMethods: payConfigured,
+      employees:  users.length > 1,
+      overheads:  overheads.length > 0,
+      loyalty:    loyaltyConfigured,
+      stock:      stock.length > 0,
+    };
+  } catch (e) {
+    console.error('[getNextStepsStatus]', e);
+    return { products: false, payMethods: false, employees: false, overheads: false, loyalty: false, stock: false };
+  }
+}
+
+
 
 // Средняя себестоимость по последним N закупкам (взвешенная по объёму)
 export function getAvgCostLast10(stockName, count = 10) {
