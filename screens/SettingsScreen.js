@@ -99,7 +99,7 @@ function SectionAccordion({ sectionKey, selectedSection, children }) {
 
 // LayoutAnimation работает автоматически в New Architecture
 
-export default function SettingsScreen({ navigation }) {
+export default function SettingsScreen({ navigation, route }) {
   // ── Данные ──
   const [products, setProducts]             = useState([]);
   const [users, setUsers]                   = useState([]);
@@ -136,7 +136,7 @@ export default function SettingsScreen({ navigation }) {
   const toast = useToast();
   const { width: SW } = useWindowDimensions();
   const isPhone = SW < 600;
-  const [selectedSection, setSelectedSection] = useState('menu');
+  const [selectedSection, setSelectedSection] = useState(route?.params?.section || 'menu');
   const [qrModal, setQrModal] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [bookingSlug, setBookingSlug] = useState(() => {

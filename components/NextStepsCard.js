@@ -6,10 +6,10 @@ import { colors, fonts } from '../constants/theme';
 
 export const NEXT_STEPS = [
   { key: 'products',   icon: '🛍', label: 'Добавить первый товар или услугу', screen: 'Products', sub: 'Меню и цены' },
-  { key: 'payMethods', icon: '💳', label: 'Настроить способы оплаты',         screen: 'Settings', sub: 'Оплата и скидки' },
+  { key: 'payMethods', icon: '💳', label: 'Настроить способы оплаты',         screen: 'Settings', params: { section: 'payment' }, sub: 'Оплата и скидки' },
   { key: 'employees',  icon: '👥', label: 'Добавить сотрудников',             screen: 'Employees', sub: 'Имена и PIN-коды' },
   { key: 'overheads',  icon: '🏢', label: 'Внести накладные расходы',         screen: 'Overheads', sub: 'Аренда, коммунальные, интернет' },
-  { key: 'loyalty',    icon: '⭐', label: 'Настроить программу лояльности',   screen: 'Loyalty',   sub: 'Баллы или скидки для клиентов' },
+  { key: 'loyalty',    icon: '⭐', label: 'Настроить программу лояльности',   screen: 'Settings', params: { section: 'loyalty' }, sub: 'Баллы или скидки для клиентов' },
   { key: 'stock',      icon: '📦', label: 'Добавить склад и закупки',        screen: 'Stock',     sub: 'Остатки, пороги, движение' },
 ];
 
@@ -67,7 +67,7 @@ export default function NextStepsCard({ navigation }) {
               i < NEXT_STEPS.length - 1 && styles.rowDiv,
               pressed && !done && { backgroundColor: 'rgba(255,255,255,0.03)' },
             ]}
-            onPress={() => !done && navigation.navigate(s.screen)}
+            onPress={() => !done && navigation.navigate(s.screen, s.params)}
           >
             <View style={[styles.checkbox, done && styles.checkboxDone]}>
               {done && <Text style={styles.checkMark}>✓</Text>}

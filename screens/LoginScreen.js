@@ -10,6 +10,7 @@ const PIN_LENGTH = 4;
 
 export default function LoginScreen({ navigation, route }) {
   const navTo = route?.params?.navTo;
+  const navParams = route?.params?.navParams;
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [shake, setShake] = useState(false);
@@ -46,7 +47,7 @@ export default function LoginScreen({ navigation, route }) {
     setPermissions(user.role === 'admin' ? null : getUserPermissions(user.id));
     const home = user.role === 'admin' ? 'Admin' : 'Dashboard';
     if (navTo && navTo !== home) {
-      navigation.reset({ index: 1, routes: [{ name: home }, { name: navTo }] });
+      navigation.reset({ index: 1, routes: [{ name: home }, { name: navTo, params: navParams }] });
     } else {
       navigation.navigate(home);
     }

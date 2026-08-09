@@ -90,10 +90,10 @@ const TERM_CONFIGS = [
 
 const NEXT_STEPS = [
   { icon: '🛍', label: 'Добавить первый товар или услугу', screen: 'Settings', sub: 'Настройки → Меню и цены' },
-  { icon: '💳', label: 'Настроить способы оплаты', screen: 'Settings', sub: 'Настройки → Оплата и скидки' },
+  { icon: '💳', label: 'Настроить способы оплаты', screen: 'Settings', params: { section: 'payment' }, sub: 'Настройки → Оплата и скидки' },
   { icon: '👥', label: 'Добавить сотрудников', screen: 'Employees', sub: 'Имена и PIN-коды' },
   { icon: '🏢', label: 'Внести накладные расходы', screen: 'Overheads', sub: 'Аренда, коммунальные, интернет' },
-  { icon: '⭐', label: 'Настроить программу лояльности', screen: 'Loyalty', sub: 'Баллы или скидки для клиентов' },
+  { icon: '⭐', label: 'Настроить программу лояльности', screen: 'Settings', params: { section: 'loyalty' }, sub: 'Баллы или скидки для клиентов' },
   { icon: '📦', label: 'Добавить склад и закупки', screen: 'Stock', sub: 'Остатки, пороги, движение' },
 ];
 
@@ -173,7 +173,7 @@ export default function OnboardingScreen({ navigation, route }) {
 
 
   // Финальное сохранение
-  const finish = (navTo = null) => {
+  const finish = (navTo = null, navParams = undefined) => {
     try {
       const p = BUSINESS_PRESETS[preset];
       updateBusinessProfile({
@@ -213,7 +213,7 @@ export default function OnboardingScreen({ navigation, route }) {
         setPermissions(null); // admin — без ограничений
         const home = getHomeRoute();
         if (navTo && navTo !== home) {
-          navigation.reset({ index: 1, routes: [{ name: home }, { name: navTo }] });
+          navigation.reset({ index: 1, routes: [{ name: home }, { name: navTo, params: navParams }] });
         } else {
           navigation.reset({ index: 0, routes: [{ name: home }] });
         }
@@ -222,7 +222,7 @@ export default function OnboardingScreen({ navigation, route }) {
         // с прошлого раза) — не можем безопасно установить сессию сами, пусть
         // войдёт по PIN как обычно. Но направление ("открыть Товары" и т.п.)
         // передаём дальше — иначе после входа человек просто окажется на Обзоре.
-        navigation.replace('Login', navTo ? { navTo } : undefined);
+        navigation.replace('Login', navTo ? { navTo, navParams } : undefined);
       }
     } catch (e) {
       console.error('[Onboarding finish]', e);
@@ -507,7 +507,7 @@ export default function OnboardingScreen({ navigation, route }) {
               <Pressable
                 key={i}
                 style={({ pressed }) => [styles.nextStepRow, pressed && { opacity: 0.7 }]}
-                onPress={() => finish(ns.screen)}
+                onPress={() => finish(ns.screen, ns.params)}
               >
                 <Text style={styles.nextStepIcon}>{ns.icon}</Text>
                 <View style={{ flex: 1 }}>
