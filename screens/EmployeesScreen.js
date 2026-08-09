@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Alert, Animated } from 'react-native';
 import TopBar from '../components/TopBar';
+import EmptyState from '../components/EmptyState';
 import BottomBar from '../components/BottomBar';
 import { getAllUsers, addUser, updateUser, toggleUserActive, getRoleNames, deleteUser } from '../db/queries';
 import { useToast } from '../components/Toast';
@@ -137,12 +138,13 @@ export default function EmployeesScreen({ navigation }) {
         <View style={styles.left}>
           <Text style={styles.listHint}>Нажмите на сотрудника чтобы редактировать</Text>
           <ScrollView showsVerticalScrollIndicator={false}>
-            {users.length === 0 ? (
-              <View style={styles.emptyWrap}>
-                <Text style={styles.emptyTxt}>Нет сотрудников</Text>
-                <Text style={styles.emptyHint}>Нажмите "+ Добавить" чтобы создать первого</Text>
-              </View>
-            ) : (
+            {users.length <= 1 && (
+              <EmptyState icon="👥" title="Пока только вы"
+                text="Добавьте первого сотрудника — укажите имя и придумайте PIN-код для входа в кассу."
+                action="+ Добавить сотрудника"
+                onAction={openNew} />
+            )}
+            {users.length > 0 && (
               <View style={styles.listCard}>
                 {users.map((u, idx) => {
                   const isActive = selected?.id === u.id;

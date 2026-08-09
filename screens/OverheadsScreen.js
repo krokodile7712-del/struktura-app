@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, Animated } from 'react-native';
 import TopBar from '../components/TopBar';
+import EmptyState from '../components/EmptyState';
 import BottomBar from '../components/BottomBar';
 import InfoTip from '../components/InfoTip';
 import { useFocusEffect } from '@react-navigation/native';
@@ -115,10 +116,10 @@ export default function OverheadsScreen({ navigation }) {
           <Text style={styles.listHint}>Нажмите чтобы редактировать</Text>
           <ScrollView showsVerticalScrollIndicator={false}>
             {items.length === 0 ? (
-              <View style={styles.emptyWrap}>
-                <Text style={styles.emptyTxt}>Нет накладных расходов</Text>
-                <Text style={styles.emptyHint}>Добавьте аренду, коммуналку, интернет и другие постоянные затраты</Text>
-              </View>
+              <EmptyState icon="🏢" title="Нет накладных расходов"
+                text="Добавьте аренду, коммуналку, интернет и другие постоянные затраты — они автоматически распределятся на каждый рабочий день."
+                action="+ Добавить расход"
+                onAction={openNew} />
             ) : (
               <View style={styles.listCard}>
                 {items.map((item, idx) => {

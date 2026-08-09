@@ -206,22 +206,37 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
 
                 {isOpen && (
                   <View style={styles.techBody}>
+                    {(Array.isArray(v.ings) ? v.ings : []).length > 0 && (
+                      <Text style={styles.ingListHint}>Сколько расходуется на одну продажу этого товара — при каждом заказе именно столько спишется со склада</Text>
+                    )}
                     {(Array.isArray(v.ings) ? v.ings : []).map((ing, ii) => (
-                      <View key={ii} style={styles.ingRow}>
-                        <Text style={styles.ingName} numberOfLines={1}>{ing.name}</Text>
-                        <TextInput style={styles.ingInput} color={colors.text}
-                          keyboardType="numeric" value={ing.amount}
-                          onChangeText={val => setIngField(vi, ii, 'amount', val)}
-                          placeholder="0" placeholderTextColor={colors.muted} />
-                        <Text style={styles.ingUnit}>{ing.unit}</Text>
-                        <TextInput style={[styles.ingInput, { width: 58 }]} color={colors.text}
-                          keyboardType="numeric" value={ing.price_per_unit}
-                          onChangeText={val => setIngField(vi, ii, 'price_per_unit', val)}
-                          placeholder="авто" placeholderTextColor={colors.muted} />
-                        <Text style={styles.ingUnit}>₽</Text>
-                        <Pressable onPress={() => removeIng(vi, ii)} hitSlop={10}>
-                          <Text style={{ color: colors.muted, fontSize: 16 }}>✕</Text>
-                        </Pressable>
+                      <View key={ii} style={styles.ingCard}>
+                        <View style={styles.ingCardHead}>
+                          <Text style={styles.ingName} numberOfLines={1}>{ing.name}</Text>
+                          <Pressable onPress={() => removeIng(vi, ii)} hitSlop={10}>
+                            <Text style={{ color: colors.muted, fontSize: 16 }}>✕</Text>
+                          </Pressable>
+                        </View>
+                        <View style={styles.ingFieldRow}>
+                          <Text style={styles.ingFieldLabel}>Расход на 1 продажу</Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <TextInput style={styles.ingInput} color={colors.text}
+                              keyboardType="numeric" value={ing.amount}
+                              onChangeText={val => setIngField(vi, ii, 'amount', val)}
+                              placeholder="0" placeholderTextColor={colors.muted} />
+                            <Text style={styles.ingUnit}>{ing.unit}</Text>
+                          </View>
+                        </View>
+                        <View style={styles.ingFieldRow}>
+                          <Text style={styles.ingFieldLabel}>Цена за {ing.unit}</Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <TextInput style={[styles.ingInput, { width: 58 }]} color={colors.text}
+                              keyboardType="numeric" value={ing.price_per_unit}
+                              onChangeText={val => setIngField(vi, ii, 'price_per_unit', val)}
+                              placeholder="авто" placeholderTextColor={colors.muted} />
+                            <Text style={styles.ingUnit}>₽</Text>
+                          </View>
+                        </View>
                       </View>
                     ))}
                     <Pressable style={styles.addIngBtn} onPress={() => { setIngPickerVar(vi); onIngPicker?.(vi, (s) => addIng(vi, s)); }}>
@@ -1069,6 +1084,11 @@ const styles = StyleSheet.create({
 
   techBody:   { padding: 12, borderTopWidth: 1, borderTopColor: colors.border },
   ingRow:     { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  ingListHint: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, lineHeight: 16, marginBottom: 10 },
+  ingCard:    { backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 10, marginBottom: 8 },
+  ingCardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  ingFieldRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
+  ingFieldLabel: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
   ingName:    { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.text, flex: 1 },
   ingInput:   { width: 52, paddingVertical: 7, paddingHorizontal: 8, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 8, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 12, textAlign: 'center' },
   ingUnit:    { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, width: 28 },

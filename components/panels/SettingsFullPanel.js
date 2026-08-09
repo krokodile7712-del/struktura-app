@@ -2997,7 +2997,7 @@ export default function SettingsFullPanel({ navigation }) {
 
               <Pressable style={[styles.row, { marginTop: 8 }]} onPress={() => setPayMethodModal(m => ({ ...m, active: !m.active }))}>
                 <Text style={styles.rowName}>Включён в кассе</Text>
-                <Text style={styles.rowPrice}>{payMethodModal.active !== false ? '☑' : '☐'}</Text>
+                <Toggle value={payMethodModal.active !== false} onValueChange={() => setPayMethodModal(m => ({ ...m, active: !m.active }))} size="sm" />
               </Pressable>
 
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
