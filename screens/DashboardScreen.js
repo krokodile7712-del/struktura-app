@@ -115,13 +115,14 @@ export default function DashboardScreen({ navigation }) {
   };
 
   // Разделы по правам
+  const modules = profile?.modules || {};
   const SECTIONS = [
     { key: 'dash',        label: 'Обзор',    always: true },
     { key: 'Sales',       label: 'Продажи',  perm: 'view_order_history' },
-    { key: 'ClientsList', label: 'Клиенты',  perm: 'view_clients' },
+    { key: 'ClientsList', label: 'Клиенты',  perm: 'view_clients', module: 'clients' },
     { key: 'Expenses',    label: 'Расходы',  perm: 'add_expenses' },
-    { key: 'Stock',       label: 'Склад',    perm: 'view_stock' },
-  ].filter(s => s.always || can(s.perm));
+    { key: 'Stock',       label: 'Склад',    perm: 'view_stock', module: 'stock' },
+  ].filter(s => (s.always || can(s.perm)) && (!s.module || modules[s.module] !== false));
 
   const collapsed = active !== 'dash';
 

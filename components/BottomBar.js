@@ -2,13 +2,19 @@ import React, { useRef, useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Animated } from 'react-native';
 import { colors, fonts, anim } from '../constants/theme';
 import { getCartSummary } from '../db/cartStore';
-
-const TABS = [
-  { key: 'Loyalty', label: 'Лояльность' },
-  { key: 'Kassa',    label: 'Касса' },
-];
+import { getBusinessProfile } from '../db/queries';
 
 export default function BottomBar({ navigation, activeTab }) {
+  const [modules, setModules] = useState({});
+  useEffect(() => {
+    try { setModules(getBusinessProfile()?.modules || {}); } catch (_) {}
+  }, []);
+
+  const TABS = [
+    { key: 'Loyalty', label: 'Лояльность', module: 'loyalty' },
+    { key: 'Kassa',    label: 'Касса' },
+  ].filter(t => !t.module || modules[t.module] !== false);
+
   const activeIndex = TABS.findIndex(t => t.key === activeTab); // -1, если экран не Лояльность и не Касса
   const [barWidth, setBarWidth] = useState(0);
   const indicatorAnim = useRef(new Animated.Value(Math.max(0, activeIndex))).current;

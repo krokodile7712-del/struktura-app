@@ -18,6 +18,7 @@ import {
   getAllCategoriesFull, createCategory, renameCategory, deleteCategory, getCategoryProducts,
   insertModifierOption, updateModifierOption, deleteModifierOption,
   getProductModifierGroups, setProductModifierGroups,
+  getBusinessProfile,
 } from '../db/queries';
 import { getDb } from '../db/database';
 import { getHomeRoute, can } from '../db/session';
@@ -282,6 +283,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
 // ─── Главный экран ─────────────────────────────────────────────────────────────
 export default function ProductsScreen({ navigation }) {
   const [tab, setTab]               = useState('products'); // products | modifiers
+  const [modules, setModules]       = useState({});
   const [products, setProducts]     = useState([]);
   const [stock, setStock]           = useState([]);
   const [categories, setCategories] = useState([]);
@@ -314,6 +316,7 @@ export default function ProductsScreen({ navigation }) {
       const ord = getCategoryOrder();
       setCatOrder(ord.length > 0 ? ord : cats);
       setModGroups(getAllModifierGroups());
+      try { setModules(getBusinessProfile()?.modules || {}); } catch (_) {}
       // Раскрываем все категории по умолчанию
       const exp = {};
       cats.forEach(c => { exp[c] = true; });
@@ -496,7 +499,7 @@ export default function ProductsScreen({ navigation }) {
         <View style={styles.left}>
           {/* Вкладки */}
           <View style={styles.tabBar}>
-            {[{ key: 'products', label: 'Товары' }, { key: 'modifiers', label: 'Модификаторы' }].map(t => (
+            {[{ key: 'products', label: 'Товары' }, { key: 'modifiers', label: 'Модификаторы' }].filter(t => t.key !== 'modifiers' || modules.modifiers !== false).map(t => (
               <Pressable key={t.key} style={[styles.tabBtn, tab === t.key && styles.tabBtnActive]} onPress={() => { setTab(t.key); setSelected(null); }}>
                 <Text style={[styles.tabTxt, tab === t.key && styles.tabTxtActive]}>{t.label}</Text>
               </Pressable>

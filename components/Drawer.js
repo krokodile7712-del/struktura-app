@@ -61,8 +61,8 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
         { label: 'Накладные',   screen: 'Overheads',   adminOnly: true },
         { label: 'Инвестиции',  screen: 'Investments', adminOnly: true },
         { label: 'Журнал работы',  screen: 'WorkJournal',  adminOnly: true },
-        { label: 'Инвентаризация',  screen: 'Inventory',    adminOnly: true },
-        { label: 'Локации',    screen: 'Locations',   adminOnly: true },
+        { label: 'Инвентаризация',  screen: 'Inventory',    adminOnly: true, module: 'inventory' },
+        { label: 'Локации',    screen: 'Locations',   adminOnly: true, module: 'locations' },
       ],
     },
   ];
@@ -140,10 +140,10 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
             {SECTIONS.map((section, si) => {
               if (section.adminOnly && !isAdmin) return null;
               const visibleItems = section.items.filter(item => {
+                if (item.module && modules[item.module] === false) return false;
                 if (item.adminOnly) return isAdmin;
                 if (item.always) return true;
                 if (item.perm) return isAdmin || can(item.perm);
-                if (item.module) return modules[item.module] !== false;
                 return true;
               });
               if (visibleItems.length === 0) return null;

@@ -122,9 +122,9 @@ import { useEffect } from 'react';
 const SECTIONS = [
   { key: 'dash',        label: 'Обзор' },
   { key: 'Sales',       label: 'Продажи' },
-  { key: 'ClientsList', label: 'Клиенты' },
+  { key: 'ClientsList', label: 'Клиенты',    module: 'clients' },
   { key: 'Reports',     label: 'Отчётность' },
-  { key: 'Stock',       label: 'Склад' },
+  { key: 'Stock',       label: 'Склад',      module: 'stock' },
   { key: 'Expenses',    label: 'Расходы' },
   { key: 'Bookings',    label: 'Записи' },
   { key: 'Settings',    label: 'Настройки' },
@@ -216,7 +216,7 @@ export default function AdminScreen({ navigation }) {
           <View style={styles.divider} />
 
           <ScrollView showsVerticalScrollIndicator={false}>
-            {SECTIONS.map(s => {
+            {SECTIONS.filter(s => !s.module || modules[s.module] !== false).map(s => {
               const isActive = active === s.key;
               if (s.key === 'Bookings' && !bookingActive) return (
                 <Pressable key={s.key}
