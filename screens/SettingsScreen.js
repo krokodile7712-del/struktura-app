@@ -24,7 +24,7 @@ import {
   getUnlinkedCostCards,
   getBusinessProfile, updateBusinessProfile, applyBusinessPreset, BUSINESS_PRESETS,
   getTerms, getRoleNames, pluralizeRu, genitivePluralRu, genitiveSingularRu,
-  exportAllData, importAllData, BACKUP_TABLES_INFO,
+  exportAllData, importAllData, BACKUP_TABLES_INFO, resetDatabase,
 } from '../db/queries';
 import { canConvert, conversionFactor } from '../constants/units';
 import { getDb } from '../db/database';
@@ -1854,19 +1854,23 @@ export default function SettingsScreen({ navigation }) {
             <Pressable
               style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
               onPress={() => {
+                const list = BACKUP_TABLES_INFO.map(t => '• ' + t.label).join('\n');
                 Alert.alert(
-                  'Перезапустить мастер настройки?',
-                  'Это заново спросит название бизнеса, тип, термины и другие параметры — и ПЕРЕЗАПИШЕТ текущие значения в профиле бизнеса. История продаж, товары, склад и сотрудники не пострадают. Продолжить?',
+                  'Начать заново с чистого листа?',
+                  `Это ПОЛНОСТЬЮ удалит абсолютно все данные приложения без возможности восстановить — включая вашу учётную запись:\n\n${list}\n\nЕсли данные ещё понадобятся — сначала сделайте резервную копию (Настройки → Резервная копия) и только потом продолжайте. Отменить это действие нельзя. Продолжить?`,
                   [
                     { text: 'Отмена', style: 'cancel' },
                     {
-                      text: 'Перезапустить', style: 'destructive',
+                      text: 'Стереть всё и начать заново', style: 'destructive',
                       onPress: () => {
                         try {
-                          navigation.navigate('Onboarding', { returnTo: 'Settings' });
+                          resetDatabase(true); // true — стереть и сотрудников тоже
+                          resetKassaCart();
+                          clearSession();
+                          navigation.navigate('Onboarding');
                         } catch (e) {
-                          console.error('[Мастер настройки] ошибка запуска:', e);
-                          toast.show('Не удалось открыть мастер настройки: ' + (e?.message || 'ошибка'), 'warn');
+                          console.error('[Регистрация бизнеса] ошибка запуска:', e);
+                          toast.show('Не удалось начать заново: ' + (e?.message || 'ошибка'), 'warn');
                         }
                       },
                     },
@@ -1876,8 +1880,8 @@ export default function SettingsScreen({ navigation }) {
             >
               <Text style={{ fontSize: 20, marginRight: 12 }}>🚀</Text>
               <View style={{ flex: 1 }}>
-                <Text style={styles.menuItemName}>Мастер настройки</Text>
-                <Text style={styles.menuItemSub}>Перезапустить первоначальную настройку</Text>
+                <Text style={styles.menuItemName}>Начать заново</Text>
+                <Text style={styles.menuItemSub}>Полностью сотрёт текущие данные и запустит регистрацию нового бизнеса</Text>
               </View>
               <Text style={styles.menuItemArrow}>›</Text>
             </Pressable>

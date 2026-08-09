@@ -1813,13 +1813,13 @@ export function importAllData(data) {
   return { ok: true, restored, skipped, errors };
 }
 
-// Полный сброс локальной базы. НЕ вызывается из UI, пока кнопка неактивна —
-// используется только когда явно потребуется очистить приложение перед стартом.
-// Таблица users не трогается, чтобы не потерять доступ по PIN.
-export function resetDatabase() {
+// Полный сброс локальной базы — используется при регистрации бизнеса "с нуля"
+// в мастере настройки. includeUsers=true стирает и сотрудников (PIN-коды) —
+// используется, когда владелец сам явно подтвердил полное удаление.
+export function resetDatabase(includeUsers = false) {
   const db = getDb();
   for (const table of BACKUP_TABLES) {
-    if (table === 'users') continue;
+    if (table === 'users' && !includeUsers) continue;
     try { db.execSync(`DELETE FROM ${table}`); } catch (_) {}
   }
 }
