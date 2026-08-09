@@ -226,9 +226,11 @@ export default function OnboardingScreen({ navigation, route }) {
           navigation.reset({ index: 0, routes: [{ name: home }] });
         }
       } else {
-        // Администратор не создан во время настройки — не можем безопасно
-        // установить сессию, пусть войдёт по PIN как обычно.
-        navigation.replace('Login');
+        // Администратор не создан во время настройки (например, PIN уже занят
+        // с прошлого раза) — не можем безопасно установить сессию сами, пусть
+        // войдёт по PIN как обычно. Но направление ("открыть Товары" и т.п.)
+        // передаём дальше — иначе после входа человек просто окажется на Обзоре.
+        navigation.replace('Login', navTo ? { navTo } : undefined);
       }
     } catch (e) {
       console.error('[Onboarding finish]', e);

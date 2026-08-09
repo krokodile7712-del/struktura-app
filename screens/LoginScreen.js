@@ -8,7 +8,8 @@ import { colors, fonts } from '../constants/theme';
 
 const PIN_LENGTH = 4;
 
-export default function LoginScreen({ navigation }) {
+export default function LoginScreen({ navigation, route }) {
+  const navTo = route?.params?.navTo;
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [shake, setShake] = useState(false);
@@ -43,7 +44,12 @@ export default function LoginScreen({ navigation }) {
     }
     setSession(user);
     setPermissions(user.role === 'admin' ? null : getUserPermissions(user.id));
-    navigation.navigate(user.role === 'admin' ? 'Admin' : 'Dashboard');
+    const home = user.role === 'admin' ? 'Admin' : 'Dashboard';
+    if (navTo && navTo !== home) {
+      navigation.reset({ index: 1, routes: [{ name: home }, { name: navTo }] });
+    } else {
+      navigation.navigate(home);
+    }
   };
 
   const keys = [
