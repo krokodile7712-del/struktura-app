@@ -7,6 +7,8 @@ import {
 import { setSetting, updateBusinessProfile, getBusinessProfile, BUSINESS_PRESETS, addUser, getUserByPin } from '../db/queries';
 import { getHomeRoute, setSession, setPermissions } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
+import Toggle from '../components/Toggle';
+import InfoTip from '../components/InfoTip';
 
 // ─── Константы ───────────────────────────────────────────────────────────────
 
@@ -15,6 +17,7 @@ const STEPS = [
   'Тип',
   'Контакты',
   'Термины',
+  'Модули',
   'Аккаунт',
   'Готово',
 ];
@@ -88,6 +91,20 @@ const TERM_CONFIGS = [
   },
 ];
 
+// Модули — какие разделы функциональности включены. Пресет только предлагает
+// стартовый набор, финальное решение всегда за администратором на этом шаге.
+const WIZARD_MODULES = [
+  { key: 'stock',      label: 'Склад',      desc: 'Учёт остатков, закупки, списания' },
+  { key: 'shifts',     label: 'Смены',      desc: 'Открытие/закрытие смен, касса наличных' },
+  { key: 'clients',    label: 'Клиенты',    desc: 'База клиентов, карточки, история покупок' },
+  { key: 'loyalty',    label: 'Лояльность', desc: 'Баллы, скидки или абонементы для клиентов' },
+  { key: 'modifiers',  label: 'Модификаторы', desc: 'Опции у товара — размер, вкус, добавки' },
+  { key: 'inventory',  label: 'Инвентаризация', desc: 'Сверка фактических остатков склада' },
+  { key: 'locations',  label: 'Локации',    desc: 'Несколько точек хранения/продажи' },
+  { key: 'zones',      label: 'Зоны и столы', desc: 'Нумерация мест в зале' },
+  { key: 'templates',  label: 'Шаблоны заказов', desc: 'Быстрый повтор частых заказов' },
+];
+
 const NEXT_STEPS = [
   { icon: '🛍', label: 'Добавить первый товар или услугу', screen: 'Settings', sub: 'Настройки → Меню и цены' },
   { icon: '💳', label: 'Настроить способы оплаты', screen: 'Settings', params: { section: 'payment' }, sub: 'Настройки → Оплата и скидки' },
@@ -107,6 +124,8 @@ export default function OnboardingScreen({ navigation, route }) {
   const [logoUrl, setLogoUrl]         = useState('');
   // Шаг 2
   const [preset, setPreset]           = useState(null);
+  const [wizardModules, setWizardModules] = useState({});
+  const [modulesTouched, setModulesTouched] = useState(false);
   // Шаг 3
   const [phone, setPhone]             = useState('');
   const [address, setAddress]         = useState('');
@@ -141,7 +160,7 @@ export default function OnboardingScreen({ navigation, route }) {
     const errs = {};
     if (step === 0 && !bizName.trim()) errs.bizName = 'Введите название бизнеса';
     if (step === 1 && !preset) errs.preset = 'Выберите тип бизнеса';
-    if (step === 4) {
+    if (step === 5) {
       if (!empName.trim()) errs.empName = 'Введите имя';
       if (empPin.length < 4) errs.empPin = 'PIN — минимум 4 цифры';
       if (empPin !== empPin2) errs.empPin2 = 'PIN-коды не совпадают';
@@ -186,7 +205,7 @@ export default function OnboardingScreen({ navigation, route }) {
         inn: inn.trim(),
         preset: preset || 'custom',
         logoBase64: logoUrl,
-        modules: p?.modules || {},
+        modules: wizardModules || p?.modules || {},
         terms: {
           order:    terms.order,
           client:   terms.client,
@@ -328,7 +347,7 @@ export default function OnboardingScreen({ navigation, route }) {
           <View style={styles.content}>
             <Text style={styles.emoji}>🎯</Text>
             <Text style={styles.title}>Чем занимается бизнес?</Text>
-            <Text style={styles.subtitle}>Выберите ближайший тип — настроим нужные модули. Всё можно изменить позже.</Text>
+            <Text style={styles.subtitle}>Выберите ближайший тип — предложим стартовый набор разделов, на следующем шаге сможете настроить их сами.</Text>
             {errors.preset && <Text style={styles.fieldErr}>{errors.preset}</Text>}
             {PRESET_LIST.map(p => (
               <Pressable
@@ -339,6 +358,8 @@ export default function OnboardingScreen({ navigation, route }) {
                   setErrors(e => ({ ...e, preset: null }));
                   const presetTerms = BUSINESS_PRESETS[p.key]?.terms;
                   if (presetTerms) setTerms(presetTerms);
+                  setWizardModules(BUSINESS_PRESETS[p.key]?.modules || {});
+                  setModulesTouched(false);
                 }}
               >
                 <View style={styles.presetHeader}>
@@ -431,8 +452,44 @@ export default function OnboardingScreen({ navigation, route }) {
           </View>
         )}
 
-        {/* ── ШАГ 5: Аккаунт администратора ── */}
+        {/* ── ШАГ 5: Модули ── */}
         {step === 4 && (
+          <View style={styles.content}>
+            <Text style={styles.emoji}>🧩</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={styles.title}>Какие разделы нужны?</Text>
+              <InfoTip title="Разделы приложения" text="Каждый переключатель — целый раздел функциональности для всего бизнеса, а не только для вас. Выключенные разделы просто исчезают из меню у всех сотрудников. В любой момент можно включить обратно в Настройках." />
+            </View>
+            <Text style={styles.subtitle}>Мы предложили набор под выбранный тип бизнеса — включите или выключите то, что нужно именно вам. Это решаете только вы, изменить можно в любой момент в Настройках.</Text>
+
+            {WIZARD_MODULES.map((m, i) => (
+              <Pressable
+                key={m.key}
+                style={[styles.moduleRow, i === 0 && styles.moduleRowFirst]}
+                onPress={() => {
+                  setModulesTouched(true);
+                  setWizardModules(wm => ({ ...wm, [m.key]: wm[m.key] === false ? true : false }));
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.moduleLabel}>{m.label}</Text>
+                  <Text style={styles.moduleDesc}>{m.desc}</Text>
+                </View>
+                <Toggle
+                  value={wizardModules[m.key] !== false}
+                  onValueChange={() => {
+                    setModulesTouched(true);
+                    setWizardModules(wm => ({ ...wm, [m.key]: wm[m.key] === false ? true : false }));
+                  }}
+                  size="sm"
+                />
+              </Pressable>
+            ))}
+          </View>
+        )}
+
+        {/* ── ШАГ 6: Аккаунт администратора ── */}
+        {step === 5 && (
           <View style={styles.content}>
             <Text style={styles.emoji}>👤</Text>
             <Text style={styles.title}>Аккаунт администратора</Text>
@@ -478,8 +535,8 @@ export default function OnboardingScreen({ navigation, route }) {
           </View>
         )}
 
-        {/* ── ШАГ 6: Готово ── */}
-        {step === 5 && (
+        {/* ── ШАГ 7: Готово ── */}
+        {step === 6 && (
           <View style={styles.content}>
             <View style={styles.doneHeader}>
               {logoUrl ? (
@@ -528,7 +585,7 @@ export default function OnboardingScreen({ navigation, route }) {
         )}
 
         {/* ── Навигация ── */}
-        {step < 5 && (
+        {step < 6 && (
           <View style={styles.navRow}>
             {step > 0 && (
               <Pressable style={styles.backBtn} onPress={back}>
@@ -537,16 +594,16 @@ export default function OnboardingScreen({ navigation, route }) {
             )}
             <Pressable
               style={[styles.nextBtn, step === 0 && { flex: 1 }]}
-              onPress={step === 4 ? next : next}
+              onPress={next}
             >
               <Text style={styles.nextBtnText}>
-                {step === 4 ? 'Создать аккаунт →' : 'Далее →'}
+                {step === 5 ? 'Создать аккаунт →' : 'Далее →'}
               </Text>
             </Pressable>
           </View>
         )}
 
-        {step < 5 && (
+        {step < 6 && (
           <Pressable onPress={skip} style={styles.skipBtn}>
             <Text style={styles.skipText}>Пропустить настройку</Text>
           </Pressable>
@@ -629,6 +686,10 @@ const styles = StyleSheet.create({
 
   // Терминология
   termBlock: { marginBottom: 20, padding: 16, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border },
+  moduleRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, marginTop: 10 },
+  moduleRowFirst: { marginTop: 16 },
+  moduleLabel: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text, marginBottom: 2 },
+  moduleDesc: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
   termHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 12 },
   termIcon: { fontSize: 22, marginTop: 2 },
   termTitle: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, marginBottom: 3 },
