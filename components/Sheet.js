@@ -84,14 +84,15 @@ export default function Sheet({ visible, onClose, title, children, sideWidth = 4
               : { width: Math.min(sideWidth, screenWidth * 0.92), paddingTop: insets.top },
             transformStyle,
           ]}
-          {...pan.panHandlers}
         >
-          {isBottom && <View style={styles.grabber} />}
-          <View style={styles.header}>
-            {title ? <Text style={styles.title} numberOfLines={1}>{title}</Text> : <View style={{ flex: 1 }} />}
-            <Pressable onPress={onClose} hitSlop={12} style={styles.closeBtn}>
-              <Text style={styles.closeTxt}>✕</Text>
-            </Pressable>
+          <View {...pan.panHandlers}>
+            {isBottom && <View style={styles.grabber} />}
+            <View style={styles.header}>
+              {title ? <Text style={styles.title} numberOfLines={1}>{title}</Text> : <View style={{ flex: 1 }} />}
+              <Pressable onPress={onClose} hitSlop={12} style={styles.closeBtn}>
+                <Text style={styles.closeTxt}>✕</Text>
+              </Pressable>
+            </View>
           </View>
           <View style={{ flex: 1 }}>
             {children}
