@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, Animated } from 'react-native';
 import TopBar from '../components/TopBar';
 import EmptyState from '../components/EmptyState';
-import BottomBar from '../components/BottomBar';
+import AppNav from '../components/AppNav';
 import InfoTip from '../components/InfoTip';
 import { useFocusEffect } from '@react-navigation/native';
 import { getOverheadItems, addOverheadItem, updateOverheadItem, deleteOverheadItem } from '../db/queries';
@@ -255,7 +255,7 @@ export default function OverheadsScreen({ navigation }) {
 
       </View>
 
-      <BottomBar navigation={navigation} />
+      <AppNav navigation={navigation} activeScreen="Overheads" />
     </View>
   );
 }

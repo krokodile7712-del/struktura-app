@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, Animated } from 'react-native';
 import TopBar from '../components/TopBar';
-import BottomBar from '../components/BottomBar';
+import AppNav from '../components/AppNav';
 import InfoTip from '../components/InfoTip';
 import Toggle from '../components/Toggle';
 import { useFocusEffect } from '@react-navigation/native';
@@ -310,7 +310,7 @@ export default function EquipmentScreen({ navigation }) {
 
       </View>
 
-      <BottomBar navigation={navigation} />
+      <AppNav navigation={navigation} activeScreen="Equipment" />
       <DatePicker
         visible={showDatePicker}
         value={draft?.purchase_date || new Date().toISOString().slice(0,10)}

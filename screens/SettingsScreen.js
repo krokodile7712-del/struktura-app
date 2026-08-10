@@ -5,7 +5,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
-import BottomBar from '../components/BottomBar';
+import AppNav from '../components/AppNav';
 import {
   getAllProductsAdmin, insertProduct, setProductActive,
   getProductVariants, getProductAxesWithValues, saveProductAxesAndVariants,
@@ -2159,7 +2159,7 @@ export default function SettingsScreen({ navigation, route }) {
         )}
 
       </View>
-      <BottomBar navigation={navigation} />
+      <AppNav navigation={navigation} activeScreen="Settings" />
 
       {/* Модалка товара */}
       <Modal visible={!!productModal} transparent animationType="slide" onRequestClose={() => setProductModal(null)}>

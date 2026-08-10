@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Alert, Animated } from 'react-native';
 import TopBar from '../components/TopBar';
 import EmptyState from '../components/EmptyState';
-import BottomBar from '../components/BottomBar';
+import AppNav from '../components/AppNav';
 import { getAllUsers, addUser, updateUser, toggleUserActive, getRoleNames, deleteUser } from '../db/queries';
 import { useToast } from '../components/Toast';
 import { getHomeRoute, goBackSmart } from '../db/session';
@@ -321,7 +321,7 @@ export default function EmployeesScreen({ navigation }) {
         </View>
       </View>
 
-      <BottomBar navigation={navigation} />
+      <AppNav navigation={navigation} activeScreen="Employees" />
     </View>
   );
 }

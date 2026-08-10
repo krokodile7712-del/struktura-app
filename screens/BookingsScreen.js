@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator, Animated } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
-import BottomBar from '../components/BottomBar';
+import AppNav from '../components/AppNav';
 import { getHomeRoute, goBackSmart } from '../db/session';
 import { getBookings, updateBookingStatus } from '../db/supabase';
 import { getBusinessProfile } from '../db/queries';
@@ -230,7 +230,7 @@ export default function BookingsScreen({ navigation }) {
 
       </View>
 
-      <BottomBar navigation={navigation} />
+      <AppNav navigation={navigation} activeScreen="Bookings" />
     </View>
   );
 }

@@ -5,7 +5,7 @@ import {
   Modal, TextInput, Alert, Animated, FlatList,
 } from 'react-native';
 import TopBar from '../components/TopBar';
-import BottomBar from '../components/BottomBar';
+import AppNav from '../components/AppNav';
 import DatePicker from '../components/DatePicker';
 import { useFocusEffect } from '@react-navigation/native';
 import {
@@ -354,7 +354,7 @@ export default function SalesScreen({ navigation }) {
         </View>
       </View>
 
-      <BottomBar navigation={navigation} />
+      <AppNav navigation={navigation} activeScreen="Sales" />
 
       {/* Пикер периода — один календарь, тап на начало и конец */}
       <DatePicker

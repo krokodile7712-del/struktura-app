@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Animated, Clipboard } from 'react-native';
 import TopBar from '../components/TopBar';
-import BottomBar from '../components/BottomBar';
+import AppNav from '../components/AppNav';
 import { getTerms, getLoyaltyConfig, genitiveSingularRu } from '../db/queries';
 import { colors, fonts, anim } from '../constants/theme';
 import { useToast } from '../components/Toast';
@@ -121,7 +121,7 @@ export default function RegResultScreen({ route, navigation }) {
 
         </Animated.View>
       </ScrollView>
-      <BottomBar navigation={navigation} activeTab="Loyalty" />
+      <AppNav navigation={navigation} activeScreen="RegResult" />
     </View>
   );
 }

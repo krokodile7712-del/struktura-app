@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, FlatList, Animated } from 'react-native';
 import TopBar from '../components/TopBar';
-import BottomBar from '../components/BottomBar';
+import AppNav from '../components/AppNav';
 import EmptyState from '../components/EmptyState';
 import { useFocusEffect } from '@react-navigation/native';
 import { getAllClients, searchClients, getClientOrders, getTerms, pluralizeRu,
@@ -389,7 +389,7 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
         </View>
       </View>
 
-      <BottomBar navigation={navigation} activeTab="Loyalty" />
+      <AppNav navigation={navigation} activeScreen="ClientsList" />
     </View>
   );
 }

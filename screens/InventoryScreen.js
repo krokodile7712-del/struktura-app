@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Modal, Alert, Animated, TextInput } from 'react-native';
 import TopBar from '../components/TopBar';
-import BottomBar from '../components/BottomBar';
+import AppNav from '../components/AppNav';
 import InfoTip from '../components/InfoTip';
 import { useFocusEffect } from '@react-navigation/native';
 import {
@@ -213,7 +213,7 @@ export default function InventoryScreen({ navigation }) {
         )}
       </Animated.View>
 
-      <BottomBar navigation={navigation} />
+      <AppNav navigation={navigation} activeScreen="Inventory" />
 
       {/* Экран заполнения акта */}
       <Modal visible={!!activeAct} transparent={false} animationType="slide">

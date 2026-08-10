@@ -6,29 +6,30 @@ import { colors, fonts } from '../constants/theme';
 import { getSession } from '../db/session';
 import Drawer from './Drawer';
 
-// Этап 1 разворота на адаптивность: один и тот же набор из 5 пунктов
-// (Обзор/Продажи/Касса/Клиенты/Ещё), меняет расположение сам —
-// снизу в портретной ориентации, сбоку в альбомной. "Ещё" открывает
-// уже существующую шторку (боковое меню), а не строит новую сущность.
-export default function AppNav({ navigation, active, onSelect }) {
+// Этап 1-2 разворота на адаптивность: единая навигация на 5 пунктов,
+// сама решает расположение (снизу/сбоку) и сама переходит на нужный экран —
+// можно вставлять в любой экран тем же способом, что и TopBar (activeScreen),
+// без дополнительной настройки состояния в каждом конкретном экране.
+export default function AppNav({ navigation, activeScreen }) {
   const { navPosition } = useResponsive();
   const insets = useSafeAreaInsets();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const isAdmin = getSession()?.role === 'admin';
   const isBottom = navPosition === 'bottom';
+  const home = isAdmin ? 'Admin' : 'Dashboard';
 
   const ITEMS = [
-    { key: 'dash',        label: 'Обзор',    icon: '🏠' },
-    { key: 'Sales',       label: 'Продажи',  icon: '🧾' },
-    { key: 'Kassa',       label: 'Касса',    icon: '🛒', primary: true },
-    { key: 'ClientsList', label: 'Клиенты',  icon: '👥' },
-    { key: 'more',        label: 'Ещё',      icon: '⋯' },
+    { key: home,          route: home,          label: 'Обзор',    icon: '🏠' },
+    { key: 'Sales',       route: 'Sales',        label: 'Продажи',  icon: '🧾' },
+    { key: 'Kassa',       route: 'Kassa',        label: 'Касса',    icon: '🛒', primary: true },
+    { key: 'ClientsList', route: 'ClientsList',  label: 'Клиенты',  icon: '👥' },
+    { key: 'more',        route: null,           label: 'Ещё',      icon: '⋯' },
   ];
 
-  const handlePress = (key) => {
-    if (key === 'more') { setDrawerOpen(true); return; }
-    if (key === 'Kassa') { navigation.navigate('Kassa'); return; }
-    onSelect?.(key);
+  const handlePress = (item) => {
+    if (item.key === 'more') { setDrawerOpen(true); return; }
+    if (item.key === activeScreen) return; // уже здесь
+    navigation.navigate(item.route);
   };
 
   return (
@@ -42,7 +43,7 @@ export default function AppNav({ navigation, active, onSelect }) {
         ]}
       >
         {ITEMS.map(item => {
-          const isActive = active === item.key;
+          const isActive = activeScreen === item.key;
           return (
             <Pressable
               key={item.key}
@@ -51,7 +52,7 @@ export default function AppNav({ navigation, active, onSelect }) {
                 isBottom ? styles.itemBottom : styles.itemSide,
                 item.primary && styles.itemPrimary,
               ]}
-              onPress={() => handlePress(item.key)}
+              onPress={() => handlePress(item)}
             >
               <Text style={[styles.icon, item.primary && styles.iconPrimary]}>{item.icon}</Text>
               <Text style={[styles.label, isActive && styles.labelActive, item.primary && styles.labelPrimary]}>
@@ -67,7 +68,7 @@ export default function AppNav({ navigation, active, onSelect }) {
         visible={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         navigation={navigation}
-        activeScreen={isAdmin ? 'Admin' : 'Dashboard'}
+        activeScreen={home}
       />
     </>
   );

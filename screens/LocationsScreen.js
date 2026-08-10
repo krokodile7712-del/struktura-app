@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput } from 
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
-import BottomBar from '../components/BottomBar';
+import AppNav from '../components/AppNav';
 import {
   getLocations, addLocation, updateLocation, deleteLocation, initDefaultLocation,
 } from '../db/queries';
@@ -114,7 +114,7 @@ export default function LocationsScreen({ navigation }) {
           </Text>
         </MetalCard>
       </ScrollView>
-      <BottomBar navigation={navigation} />
+      <AppNav navigation={navigation} activeScreen="Locations" />
 
       <Modal visible={!!modal} transparent animationType="fade" onRequestClose={closeModal}>
         <View style={styles.modalRoot}>

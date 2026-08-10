@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import TopBar from '../components/TopBar';
 import EmptyState from '../components/EmptyState';
-import BottomBar from '../components/BottomBar';
+import AppNav from '../components/AppNav';
 import Toggle from '../components/Toggle';
 import InfoTip from '../components/InfoTip';
 import { useToast } from '../components/Toast';
@@ -640,7 +640,7 @@ export default function ProductsScreen({ navigation }) {
         </View>
       </View>
 
-      <BottomBar navigation={navigation} />
+      <AppNav navigation={navigation} activeScreen="Products" />
 
       {/* Пикер ингредиентов — на уровне экрана */}
       <Modal visible={ingPickerState !== null} transparent animationType="fade" onRequestClose={() => setIngPickerState(null)}>

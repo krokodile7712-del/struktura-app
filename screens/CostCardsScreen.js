@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput } from 'react-native';
 import TopBar from '../components/TopBar';
-import BottomBar from '../components/BottomBar';
+import AppNav from '../components/AppNav';
 import EmptyState from '../components/EmptyState';
 import InfoTip from '../components/InfoTip';
 import { useFocusEffect } from '@react-navigation/native';
@@ -174,7 +174,7 @@ export default function CostCardsScreen({ navigation }) {
         })()}
       </ScrollView>
 
-      <BottomBar navigation={navigation} />
+      <AppNav navigation={navigation} activeScreen="CostCards" />
 
       {/* Модалка редактирования */}
       <Modal visible={!!editCard} transparent animationType="fade" onRequestClose={() => setEditCard(null)}>

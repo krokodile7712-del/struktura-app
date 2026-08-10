@@ -4,7 +4,7 @@ import {
   TextInput, Modal, Animated, FlatList,
 } from 'react-native';
 import TopBar from '../components/TopBar';
-import BottomBar from '../components/BottomBar';
+import AppNav from '../components/AppNav';
 import { useFocusEffect } from '@react-navigation/native';
 import { getAllExpenses, insertExpense } from '../db/queries';
 import { getHomeRoute, goBackSmart, can } from '../db/session';
@@ -271,7 +271,7 @@ export default function ExpensesScreen({ navigation }) {
         </Pressable>
       </Modal>
 
-      <BottomBar navigation={navigation} />
+      <AppNav navigation={navigation} activeScreen="Expenses" />
     </View>
   );
 }

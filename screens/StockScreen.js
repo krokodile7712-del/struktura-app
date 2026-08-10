@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import TopBar from '../components/TopBar';
-import BottomBar from '../components/BottomBar';
+import AppNav from '../components/AppNav';
 import StockPanel from '../components/panels/StockPanel';
 import { getHomeRoute, goBackSmart } from '../db/session';
 import { colors } from '../constants/theme';
@@ -14,7 +14,7 @@ export default function StockScreen({ navigation }) {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <TopBar title="Склад" onBack={() => goBackSmart(navigation)} />
       <StockPanel navigation={navigation} />
-      <BottomBar navigation={navigation} />
+      <AppNav navigation={navigation} activeScreen="Stock" />
     </View>
   );
 }

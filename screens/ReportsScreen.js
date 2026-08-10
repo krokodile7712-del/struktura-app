@@ -4,7 +4,7 @@ import {
   Modal, Animated, Share,
 } from 'react-native';
 import TopBar from '../components/TopBar';
-import BottomBar from '../components/BottomBar';
+import AppNav from '../components/AppNav';
 import Toggle from '../components/Toggle';
 import InfoTip from '../components/InfoTip';
 import { useFocusEffect } from '@react-navigation/native';
@@ -434,7 +434,7 @@ export default function ReportsScreen({ navigation }) {
         </View>
       </View>
 
-      <BottomBar navigation={navigation} />
+      <AppNav navigation={navigation} activeScreen="Reports" />
 
       <DatePicker visible={picker === 'from'} value={customFrom}
         onChange={v => { setCustomFrom(v); setPreset('custom'); setPicker(null); }}

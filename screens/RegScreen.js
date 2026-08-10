@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform, Animated } from 'react-native';
 import TopBar from '../components/TopBar';
-import BottomBar from '../components/BottomBar';
+import AppNav from '../components/AppNav';
 import { insertClient, getClientByCode, getTerms } from '../db/queries';
 import { useToast } from '../components/Toast';
 import { colors, fonts } from '../constants/theme';
@@ -142,7 +142,7 @@ export default function RegScreen({ navigation }) {
 
       </ScrollView>
 
-      <BottomBar navigation={navigation} activeTab="Loyalty" />
+      <AppNav navigation={navigation} activeScreen="Reg" />
     </KeyboardAvoidingView>
   );
 }

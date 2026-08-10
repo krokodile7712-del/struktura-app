@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, Pressable } from 'react-native';
 import MetalCard from '../components/MetalCard';
 import TopBar from '../components/TopBar';
-import BottomBar from '../components/BottomBar';
+import AppNav from '../components/AppNav';
 import { searchClients, getTerms } from '../db/queries';
 import Hint from '../components/Hint';
 import { colors, fonts, spacing } from '../constants/theme';
@@ -54,7 +54,7 @@ export default function SearchScreen({ navigation }) {
           ))}
         </MetalCard>
       </ScrollView>
-      <BottomBar navigation={navigation} activeTab="Loyalty" />
+      <AppNav navigation={navigation} activeScreen="Search" />
     </View>
   );
 }

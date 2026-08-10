@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, FlatList, TextInput, Animated, Easing } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
-import BottomBar from '../components/BottomBar';
+import AppNav from '../components/AppNav';
 import { getTerms, pluralizeRu, getLoyaltyConfig, getAllClients, searchClients } from '../db/queries';
 import { colors, fonts } from '../constants/theme';
 
@@ -194,7 +194,7 @@ export default function LoyaltyScreen({ navigation }) {
 
       </View>
 
-      <BottomBar navigation={navigation} activeTab="Loyalty" />
+      <AppNav navigation={navigation} activeScreen="Loyalty" />
     </View>
   );
 }

@@ -12,7 +12,7 @@ import {
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import ShiftBanner from '../components/ShiftBanner';
-import BottomBar from '../components/BottomBar';
+import AppNav from '../components/AppNav';
 import InfoTip from '../components/InfoTip';
 import { getAllProducts, getAllClients, getCategories, getCategoryOrder, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, getAllVariantsWithSku, getZones, getOrderTemplates, saveOrderTemplate, deleteOrderTemplate, applyPendingPriceSchedules, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms, getLoyaltyConfig, spendPoints, checkSubscriptionBalance } from '../db/queries';
 import { cartStore } from '../db/cartStore';
@@ -620,7 +620,7 @@ export default function KassaScreen({ navigation, route }) {
           <Text style={styles.emptyHint}>Добавьте товары в разделе Товары</Text>
           <MetalButton title="← Назад" variant="back" onPress={() => goBackSmart(navigation)} />
         </View>
-        <BottomBar navigation={navigation} activeTab="Kassa" />
+        <AppNav navigation={navigation} activeScreen="Kassa" />
       </View>
     );
   }
@@ -934,7 +934,7 @@ export default function KassaScreen({ navigation, route }) {
         </View>
       </Animated.View>
 
-      <BottomBar navigation={navigation} activeTab="Kassa" />
+      <AppNav navigation={navigation} activeScreen="Kassa" />
 
 
       {/* ── Предмодалка оплаты — клиент / скидка / баллы ── */}

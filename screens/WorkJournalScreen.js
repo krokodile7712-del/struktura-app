@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Animated } from 'react-native';
 import TopBar from '../components/TopBar';
-import BottomBar from '../components/BottomBar';
+import AppNav from '../components/AppNav';
 import { useFocusEffect } from '@react-navigation/native';
 import { getWorkJournal, getShiftOrderItems } from '../db/queries';
 import { getHomeRoute, goBackSmart } from '../db/session';
@@ -155,7 +155,7 @@ export default function WorkJournalScreen({ navigation }) {
         )}
       </Animated.View>
 
-      <BottomBar navigation={navigation} />
+      <AppNav navigation={navigation} activeScreen="WorkJournal" />
     </View>
   );
 }

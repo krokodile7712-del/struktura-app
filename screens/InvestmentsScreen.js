@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, Animated } from 'react-native';
 import TopBar from '../components/TopBar';
-import BottomBar from '../components/BottomBar';
+import AppNav from '../components/AppNav';
 import InfoTip from '../components/InfoTip';
 import DatePicker from '../components/DatePicker';
 import { useFocusEffect } from '@react-navigation/native';
@@ -256,7 +256,7 @@ export default function InvestmentsScreen({ navigation }) {
 
       </View>
 
-      <BottomBar navigation={navigation} />
+      <AppNav navigation={navigation} activeScreen="Investments" />
 
       <DatePicker
         visible={showDatePicker}
