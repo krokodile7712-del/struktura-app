@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useResponsive } from '../hooks/useResponsive';
 import { colors, fonts } from '../constants/theme';
 import { getSession } from '../db/session';
+import { getBusinessProfile } from '../db/queries';
 import Drawer from './Drawer';
 
 // Этап 1-2 разворота на адаптивность: единая навигация на 5 пунктов,
@@ -18,13 +19,16 @@ export default function AppNav({ navigation, activeScreen }) {
   const isBottom = navPosition === 'bottom';
   const home = isAdmin ? 'Admin' : 'Dashboard';
 
+  const modules = getBusinessProfile()?.modules || {};
+
   const ITEMS = [
     { key: home,          route: home,          label: 'Обзор',    icon: '🏠' },
     { key: 'Sales',       route: 'Sales',        label: 'Продажи',  icon: '🧾' },
+    { key: 'Stock',       route: 'Stock',        label: 'Склад',    icon: '📦', module: 'stock' },
     { key: 'Kassa',       route: 'Kassa',        label: 'Касса',    icon: '🛒', primary: true },
-    { key: 'ClientsList', route: 'ClientsList',  label: 'Клиенты',  icon: '👥' },
+    { key: 'ClientsList', route: 'ClientsList',  label: 'Клиенты',  icon: '👥', module: 'clients' },
     { key: 'more',        route: null,           label: 'Ещё',      icon: '⋯' },
-  ];
+  ].filter(item => !item.module || modules[item.module] !== false);
 
   const handlePress = (item) => {
     if (item.key === 'more') { setDrawerOpen(true); return; }
