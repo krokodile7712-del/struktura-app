@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Animated, PanResponder } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Animated, PanResponder, Modal as RNModal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useResponsive } from '../hooks/useResponsive';
 import { colors, fonts } from '../constants/theme';
@@ -64,33 +64,41 @@ export default function Sheet({ visible, onClose, title, children, sideWidth = 4
     : { transform: [{ translateX: translateAnim }] };
 
   return (
-    <View style={StyleSheet.absoluteFillObject} pointerEvents={visible ? 'auto' : 'none'}>
-      <Animated.View style={[StyleSheet.absoluteFillObject, { opacity: backdropAnim }]}>
-        <Pressable style={[StyleSheet.absoluteFillObject, styles.backdrop]} onPress={onClose} />
-      </Animated.View>
+    <RNModal
+      transparent
+      visible={shouldRender}
+      animationType="none"
+      onRequestClose={onClose}
+      statusBarTranslucent
+    >
+      <View style={StyleSheet.absoluteFillObject}>
+        <Animated.View style={[StyleSheet.absoluteFillObject, { opacity: backdropAnim }]}>
+          <Pressable style={[StyleSheet.absoluteFillObject, styles.backdrop]} onPress={onClose} />
+        </Animated.View>
 
-      <Animated.View
-        style={[
-          isBottom ? styles.sheetBottom : styles.sheetSide,
-          isBottom
-            ? { maxHeight: '90%', paddingBottom: Math.max(insets.bottom, 16) }
-            : { width: Math.min(sideWidth, screenWidth * 0.92), paddingTop: insets.top },
-          transformStyle,
-        ]}
-        {...pan.panHandlers}
-      >
-        {isBottom && <View style={styles.grabber} />}
-        <View style={styles.header}>
-          {title ? <Text style={styles.title} numberOfLines={1}>{title}</Text> : <View style={{ flex: 1 }} />}
-          <Pressable onPress={onClose} hitSlop={12} style={styles.closeBtn}>
-            <Text style={styles.closeTxt}>✕</Text>
-          </Pressable>
-        </View>
-        <View style={{ flex: 1 }}>
-          {children}
-        </View>
-      </Animated.View>
-    </View>
+        <Animated.View
+          style={[
+            isBottom ? styles.sheetBottom : styles.sheetSide,
+            isBottom
+              ? { maxHeight: '90%', paddingBottom: Math.max(insets.bottom, 16) }
+              : { width: Math.min(sideWidth, screenWidth * 0.92), paddingTop: insets.top },
+            transformStyle,
+          ]}
+          {...pan.panHandlers}
+        >
+          {isBottom && <View style={styles.grabber} />}
+          <View style={styles.header}>
+            {title ? <Text style={styles.title} numberOfLines={1}>{title}</Text> : <View style={{ flex: 1 }} />}
+            <Pressable onPress={onClose} hitSlop={12} style={styles.closeBtn}>
+              <Text style={styles.closeTxt}>✕</Text>
+            </Pressable>
+          </View>
+          <View style={{ flex: 1 }}>
+            {children}
+          </View>
+        </Animated.View>
+      </View>
+    </RNModal>
   );
 }
 
