@@ -15,6 +15,7 @@ import { getDb } from '../../db/database';
 import { can } from '../../db/session';
 import { colors, fonts, spacing } from '../../constants/theme';
 import { useToast } from '../Toast';
+import Sheet from '../Sheet';
 import InfoTip from '../InfoTip';
 
 function updateStockLocal(itemId, newValue) {
@@ -321,6 +322,7 @@ export default function StockPanel({ navigation }) {
             <Text style={styles.emptyRightTxt}>Выберите товар</Text>
           </View>
         ) : (
+          <>
           <View style={{ flex: 1, flexDirection: 'row' }}>
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 22, maxWidth: 520 }}>
             <Text style={styles.detailTitle} numberOfLines={2}>{selected.name}</Text>
@@ -457,73 +459,70 @@ export default function StockPanel({ navigation }) {
               </View>
             ))}
           </ScrollView>
-
-          {/* Выезжающая панель действия — Закупка/Добавить/Списать/Установить */}
-          <Animated.View style={[styles.slidePanel, { width: slideAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 400] }) }]}>
-            {panelOpen && mode && (
-              <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
-                <View style={styles.slidePanelHeader}>
-                  <Text style={styles.slidePanelTitle}>{MODES.find(m => m.key === mode)?.label}</Text>
-                  <Pressable onPress={closeSlidePanel} hitSlop={12} style={styles.slidePanelClose}>
-                    <Text style={styles.slidePanelCloseTxt}>✕</Text>
-                  </Pressable>
-                </View>
-                <Text style={styles.slidePanelDesc}>{MODES.find(m => m.key === mode)?.desc}</Text>
-
-                <Text style={styles.inputLabel}>Количество, {selected.unit}</Text>
-                <TextInput
-                  style={styles.inputField}
-                  value={qty}
-                  onChangeText={setQty}
-                  keyboardType="numeric"
-                  placeholder="0"
-                  placeholderTextColor={colors.muted}
-                  autoFocus
-                />
-
-                {mode === 'purchase' && (
-                  <>
-                    <Text style={styles.inputLabel}>Сумма закупки, ₽</Text>
-                    <TextInput
-                      style={styles.inputField}
-                      value={price}
-                      onChangeText={setPrice}
-                      keyboardType="numeric"
-                      placeholder="0"
-                      placeholderTextColor={colors.muted}
-                    />
-                    {!!qty && !!price && parseFloat(qty) > 0 && (
-                      <Text style={styles.purchasePerUnitHint}>
-                        ≈ {(parseFloat(price) / parseFloat(qty)).toFixed(2)} ₽/{selected.unit}
-                      </Text>
-                    )}
-                    <Text style={styles.purchaseExpenseNote}>💡 Сумма автоматически попадёт в Расходы, категория «Закупка»</Text>
-                  </>
-                )}
-
-                {qty !== '' && (
-                  <View style={styles.previewBox}>
-                    <Text style={styles.previewLabel}>Станет</Text>
-                    <Text style={[
-                      styles.previewVal,
-                      previewQty < 0 && styles.qtyNeg,
-                      selected['порог'] > 0 && previewQty <= selected['порог'] && previewQty >= 0 && styles.qtyLow,
-                    ]}>
-                      {previewQty.toFixed(1)} {selected.unit}
-                    </Text>
-                  </View>
-                )}
-
-                <Pressable
-                  style={({ pressed }) => [styles.confirmBtn, !qty && styles.confirmBtnOff, pressed && qty && { opacity: 0.88 }]}
-                  onPress={confirm} disabled={!qty}
-                >
-                  <Text style={styles.confirmBtnText}>{actionLabel}</Text>
-                </Pressable>
-              </ScrollView>
-            )}
-          </Animated.View>
           </View>
+
+          {/* Выезжающий слой действия — Закупка/Добавить/Списать/Установить */}
+          <Sheet
+            visible={panelOpen && !!mode}
+            onClose={closeSlidePanel}
+            title={MODES.find(m => m.key === mode)?.label}
+          >
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
+              <Text style={styles.slidePanelDesc}>{MODES.find(m => m.key === mode)?.desc}</Text>
+
+              <Text style={styles.inputLabel}>Количество, {selected?.unit}</Text>
+              <TextInput
+                style={styles.inputField}
+                value={qty}
+                onChangeText={setQty}
+                keyboardType="numeric"
+                placeholder="0"
+                placeholderTextColor={colors.muted}
+                autoFocus
+              />
+
+              {mode === 'purchase' && (
+                <>
+                  <Text style={styles.inputLabel}>Сумма закупки, ₽</Text>
+                  <TextInput
+                    style={styles.inputField}
+                    value={price}
+                    onChangeText={setPrice}
+                    keyboardType="numeric"
+                    placeholder="0"
+                    placeholderTextColor={colors.muted}
+                  />
+                  {!!qty && !!price && parseFloat(qty) > 0 && (
+                    <Text style={styles.purchasePerUnitHint}>
+                      ≈ {(parseFloat(price) / parseFloat(qty)).toFixed(2)} ₽/{selected?.unit}
+                    </Text>
+                  )}
+                  <Text style={styles.purchaseExpenseNote}>💡 Сумма автоматически попадёт в Расходы, категория «Закупка»</Text>
+                </>
+              )}
+
+              {qty !== '' && (
+                <View style={styles.previewBox}>
+                  <Text style={styles.previewLabel}>Станет</Text>
+                  <Text style={[
+                    styles.previewVal,
+                    previewQty < 0 && styles.qtyNeg,
+                    selected?.['порог'] > 0 && previewQty <= selected['порог'] && previewQty >= 0 && styles.qtyLow,
+                  ]}>
+                    {previewQty.toFixed(1)} {selected?.unit}
+                  </Text>
+                </View>
+              )}
+
+              <Pressable
+                style={({ pressed }) => [styles.confirmBtn, !qty && styles.confirmBtnOff, pressed && qty && { opacity: 0.88 }]}
+                onPress={confirm} disabled={!qty}
+              >
+                <Text style={styles.confirmBtnText}>{actionLabel}</Text>
+              </Pressable>
+            </ScrollView>
+          </Sheet>
+          </>
         )}
       </View>
 
