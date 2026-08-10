@@ -54,7 +54,6 @@ export default function StockPanel({ navigation }) {
   const [priceCalcOpen, setPriceCalcOpen] = useState(false);
   const [priceCalcQty, setPriceCalcQty]   = useState('');
   const [priceCalcSum, setPriceCalcSum]   = useState('');
-  const [containerWidth, setContainerWidth] = useState(0);
   const [panelOpen, setPanelOpen] = useState(false);
   const slideAnim = useState(new Animated.Value(0))[0];
 
@@ -204,10 +203,10 @@ export default function StockPanel({ navigation }) {
   })();
 
   return (
-    <View style={styles.layout} onLayout={e => setContainerWidth(e.nativeEvent.layout.width)}>
+    <View style={styles.layout}>
 
-      {/* Левая колонка — список */}
-      <View style={[styles.left, containerWidth > 0 && { width: Math.min(380, Math.max(260, containerWidth * 0.3)) }]}>
+      {/* Список — теперь единственная колонка на весь экран */}
+      <View style={styles.left}>
 
         {locEnabled && locations.length > 0 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false}
@@ -314,18 +313,10 @@ export default function StockPanel({ navigation }) {
         </ScrollView>
       </View>
 
-      {/* Правая колонка — карточка товара */}
-      <View style={styles.right}>
-        {!selected ? (
-          <View style={styles.emptyRight}>
-            <Text style={{ fontSize: 48 }}>📦</Text>
-            <Text style={styles.emptyRightTxt}>Выберите товар</Text>
-          </View>
-        ) : (
-          <>
-          <View style={{ flex: 1, flexDirection: 'row' }}>
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 22, maxWidth: 520 }}>
-            <Text style={styles.detailTitle} numberOfLines={2}>{selected.name}</Text>
+      {/* Карточка товара — выезжающий слой поверх списка */}
+      <Sheet visible={!!selected} onClose={() => setSelected(null)} title={selected?.name}>
+        {selected && (
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 22 }}>
 
             {/* Текущий остаток */}
             <View style={styles.curBox}>
@@ -459,14 +450,15 @@ export default function StockPanel({ navigation }) {
               </View>
             ))}
           </ScrollView>
-          </View>
+        )}
+      </Sheet>
 
-          {/* Выезжающий слой действия — Закупка/Добавить/Списать/Установить */}
-          <Sheet
-            visible={panelOpen && !!mode}
-            onClose={closeSlidePanel}
-            title={MODES.find(m => m.key === mode)?.label}
-          >
+      {/* Выезжающий слой действия — Закупка/Добавить/Списать/Установить */}
+      <Sheet
+        visible={panelOpen && !!mode}
+        onClose={closeSlidePanel}
+        title={MODES.find(m => m.key === mode)?.label}
+      >
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
               <Text style={styles.slidePanelDesc}>{MODES.find(m => m.key === mode)?.desc}</Text>
 
@@ -521,10 +513,7 @@ export default function StockPanel({ navigation }) {
                 <Text style={styles.confirmBtnText}>{actionLabel}</Text>
               </Pressable>
             </ScrollView>
-          </Sheet>
-          </>
-        )}
-      </View>
+      </Sheet>
 
       {/* Модалка новой позиции склада */}
       <Modal visible={!!newItemModal} transparent animationType="fade" onRequestClose={() => setNewItemModal(null)}>
@@ -676,8 +665,8 @@ export default function StockPanel({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  layout: { flex: 1, flexDirection: 'row' },
-  left:   { borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface },
+  layout: { flex: 1 },
+  left:   { flex: 1, backgroundColor: colors.surface },
   right:  { flex: 1, backgroundColor: colors.bg },
 
   emptyRight:    { flex: 1, alignItems: 'center', justifyContent: 'center', opacity: 0.3 },
