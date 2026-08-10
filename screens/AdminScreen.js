@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, Anima
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
+import AppNav from '../components/AppNav';
+import { useResponsive } from '../hooks/useResponsive';
 import NextStepsCard from '../components/NextStepsCard';
 import ShiftBanner from '../components/ShiftBanner';
 import {
@@ -134,6 +136,7 @@ const SECTIONS = [
 ];
 
 export default function AdminScreen({ navigation }) {
+  const { isWide } = useResponsive();
   const [profile, setProfile]         = useState(null);
   const [terms, setTerms]             = useState({ order: 'Заказ', client: 'Клиент' });
   const [stats, setStats]             = useState({});
@@ -200,8 +203,9 @@ export default function AdminScreen({ navigation }) {
       <TopBar title={active === 'dash' ? (roleNames.admin || 'Администратор') : (SECTIONS.find(s => s.key === active)?.label || '')} navigation={navigation} activeScreen="Admin" />
       {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift')} />}
 
-      <View style={styles.layout}>
-        {/* Левая панель */}
+      <View style={[styles.layout, !isWide && { flexDirection: 'column' }]}>
+        {/* Левая панель — только на широком экране, пока не сделан Этап 2 */}
+        {isWide && (
         <Animated.View style={[styles.leftPanel, { width: animWidth }]}>
           <View style={styles.bizHeader}>
             {active === 'dash' && <Text style={styles.bizName} numberOfLines={1}>{profile?.business_name || 'Мой бизнес'}</Text>}
@@ -249,6 +253,7 @@ export default function AdminScreen({ navigation }) {
 
           </ScrollView>
         </Animated.View>
+        )}
 
         {/* Правая панель */}
         <View style={styles.rightPanel}>
@@ -256,6 +261,10 @@ export default function AdminScreen({ navigation }) {
             {renderRight()}
           </Animated.View>
         </View>
+
+        {!isWide && (
+          <AppNav navigation={navigation} active={active} onSelect={setActiveAnimated} />
+        )}
       </View>
 
       <BottomBar navigation={navigation} />

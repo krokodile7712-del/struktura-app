@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, Pressable, ScrollView, Animated } from 'react-n
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
 import BottomBar from '../components/BottomBar';
+import AppNav from '../components/AppNav';
+import { useResponsive } from '../hooks/useResponsive';
 import ShiftBanner from '../components/ShiftBanner';
 import SalesPanel    from '../components/panels/SalesPanel';
 import ExpensesPanel from '../components/panels/ExpensesPanel';
@@ -65,6 +67,7 @@ function DashPanel({ stats, sessionName, navigation }) {
 }
 
 export default function DashboardScreen({ navigation }) {
+  const { isWide } = useResponsive();
   const [profile, setProfile]         = useState(null);
   const [terms, setTerms]             = useState({ order: 'Заказ' });
   const [stats, setStats]             = useState({});
@@ -141,9 +144,10 @@ export default function DashboardScreen({ navigation }) {
       <TopBar title={active === 'dash' ? (roleNames.barista || 'Сотрудник') : (SECTIONS.find(s => s.key === active)?.label || '')} navigation={navigation} activeScreen="Dashboard" />
       {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift')} />}
 
-      <View style={styles.layout}>
+      <View style={[styles.layout, !isWide && { flexDirection: 'column' }]}>
 
-        {/* Левая панель */}
+        {/* Левая панель — только на широком экране, пока не сделан Этап 2 */}
+        {isWide && (
         <Animated.View style={[styles.leftPanel, { width: animWidth }]}>
           {!collapsed && (
             <View style={styles.bizHeader}>
@@ -188,6 +192,7 @@ export default function DashboardScreen({ navigation }) {
 
           </ScrollView>
         </Animated.View>
+        )}
 
         {/* Правая панель */}
         <View style={styles.rightPanel}>
@@ -195,6 +200,10 @@ export default function DashboardScreen({ navigation }) {
             {renderRight()}
           </Animated.View>
         </View>
+
+        {!isWide && (
+          <AppNav navigation={navigation} active={active} onSelect={setActiveAnimated} />
+        )}
 
       </View>
 
