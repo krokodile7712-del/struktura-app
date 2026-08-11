@@ -127,6 +127,19 @@ export default function StockPanel({ navigation }) {
     } catch(e) { console.error(e); toast.show('Ошибка сохранения', 'warn'); }
   };
 
+  const saveSellPrice = (newPrice) => {
+    if (!selected) return;
+    const p = parseFloat(newPrice);
+    if (isNaN(p) || p < 0) return;
+    try {
+      const db = getDb();
+      db.runSync(`UPDATE stock SET sell_price = ? WHERE id = ?`, [p, selected.id]);
+      reload();
+      setSelected(m => ({ ...m, sell_price: p }));
+      toast.show(`Цена продажи ${p} ₽/ед. сохранена ✓`, 'info');
+    } catch(e) { console.error(e); toast.show('Ошибка сохранения', 'warn'); }
+  };
+
   const confirm = () => {
     if (!selected || !qty) return;
     const n = parseFloat(qty);
@@ -391,7 +404,10 @@ export default function StockPanel({ navigation }) {
               </View>
 
               <View style={styles.priceRow}>
-                <Text style={styles.curAvg}>Цена за единицу:</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={styles.curAvg}>Себестоимость:</Text>
+                  <InfoTip title="Себестоимость" text="Сколько эта единица стоит вам самим — по этой цене считается закупка и маржа. Клиент её никогда не видит." />
+                </View>
                 <TextInput
                   color={colors.text}
                   style={styles.priceInput}
@@ -405,6 +421,29 @@ export default function StockPanel({ navigation }) {
                 <Pressable
                   style={({ pressed }) => [styles.priceSaveBtn, pressed && { opacity: 0.7, backgroundColor: 'rgba(240,160,80,0.3)' }]}
                   onPress={() => savePrice(String(selected.avg_price || ''))}
+                >
+                  <Text style={styles.priceSaveTxt}>✓</Text>
+                </Pressable>
+              </View>
+
+              <View style={[styles.priceRow, { marginTop: 10 }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={styles.curAvg}>Цена продажи:</Text>
+                  <InfoTip title="Цена продажи" text="Сколько это стоит клиенту за единицу — используется, когда позицию продают напрямую (например, краску на развес) или добавляют в заказ по факту расхода. Отдельно от себестоимости." />
+                </View>
+                <TextInput
+                  color={colors.text}
+                  style={styles.priceInput}
+                  keyboardType="numeric"
+                  value={String(selected.sell_price || '')}
+                  placeholder="0"
+                  placeholderTextColor={colors.muted}
+                  onChangeText={v => setSelected(m => ({ ...m, sell_price: v }))}
+                />
+                <Text style={styles.curAvg}>₽/ед.</Text>
+                <Pressable
+                  style={({ pressed }) => [styles.priceSaveBtn, pressed && { opacity: 0.7, backgroundColor: 'rgba(240,160,80,0.3)' }]}
+                  onPress={() => saveSellPrice(String(selected.sell_price || ''))}
                 >
                   <Text style={styles.priceSaveTxt}>✓</Text>
                 </Pressable>

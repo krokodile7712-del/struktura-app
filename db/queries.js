@@ -1410,6 +1410,7 @@ export function initPurchasesTable() {
   `);
   try { db.execSync(`ALTER TABLE stock ADD COLUMN avg_price REAL DEFAULT 0`); } catch (_) {}
   try { db.execSync(`ALTER TABLE stock ADD COLUMN last_price REAL DEFAULT 0`); } catch (_) {}
+  try { db.execSync(`ALTER TABLE stock ADD COLUMN sell_price REAL DEFAULT 0`); } catch (_) {}
 }
 
 // ─── Списание склада по техкартам ─────────────────────────────────────────
