@@ -54,26 +54,17 @@ export default function StockPanel({ navigation }) {
   const [priceCalcOpen, setPriceCalcOpen] = useState(false);
   const [priceCalcQty, setPriceCalcQty]   = useState('');
   const [priceCalcSum, setPriceCalcSum]   = useState('');
-  const [panelOpen, setPanelOpen] = useState(false);
-  const slideAnim = useState(new Animated.Value(0))[0];
 
   const openMode = (key) => {
     setMode(key);
     setQty('');
     setPrice('');
-    if (!panelOpen) {
-      setPanelOpen(true);
-      Animated.spring(slideAnim, { toValue: 1, useNativeDriver: false, tension: 60, friction: 12 }).start();
-    }
   };
 
   const closeSlidePanel = () => {
-    Animated.spring(slideAnim, { toValue: 0, useNativeDriver: false, tension: 60, friction: 12 }).start(() => {
-      setPanelOpen(false);
-      setMode(null);
-      setQty('');
-      setPrice('');
-    });
+    setMode(null);
+    setQty('');
+    setPrice('');
   };
 
   useEffect(() => {
@@ -119,8 +110,6 @@ export default function StockPanel({ navigation }) {
     setPriceCalcOpen(false);
     setPriceCalcQty('');
     setPriceCalcSum('');
-    setPanelOpen(false);
-    slideAnim.setValue(0);
     try { setHistory(getStockHistory(item.id).slice(0, 10)); } catch (_) { setHistory([]); }
   };
 
@@ -163,16 +152,13 @@ export default function StockPanel({ navigation }) {
       const fresh = getAllStock();
       setStock(fresh);
       const updated = fresh.find(s => s.id === id);
-      Animated.spring(slideAnim, { toValue: 0, useNativeDriver: false, tension: 60, friction: 12 }).start(() => {
-        setPanelOpen(false);
-        setMode(null);
-        setQty('');
-        setPrice('');
-        if (updated) {
-          setSelected(updated);
-          try { setHistory(getStockHistory(id).slice(0, 10)); } catch (_) {}
-        }
-      });
+      setMode(null);
+      setQty('');
+      setPrice('');
+      if (updated) {
+        setSelected(updated);
+        try { setHistory(getStockHistory(id).slice(0, 10)); } catch (_) {}
+      }
     } catch (e) { console.error(e); }
   };
 
@@ -314,8 +300,70 @@ export default function StockPanel({ navigation }) {
       </View>
 
       {/* Карточка товара — выезжающий слой поверх списка */}
-      <Sheet visible={!!selected} onClose={() => setSelected(null)} title={selected?.name}>
-        {selected && (
+      <Sheet
+        visible={!!selected}
+        onClose={() => setSelected(null)}
+        title={mode ? MODES.find(m => m.key === mode)?.label : selected?.name}
+      >
+        {selected && (mode ? (
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
+            <Pressable style={styles.backToDetailBtn} onPress={closeSlidePanel}>
+              <Text style={styles.backToDetailTxt}>← Назад к товару</Text>
+            </Pressable>
+            <Text style={styles.slidePanelDesc}>{MODES.find(m => m.key === mode)?.desc}</Text>
+
+            <Text style={styles.inputLabel}>Количество, {selected?.unit}</Text>
+            <TextInput
+              style={styles.inputField}
+              value={qty}
+              onChangeText={setQty}
+              keyboardType="numeric"
+              placeholder="0"
+              placeholderTextColor={colors.muted}
+              autoFocus
+            />
+
+            {mode === 'purchase' && (
+              <>
+                <Text style={styles.inputLabel}>Сумма закупки, ₽</Text>
+                <TextInput
+                  style={styles.inputField}
+                  value={price}
+                  onChangeText={setPrice}
+                  keyboardType="numeric"
+                  placeholder="0"
+                  placeholderTextColor={colors.muted}
+                />
+                {!!qty && !!price && parseFloat(qty) > 0 && (
+                  <Text style={styles.purchasePerUnitHint}>
+                    ≈ {(parseFloat(price) / parseFloat(qty)).toFixed(2)} ₽/{selected?.unit}
+                  </Text>
+                )}
+                <Text style={styles.purchaseExpenseNote}>💡 Сумма автоматически попадёт в Расходы, категория «Закупка»</Text>
+              </>
+            )}
+
+            {qty !== '' && (
+              <View style={styles.previewBox}>
+                <Text style={styles.previewLabel}>Станет</Text>
+                <Text style={[
+                  styles.previewVal,
+                  previewQty < 0 && styles.qtyNeg,
+                  selected?.['порог'] > 0 && previewQty <= selected['порог'] && previewQty >= 0 && styles.qtyLow,
+                ]}>
+                  {previewQty.toFixed(1)} {selected?.unit}
+                </Text>
+              </View>
+            )}
+
+            <Pressable
+              style={({ pressed }) => [styles.confirmBtn, !qty && styles.confirmBtnOff, pressed && qty && { opacity: 0.88 }]}
+              onPress={confirm} disabled={!qty}
+            >
+              <Text style={styles.confirmBtnText}>{actionLabel}</Text>
+            </Pressable>
+          </ScrollView>
+        ) : (
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 22 }}>
 
             {/* Текущий остаток */}
@@ -422,7 +470,6 @@ export default function StockPanel({ navigation }) {
                     style={({ pressed }) => [
                       styles.modeRow,
                       i < arr.length - 1 && styles.modeRowDiv,
-                      panelOpen && mode === m.key && styles.modeRowActive,
                       pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
                     ]}
                     onPress={() => openMode(m.key)}
@@ -450,69 +497,7 @@ export default function StockPanel({ navigation }) {
               </View>
             ))}
           </ScrollView>
-        )}
-      </Sheet>
-
-      {/* Выезжающий слой действия — Закупка/Добавить/Списать/Установить */}
-      <Sheet
-        visible={panelOpen && !!mode}
-        onClose={closeSlidePanel}
-        title={MODES.find(m => m.key === mode)?.label}
-      >
-            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
-              <Text style={styles.slidePanelDesc}>{MODES.find(m => m.key === mode)?.desc}</Text>
-
-              <Text style={styles.inputLabel}>Количество, {selected?.unit}</Text>
-              <TextInput
-                style={styles.inputField}
-                value={qty}
-                onChangeText={setQty}
-                keyboardType="numeric"
-                placeholder="0"
-                placeholderTextColor={colors.muted}
-                autoFocus
-              />
-
-              {mode === 'purchase' && (
-                <>
-                  <Text style={styles.inputLabel}>Сумма закупки, ₽</Text>
-                  <TextInput
-                    style={styles.inputField}
-                    value={price}
-                    onChangeText={setPrice}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor={colors.muted}
-                  />
-                  {!!qty && !!price && parseFloat(qty) > 0 && (
-                    <Text style={styles.purchasePerUnitHint}>
-                      ≈ {(parseFloat(price) / parseFloat(qty)).toFixed(2)} ₽/{selected?.unit}
-                    </Text>
-                  )}
-                  <Text style={styles.purchaseExpenseNote}>💡 Сумма автоматически попадёт в Расходы, категория «Закупка»</Text>
-                </>
-              )}
-
-              {qty !== '' && (
-                <View style={styles.previewBox}>
-                  <Text style={styles.previewLabel}>Станет</Text>
-                  <Text style={[
-                    styles.previewVal,
-                    previewQty < 0 && styles.qtyNeg,
-                    selected?.['порог'] > 0 && previewQty <= selected['порог'] && previewQty >= 0 && styles.qtyLow,
-                  ]}>
-                    {previewQty.toFixed(1)} {selected?.unit}
-                  </Text>
-                </View>
-              )}
-
-              <Pressable
-                style={({ pressed }) => [styles.confirmBtn, !qty && styles.confirmBtnOff, pressed && qty && { opacity: 0.88 }]}
-                onPress={confirm} disabled={!qty}
-              >
-                <Text style={styles.confirmBtnText}>{actionLabel}</Text>
-              </Pressable>
-            </ScrollView>
+        ))}
       </Sheet>
 
       {/* Модалка новой позиции склада */}
@@ -770,6 +755,8 @@ const styles = StyleSheet.create({
   slidePanelClose: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' },
   slidePanelCloseTxt: { fontSize: 13, color: colors.muted, fontFamily: fonts.familySemibold },
   slidePanelDesc: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginBottom: 12 },
+  backToDetailBtn: { paddingVertical: 8, marginBottom: 4 },
+  backToDetailTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
 
   backBtn:     { paddingVertical: 10, marginBottom: 8 },
   backBtnText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
