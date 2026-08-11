@@ -1411,6 +1411,9 @@ export function initPurchasesTable() {
   try { db.execSync(`ALTER TABLE stock ADD COLUMN avg_price REAL DEFAULT 0`); } catch (_) {}
   try { db.execSync(`ALTER TABLE stock ADD COLUMN last_price REAL DEFAULT 0`); } catch (_) {}
   try { db.execSync(`ALTER TABLE stock ADD COLUMN sell_price REAL DEFAULT 0`); } catch (_) {}
+  // 'fixed' — количество ингредиента задано заранее (молоко в капучино всегда 150мл).
+  // 'variable' — количество вводится каждый раз заново при продаже (краска на окрашивании).
+  try { db.execSync(`ALTER TABLE product_variants ADD COLUMN deduction_mode TEXT DEFAULT 'fixed'`); } catch (_) {}
 }
 
 // ─── Списание склада по техкартам ─────────────────────────────────────────
@@ -3006,13 +3009,14 @@ export function upsertProductVariants(productId, vars) {
   for (const v of vars) {
     const price = parseFloat(v.price) || 0;
     const label = v.label || '';
+    const deductionMode = v.deduction_mode === 'variable' ? 'variable' : 'fixed';
     if (v.id) {
-      db.runSync(`UPDATE product_variants SET label=?, price=?, active=1 WHERE id=?`, [label, price, v.id]);
+      db.runSync(`UPDATE product_variants SET label=?, price=?, active=1, deduction_mode=? WHERE id=?`, [label, price, deductionMode, v.id]);
       saved.push({ ...v, id: Number(v.id) });
     } else {
       const res = db.runSync(
-        `INSERT INTO product_variants (product_id, label, price, axis_values, sku, active) VALUES (?,?,?,?,?,1)`,
-        [productId, label, price, '{}', '']
+        `INSERT INTO product_variants (product_id, label, price, axis_values, sku, active, deduction_mode) VALUES (?,?,?,?,?,1,?)`,
+        [productId, label, price, '{}', '', deductionMode]
       );
       saved.push({ ...v, id: res.lastInsertRowId });
     }

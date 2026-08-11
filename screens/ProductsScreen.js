@@ -51,9 +51,9 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
       const tc = {};
       v.forEach(vi => { try { tc[vi.id] = getCostCardForVariant(vi.id); } catch(_) {} });
       return v.length > 0
-        ? v.map(vi => ({ id: vi.id, label: vi.label || vi.size || '', price: String(vi.price || ''), ings: Array.isArray(tc[vi.id]?.ingredients) ? tc[vi.id].ingredients.map(ing => ({ ...ing, amount: String(ing.amount || ''), price_per_unit: String(ing.price_per_unit || '') })) : [] }))
-        : [{ id: null, label: '', price: String(product?.price || ''), ings: [] }];
-    } catch { return [{ id: null, label: '', price: '', ings: [] }]; }
+        ? v.map(vi => ({ id: vi.id, label: vi.label || vi.size || '', price: String(vi.price || ''), deduction_mode: vi.deduction_mode === 'variable' ? 'variable' : 'fixed', ings: Array.isArray(tc[vi.id]?.ingredients) ? tc[vi.id].ingredients.map(ing => ({ ...ing, amount: String(ing.amount || ''), price_per_unit: String(ing.price_per_unit || '') })) : [] }))
+        : [{ id: null, label: '', price: String(product?.price || ''), deduction_mode: 'fixed', ings: [] }];
+    } catch { return [{ id: null, label: '', price: '', deduction_mode: 'fixed', ings: [] }]; }
   });
   const [selGroups, setSelGroups] = useState(() => {
     try { return product?.id ? getProductModifierGroups(product.id).map(g => Number(g.id)) : []; } catch { return []; }
@@ -72,7 +72,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
     ]).start();
   }, [product?.id]);
 
-  const addVariant   = () => setVars(v => [...v, { id: null, label: '', price: '', ings: [] }]);
+  const addVariant   = () => setVars(v => [...v, { id: null, label: '', price: '', deduction_mode: 'fixed', ings: [] }]);
   const removeVariant= (i) => setVars(v => v.filter((_,j) => j !== i));
   const setVarField  = (i, f, val) => setVars(v => v.map((r,j) => j===i ? {...r,[f]:val} : r));
   const addIng = (vi, s) => {
@@ -82,6 +82,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
 
   const removeIng    = (vi, ii) => setVars(v => v.map((r,j) => j===vi ? { ...r, ings: (Array.isArray(r.ings) ? r.ings : []).filter((_,k)=>k!==ii) } : r));
   const setIngField  = (vi, ii, f, val) => setVars(v => v.map((r,j) => j===vi ? { ...r, ings: (Array.isArray(r.ings) ? r.ings : []).map((ing,k) => k===ii ? {...ing,[f]:val} : ing) } : r));
+  const setDeductionMode = (vi, mode) => setVars(v => v.map((r,j) => j===vi ? { ...r, deduction_mode: mode } : r));
 
   const handleSave = () => {
     if (!name.trim()) { Alert.alert('Введите название товара'); return; }
@@ -206,9 +207,25 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
 
                 {isOpen && (
                   <View style={styles.techBody}>
-                    {(Array.isArray(v.ings) ? v.ings : []).length > 0 && (
-                      <Text style={styles.ingListHint}>Сколько расходуется на одну продажу этого товара — при каждом заказе именно столько спишется со склада</Text>
-                    )}
+                    <View style={styles.modeSwitchRow}>
+                      <Pressable
+                        style={[styles.modeSwitchBtn, (v.deduction_mode || 'fixed') === 'fixed' && styles.modeSwitchBtnActive]}
+                        onPress={() => setDeductionMode(vi, 'fixed')}
+                      >
+                        <Text style={[styles.modeSwitchTxt, (v.deduction_mode || 'fixed') === 'fixed' && styles.modeSwitchTxtActive]}>Фиксированный расход</Text>
+                      </Pressable>
+                      <Pressable
+                        style={[styles.modeSwitchBtn, v.deduction_mode === 'variable' && styles.modeSwitchBtnActive]}
+                        onPress={() => setDeductionMode(vi, 'variable')}
+                      >
+                        <Text style={[styles.modeSwitchTxt, v.deduction_mode === 'variable' && styles.modeSwitchTxtActive]}>Расход по факту</Text>
+                      </Pressable>
+                    </View>
+                    <Text style={styles.ingListHint}>
+                      {v.deduction_mode === 'variable'
+                        ? 'Количество каждого материала вводится заново при каждой продаже — цена и списание считаются по факту (подходит для окрашивания и похожих услуг)'
+                        : 'Сколько расходуется на одну продажу этого товара — при каждом заказе именно столько спишется со склада'}
+                    </Text>
                     {(Array.isArray(v.ings) ? v.ings : []).map((ing, ii) => (
                       <View key={ii} style={styles.ingCard}>
                         <View style={styles.ingCardHead}>
@@ -217,6 +234,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
                             <Text style={{ color: colors.muted, fontSize: 16 }}>✕</Text>
                           </Pressable>
                         </View>
+                        {v.deduction_mode !== 'variable' && (
                         <View style={styles.ingFieldRow}>
                           <Text style={styles.ingFieldLabel}>Расход на 1 продажу</Text>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -227,6 +245,8 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
                             <Text style={styles.ingUnit}>{ing.unit}</Text>
                           </View>
                         </View>
+                        )}
+                        {v.deduction_mode !== 'variable' && (
                         <View style={styles.ingFieldRow}>
                           <Text style={styles.ingFieldLabel}>Цена за {ing.unit}</Text>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -237,6 +257,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
                             <Text style={styles.ingUnit}>₽</Text>
                           </View>
                         </View>
+                        )}
                       </View>
                     ))}
                     <Pressable style={styles.addIngBtn} onPress={() => { setIngPickerVar(vi); onIngPicker?.(vi, (s) => addIng(vi, s)); }}>
@@ -447,7 +468,7 @@ export default function ProductsScreen({ navigation }) {
         const db = getDb();
         db.runSync(`UPDATE products SET name=?, category=?, active=?, price=? WHERE id=?`, [data.name, data.category, data.active ? 1 : 0, parseFloat(data.vars[0]?.price)||0, pid]);
       }
-      upsertProductVariants(pid, data.vars.map(v => ({ id: v.id, label: v.label, size: v.label, price: parseFloat(v.price)||0 })));
+      upsertProductVariants(pid, data.vars.map(v => ({ id: v.id, label: v.label, size: v.label, price: parseFloat(v.price)||0, deduction_mode: v.deduction_mode === 'variable' ? 'variable' : 'fixed' })));
       // Техкарты
       const newVars = getProductVariants(pid);
       newVars.forEach((v, i) => {
@@ -1085,6 +1106,11 @@ const styles = StyleSheet.create({
   techBody:   { padding: 12, borderTopWidth: 1, borderTopColor: colors.border },
   ingRow:     { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
   ingListHint: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, lineHeight: 16, marginBottom: 10 },
+  modeSwitchRow: { flexDirection: 'row', backgroundColor: colors.surface2, borderRadius: 10, padding: 3, marginBottom: 10 },
+  modeSwitchBtn: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
+  modeSwitchBtnActive: { backgroundColor: colors.orange },
+  modeSwitchTxt: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textAlign: 'center' },
+  modeSwitchTxtActive: { color: '#fff' },
   ingCard:    { backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 10, marginBottom: 8 },
   ingCardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   ingFieldRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
