@@ -34,7 +34,7 @@ const MODES = [
 // Единая реализация Склада — используется и отдельным экраном (StockScreen),
 // и встроенной панелью внутри Admin/Dashboard (раньше это были два отдельных
 // файла с продублированной логикой, из-за чего они периодически расходились).
-export default function StockPanel({ navigation }) {
+export default function StockPanel({ navigation, openCreateSignal, hideOwnCreateButton }) {
   const toast = useToast();
   const [stock, setStock]           = useState([]);
   const [search, setSearch]         = useState('');
@@ -82,6 +82,11 @@ export default function StockPanel({ navigation }) {
       setStockCats([...new Set(allStock.map(s => s.category || 'Без категории'))].sort());
     } catch (e) { console.error(e); }
   }, []);
+
+  useEffect(() => {
+    if (openCreateSignal) setNewItemModal({ name: '', unit: 'шт', category: '', threshold: '' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openCreateSignal]);
 
   const reload = () => { try { setStock(getAllStock()); } catch (_) {} };
 
@@ -230,9 +235,11 @@ export default function StockPanel({ navigation }) {
             placeholder="Поиск..."
             placeholderTextColor={colors.muted}
           />
+          {!hideOwnCreateButton && (
           <Pressable onPress={() => setNewItemModal({ name: '', unit: 'шт', category: '', threshold: '' })} hitSlop={8} style={styles.addStockBtn}>
             <Text style={styles.addStockBtnText}>+ Позиция</Text>
           </Pressable>
+          )}
           <Pressable onPress={() => setCatModal(true)} hitSlop={8} style={styles.catBtn}>
             <Text style={styles.catBtnText}>⚙</Text>
           </Pressable>
@@ -243,8 +250,8 @@ export default function StockPanel({ navigation }) {
           {filtered.length === 0 ? (
             <EmptyState icon="📦" title="Склад пуст"
               text="Добавьте первую позицию — то, что физически заканчивается: ингредиенты, расходники, товары для перепродажи."
-              action="+ Добавить позицию"
-              onAction={() => setNewItemModal({ name: '', unit: 'шт', category: '', threshold: '' })} />
+              action={hideOwnCreateButton ? undefined : '+ Добавить позицию'}
+              onAction={hideOwnCreateButton ? undefined : () => setNewItemModal({ name: '', unit: 'шт', category: '', threshold: '' })} />
           ) : cats.map(cat => {
             const items = filtered.filter(i => (i.category || 'Без категории') === cat);
             const hasLow = items.some(i => i['порог'] > 0 && i['остаток'] <= i['порог']);

@@ -1085,6 +1085,27 @@ export function getAllStock() {
   return db.getAllSync(`SELECT * FROM stock ORDER BY category, name`);
 }
 
+// Создаёт одновременно и товар (для продажи), и складскую позицию (для учёта
+// остатка) — связанные напрямую, 1 к 1. Режим "И то, и другое" в едином
+// экране создания позиции: одна форма вместо двух последовательных.
+export function createCombinedProductAndStock({ name, category, sellPrice, costPrice, initialStock, unit, threshold }) {
+  if (!name?.trim()) return { ok: false, error: 'Укажите название' };
+  const stockRes = insertStockItem({
+    name, unit: unit || 'шт', category: category || 'Прочее',
+    threshold: threshold || 0, initialQty: initialStock || 0,
+  });
+  if (!stockRes.ok) return stockRes;
+
+  const db = getDb();
+  db.runSync(`UPDATE stock SET avg_price = ?, sell_price = ? WHERE id = ?`, [costPrice || 0, sellPrice || 0, stockRes.id]);
+
+  const pid = insertProduct({ name, category });
+  const [variant] = upsertProductVariants(pid, [{ label: '', price: sellPrice || 0, deduction_mode: 'fixed' }]);
+  saveCostCardForVariant(variant.id, [{ name, amount: 1, unit: unit || 'шт', price_per_unit: costPrice || 0 }]);
+
+  return { ok: true, productId: pid, stockId: stockRes.id };
+}
+
 // updateMaxOstatok вызывается после addPurchase автоматически внутри
 export function updateStockThreshold(id, threshold) {
   const db = getDb();

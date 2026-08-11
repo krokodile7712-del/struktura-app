@@ -6,6 +6,7 @@ import {
 import TopBar from '../components/TopBar';
 import EmptyState from '../components/EmptyState';
 import StockPanel from '../components/panels/StockPanel';
+import Sheet from '../components/Sheet';
 import AppNav from '../components/AppNav';
 import Toggle from '../components/Toggle';
 import InfoTip from '../components/InfoTip';
@@ -21,7 +22,7 @@ import {
   getAllCategoriesFull, createCategory, renameCategory, deleteCategory, getCategoryProducts,
   insertModifierOption, updateModifierOption, deleteModifierOption,
   getProductModifierGroups, setProductModifierGroups,
-  getBusinessProfile,
+  getBusinessProfile, createCombinedProductAndStock,
 } from '../db/queries';
 import { getDb } from '../db/database';
 import { getHomeRoute, goBackSmart, can } from '../db/session';
@@ -348,6 +349,9 @@ export default function ProductsScreen({ navigation, route }) {
   const [modGroups, setModGroups]   = useState([]);
   const [search, setSearch]         = useState('');
   const [selected, setSelected]     = useState(null);      // {id, name, ...} | 'new'
+  const [createModeOpen, setCreateModeOpen] = useState(false);
+  const [combinedForm, setCombinedForm]     = useState(null);
+  const [stockCreateSignal, setStockCreateSignal] = useState(0);
   const [expandedCats, setExpandedCats] = useState({});
   const [catMgmtOpen, setCatMgmtOpen] = useState(false);
   const [catList, setCatList]       = useState([]); // [{id, name, productCount}]
@@ -463,6 +467,36 @@ export default function ProductsScreen({ navigation, route }) {
     !ingSearch.trim() || s.name.toLowerCase().includes(ingSearch.toLowerCase())
   );
 
+  const chooseCreateMode = (mode) => {
+    setCreateModeOpen(false);
+    if (mode === 'product') {
+      setTab('products');
+      setSelected('new');
+    } else if (mode === 'stock') {
+      setTab('stock');
+      setStockCreateSignal(s => s + 1);
+    } else {
+      setCombinedForm({ name: '', category: '', sellPrice: '', costPrice: '', initialStock: '', unit: 'шт', threshold: '' });
+    }
+  };
+
+  const saveCombined = () => {
+    if (!combinedForm?.name?.trim()) { toast.show('Укажите название', 'warn'); return; }
+    const res = createCombinedProductAndStock({
+      name: combinedForm.name,
+      category: combinedForm.category,
+      sellPrice: parseFloat(combinedForm.sellPrice) || 0,
+      costPrice: parseFloat(combinedForm.costPrice) || 0,
+      initialStock: parseFloat(combinedForm.initialStock) || 0,
+      unit: combinedForm.unit,
+      threshold: parseFloat(combinedForm.threshold) || 0,
+    });
+    if (!res.ok) { toast.show(res.error, 'warn'); return; }
+    toast.show(`«${combinedForm.name}» создано — и товар, и складская позиция ✓`, 'info');
+    setCombinedForm(null);
+    load();
+  };
+
   const handleSave = (data) => {
     try {
       let pid = selected?.id;
@@ -534,14 +568,9 @@ export default function ProductsScreen({ navigation, route }) {
         rightElement={
           <View style={{ flexDirection: 'row', gap: 8 }}>
             {tab === 'products' && (
-              <>
-                <Pressable style={styles.headerBtn} onPress={openCategoryMgmt}>
-                  <Text style={styles.headerBtnTxt}>🗂</Text>
-                </Pressable>
-                <Pressable style={styles.addBtn} onPress={() => setSelected('new')}>
-                  <Text style={styles.addBtnTxt}>+ Товар</Text>
-                </Pressable>
-              </>
+              <Pressable style={styles.headerBtn} onPress={openCategoryMgmt}>
+                <Text style={styles.headerBtnTxt}>🗂</Text>
+              </Pressable>
             )}
             {tab === 'modifiers' && (
               <Pressable style={styles.addBtn} onPress={() => setGroupModal({ name: '', mode: 'add' })}>
@@ -564,7 +593,7 @@ export default function ProductsScreen({ navigation, route }) {
       </View>
 
       {tab === 'stock' ? (
-        <StockPanel navigation={navigation} />
+        <StockPanel navigation={navigation} openCreateSignal={stockCreateSignal} hideOwnCreateButton />
       ) : (
       <View style={styles.layout}>
 
@@ -672,7 +701,84 @@ export default function ProductsScreen({ navigation, route }) {
       </View>
       )}
 
+      {tab !== 'modifiers' && (
+        <Pressable style={styles.fab} onPress={() => setCreateModeOpen(true)}>
+          <Text style={styles.fabTxt}>+</Text>
+        </Pressable>
+      )}
+
       <AppNav navigation={navigation} activeScreen="Products" />
+
+      {/* Выбор режима создания — Только продаю / Только слежу за остатком / И то и другое */}
+      <Sheet visible={createModeOpen} onClose={() => setCreateModeOpen(false)} title="Что создаём?">
+        <View style={{ padding: 20 }}>
+          <Pressable style={styles.modeCard} onPress={() => chooseCreateMode('product')}>
+            <Text style={styles.modeCardTitle}>Только продаю</Text>
+            <Text style={styles.modeCardSub}>Например, «Стрижка» — услуга без учёта остатка</Text>
+          </Pressable>
+          <Pressable style={styles.modeCard} onPress={() => chooseCreateMode('stock')}>
+            <Text style={styles.modeCardTitle}>Только слежу за остатком</Text>
+            <Text style={styles.modeCardSub}>Например, «Стаканы» — расходник, который клиенту не продаётся напрямую</Text>
+          </Pressable>
+          <Pressable style={[styles.modeCard, styles.modeCardHighlight]} onPress={() => chooseCreateMode('both')}>
+            <Text style={styles.modeCardTitle}>И то, и другое</Text>
+            <Text style={styles.modeCardSub}>Например, «Краска для окрашивания» — продаётся сама по себе и убывает со склада</Text>
+          </Pressable>
+        </View>
+      </Sheet>
+
+      {/* Совмещённая форма — товар и складская позиция одновременно, одним действием */}
+      <Sheet visible={!!combinedForm} onClose={() => setCombinedForm(null)} title="Новая позиция">
+        {combinedForm && (
+          <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
+            <Text style={styles.combLabel}>Название</Text>
+            <TextInput color={colors.text} style={styles.combInput}
+              value={combinedForm.name} onChangeText={v => setCombinedForm(f => ({ ...f, name: v }))}
+              placeholder="напр. Краска синяя" placeholderTextColor={colors.muted} autoFocus />
+
+            <Text style={styles.combLabel}>Категория</Text>
+            <TextInput color={colors.text} style={styles.combInput}
+              value={combinedForm.category} onChangeText={v => setCombinedForm(f => ({ ...f, category: v }))}
+              placeholder="напр. Материалы" placeholderTextColor={colors.muted} />
+
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.combLabel}>Цена продажи</Text>
+                <TextInput color={colors.text} style={styles.combInput} keyboardType="numeric"
+                  value={combinedForm.sellPrice} onChangeText={v => setCombinedForm(f => ({ ...f, sellPrice: v }))}
+                  placeholder="0" placeholderTextColor={colors.muted} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.combLabel}>Себестоимость</Text>
+                <TextInput color={colors.text} style={styles.combInput} keyboardType="numeric"
+                  value={combinedForm.costPrice} onChangeText={v => setCombinedForm(f => ({ ...f, costPrice: v }))}
+                  placeholder="0" placeholderTextColor={colors.muted} />
+              </View>
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.combLabel}>Остаток сейчас</Text>
+                <TextInput color={colors.text} style={styles.combInput} keyboardType="numeric"
+                  value={combinedForm.initialStock} onChangeText={v => setCombinedForm(f => ({ ...f, initialStock: v }))}
+                  placeholder="0" placeholderTextColor={colors.muted} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.combLabel}>Единица</Text>
+                <TextInput color={colors.text} style={styles.combInput}
+                  value={combinedForm.unit} onChangeText={v => setCombinedForm(f => ({ ...f, unit: v }))}
+                  placeholder="шт, мл, г..." placeholderTextColor={colors.muted} />
+              </View>
+            </View>
+
+            <Text style={styles.combHint}>Продаётся сама по себе за «Цену продажи» и одновременно списывается со склада 1-к-1 при продаже.</Text>
+
+            <Pressable style={styles.combSaveBtn} onPress={saveCombined}>
+              <Text style={styles.combSaveTxt}>Создать</Text>
+            </Pressable>
+          </ScrollView>
+        )}
+      </Sheet>
 
       {/* Пикер ингредиентов — на уровне экрана */}
       <Modal visible={ingPickerState !== null} transparent animationType="fade" onRequestClose={() => setIngPickerState(null)}>
@@ -1044,6 +1150,28 @@ const styles = StyleSheet.create({
 
   tabBar: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border },
   tabBarOuter: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
+
+  fab: {
+    position: 'absolute', right: 20, bottom: 92,
+    width: 56, height: 56, borderRadius: 28,
+    backgroundColor: colors.orange,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
+    elevation: 6, zIndex: 20,
+  },
+  fabTxt: { fontSize: 28, color: '#fff', fontFamily: fonts.family, fontWeight: '700', marginTop: -2 },
+
+  modeCard: { backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, padding: 16, marginBottom: 10 },
+  modeCardHighlight: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.06)' },
+  modeCardTitle: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text, marginBottom: 4 },
+  modeCardSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, lineHeight: 17 },
+
+  combLabel: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 12, marginBottom: 6 },
+  combInput: { padding: 12, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontFamily: fonts.family, fontSize: 15 },
+  combHint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, lineHeight: 17, marginTop: 16 },
+  combSaveBtn: { backgroundColor: colors.orange, borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginTop: 16 },
+  combSaveTxt: { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff' },
+
   tabBtn: { flex: 1, paddingVertical: 13, alignItems: 'center' },
   tabBtnActive: { borderBottomWidth: 2, borderBottomColor: colors.orange },
   tabTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
