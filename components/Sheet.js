@@ -34,8 +34,12 @@ export default function Sheet({ visible, onClose, title, children, sideWidth = 4
   const closeThreshold = isBottom ? 110 : 90;
   const pan = useRef(
     PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponderCapture: () => false,
       onMoveShouldSetPanResponder: (_, g) =>
-        isBottom ? g.dy > 6 && Math.abs(g.dy) > Math.abs(g.dx) : g.dx > 6 && Math.abs(g.dx) > Math.abs(g.dy),
+        isBottom ? g.dy > 4 && Math.abs(g.dy) > Math.abs(g.dx) : g.dx > 4 && Math.abs(g.dx) > Math.abs(g.dy),
+      onMoveShouldSetPanResponderCapture: (_, g) =>
+        isBottom ? g.dy > 4 && Math.abs(g.dy) > Math.abs(g.dx) : g.dx > 4 && Math.abs(g.dx) > Math.abs(g.dy),
       onPanResponderMove: (_, g) => {
         const delta = isBottom ? g.dy : g.dx;
         if (delta > 0) translateAnim.setValue(delta);
@@ -48,6 +52,7 @@ export default function Sheet({ visible, onClose, title, children, sideWidth = 4
           Animated.spring(translateAnim, { toValue: 0, useNativeDriver: true, tension: 65, friction: 12 }).start();
         }
       },
+      onPanResponderTerminationRequest: () => false,
     })
   ).current;
 
