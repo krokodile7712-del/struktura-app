@@ -1597,7 +1597,12 @@ export function deductStockForOrderItem(orderItemId, item, locationId = null) {
   const card = findCostCardForItem(item.product_id, item.name, item.size, item.variant_id);
   const modifiers = item.modifiers || [];
 
-  if (card) {
+  if (Array.isArray(item.variableDeductions) && item.variableDeductions.length > 0) {
+    // Расход по факту — количества введены кассиром на месте, при добавлении в заказ
+    for (const d of item.variableDeductions) {
+      if (d.amount > 0) deductions.push({ stockName: d.name, amount: d.amount, factor: 1 });
+    }
+  } else if (card) {
     for (const ing of card.ingredients) {
       let targetName = ing.name;
       const replaceMod = modifiers.find(m => m.ingrToReplace && normName(m.groupName) === normName(ing.name));

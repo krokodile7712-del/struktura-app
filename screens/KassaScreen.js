@@ -14,7 +14,8 @@ import TopBar from '../components/TopBar';
 import ShiftBanner from '../components/ShiftBanner';
 import AppNav from '../components/AppNav';
 import InfoTip from '../components/InfoTip';
-import { getAllProducts, getAllClients, getCategories, getCategoryOrder, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, getAllVariantsWithSku, getZones, getOrderTemplates, saveOrderTemplate, deleteOrderTemplate, applyPendingPriceSchedules, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms, getLoyaltyConfig, spendPoints, checkSubscriptionBalance } from '../db/queries';
+import { getAllProducts, getAllClients, getCategories, getCategoryOrder, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, getAllVariantsWithSku, getZones, getOrderTemplates, saveOrderTemplate, deleteOrderTemplate, applyPendingPriceSchedules, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms, getLoyaltyConfig, spendPoints, checkSubscriptionBalance, getCostCardForVariant, getAllStock } from '../db/queries';
+import Sheet from '../components/Sheet';
 import { cartStore } from '../db/cartStore';
 import { colors, fonts, spacing, anim } from '../constants/theme';
 
@@ -28,6 +29,7 @@ export default function KassaScreen({ navigation, route }) {
   const [activeCat, setActiveCat] = useState(null);
   // appliedDiscount теперь в слоте
   const [modalItem, setModalItem] = useState(null);
+  const [variableItem, setVariableItem] = useState(null); // {product, variant, basePrice, ings: [{name, unit, sellPrice, qty}]}
   const [modalVariants, setModalVariants] = useState([]);
   const [modalGroups, setModalGroups] = useState([]);
   const [modalAxes, setModalAxes] = useState([]); // [{id, name, values:[{id,label}]}]
@@ -422,7 +424,64 @@ export default function KassaScreen({ navigation, route }) {
     });
   };
 
+  // Расход по факту — открывает окно ввода количества для товара/услуги,
+  // у которой заранее не задан фиксированный расход (например Айртач:
+  // база + сколько краски и оксида ушло именно на этого клиента)
+  const openVariableDeductSheet = (product, variant) => {
+    let ingNames = [];
+    try {
+      const card = getCostCardForVariant(variant.id);
+      ingNames = (card?.ingredients || []).map(i => i.name);
+    } catch (_) {}
+    let stock = [];
+    try { stock = getAllStock(); } catch (_) {}
+    const ings = ingNames.map(name => {
+      const stockRow = stock.find(s => (s.name || '').toLowerCase() === name.toLowerCase());
+      return {
+        name,
+        unit: stockRow?.unit || '',
+        sellPrice: parseFloat(stockRow?.sell_price) || 0,
+        qty: '',
+      };
+    });
+    setVariableItem({
+      product, variant,
+      basePrice: String(variant.price || 0),
+      ings,
+    });
+  };
+
+  const variableTotal = () => {
+    if (!variableItem) return 0;
+    const base = parseFloat(variableItem.basePrice) || 0;
+    const ingsSum = variableItem.ings.reduce((s, i) => s + (parseFloat(i.qty) || 0) * i.sellPrice, 0);
+    return base + ingsSum;
+  };
+
+  const confirmVariableAdd = () => {
+    if (!variableItem) return;
+    const { product, variant, ings } = variableItem;
+    const variableDeductions = ings
+      .filter(i => parseFloat(i.qty) > 0)
+      .map(i => ({ name: i.name, amount: parseFloat(i.qty) }));
+    addToCart({
+      id: Date.now() + Math.random(),
+      product_id: product.id,
+      variant_id: variant.id,
+      name: product.name,
+      size: variant.label || '',
+      price: variableTotal(),
+      modifiers: [],
+      variableDeductions,
+    });
+    setVariableItem(null);
+  };
+
   const addDirectToOrder = (product, variant) => {
+    if (variant?.deduction_mode === 'variable') {
+      openVariableDeductSheet(product, variant);
+      return;
+    }
     addToCart({
       id: Date.now() + Math.random(),
       product_id: product.id,
@@ -445,6 +504,12 @@ export default function KassaScreen({ navigation, route }) {
     }
     const mods = buildSelectedModifiers(modalGroups, selModifiers);
     const unitPrice = modalPrice();
+
+    if (!editingCartItemId && variant?.deduction_mode === 'variable') {
+      closeModal();
+      openVariableDeductSheet(modalItem, variant);
+      return;
+    }
 
     if (editingCartItemId) {
       setOrder(prev => prev.map(item =>
@@ -935,6 +1000,67 @@ export default function KassaScreen({ navigation, route }) {
       </Animated.View>
 
       <AppNav navigation={navigation} activeScreen="Kassa" />
+
+      {/* Расход по факту — база + количество каждого материала вводится на месте */}
+      <Sheet
+        visible={!!variableItem}
+        onClose={() => setVariableItem(null)}
+        title={variableItem?.product?.name}
+      >
+        {variableItem && (
+          <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+              <Text style={styles.varLabel}>Базовая цена услуги</Text>
+              <InfoTip title="Базовая цена" text="Стоимость самой работы, без расходников — можно поправить именно для этого заказа." />
+            </View>
+            <TextInput
+              color={colors.text}
+              style={styles.varInput}
+              keyboardType="numeric"
+              value={variableItem.basePrice}
+              onChangeText={v => setVariableItem(m => ({ ...m, basePrice: v }))}
+              placeholder="0"
+              placeholderTextColor={colors.muted}
+            />
+
+            <Text style={[styles.varLabel, { marginTop: 18, marginBottom: 8 }]}>Расход материалов на этот заказ</Text>
+            {variableItem.ings.length === 0 ? (
+              <Text style={{ fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted }}>
+                Для этой услуги не указаны возможные материалы — задайте их в Товарах → техкарта.
+              </Text>
+            ) : variableItem.ings.map((ing, idx) => (
+              <View key={idx} style={styles.varIngRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.varIngName}>{ing.name}</Text>
+                  <Text style={styles.varIngPrice}>{ing.sellPrice} ₽/{ing.unit}</Text>
+                </View>
+                <TextInput
+                  color={colors.text}
+                  style={styles.varIngInput}
+                  keyboardType="numeric"
+                  value={ing.qty}
+                  onChangeText={v => setVariableItem(m => ({
+                    ...m,
+                    ings: m.ings.map((it, i) => i === idx ? { ...it, qty: v } : it),
+                  }))}
+                  placeholder="0"
+                  placeholderTextColor={colors.muted}
+                />
+                <Text style={styles.varIngUnit}>{ing.unit}</Text>
+              </View>
+            ))}
+
+            <View style={styles.varTotalBox}>
+              <Text style={styles.varTotalLabel}>Итого за позицию</Text>
+              <Text style={styles.varTotalVal}>{variableTotal().toFixed(0)} ₽</Text>
+            </View>
+
+            <Pressable style={styles.varConfirmBtn} onPress={confirmVariableAdd}>
+              <Text style={styles.varConfirmTxt}>Добавить в заказ</Text>
+            </Pressable>
+          </ScrollView>
+        )}
+      </Sheet>
 
 
       {/* ── Предмодалка оплаты — клиент / скидка / баллы ── */}
@@ -1470,6 +1596,19 @@ export default function KassaScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
+  varLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.textDim, textTransform: 'uppercase', letterSpacing: 0.6 },
+  varInput: { padding: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 20, fontFamily: fonts.family, textAlign: 'center', marginTop: 8 },
+  varIngRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 12, marginBottom: 8 },
+  varIngName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
+  varIngPrice: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
+  varIngInput: { width: 64, paddingVertical: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 8, color: colors.text, fontSize: 15, fontFamily: fonts.family, textAlign: 'center' },
+  varIngUnit: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, width: 30 },
+  varTotalBox: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(240,160,80,0.08)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.3)', borderRadius: 14, padding: 16, marginTop: 16 },
+  varTotalLabel: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
+  varTotalVal: { fontFamily: fonts.family, fontSize: 24, fontWeight: '800', color: colors.orange },
+  varConfirmBtn: { backgroundColor: colors.orange, borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 16 },
+  varConfirmTxt: { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff' },
+
   layout: { flex: 1, flexDirection: 'row' },
 
   /* ── Категории (вертикальный рейл) ── */
