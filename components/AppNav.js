@@ -24,7 +24,7 @@ export default function AppNav({ navigation, activeScreen }) {
   const ITEMS = [
     { key: home,          route: home,          label: 'Обзор',    icon: '🏠' },
     { key: 'Sales',       route: 'Sales',        label: 'Продажи',  icon: '🧾' },
-    { key: 'Stock',       route: 'Stock',        label: 'Склад',    icon: '📦', module: 'stock' },
+    { key: 'Products',    route: 'Products',     label: 'Товары',   icon: '🛍' },
     { key: 'Kassa',       route: 'Kassa',        label: 'Касса',    icon: '🛒', primary: true },
     { key: 'ClientsList', route: 'ClientsList',  label: 'Клиенты',  icon: '👥', module: 'clients' },
     { key: 'more',        route: null,           label: 'Ещё',      icon: '⋯' },

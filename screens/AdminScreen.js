@@ -62,7 +62,7 @@ export default function AdminScreen({ navigation }) {
               <Text style={styles.stockBannerChevron}>{stockOpen ? '▲' : '▼'}</Text>
             </View>
             {stockOpen && (
-              <Pressable onPress={() => navigation.navigate('Stock')}>
+              <Pressable onPress={() => navigation.navigate('Products', { initialTab: 'stock' })}>
                 {(stats.lowStockItems || []).map((it, i) => (
                   <Text key={i} style={styles.stockBannerItem}>
                     · {it.name} — {it['остаток']} {it.unit}

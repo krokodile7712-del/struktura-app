@@ -1377,7 +1377,7 @@ export default function SettingsScreen({ navigation, route }) {
           <View style={styles.menuCard}>
             <Pressable
               style={({ pressed }) => [styles.menuRow, pressed && { opacity: 0.75 }]}
-              onPress={() => navigation.navigate('Stock')}
+              onPress={() => navigation.navigate('Products', { initialTab: 'stock' })}
             >
               <View style={{ flex: 1 }}>
                 <Text style={styles.menuItemName}>Открыть склад</Text>

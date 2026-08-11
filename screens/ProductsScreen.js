@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import TopBar from '../components/TopBar';
 import EmptyState from '../components/EmptyState';
+import StockPanel from '../components/panels/StockPanel';
 import AppNav from '../components/AppNav';
 import Toggle from '../components/Toggle';
 import InfoTip from '../components/InfoTip';
@@ -335,9 +336,9 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
 }
 
 // ─── Главный экран ─────────────────────────────────────────────────────────────
-export default function ProductsScreen({ navigation }) {
+export default function ProductsScreen({ navigation, route }) {
   const toast = useToast();
-  const [tab, setTab]               = useState('products'); // products | modifiers
+  const [tab, setTab]               = useState(route?.params?.initialTab || 'products'); // products | stock | modifiers
   const [modules, setModules]       = useState({});
   const [products, setProducts]     = useState([]);
   const [stock, setStock]           = useState([]);
@@ -379,7 +380,10 @@ export default function ProductsScreen({ navigation }) {
     } catch(e) { console.error(e); }
   }, []);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(useCallback(() => {
+    load();
+    if (route?.params?.initialTab) setTab(route.params.initialTab);
+  }, [load, route?.params?.initialTab]));
 
   const loadCategories = useCallback(() => {
     try { setCatList(getAllCategoriesFull()); } catch(e) { console.error(e); }
@@ -548,18 +552,24 @@ export default function ProductsScreen({ navigation }) {
         }
       />
 
+      {/* Вкладки — всегда видны, независимо от активной */}
+      <View style={styles.tabBarOuter}>
+        {[{ key: 'products', label: 'Товары' }, { key: 'stock', label: 'Склад' }, { key: 'modifiers', label: 'Модификаторы' }]
+          .filter(t => (t.key !== 'modifiers' || modules.modifiers !== false) && (t.key !== 'stock' || modules.stock !== false))
+          .map(t => (
+          <Pressable key={t.key} style={[styles.tabBtn, tab === t.key && styles.tabBtnActive]} onPress={() => { setTab(t.key); setSelected(null); }}>
+            <Text style={[styles.tabTxt, tab === t.key && styles.tabTxtActive]}>{t.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {tab === 'stock' ? (
+        <StockPanel navigation={navigation} />
+      ) : (
       <View style={styles.layout}>
 
         {/* ── Левая панель ── */}
         <View style={styles.left}>
-          {/* Вкладки */}
-          <View style={styles.tabBar}>
-            {[{ key: 'products', label: 'Товары' }, { key: 'modifiers', label: 'Модификаторы' }].filter(t => t.key !== 'modifiers' || modules.modifiers !== false).map(t => (
-              <Pressable key={t.key} style={[styles.tabBtn, tab === t.key && styles.tabBtnActive]} onPress={() => { setTab(t.key); setSelected(null); }}>
-                <Text style={[styles.tabTxt, tab === t.key && styles.tabTxtActive]}>{t.label}</Text>
-              </Pressable>
-            ))}
-          </View>
 
           {tab === 'products' && (
             <>
@@ -660,6 +670,7 @@ export default function ProductsScreen({ navigation }) {
           )}
         </View>
       </View>
+      )}
 
       <AppNav navigation={navigation} activeScreen="Products" />
 
@@ -1032,6 +1043,7 @@ const styles = StyleSheet.create({
   left:   { width: 280, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface },
 
   tabBar: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border },
+  tabBarOuter: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
   tabBtn: { flex: 1, paddingVertical: 13, alignItems: 'center' },
   tabBtnActive: { borderBottomWidth: 2, borderBottomColor: colors.orange },
   tabTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },

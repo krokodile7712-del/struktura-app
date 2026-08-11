@@ -111,7 +111,7 @@ const NEXT_STEPS = [
   { icon: '👥', label: 'Добавить сотрудников', screen: 'Employees', sub: 'Имена и PIN-коды' },
   { icon: '🏢', label: 'Внести накладные расходы', screen: 'Overheads', sub: 'Аренда, коммунальные, интернет' },
   { icon: '⭐', label: 'Настроить программу лояльности', screen: 'Settings', params: { section: 'loyalty' }, sub: 'Баллы или скидки для клиентов' },
-  { icon: '📦', label: 'Добавить склад и закупки', screen: 'Stock', sub: 'Остатки, пороги, движение' },
+  { icon: '📦', label: 'Добавить склад и закупки', screen: 'Products', params: { initialTab: 'stock' }, sub: 'Остатки, пороги, движение' },
 ];
 
 // ─── Компонент ───────────────────────────────────────────────────────────────

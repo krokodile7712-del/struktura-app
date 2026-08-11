@@ -10,7 +10,7 @@ export const NEXT_STEPS = [
   { key: 'employees',  icon: '👥', label: 'Добавить сотрудников',             screen: 'Employees', sub: 'Имена и PIN-коды' },
   { key: 'overheads',  icon: '🏢', label: 'Внести накладные расходы',         screen: 'Overheads', sub: 'Аренда, коммунальные, интернет' },
   { key: 'loyalty',    icon: '⭐', label: 'Настроить программу лояльности',   screen: 'Settings', params: { section: 'loyalty' }, sub: 'Баллы или скидки для клиентов' },
-  { key: 'stock',      icon: '📦', label: 'Добавить склад и закупки',        screen: 'Stock',     sub: 'Остатки, пороги, движение' },
+  { key: 'stock',      icon: '📦', label: 'Добавить склад и закупки',        screen: 'Products',  params: { initialTab: 'stock' }, sub: 'Остатки, пороги, движение' },
 ];
 
 // Общая проверка — используется и карточкой, и напоминающей плашкой в TopBar,
