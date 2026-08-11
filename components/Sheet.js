@@ -5,34 +5,28 @@ import { useResponsive } from '../hooks/useResponsive';
 import { colors, fonts } from '../constants/theme';
 
 // Этап 3 разворота на адаптивность: единый выезжающий слой поверх контента.
-// Заменяет разом три раньше отдельных механизма — карточки при выборе из
-// списка, все модальные окна, и выезжающую панель действий Склада (которая
-// и была прообразом этого компонента). Снизу на узком/среднем экране,
-// сбоку на широком — решает useResponsive, не нужно думать об этом в
-// каждом месте использования. Закрывается свайпом (вниз/вбок) или крестиком.
+// Структура намеренно повторяет уже проверенный по всему проекту паттерн
+// модалок (flex:1 + сплошной цвет фона напрямую на самом Modal-контейнере,
+// без отдельного анимированного слоя затемнения) — только с добавленной
+// анимацией выезда самой карточки. Снизу на узком/среднем экране, сбоку на
+// широком — решает useResponsive.
 export default function Sheet({ visible, onClose, title, children, sideWidth = 480 }) {
-  const { sheetPosition, width: screenWidth, height: screenHeight } = useResponsive();
+  const { sheetPosition, width: screenWidth } = useResponsive();
   const insets = useSafeAreaInsets();
   const isBottom = sheetPosition === 'bottom';
   const [shouldRender, setShouldRender] = useState(visible);
 
-  const offscreen = isBottom ? screenHeight : screenWidth;
+  const offscreen = isBottom ? 1200 : 600; // с запасом — реальный сдвиг всегда больше высоты/ширины самой карточки
   const translateAnim = useRef(new Animated.Value(offscreen)).current;
-  const backdropAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
       setShouldRender(true);
       translateAnim.setValue(offscreen);
-      Animated.parallel([
-        Animated.spring(translateAnim, { toValue: 0, useNativeDriver: true, tension: 65, friction: 12 }),
-        Animated.timing(backdropAnim, { toValue: 1, duration: 220, useNativeDriver: true }),
-      ]).start();
+      Animated.spring(translateAnim, { toValue: 0, useNativeDriver: true, tension: 65, friction: 12 }).start();
     } else if (shouldRender) {
-      Animated.parallel([
-        Animated.timing(translateAnim, { toValue: offscreen, duration: 200, useNativeDriver: true }),
-        Animated.timing(backdropAnim, { toValue: 0, duration: 180, useNativeDriver: true }),
-      ]).start(() => setShouldRender(false));
+      Animated.timing(translateAnim, { toValue: offscreen, duration: 200, useNativeDriver: true })
+        .start(() => setShouldRender(false));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
@@ -64,24 +58,16 @@ export default function Sheet({ visible, onClose, title, children, sideWidth = 4
     : { transform: [{ translateX: translateAnim }] };
 
   return (
-    <RNModal
-      transparent
-      visible={shouldRender}
-      animationType="none"
-      onRequestClose={onClose}
-      statusBarTranslucent
-    >
-      <View style={StyleSheet.absoluteFillObject}>
-        <Animated.View style={[StyleSheet.absoluteFillObject, { opacity: backdropAnim }]}>
-          <Pressable style={[StyleSheet.absoluteFillObject, styles.backdrop]} onPress={onClose} />
-        </Animated.View>
+    <RNModal transparent visible={shouldRender} animationType="none" onRequestClose={onClose} statusBarTranslucent>
+      <View style={[styles.overlay, isBottom ? { justifyContent: 'flex-end' } : { alignItems: 'flex-end' }]}>
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
 
         <Animated.View
           style={[
             isBottom ? styles.sheetBottom : styles.sheetSide,
             isBottom
               ? { maxHeight: '90%', paddingBottom: Math.max(insets.bottom, 16) }
-              : { width: Math.min(sideWidth, screenWidth * 0.92), paddingTop: insets.top },
+              : { width: Math.min(sideWidth, screenWidth * 0.92), height: '100%', paddingTop: insets.top },
             transformStyle,
           ]}
         >
@@ -104,16 +90,14 @@ export default function Sheet({ visible, onClose, title, children, sideWidth = 4
 }
 
 const styles = StyleSheet.create({
-  backdrop: { backgroundColor: 'rgba(0,0,0,0.55)' },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
 
   sheetBottom: {
-    position: 'absolute', left: 0, right: 0, bottom: 0,
     backgroundColor: colors.surface,
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
     borderWidth: 1, borderColor: colors.border, borderBottomWidth: 0,
   },
   sheetSide: {
-    position: 'absolute', top: 0, right: 0, bottom: 0,
     backgroundColor: colors.surface,
     borderLeftWidth: 1, borderColor: colors.border,
   },
