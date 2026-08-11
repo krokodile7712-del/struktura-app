@@ -63,16 +63,6 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
   const [ingPickerVar, setIngPickerVar] = useState(null); // индекс варианта
   const [expandedVar, setExpandedVar] = useState(-1);
 
-  const slideAnim = useState(new Animated.Value(20))[0];
-  const fadeAnim  = useState(new Animated.Value(0))[0];
-
-  useEffect(() => {
-    slideAnim.setValue(anim.slideFrom); fadeAnim.setValue(0);
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: anim.fadeDuration, useNativeDriver: true }),
-      Animated.spring(slideAnim, { toValue: 0, ...anim.spring, useNativeDriver: true }),
-    ]).start();
-  }, [product?.id]);
 
   const addVariant   = () => setVars(v => [...v, { id: null, label: '', price: '', deduction_mode: 'fixed', ings: [] }]);
   const removeVariant= (i) => setVars(v => v.filter((_,j) => j !== i));
@@ -95,13 +85,11 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
   const margin    = (v) => { const c = totalCost(v); const p = parseFloat(v.price)||0; return p > 0 && c > 0 ? Math.round((1 - c/p)*100) : null; };
 
   return (
-    <Animated.View style={[{ flex: 1 }, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
       <ScrollView contentContainerStyle={styles.editorContent} keyboardShouldPersistTaps="handled">
 
         {/* Шапка */}
         <View style={styles.editorHeader}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.editorTitle}>{isNew ? 'Новый товар' : name || 'Товар'}</Text>
             {!isNew && <Text style={styles.editorSub}>{category}</Text>}
           </View>
           {!isNew && (
@@ -330,9 +318,6 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
         )}
 
       </ScrollView>
-
-
-    </Animated.View>
   );
 }
 
@@ -675,31 +660,29 @@ export default function ProductsScreen({ navigation, route }) {
             </ScrollView>
           )}
         </View>
-
-        {/* ── Правая панель ── */}
-        <View style={styles.right}>
-          {selected ? (
-            <ProductEditor
-              key={selected?.id ? selected.id : `new-${selected?.category || ''}`}
-              product={selected === 'new' ? null : selected}
-              onSave={handleSave}
-              onDelete={handleDelete}
-              onToggleActive={handleToggleActive}
-              onClose={() => setSelected(null)}
-              categories={allCategoryNames}
-              allModGroups={modGroups}
-              onIngPicker={(vi, callback) => { try { setStock(getAllStock()); } catch(_){} setIngPickerState(vi !== null ? { vi } : null); setIngSearch(''); pendingIngCallback.current = callback; }}
-            />
-          ) : (
-            <View style={styles.emptyRight}>
-              <Text style={styles.emptyRightTxt}>
-                {tab === 'products' ? 'Выберите товар слева или нажмите «+ Товар»' : 'Выберите группу модификаторов'}
-              </Text>
-            </View>
-          )}
-        </View>
       </View>
       )}
+
+      {/* Редактор товара — выезжающий слой поверх списка, а не соседняя колонка */}
+      <Sheet
+        visible={!!selected}
+        onClose={() => setSelected(null)}
+        title={selected === 'new' ? 'Новый товар' : (selected?.name || 'Товар')}
+      >
+        {selected && (
+          <ProductEditor
+            key={selected?.id ? selected.id : `new-${selected?.category || ''}`}
+            product={selected === 'new' ? null : selected}
+            onSave={handleSave}
+            onDelete={handleDelete}
+            onToggleActive={handleToggleActive}
+            onClose={() => setSelected(null)}
+            categories={allCategoryNames}
+            allModGroups={modGroups}
+            onIngPicker={(vi, callback) => { try { setStock(getAllStock()); } catch(_){} setIngPickerState(vi !== null ? { vi } : null); setIngSearch(''); pendingIngCallback.current = callback; }}
+          />
+        )}
+      </Sheet>
 
       {tab !== 'modifiers' && (
         <Pressable style={styles.fab} onPress={() => setCreateModeOpen(true)}>
@@ -781,84 +764,65 @@ export default function ProductsScreen({ navigation, route }) {
       </Sheet>
 
       {/* Пикер ингредиентов — на уровне экрана */}
-      <Modal visible={ingPickerState !== null} transparent animationType="fade" onRequestClose={() => setIngPickerState(null)}>
-        <View style={styles.modalOverlay}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setIngPickerState(null)} />
-          <View style={styles.ingPickerBox}>
-            <View style={styles.ingPickerHeader}>
-              <Text style={styles.ingPickerTitle}>Выбрать из склада</Text>
-              <Pressable onPress={() => setIngPickerState(null)} hitSlop={12}>
-                <Text style={{ color: colors.muted, fontSize: 18 }}>✕</Text>
-              </Pressable>
-            </View>
-            <TextInput
-              style={styles.ingPickerSearch}
-              color={colors.text}
-              value={ingSearch}
-              onChangeText={setIngSearch}
-              placeholder="Поиск по складу..."
-              placeholderTextColor={colors.muted}
-              autoFocus
-            />
-            <ScrollView keyboardShouldPersistTaps="handled">
-              {ingSearch.trim().length > 0 && (
-                <Pressable
-                  style={styles.ingPickerCreateRow}
-                  onPress={() => {
-                    const res = insertStockItem({ name: ingSearch.trim(), unit: 'шт' });
-                    if (!res.ok) { toast.show(res.error, 'warn'); return; }
-                    const created = { id: res.id, name: ingSearch.trim(), unit: 'шт' };
-                    try { setStock(getAllStock()); } catch (_) {}
-                    if (pendingIngCallback.current) {
-                      pendingIngCallback.current(created);
-                      pendingIngCallback.current = null;
-                    }
-                    setIngPickerState(null);
-                    setIngSearch('');
-                  }}
-                >
-                  <Text style={styles.ingPickerCreateTxt}>+ Создать «{ingSearch.trim()}» на складе</Text>
-                </Pressable>
-              )}
-              {filteredStock.map(s => (
-                <Pressable key={s.id} style={styles.ingPickerRow} onPress={() => {
+      <Sheet visible={ingPickerState !== null} onClose={() => setIngPickerState(null)} title="Выбрать из склада">
+          <TextInput
+            style={styles.ingPickerSearch}
+            color={colors.text}
+            value={ingSearch}
+            onChangeText={setIngSearch}
+            placeholder="Поиск по складу..."
+            placeholderTextColor={colors.muted}
+            autoFocus
+          />
+          <ScrollView keyboardShouldPersistTaps="handled">
+            {ingSearch.trim().length > 0 && (
+              <Pressable
+                style={styles.ingPickerCreateRow}
+                onPress={() => {
+                  const res = insertStockItem({ name: ingSearch.trim(), unit: 'шт' });
+                  if (!res.ok) { toast.show(res.error, 'warn'); return; }
+                  const created = { id: res.id, name: ingSearch.trim(), unit: 'шт' };
+                  try { setStock(getAllStock()); } catch (_) {}
                   if (pendingIngCallback.current) {
-                    pendingIngCallback.current(s);
+                    pendingIngCallback.current(created);
                     pendingIngCallback.current = null;
                   }
                   setIngPickerState(null);
                   setIngSearch('');
-                }}>
-                  <Text style={styles.ingPickerName}>{s.name}</Text>
-                  <Text style={styles.ingPickerUnit}>{s.unit}</Text>
-                </Pressable>
-              ))}
-              {filteredStock.length === 0 && (
-                <Text style={styles.ingPickerEmpty}>Ничего не найдено</Text>
-              )}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+                }}
+              >
+                <Text style={styles.ingPickerCreateTxt}>+ Создать «{ingSearch.trim()}» на складе</Text>
+              </Pressable>
+            )}
+            {filteredStock.map(s => (
+              <Pressable key={s.id} style={styles.ingPickerRow} onPress={() => {
+                if (pendingIngCallback.current) {
+                  pendingIngCallback.current(s);
+                  pendingIngCallback.current = null;
+                }
+                setIngPickerState(null);
+                setIngSearch('');
+              }}>
+                <Text style={styles.ingPickerName}>{s.name}</Text>
+                <Text style={styles.ingPickerUnit}>{s.unit}</Text>
+              </Pressable>
+            ))}
+            {filteredStock.length === 0 && (
+              <Text style={styles.ingPickerEmpty}>Ничего не найдено</Text>
+            )}
+          </ScrollView>
+      </Sheet>
 
       {/* Модалка управления категориями */}
-      <Modal visible={catMgmtOpen} transparent animationType="fade" onRequestClose={() => setCatMgmtOpen(false)}>
-        <View style={styles.modalOverlay}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCatMgmtOpen(false)} />
-          <View style={styles.orderModalBox}>
-
+      <Sheet
+        visible={catMgmtOpen}
+        onClose={() => { setCatMgmtOpen(false); setCatDetail(null); }}
+        title={catDetail ? catDetail.name : 'Категории'}
+      >
             {!catDetail ? (
-              <>
+              <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
                 {/* ── Список категорий ── */}
-                <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.orderModalTitle}>Категории</Text>
-                    <Text style={styles.orderModalHint}>Стрелками меняете порядок в кассе. Нажмите на категорию, чтобы переименовать, удалить или посмотреть товары.</Text>
-                  </View>
-                  <Pressable onPress={() => setCatMgmtOpen(false)} hitSlop={12} style={styles.modalCloseBtn}>
-                    <Text style={styles.modalCloseTxt}>✕</Text>
-                  </Pressable>
-                </View>
+                <Text style={styles.orderModalHint}>Стрелками меняете порядок в кассе. Нажмите на категорию, чтобы переименовать, удалить или посмотреть товары.</Text>
 
                 <View style={styles.newCatRow}>
                   <TextInput
@@ -876,44 +840,37 @@ export default function ProductsScreen({ navigation, route }) {
                   </Pressable>
                 </View>
 
-                <ScrollView style={{ marginTop: 8 }}>
-                  {catList.length === 0 && (
-                    <Text style={{ color: colors.muted, textAlign: 'center', paddingVertical: 20 }}>Категорий пока нет</Text>
-                  )}
-                  {catList.map((cat, idx) => (
-                    <Pressable key={cat.id} style={styles.orderRow} onPress={() => openCategoryDetail(cat)}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.orderRowTxt}>{cat.name}</Text>
-                        <Text style={styles.catCountTxt}>{cat.productCount} {pluralizeProducts(cat.productCount)}</Text>
-                      </View>
-                      <View style={{ flexDirection: 'row', gap: 8 }}>
-                        {idx > 0 && (
-                          <Pressable style={styles.orderBtn} onPress={(e) => { e.stopPropagation?.(); reorderCategory(idx, -1); }}>
-                            <Text style={styles.orderBtnTxt}>↑</Text>
-                          </Pressable>
-                        )}
-                        {idx < catList.length - 1 && (
-                          <Pressable style={styles.orderBtn} onPress={(e) => { e.stopPropagation?.(); reorderCategory(idx, 1); }}>
-                            <Text style={styles.orderBtnTxt}>↓</Text>
-                          </Pressable>
-                        )}
-                        <Text style={styles.orderRowChevron}>›</Text>
-                      </View>
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              </>
+                {catList.length === 0 && (
+                  <Text style={{ color: colors.muted, textAlign: 'center', paddingVertical: 20 }}>Категорий пока нет</Text>
+                )}
+                {catList.map((cat, idx) => (
+                  <Pressable key={cat.id} style={styles.orderRow} onPress={() => openCategoryDetail(cat)}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.orderRowTxt}>{cat.name}</Text>
+                      <Text style={styles.catCountTxt}>{cat.productCount} {pluralizeProducts(cat.productCount)}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      {idx > 0 && (
+                        <Pressable style={styles.orderBtn} onPress={(e) => { e.stopPropagation?.(); reorderCategory(idx, -1); }}>
+                          <Text style={styles.orderBtnTxt}>↑</Text>
+                        </Pressable>
+                      )}
+                      {idx < catList.length - 1 && (
+                        <Pressable style={styles.orderBtn} onPress={(e) => { e.stopPropagation?.(); reorderCategory(idx, 1); }}>
+                          <Text style={styles.orderBtnTxt}>↓</Text>
+                        </Pressable>
+                      )}
+                      <Text style={styles.orderRowChevron}>›</Text>
+                    </View>
+                  </Pressable>
+                ))}
+              </ScrollView>
             ) : (
-              <>
+              <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
                 {/* ── Детальный вид категории ── */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <Pressable onPress={() => setCatDetail(null)} hitSlop={12}>
-                    <Text style={styles.catBackTxt}>‹ Категории</Text>
-                  </Pressable>
-                  <Pressable onPress={() => setCatMgmtOpen(false)} hitSlop={12} style={styles.modalCloseBtn}>
-                    <Text style={styles.modalCloseTxt}>✕</Text>
-                  </Pressable>
-                </View>
+                <Pressable onPress={() => setCatDetail(null)} hitSlop={12} style={{ marginBottom: 8 }}>
+                  <Text style={styles.catBackTxt}>‹ Категории</Text>
+                </Pressable>
 
                 <Text style={styles.fieldLabel}>Название категории</Text>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -940,30 +897,26 @@ export default function ProductsScreen({ navigation, route }) {
                   </Pressable>
                 </View>
 
-                <ScrollView style={{ maxHeight: 240 }}>
-                  {catDetailProducts.length === 0 && (
-                    <Text style={{ color: colors.muted, paddingVertical: 12 }}>В этой категории пока нет товаров</Text>
-                  )}
-                  {catDetailProducts.map(p => (
-                    <Pressable
-                      key={p.id}
-                      style={styles.catProductRow}
-                      onPress={() => { setCatMgmtOpen(false); setCatDetail(null); setSelected(p); }}
-                    >
-                      <Text style={styles.catProductTxt}>{p.name}</Text>
-                      <Text style={styles.orderRowChevron}>›</Text>
-                    </Pressable>
-                  ))}
-                </ScrollView>
+                {catDetailProducts.length === 0 && (
+                  <Text style={{ color: colors.muted, paddingVertical: 12 }}>В этой категории пока нет товаров</Text>
+                )}
+                {catDetailProducts.map(p => (
+                  <Pressable
+                    key={p.id}
+                    style={styles.catProductRow}
+                    onPress={() => { setCatMgmtOpen(false); setCatDetail(null); setSelected(p); }}
+                  >
+                    <Text style={styles.catProductTxt}>{p.name}</Text>
+                    <Text style={styles.orderRowChevron}>›</Text>
+                  </Pressable>
+                ))}
 
                 <Pressable style={styles.catDeleteBtn} onPress={requestDeleteCategory}>
                   <Text style={styles.catDeleteTxt}>Удалить категорию</Text>
                 </Pressable>
-              </>
+              </ScrollView>
             )}
-          </View>
-        </View>
-      </Modal>
+      </Sheet>
 
       {/* Модалка: категория не пуста — куда перенести товары перед удалением */}
       <Modal visible={!!deletePrompt} transparent animationType="fade" onRequestClose={() => setDeletePrompt(null)}>
@@ -1024,6 +977,8 @@ function ModGroupModal({ group, onSave, onDelete, onClose, stock }) {
     try { return group?.id ? (getAllModifierGroups().find(g=>g.id===group.id)?.options || []) : []; } catch { return []; }
   });
   const [ingPickerVar, setIngPickerVar] = useState(null); // индекс варианта
+  const [ingPicker, setIngPicker] = useState(null); // индекс опции, для которой выбираем замену
+  const [ingSearch, setIngSearch] = useState('');
 
   const addOption = () => setOptions(o => [...o, { id: null, name: '', price: '', ingr_to_replace: '' }]);
   const removeOpt = (i) => setOptions(o => o.filter((_,j)=>j!==i));
@@ -1048,16 +1003,28 @@ function ModGroupModal({ group, onSave, onDelete, onClose, stock }) {
   const filteredStock = (stock || []).filter(s => !ingSearch.trim() || s.name.toLowerCase().includes(ingSearch.toLowerCase()));
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.modalOverlay}>
-        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
-        <View style={styles.groupModalBox}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{isNew ? 'Новая группа' : group.name}</Text>
-            <Pressable onPress={onClose} hitSlop={14} style={styles.closeBtn}>
-              <Text style={styles.closeTxt}>✕</Text>
-            </Pressable>
-          </View>
+    <Sheet
+      visible
+      onClose={onClose}
+      title={ingPicker !== null ? 'Что заменяет' : (isNew ? 'Новая группа' : group.name)}
+    >
+      {ingPicker !== null ? (
+        <View style={{ flex: 1, padding: 20 }}>
+          <Pressable onPress={() => { setIngPicker(null); setIngSearch(''); }} style={{ marginBottom: 8 }}>
+            <Text style={styles.catBackTxt}>‹ Назад к варианту</Text>
+          </Pressable>
+          <TextInput style={styles.ingPickerSearch} color={colors.text}
+            value={ingSearch} onChangeText={setIngSearch} placeholder="Поиск..." placeholderTextColor={colors.muted} autoFocus />
+          <ScrollView>
+            {filteredStock.map(s => (
+              <Pressable key={s.id} style={styles.ingPickerRow} onPress={() => { setOptField(ingPicker, 'ingr_to_replace', s.name); setIngPicker(null); setIngSearch(''); }}>
+                <Text style={styles.ingPickerName}>{s.name}</Text>
+                <Text style={styles.ingPickerUnit}>{s.unit}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+      ) : (
           <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
 
             <Text style={styles.fieldLabel}>Название группы</Text>
@@ -1111,42 +1078,17 @@ function ModGroupModal({ group, onSave, onDelete, onClose, stock }) {
               </Pressable>
             )}
           </ScrollView>
-
-          <Modal visible={ingPicker !== null} transparent animationType="fade" onRequestClose={() => setIngPicker(null)}>
-            <View style={styles.modalOverlay}>
-              <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setIngPicker(null)} />
-              <View style={styles.ingPickerBox}>
-                <View style={styles.ingPickerHeader}>
-                  <Text style={styles.ingPickerTitle}>Что заменяет</Text>
-                  <Pressable onPress={() => setIngPicker(null)} hitSlop={12}>
-                    <Text style={{ color: colors.muted, fontSize: 18 }}>✕</Text>
-                  </Pressable>
-                </View>
-                <TextInput style={styles.ingPickerSearch} color={colors.text}
-                  value={ingSearch} onChangeText={setIngSearch} placeholder="Поиск..." placeholderTextColor={colors.muted} autoFocus />
-                <ScrollView>
-                  {filteredStock.map(s => (
-                    <Pressable key={s.id} style={styles.ingPickerRow} onPress={() => { setOptField(ingPicker, 'ingr_to_replace', s.name); setIngPicker(null); setIngSearch(''); }}>
-                      <Text style={styles.ingPickerName}>{s.name}</Text>
-                      <Text style={styles.ingPickerUnit}>{s.unit}</Text>
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              </View>
-            </View>
-          </Modal>
-        </View>
-      </View>
-    </Modal>
+      )}
+    </Sheet>
   );
 }
 
 const styles = StyleSheet.create({
   root:   { flex: 1, backgroundColor: colors.bg },
-  layout: { flex: 1, flexDirection: 'row' },
+  layout: { flex: 1 },
 
   // Левая панель
-  left:   { width: 280, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface },
+  left:   { flex: 1, backgroundColor: colors.surface },
 
   tabBar: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border },
   tabBarOuter: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
