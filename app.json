@@ -3,7 +3,7 @@
     "name": "СТРУКТУРА",
     "slug": "struktura-app",
     "version": "1.0.0",
-    "orientation": "landscape",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#171513",
@@ -26,13 +26,19 @@
         {
           "android": {
             "enableProguardInReleaseBuilds": false,
-            "extraProguardRules": "-keep class expo.modules.** { *; }\n-keepclassmembers class expo.modules.** { *; }\n-keep class com.facebook.react.** { *; }\n-dontwarn expo.modules.**"
+            "extraProguardRules": "-keep class expo.modules.** { *; }\n-keepclassmembers class expo.modules.** { *; }\n-keep class com.facebook.react.** { *; }\n-dontwarn expo.modules.**",
+            "enableMinifyInReleaseBuilds": false
           }
         }
       ]
     ],
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "98b2278e-5696-4eed-b073-384f3a5ecb8a"
+      }
     }
   }
 }
