@@ -71,7 +71,7 @@ export default function Sheet({ visible, onClose, title, children, sideWidth = 4
           style={[
             isBottom ? styles.sheetBottom : styles.sheetSide,
             isBottom
-              ? { maxHeight: '90%', paddingBottom: Math.max(insets.bottom, 16) }
+              ? { height: '90%', paddingBottom: Math.max(insets.bottom, 16) }
               : { width: Math.min(sideWidth, screenWidth * 0.92), height: '100%', paddingTop: insets.top },
             transformStyle,
           ]}
@@ -85,7 +85,7 @@ export default function Sheet({ visible, onClose, title, children, sideWidth = 4
               </Pressable>
             </View>
           </View>
-          <View style={{ flexShrink: 1 }}>
+          <View style={{ flex: 1 }}>
             {children}
           </View>
         </Animated.View>
