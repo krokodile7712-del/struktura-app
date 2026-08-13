@@ -755,29 +755,6 @@ export default function ProductsScreen({ navigation, route }) {
             </Text>
           </Pressable>
 
-          {filteredStock.map(s => (
-            <Pressable key={s.id} style={[styles.ingPickerRow, isLowStock(s) && styles.ingPickerRowLow]} onPress={() => {
-              if (pendingIngCallback.current) {
-                pendingIngCallback.current(s);
-                pendingIngCallback.current = null;
-              }
-              setIngPickerState(null);
-              setIngSearch('');
-              setIngCreateForm(null);
-            }}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.ingPickerName, isLowStock(s) && styles.ingPickerNameLow]}>{s.name}</Text>
-                <Text style={[styles.ingPickerStockQty, isLowStock(s) && styles.ingPickerNameLow]}>
-                  Остаток: {s['остаток'] ?? 0} {s.unit}
-                </Text>
-              </View>
-              <Text style={styles.ingPickerUnit}>{s.unit}</Text>
-            </Pressable>
-          ))}
-          {filteredStock.length === 0 && (
-            <Text style={styles.ingPickerEmpty}>Ничего не найдено</Text>
-          )}
-
           {ingCreateForm && (
             <View style={styles.inlineCreateCard}>
               <Text style={styles.combLabel}>Название</Text>
@@ -822,6 +799,29 @@ export default function ProductsScreen({ navigation, route }) {
                 <Text style={styles.combSaveTxt}>Создать и добавить в товар</Text>
               </Pressable>
             </View>
+          )}
+
+          {filteredStock.map(s => (
+            <Pressable key={s.id} style={[styles.ingPickerRow, isLowStock(s) && styles.ingPickerRowLow]} onPress={() => {
+              if (pendingIngCallback.current) {
+                pendingIngCallback.current(s);
+                pendingIngCallback.current = null;
+              }
+              setIngPickerState(null);
+              setIngSearch('');
+              setIngCreateForm(null);
+            }}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.ingPickerName, isLowStock(s) && styles.ingPickerNameLow]}>{s.name}</Text>
+                <Text style={[styles.ingPickerStockQty, isLowStock(s) && styles.ingPickerNameLow]}>
+                  Остаток: {s['остаток'] ?? 0} {s.unit}
+                </Text>
+              </View>
+              <Text style={styles.ingPickerUnit}>{s.unit}</Text>
+            </Pressable>
+          ))}
+          {filteredStock.length === 0 && (
+            <Text style={styles.ingPickerEmpty}>Ничего не найдено</Text>
           )}
         </ScrollView>
       </Sheet>
