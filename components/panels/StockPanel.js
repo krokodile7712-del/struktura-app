@@ -53,6 +53,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
   const [newItemModal, setNewItemModal] = useState(null); // { name, unit, category, threshold }
   const [stockCats, setStockCats]   = useState([]);
   const [catModal2, setCatModal2]   = useState(null); // {oldName, newName}
+  const [catDeletePrompt, setCatDeletePrompt] = useState(null); // {name, count, moveTo}
 
   const openMode = (key) => {
     setMode(key);
@@ -554,45 +555,51 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
             </View>
             <ScrollView contentContainerStyle={{ padding: 16 }}>
               <Text style={[styles.sectionLabel, { marginBottom: 12 }]}>
-                Нажмите на категорию чтобы переименовать — изменится у всех позиций
+                Нажмите на категорию, чтобы переименовать, удалить или посмотреть позиции. Новая категория создаётся прямо при заведении позиции склада — впишите название, если нужной ещё нет.
               </Text>
               <View style={styles.card}>
-                {stockCats.map((cat, idx) => (
-                  <Pressable
-                    key={cat}
-                    style={({ pressed }) => [styles.catRow, idx < stockCats.length - 1 && styles.rowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
-                    onPress={() => setCatModal2({ oldName: cat, newName: cat })}
-                  >
-                    <Text style={styles.catName}>{cat}</Text>
-                    <Text style={styles.catArrow}>›</Text>
-                  </Pressable>
-                ))}
+                {stockCats.map((cat, idx) => {
+                  const count = stock.filter(s => (s.category || 'Прочее') === cat).length;
+                  return (
+                    <Pressable
+                      key={cat}
+                      style={({ pressed }) => [styles.catRow, idx < stockCats.length - 1 && styles.rowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
+                      onPress={() => setCatModal2({ oldName: cat, newName: cat })}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.catName}>{cat}</Text>
+                        <Text style={styles.catCountTxt}>{count} {count === 1 ? 'позиция' : count >= 2 && count <= 4 ? 'позиции' : 'позиций'}</Text>
+                      </View>
+                      <Text style={styles.catArrow}>›</Text>
+                    </Pressable>
+                  );
+                })}
               </View>
             </ScrollView>
           </View>
         </View>
       </Modal>
 
-      {/* Переименование категории */}
+      {/* Переименование / удаление категории */}
       <Modal visible={!!catModal2} transparent animationType="fade" onRequestClose={() => setCatModal2(null)}>
         <View style={styles.modalOverlay}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCatModal2(null)} />
-          <View style={[styles.catModalBox, { maxHeight: 260 }]}>
+          <View style={[styles.catModalBox, { maxHeight: '70%' }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Переименовать</Text>
+              <Text style={styles.modalTitle}>{catModal2?.oldName}</Text>
               <Pressable onPress={() => setCatModal2(null)} hitSlop={14} style={styles.modalClose}>
                 <Text style={styles.modalCloseTxt}>✕</Text>
               </Pressable>
             </View>
-            <View style={{ padding: 16 }}>
+            <ScrollView contentContainerStyle={{ padding: 16 }}>
+              <Text style={styles.sectionLabel}>Название категории</Text>
               <TextInput
                 color={colors.text}
-                style={styles.input}
+                style={[styles.input, { marginTop: 6 }]}
                 value={catModal2?.newName || ''}
                 onChangeText={v => setCatModal2(m => ({ ...m, newName: v }))}
                 placeholder="Название категории"
                 placeholderTextColor={colors.muted}
-                autoFocus
               />
               <Pressable
                 style={({ pressed }) => [styles.confirmBtn, { marginTop: 12 }, pressed && { opacity: 0.88 }]}
@@ -608,9 +615,88 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
                   } catch (e) { console.error(e); }
                 }}
               >
-                <Text style={styles.confirmBtnText}>Сохранить</Text>
+                <Text style={styles.confirmBtnText}>Сохранить название</Text>
+              </Pressable>
+
+              {catModal2 && (() => {
+                const itemsInCat = stock.filter(s => (s.category || 'Прочее') === catModal2.oldName);
+                return (
+                  <>
+                    <Text style={[styles.sectionLabel, { marginTop: 20, marginBottom: 8 }]}>Позиции в категории ({itemsInCat.length})</Text>
+                    {itemsInCat.map(it => (
+                      <View key={it.id} style={styles.catItemRow}>
+                        <Text style={styles.catItemName}>{it.name}</Text>
+                        <Text style={styles.catItemQty}>{it['остаток']} {it.unit}</Text>
+                      </View>
+                    ))}
+                    <Pressable
+                      style={[styles.catDeleteBtn, { marginTop: 16 }]}
+                      onPress={() => {
+                        if (itemsInCat.length === 0) { setCatModal2(null); return; }
+                        setCatDeletePrompt({ name: catModal2.oldName, count: itemsInCat.length, moveTo: '' });
+                      }}
+                    >
+                      <Text style={styles.catDeleteTxt}>Удалить категорию</Text>
+                    </Pressable>
+                  </>
+                );
+              })()}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Удаление категории — перенос позиций в другую */}
+      <Modal visible={!!catDeletePrompt} transparent animationType="fade" onRequestClose={() => setCatDeletePrompt(null)}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCatDeletePrompt(null)} />
+          <View style={[styles.catModalBox, { maxHeight: '60%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Куда перенести позиции?</Text>
+              <Pressable onPress={() => setCatDeletePrompt(null)} hitSlop={14} style={styles.modalClose}>
+                <Text style={styles.modalCloseTxt}>✕</Text>
               </Pressable>
             </View>
+            <ScrollView contentContainerStyle={{ padding: 16 }}>
+              <Text style={styles.sectionLabel}>
+                В категории «{catDeletePrompt?.name}» — {catDeletePrompt?.count} {catDeletePrompt?.count === 1 ? 'позиция' : 'позиций'}. Выберите, куда их перенести, прежде чем удалить категорию.
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+                {stockCats.filter(c => c !== catDeletePrompt?.name).map(c => (
+                  <Pressable
+                    key={c}
+                    style={[styles.catChip, catDeletePrompt?.moveTo === c && styles.catChipActive]}
+                    onPress={() => setCatDeletePrompt(p => ({ ...p, moveTo: c }))}
+                  >
+                    <Text style={[styles.catChipTxt, catDeletePrompt?.moveTo === c && styles.catChipTxtActive]}>{c}</Text>
+                  </Pressable>
+                ))}
+                <Pressable
+                  style={[styles.catChip, catDeletePrompt?.moveTo === 'Прочее' && styles.catChipActive]}
+                  onPress={() => setCatDeletePrompt(p => ({ ...p, moveTo: 'Прочее' }))}
+                >
+                  <Text style={[styles.catChipTxt, catDeletePrompt?.moveTo === 'Прочее' && styles.catChipTxtActive]}>Прочее</Text>
+                </Pressable>
+              </View>
+              <Pressable
+                style={[styles.catDeleteBtn, { marginTop: 20 }]}
+                onPress={() => {
+                  if (!catDeletePrompt?.moveTo) { toast.show('Выберите категорию', 'warn'); return; }
+                  try {
+                    const db = getDb();
+                    db.runSync(`UPDATE stock SET category = ? WHERE category = ?`, [catDeletePrompt.moveTo, catDeletePrompt.name]);
+                    const allStock = getAllStock();
+                    setStock(allStock);
+                    setStockCats([...new Set(allStock.map(s => s.category || 'Без категории'))].sort());
+                    setCatDeletePrompt(null);
+                    setCatModal2(null);
+                    toast.show('Категория удалена, позиции перенесены', 'info');
+                  } catch (e) { console.error(e); }
+                }}
+              >
+                <Text style={styles.catDeleteTxt}>Перенести и удалить категорию</Text>
+              </Pressable>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -649,6 +735,12 @@ const styles = StyleSheet.create({
   catBtn: { width: 38, height: 38, borderRadius: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   catChip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
   catChipActive: { backgroundColor: 'rgba(240,160,80,0.12)', borderColor: 'rgba(240,160,80,0.5)' },
+  catCountTxt: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
+  catItemRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
+  catItemName: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.text },
+  catItemQty: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
+  catDeleteBtn: { backgroundColor: 'rgba(160,16,32,0.06)', borderWidth: 1, borderColor: 'rgba(160,16,32,0.35)', borderRadius: 12, paddingVertical: 13, alignItems: 'center' },
+  catDeleteTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red },
   catChipTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
   catChipTxtActive: { color: colors.orange },
   catBtnText: { fontSize: 16, color: colors.muted },
