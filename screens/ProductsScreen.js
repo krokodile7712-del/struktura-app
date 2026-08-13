@@ -845,6 +845,7 @@ export default function ProductsScreen({ navigation, route }) {
       <Sheet
         visible={catMgmtOpen}
         onClose={() => { setCatMgmtOpen(false); setCatDetail(null); }}
+        onBack={catDetail ? () => setCatDetail(null) : undefined}
         title={catDetail ? catDetail.name : 'Категории'}
       >
             {!catDetail ? (
@@ -896,10 +897,6 @@ export default function ProductsScreen({ navigation, route }) {
             ) : (
               <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
                 {/* ── Детальный вид категории ── */}
-                <Pressable onPress={() => setCatDetail(null)} hitSlop={12} style={{ marginBottom: 8 }}>
-                  <Text style={styles.catBackTxt}>‹ Категории</Text>
-                </Pressable>
-
                 <Text style={styles.fieldLabel}>Название категории</Text>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   <TextInput
@@ -1034,13 +1031,11 @@ function ModGroupModal({ group, onSave, onDelete, onClose, stock }) {
     <Sheet
       visible
       onClose={onClose}
+      onBack={ingPicker !== null ? () => { setIngPicker(null); setIngSearch(''); } : undefined}
       title={ingPicker !== null ? 'Что заменяет' : (isNew ? 'Новая группа' : group.name)}
     >
       {ingPicker !== null ? (
         <View style={{ flex: 1, padding: 20 }}>
-          <Pressable onPress={() => { setIngPicker(null); setIngSearch(''); }} style={{ marginBottom: 8 }}>
-            <Text style={styles.catBackTxt}>‹ Назад к варианту</Text>
-          </Pressable>
           <TextInput style={styles.ingPickerSearch} color={colors.text}
             value={ingSearch} onChangeText={setIngSearch} placeholder="Поиск..." placeholderTextColor={colors.muted} autoFocus />
           <ScrollView>

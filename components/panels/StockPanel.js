@@ -366,13 +366,11 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
       <Sheet
         visible={!!selected}
         onClose={() => setSelected(null)}
+        onBack={mode ? closeSlidePanel : undefined}
         title={mode ? MODES.find(m => m.key === mode)?.label : selected?.name}
       >
         {selected && (mode ? (
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
-            <Pressable style={styles.backToDetailBtn} onPress={closeSlidePanel}>
-              <Text style={styles.backToDetailTxt}>← Назад к товару</Text>
-            </Pressable>
             <Text style={styles.slidePanelDesc}>{MODES.find(m => m.key === mode)?.desc}</Text>
 
             <Text style={styles.inputLabel}>Количество, {selected?.unit}</Text>
