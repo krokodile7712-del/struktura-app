@@ -4,6 +4,7 @@ import {
   Modal, Animated, Share,
 } from 'react-native';
 import TopBar from '../components/TopBar';
+import Sheet from '../components/Sheet';
 import AppNav from '../components/AppNav';
 import Toggle from '../components/Toggle';
 import InfoTip from '../components/InfoTip';
@@ -116,7 +117,7 @@ export default function ReportsScreen({ navigation }) {
   const [customFrom, setCustomFrom] = useState(nDaysAgo(29));
   const [customTo, setCustomTo]     = useState(todayStr());
   const [showCustom, setShowCustom] = useState(false);
-  const [containerWidth, setContainerWidth] = useState(0);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [tab, setTab]               = useState('pnl');
   const [compare, setCompare]       = useState(false);
   const [picker, setPicker]         = useState(null);
@@ -210,73 +211,26 @@ export default function ReportsScreen({ navigation }) {
         }
       />
 
-      <View style={styles.layout} onLayout={e => setContainerWidth(e.nativeEvent.layout.width)}>
+      <View style={styles.layout}>
 
-        {/* ── Левая панель ── */}
-        <View style={[styles.left, containerWidth > 0 && { width: Math.min(380, Math.max(260, containerWidth * 0.3)) }]}>
-          {/* Период */}
-          <Text style={styles.sectionLabel}>Период</Text>
-          <View style={styles.presetList}>
-            {PRESETS.map(p => (
-              <Pressable
-                key={p.key}
-                style={({ pressed }) => [
-                  styles.presetBtn,
-                  preset === p.key && styles.presetBtnActive,
-                  pressed && { opacity: 0.75 },
-                ]}
-                onPress={() => p.key === 'custom' ? setShowCustom(true) : setPreset(p.key)}
-              >
-                {preset === p.key && <View style={styles.presetActiveBar} />}
-                <Text style={[styles.presetTxt, preset === p.key && styles.presetTxtActive]}>
-                  {p.key === 'custom' && preset === 'custom' ? rangeLabel : p.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          <View style={styles.divider} />
-
-          {/* Ключевые цифры */}
-          {pnl && (
-            <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-              <Text style={styles.sectionLabel}>Итоги</Text>
-              {[
-                { label: 'Выручка',  value: `${fmt(pnl.revenue)} ₽`,    color: colors.text },
-                { label: 'Заказов',  value: pnl.orderCount,              color: colors.text },
-                { label: 'Ср. чек', value: `${fmt(pnl.avgCheck)} ₽`,   color: colors.text },
-                { label: 'Прибыль',  value: `${pnl.netProfit >= 0 ? '+' : ''}${fmt(pnl.netProfit)} ₽`, color: pnl.netProfit >= 0 ? colors.green : colors.red },
-              ].map((s, i) => (
-                <View key={i} style={styles.statRow}>
-                  <Text style={styles.statLabel}>{s.label}</Text>
-                  <Text style={[styles.statVal, { color: s.color }]}>{s.value}</Text>
-                </View>
-              ))}
-
-              <View style={styles.divider} />
-
-              {/* Сравнение */}
-              <View style={styles.compareRow}>
-                <Text style={styles.compareTxt}>Сравнить</Text>
-                <Toggle value={compare} onValueChange={v => setCompare(v)} size="sm" />
-              </View>
-            </Animated.View>
-          )}
-        </View>
-
-        {/* ── Правая панель ── */}
+        {/* ── Отчётность: одна колонка на всю ширину ── */}
         <View style={styles.right}>
-          {/* Табы */}
-          <View style={styles.tabBar}>
-            {TABS.map(t => (
-              <Pressable
-                key={t.key}
-                style={[styles.tabBtn, tab === t.key && styles.tabBtnActive]}
-                onPress={() => switchTab(t.key)}
-              >
-                <Text style={[styles.tabTxt, tab === t.key && styles.tabTxtActive]}>{t.label}</Text>
-              </Pressable>
-            ))}
+          {/* Табы + кнопка фильтров */}
+          <View style={styles.tabBarRow}>
+            <View style={styles.tabBar}>
+              {TABS.map(t => (
+                <Pressable
+                  key={t.key}
+                  style={[styles.tabBtn, tab === t.key && styles.tabBtnActive]}
+                  onPress={() => switchTab(t.key)}
+                >
+                  <Text style={[styles.tabTxt, tab === t.key && styles.tabTxtActive]}>{t.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <Pressable onPress={() => setFiltersOpen(true)} hitSlop={8} style={styles.filtersBtn}>
+              <Text style={styles.filtersBtnTxt}>⚙ Период</Text>
+            </Pressable>
           </View>
 
           {/* Контент вкладки */}
@@ -434,6 +388,56 @@ export default function ReportsScreen({ navigation }) {
         </View>
       </View>
 
+      <Sheet visible={filtersOpen} onClose={() => setFiltersOpen(false)} title="Период и итоги">
+        <ScrollView contentContainerStyle={{ padding: 20 }}>
+          <Text style={styles.sectionLabel}>Период</Text>
+          <View style={styles.presetList}>
+            {PRESETS.map(p => (
+              <Pressable
+                key={p.key}
+                style={({ pressed }) => [
+                  styles.presetBtn,
+                  preset === p.key && styles.presetBtnActive,
+                  pressed && { opacity: 0.75 },
+                ]}
+                onPress={() => p.key === 'custom' ? setShowCustom(true) : setPreset(p.key)}
+              >
+                {preset === p.key && <View style={styles.presetActiveBar} />}
+                <Text style={[styles.presetTxt, preset === p.key && styles.presetTxtActive]}>
+                  {p.key === 'custom' && preset === 'custom' ? rangeLabel : p.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <View style={styles.divider} />
+
+          {pnl && (
+            <>
+              <Text style={styles.sectionLabel}>Итоги</Text>
+              {[
+                { label: 'Выручка',  value: `${fmt(pnl.revenue)} ₽`,    color: colors.text },
+                { label: 'Заказов',  value: pnl.orderCount,              color: colors.text },
+                { label: 'Ср. чек', value: `${fmt(pnl.avgCheck)} ₽`,   color: colors.text },
+                { label: 'Прибыль',  value: `${pnl.netProfit >= 0 ? '+' : ''}${fmt(pnl.netProfit)} ₽`, color: pnl.netProfit >= 0 ? colors.green : colors.red },
+              ].map((s, i) => (
+                <View key={i} style={styles.statRow}>
+                  <Text style={styles.statLabel}>{s.label}</Text>
+                  <Text style={[styles.statVal, { color: s.color }]}>{s.value}</Text>
+                </View>
+              ))}
+
+              <View style={styles.divider} />
+
+              <View style={styles.compareRow}>
+                <Text style={styles.compareTxt}>Сравнить</Text>
+                <Toggle value={compare} onValueChange={v => setCompare(v)} size="sm" />
+              </View>
+            </>
+          )}
+        </ScrollView>
+      </Sheet>
+
       <AppNav navigation={navigation} activeScreen="Reports" />
 
       <DatePicker visible={picker === 'from'} value={customFrom}
@@ -444,16 +448,8 @@ export default function ReportsScreen({ navigation }) {
         onClose={() => setPicker(null)} title="Конец периода" />
 
       {/* Модалка свой период */}
-      <Modal visible={showCustom} transparent animationType="fade" onRequestClose={() => setShowCustom(false)}>
-        <View style={styles.modalRoot}>
-          <Pressable style={{ ...StyleSheet.absoluteFillObject }} onPress={() => setShowCustom(false)} />
-          <View style={styles.modalBox}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <Text style={[styles.modalTitle, { marginBottom: 0 }]}>Свой период</Text>
-              <Pressable onPress={() => setShowCustom(false)} hitSlop={12} style={styles.modalCloseBtn}>
-                <Text style={styles.modalCloseTxt}>✕</Text>
-              </Pressable>
-            </View>
+      <Sheet visible={showCustom} onClose={() => setShowCustom(false)} title="Свой период">
+        <View style={{ padding: 20 }}>
             <Text style={styles.fieldLabel}>Начало</Text>
             <Pressable style={styles.dateBtn} onPress={() => { setShowCustom(false); setPicker('from'); }}>
               <Text style={styles.dateTxt}>{customFrom.split('-').reverse().join('.')}</Text>
@@ -467,16 +463,15 @@ export default function ReportsScreen({ navigation }) {
             <Pressable style={styles.applyBtn} onPress={() => { setPreset('custom'); setShowCustom(false); }}>
               <Text style={styles.applyTxt}>Применить</Text>
             </Pressable>
-          </View>
         </View>
-      </Modal>
+      </Sheet>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root:    { flex: 1, backgroundColor: colors.bg },
-  layout:  { flex: 1, flexDirection: 'row' },
+  layout:  { flex: 1 },
 
   // Левая панель
   left:    { width: 220, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface, padding: 16 },
@@ -499,7 +494,10 @@ const styles = StyleSheet.create({
 
   // Правая панель
   right:   { flex: 1 },
-  tabBar:  { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border },
+  tabBarRow: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: colors.border },
+  tabBar:  { flexDirection: 'row', flex: 1 },
+  filtersBtn:  { paddingHorizontal: 12, paddingVertical: 9, marginRight: 10, borderRadius: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
+  filtersBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
   tabBtn:  { flex: 1, paddingVertical: 14, alignItems: 'center' },
   tabBtnActive: { borderBottomWidth: 2, borderBottomColor: colors.orange },
   tabTxt:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
