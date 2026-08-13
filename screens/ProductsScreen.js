@@ -476,6 +476,12 @@ export default function ProductsScreen({ navigation, route }) {
     setCatOrder(d.map(c => c.name));
   };
 
+  const isLowStock = (s) => {
+    const cur = s['остаток'] ?? 0;
+    const thr = s['порог'] ?? 0;
+    return cur < 0 || (thr > 0 && cur <= thr);
+  };
+
   const filteredStock = (stock || []).filter(s =>
     !ingSearch.trim() || s.name.toLowerCase().includes(ingSearch.toLowerCase())
   );
@@ -795,7 +801,7 @@ export default function ProductsScreen({ navigation, route }) {
               </Pressable>
             )}
             {filteredStock.map(s => (
-              <Pressable key={s.id} style={styles.ingPickerRow} onPress={() => {
+              <Pressable key={s.id} style={[styles.ingPickerRow, isLowStock(s) && styles.ingPickerRowLow]} onPress={() => {
                 if (pendingIngCallback.current) {
                   pendingIngCallback.current(s);
                   pendingIngCallback.current = null;
@@ -803,7 +809,12 @@ export default function ProductsScreen({ navigation, route }) {
                 setIngPickerState(null);
                 setIngSearch('');
               }}>
-                <Text style={styles.ingPickerName}>{s.name}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.ingPickerName, isLowStock(s) && styles.ingPickerNameLow]}>{s.name}</Text>
+                  <Text style={[styles.ingPickerStockQty, isLowStock(s) && styles.ingPickerNameLow]}>
+                    Остаток: {s['остаток'] ?? 0} {s.unit}
+                  </Text>
+                </View>
                 <Text style={styles.ingPickerUnit}>{s.unit}</Text>
               </Pressable>
             ))}
@@ -1020,7 +1031,7 @@ function ModGroupModal({ group, onSave, onDelete, onClose, stock }) {
           <ScrollView>
             {filteredStock.map(s => (
               <Pressable key={s.id} style={styles.ingPickerRow} onPress={() => { setOptField(ingPicker, 'ingr_to_replace', s.name); setIngPicker(null); setIngSearch(''); }}>
-                <Text style={styles.ingPickerName}>{s.name}</Text>
+                <Text style={[styles.ingPickerName, { flex: 1 }]}>{s.name}</Text>
                 <Text style={styles.ingPickerUnit}>{s.unit}</Text>
               </Pressable>
             ))}
@@ -1239,7 +1250,10 @@ const styles = StyleSheet.create({
   ingPickerTitle:{ fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text },
   ingPickerSearch:{ margin: 12, marginTop: 14, backgroundColor: colors.surface2, borderRadius: 10, padding: 11, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 14, borderWidth: 1, borderColor: colors.border },
   ingPickerRow:  { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: colors.border },
-  ingPickerName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, flex: 1 },
+  ingPickerName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
+  ingPickerStockQty: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
+  ingPickerRowLow: { backgroundColor: 'rgba(217,95,95,0.08)' },
+  ingPickerNameLow: { color: colors.red },
   ingPickerUnit: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, backgroundColor: colors.surface2, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   ingPickerEmpty:{ fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center', padding: 32 },
   ingPickerCreateRow: { paddingVertical: 14, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: 'rgba(240,160,80,0.06)' },
