@@ -625,75 +625,64 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
         </ScrollView>
       </Sheet>
 
-      {/* Модалка новой позиции склада */}
-      <Modal visible={!!newItemModal} transparent animationType="fade" onRequestClose={() => setNewItemModal(null)}>
-        <View style={styles.modalOverlay}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setNewItemModal(null)} />
-          {newItemModal && (
-            <View style={styles.catModalBox}>
-              <View style={styles.modalHeader}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                  <Text style={styles.modalTitle}>Новая позиция склада</Text>
-                  <InfoTip title="Позиция склада" text="Это то, что физически есть в ограниченном количестве и заканчивается: ингредиенты, расходники, товары для перепродажи. Отдельно от «Товаров» — там то, что вы продаёте клиенту." />
-                </View>
-                <Pressable onPress={() => setNewItemModal(null)} hitSlop={14} style={styles.modalClose}>
-                  <Text style={styles.modalCloseTxt}>✕</Text>
-                </Pressable>
-              </View>
-              <View style={{ padding: 16 }}>
-                <Text style={styles.sectionLabel}>Название</Text>
-                <TextInput
-                  color={colors.text}
-                  style={[styles.input, { marginBottom: 12 }]}
-                  value={newItemModal.name}
-                  onChangeText={v => setNewItemModal(m => ({ ...m, name: v }))}
-                  placeholder="напр. Молоко"
-                  placeholderTextColor={colors.muted}
-                  autoFocus
-                />
-                <Text style={styles.sectionLabel}>Единица</Text>
-                <View style={{ marginBottom: 12 }}>
-                  <UnitPicker value={newItemModal.unit} onChange={v => setNewItemModal(m => ({ ...m, unit: v }))} />
-                </View>
-                <Text style={styles.sectionLabel}>Порог (необязательно)</Text>
-                <TextInput
-                  color={colors.text}
-                  style={[styles.input, { marginBottom: 12 }]}
-                  value={newItemModal.threshold}
-                  onChangeText={v => setNewItemModal(m => ({ ...m, threshold: v }))}
-                  keyboardType="numeric"
-                  placeholder="0"
-                  placeholderTextColor={colors.muted}
-                />
-                <Text style={styles.sectionLabel}>Категория</Text>
-                {stockCats.length > 0 && (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 8 }}>
-                    {stockCats.map(cat => (
-                      <Pressable key={cat} style={[styles.catChip, newItemModal.category === cat && styles.catChipActive]} onPress={() => setNewItemModal(m => ({ ...m, category: cat }))}>
-                        <Text style={[styles.catChipTxt, newItemModal.category === cat && styles.catChipTxtActive]}>{cat}</Text>
-                      </Pressable>
-                    ))}
-                  </ScrollView>
-                )}
-                <TextInput
-                  color={colors.text}
-                  style={styles.input}
-                  value={newItemModal.category}
-                  onChangeText={v => setNewItemModal(m => ({ ...m, category: v }))}
-                  placeholder="Или впишите новую категорию"
-                  placeholderTextColor={colors.muted}
-                />
-                <Pressable
-                  style={({ pressed }) => [styles.confirmBtn, { marginTop: 14 }, pressed && { opacity: 0.88 }]}
-                  onPress={saveNewItem}
-                >
-                  <Text style={styles.confirmBtnText}>Создать</Text>
-                </Pressable>
-              </View>
+      {/* Новая позиция склада — выезжающий слой */}
+      <Sheet visible={!!newItemModal} onClose={() => setNewItemModal(null)} title="Новая позиция склада">
+        {newItemModal && (
+          <ScrollView contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled">
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: -4 }}>
+              <InfoTip title="Позиция склада" text="Это то, что физически есть в ограниченном количестве и заканчивается: ингредиенты, расходники, товары для перепродажи. Отдельно от «Товаров» — там то, что вы продаёте клиенту." />
             </View>
-          )}
-        </View>
-      </Modal>
+            <Text style={styles.sectionLabel}>Название</Text>
+            <TextInput
+              color={colors.text}
+              style={[styles.input, { marginBottom: 12 }]}
+              value={newItemModal.name}
+              onChangeText={v => setNewItemModal(m => ({ ...m, name: v }))}
+              placeholder="напр. Молоко"
+              placeholderTextColor={colors.muted}
+              autoFocus
+            />
+            <Text style={styles.sectionLabel}>Единица</Text>
+            <View style={{ marginBottom: 12 }}>
+              <UnitPicker value={newItemModal.unit} onChange={v => setNewItemModal(m => ({ ...m, unit: v }))} />
+            </View>
+            <Text style={styles.sectionLabel}>Порог (необязательно)</Text>
+            <TextInput
+              color={colors.text}
+              style={[styles.input, { marginBottom: 12 }]}
+              value={newItemModal.threshold}
+              onChangeText={v => setNewItemModal(m => ({ ...m, threshold: v }))}
+              keyboardType="numeric"
+              placeholder="0"
+              placeholderTextColor={colors.muted}
+            />
+            <Text style={styles.sectionLabel}>Категория</Text>
+            {stockCats.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 8 }}>
+                {stockCats.map(cat => (
+                  <Pressable key={cat} style={[styles.catChip, newItemModal.category === cat && styles.catChipActive]} onPress={() => setNewItemModal(m => ({ ...m, category: cat }))}>
+                    <Text style={[styles.catChipTxt, newItemModal.category === cat && styles.catChipTxtActive]}>{cat}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+            <TextInput
+              color={colors.text}
+              style={styles.input}
+              value={newItemModal.category}
+              onChangeText={v => setNewItemModal(m => ({ ...m, category: v }))}
+              placeholder="Или впишите новую категорию"
+              placeholderTextColor={colors.muted}
+            />
+            <Pressable
+              style={({ pressed }) => [styles.confirmBtn, { marginTop: 14 }, pressed && { opacity: 0.88 }]}
+              onPress={saveNewItem}
+            >
+              <Text style={styles.confirmBtnText}>Создать</Text>
+            </Pressable>
+          </ScrollView>
+        )}
+      </Sheet>
 
       {/* Модалка категорий */}
       <Modal visible={catModal} transparent animationType="fade" onRequestClose={() => setCatModal(false)}>

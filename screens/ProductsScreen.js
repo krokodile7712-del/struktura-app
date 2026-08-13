@@ -212,7 +212,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
                 <Pressable style={styles.techToggle} onPress={() => setExpandedVar(hasIngs ? (isOpen ? -1 : vi) : vi)}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                     <Text style={styles.techToggleTxt}>
-                      Списывать со склада{hasIngs ? ` · ${v.ings.length} поз. · ${cost.toFixed(2)} ₽` : ''}
+                      Списывать со склада{hasIngs ? ` · ${v.ings.length} поз.` : ''}
                     </Text>
                     <InfoTip title="Списание со склада" text="Каждая продажа автоматически уменьшит остаток указанных позиций на складе. Уберите все позиции, чтобы отключить списание для этого товара." />
                   </View>
@@ -257,21 +257,6 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
                               onChangeText={val => setIngField(vi, ii, 'amount', val)}
                               placeholder="0" placeholderTextColor={colors.muted} />
                             <Text style={styles.ingUnit}>{ing.unit}</Text>
-                          </View>
-                        </View>
-                        )}
-                        {v.deduction_mode !== 'variable' && (
-                        <View style={styles.ingFieldRow}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Text style={styles.ingFieldLabel}>Себестоимость за {ing.unit}</Text>
-                            <InfoTip title="Себестоимость ингредиента" text="Подставляется автоматически из карточки склада. Если тут пусто — значит на складе для этой позиции ещё не задана себестоимость. Можно поправить только для этого товара." />
-                          </View>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <TextInput style={[styles.ingInput, { width: 58 }]} color={colors.text}
-                              keyboardType="numeric" value={ing.price_per_unit}
-                              onChangeText={val => setIngField(vi, ii, 'price_per_unit', val)}
-                              placeholder="со склада" placeholderTextColor={colors.muted} />
-                            <Text style={styles.ingUnit}>₽</Text>
                           </View>
                         </View>
                         )}
@@ -757,6 +742,19 @@ export default function ProductsScreen({ navigation, route }) {
           autoFocus
         />
         <ScrollView keyboardShouldPersistTaps="handled">
+          {/* Создание новой позиции — наверху списка, раскрывается на месте */}
+          <Pressable
+            style={styles.ingPickerCreateRow}
+            onPress={() => setIngCreateForm(f => f
+              ? null
+              : { name: ingSearch.trim(), unit: 'шт', category: '', sellPrice: '', threshold: '' }
+            )}
+          >
+            <Text style={styles.ingPickerCreateTxt}>
+              {ingCreateForm ? '✕ Свернуть' : `+ Новая позиция${ingSearch.trim() ? ` «${ingSearch.trim()}»` : ''}`}
+            </Text>
+          </Pressable>
+
           {filteredStock.map(s => (
             <Pressable key={s.id} style={[styles.ingPickerRow, isLowStock(s) && styles.ingPickerRowLow]} onPress={() => {
               if (pendingIngCallback.current) {
@@ -779,19 +777,6 @@ export default function ProductsScreen({ navigation, route }) {
           {filteredStock.length === 0 && (
             <Text style={styles.ingPickerEmpty}>Ничего не найдено</Text>
           )}
-
-          {/* Создание новой позиции — раскрывается на месте, без перехода на другой экран */}
-          <Pressable
-            style={styles.ingPickerCreateRow}
-            onPress={() => setIngCreateForm(f => f
-              ? null
-              : { name: ingSearch.trim(), unit: 'шт', category: '', sellPrice: '', threshold: '' }
-            )}
-          >
-            <Text style={styles.ingPickerCreateTxt}>
-              {ingCreateForm ? '✕ Свернуть' : `+ Новая позиция${ingSearch.trim() ? ` «${ingSearch.trim()}»` : ''}`}
-            </Text>
-          </Pressable>
 
           {ingCreateForm && (
             <View style={styles.inlineCreateCard}>
