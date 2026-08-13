@@ -7,6 +7,7 @@ import TopBar from '../components/TopBar';
 import EmptyState from '../components/EmptyState';
 import StockPanel from '../components/panels/StockPanel';
 import Sheet from '../components/Sheet';
+import UnitPicker from '../components/UnitPicker';
 import AppNav from '../components/AppNav';
 import Toggle from '../components/Toggle';
 import InfoTip from '../components/InfoTip';
@@ -487,15 +488,15 @@ export default function ProductsScreen({ navigation, route }) {
       unit: ingCreateForm.unit || 'шт',
       category: ingCreateForm.category || 'Прочее',
       threshold: parseFloat(ingCreateForm.threshold) || 0,
-      initialQty: parseFloat(ingCreateForm.initialStock) || 0,
+      initialQty: 0,
     });
     if (!res.ok) { toast.show(res.error, 'warn'); return; }
-    try {
-      const db = getDb();
-      db.runSync(`UPDATE stock SET avg_price = ?, sell_price = ? WHERE id = ?`, [
-        parseFloat(ingCreateForm.costPrice) || 0, parseFloat(ingCreateForm.sellPrice) || 0, res.id,
-      ]);
-    } catch (_) {}
+    if (parseFloat(ingCreateForm.sellPrice) > 0) {
+      try {
+        const db = getDb();
+        db.runSync(`UPDATE stock SET sell_price = ? WHERE id = ?`, [parseFloat(ingCreateForm.sellPrice), res.id]);
+      } catch (_) {}
+    }
     const created = { id: res.id, name: ingCreateForm.name, unit: ingCreateForm.unit || 'шт' };
     try { setStock(getAllStock()); } catch (_) {}
     if (pendingIngCallback.current) {
@@ -753,9 +754,7 @@ export default function ProductsScreen({ navigation, route }) {
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.combLabel}>Единица</Text>
-                <TextInput color={colors.text} style={styles.combInput}
-                  value={ingCreateForm.unit} onChangeText={v => setIngCreateForm(f => ({ ...f, unit: v }))}
-                  placeholder="шт, мл, г..." placeholderTextColor={colors.muted} />
+                <UnitPicker value={ingCreateForm.unit} onChange={v => setIngCreateForm(f => ({ ...f, unit: v }))} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.combLabel}>Порог (необязательно)</Text>
@@ -765,25 +764,11 @@ export default function ProductsScreen({ navigation, route }) {
               </View>
             </View>
 
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.combLabel}>Себестоимость</Text>
-                <TextInput color={colors.text} style={styles.combInput} keyboardType="numeric"
-                  value={ingCreateForm.costPrice} onChangeText={v => setIngCreateForm(f => ({ ...f, costPrice: v }))}
-                  placeholder="0" placeholderTextColor={colors.muted} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.combLabel}>Цена продажи</Text>
-                <TextInput color={colors.text} style={styles.combInput} keyboardType="numeric"
-                  value={ingCreateForm.sellPrice} onChangeText={v => setIngCreateForm(f => ({ ...f, sellPrice: v }))}
-                  placeholder="0" placeholderTextColor={colors.muted} />
-              </View>
-            </View>
-
-            <Text style={styles.combLabel}>Начальный остаток (необязательно)</Text>
+            <Text style={styles.combLabel}>Цена продажи (необязательно)</Text>
             <TextInput color={colors.text} style={styles.combInput} keyboardType="numeric"
-              value={ingCreateForm.initialStock} onChangeText={v => setIngCreateForm(f => ({ ...f, initialStock: v }))}
+              value={ingCreateForm.sellPrice} onChangeText={v => setIngCreateForm(f => ({ ...f, sellPrice: v }))}
               placeholder="0" placeholderTextColor={colors.muted} />
+            <Text style={styles.combHint}>Себестоимость появится сама после первой закупки на складе — здесь её не указываем.</Text>
 
             <Pressable style={styles.combSaveBtn} onPress={saveIngCreateForm}>
               <Text style={styles.combSaveTxt}>Создать и добавить в товар</Text>
@@ -804,7 +789,7 @@ export default function ProductsScreen({ navigation, route }) {
             {ingSearch.trim().length > 0 && (
               <Pressable
                 style={styles.ingPickerCreateRow}
-                onPress={() => setIngCreateForm({ name: ingSearch.trim(), unit: 'шт', category: '', costPrice: '', sellPrice: '', threshold: '', initialStock: '' })}
+                onPress={() => setIngCreateForm({ name: ingSearch.trim(), unit: 'шт', category: '', sellPrice: '', threshold: '' })}
               >
                 <Text style={styles.ingPickerCreateTxt}>+ Создать «{ingSearch.trim()}» на складе</Text>
               </Pressable>
