@@ -39,7 +39,7 @@ function pluralizeProducts(n) {
 }
 
 // ─── Правая панель редактирования товара ─────────────────────────────────────
-function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, allModGroups, onClose, onIngPicker }) {
+function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, allModGroups, onClose, onIngPicker, onCreateGroup, modifiersEnabled = true }) {
   const isNew = !product?.id;
   const canEditCost = can('edit_cost_cards');
   const [stock, setStock] = useState(() => { try { return getAllStock(); } catch { return []; } });
@@ -62,6 +62,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
   });
   const [ingPickerVar, setIngPickerVar] = useState(null); // индекс варианта
   const [expandedVar, setExpandedVar] = useState(-1);
+  const [optionsOpen, setOptionsOpen] = useState(selGroups.length > 0);
 
 
   const addVariant   = () => setVars(v => [...v, { id: null, label: '', price: '', deduction_mode: 'fixed', ings: [] }]);
@@ -223,7 +224,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
                     </View>
                     <Text style={styles.ingListHint}>
                       {v.deduction_mode === 'variable'
-                        ? 'Количество каждого материала вводится заново при каждой продаже — цена и списание считаются по факту (подходит для окрашивания и похожих услуг)'
+                        ? 'Количество каждого материала вводится заново при каждой продаже — цена и списание считаются по факту (подходит, когда расход у каждого клиента разный)'
                         : 'Сколько расходуется на одну продажу этого товара — при каждом заказе именно столько спишется со склада'}
                     </Text>
                     {(Array.isArray(v.ings) ? v.ings : []).map((ing, ii) => (
@@ -281,33 +282,47 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
           );
         })}
 
-        {/* Модификаторы */}
-        {allModGroups && allModGroups.length > 0 && (
+        {/* Опции (модификаторы) */}
+        {modifiersEnabled && (
+        <>
+        <View style={styles.priceRow}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+            <Text style={styles.fieldLabel}>Есть доп. опции с доплатой?</Text>
+            <InfoTip title="Опции" text="Дополнительные варианты, которые кассир предложит при заказе — доп. порция, замена одного на другое и т.п., за отдельную плату или без неё. Один список опций можно переиспользовать в разных товарах." />
+          </View>
+          <Toggle value={optionsOpen} onValueChange={setOptionsOpen} size="sm" />
+        </View>
+
+        {optionsOpen && (
           <>
-            <View style={styles.labelRow}>
-              <Text style={styles.fieldLabel}>Предлагать при заказе</Text>
-              <InfoTip title="Модификаторы" text="Кассир увидит эти варианты при добавлении товара в заказ." />
-            </View>
-            <View style={styles.modsCard}>
-              {allModGroups.map((g, idx) => {
-                const on = selGroups.includes(Number(g.id));
-                return (
-                  <Pressable key={g.id}
-                    style={[styles.modRow, idx < allModGroups.length-1 && styles.modRowDiv]}
-                    onPress={() => setSelGroups(s => on ? s.filter(x=>x!==Number(g.id)) : [...s, Number(g.id)])}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.modName}>{g.name}</Text>
-                      <Text style={styles.modSub}>{g.mode === 'replace' ? 'Замена' : 'Добавление'}</Text>
-                    </View>
-                    <View style={[styles.modCheck, on && styles.modCheckActive]}>
-                      {on && <Text style={styles.modCheckMark}>✓</Text>}
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </View>
+            {allModGroups && allModGroups.length > 0 && (
+              <View style={[styles.modsCard, { marginTop: 8 }]}>
+                {allModGroups.map((g, idx) => {
+                  const on = selGroups.includes(Number(g.id));
+                  return (
+                    <Pressable key={g.id}
+                      style={[styles.modRow, idx < allModGroups.length-1 && styles.modRowDiv]}
+                      onPress={() => setSelGroups(s => on ? s.filter(x=>x!==Number(g.id)) : [...s, Number(g.id)])}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.modName}>{g.name}</Text>
+                        <Text style={styles.modSub}>{g.mode === 'replace' ? 'Замена' : 'Добавление'}</Text>
+                      </View>
+                      <View style={[styles.modCheck, on && styles.modCheckActive]}>
+                        {on && <Text style={styles.modCheckMark}>✓</Text>}
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+            <Pressable style={styles.addIngBtn} onPress={onCreateGroup}>
+              <Text style={styles.addIngTxt}>+ Создать опцию</Text>
+            </Pressable>
           </>
         )}
+        </>
+        )}
+
 
         {/* Кнопки */}
         <Pressable style={styles.saveBtn} onPress={handleSave}>
@@ -350,6 +365,7 @@ export default function ProductsScreen({ navigation, route }) {
   const [createModeOpen, setCreateModeOpen] = useState(false);
   const [combinedForm, setCombinedForm]     = useState(null);
   const [stockCreateSignal, setStockCreateSignal] = useState(0);
+  const [ingCreateForm, setIngCreateForm] = useState(null);
   const [expandedCats, setExpandedCats] = useState({});
   const [catMgmtOpen, setCatMgmtOpen] = useState(false);
   const [catList, setCatList]       = useState([]); // [{id, name, productCount}]
@@ -464,6 +480,34 @@ export default function ProductsScreen({ navigation, route }) {
   const filteredStock = (stock || []).filter(s =>
     !ingSearch.trim() || s.name.toLowerCase().includes(ingSearch.toLowerCase())
   );
+  const stockCatsList = [...new Set((stock || []).map(s => s.category).filter(Boolean))].sort();
+
+  const saveIngCreateForm = () => {
+    if (!ingCreateForm?.name?.trim()) { toast.show('Укажите название', 'warn'); return; }
+    const res = insertStockItem({
+      name: ingCreateForm.name,
+      unit: ingCreateForm.unit || 'шт',
+      category: ingCreateForm.category || 'Прочее',
+      threshold: parseFloat(ingCreateForm.threshold) || 0,
+      initialQty: parseFloat(ingCreateForm.initialStock) || 0,
+    });
+    if (!res.ok) { toast.show(res.error, 'warn'); return; }
+    try {
+      const db = getDb();
+      db.runSync(`UPDATE stock SET avg_price = ?, sell_price = ? WHERE id = ?`, [
+        parseFloat(ingCreateForm.costPrice) || 0, parseFloat(ingCreateForm.sellPrice) || 0, res.id,
+      ]);
+    } catch (_) {}
+    const created = { id: res.id, name: ingCreateForm.name, unit: ingCreateForm.unit || 'шт' };
+    try { setStock(getAllStock()); } catch (_) {}
+    if (pendingIngCallback.current) {
+      pendingIngCallback.current(created);
+      pendingIngCallback.current = null;
+    }
+    setIngCreateForm(null);
+    setIngPickerState(null);
+    setIngSearch('');
+  };
 
   const chooseCreateMode = (mode) => {
     setCreateModeOpen(false);
@@ -581,8 +625,8 @@ export default function ProductsScreen({ navigation, route }) {
 
       {/* Вкладки — всегда видны, независимо от активной */}
       <View style={styles.tabBarOuter}>
-        {[{ key: 'products', label: 'Товары' }, { key: 'stock', label: 'Склад' }, { key: 'modifiers', label: 'Модификаторы' }]
-          .filter(t => (t.key !== 'modifiers' || modules.modifiers !== false) && (t.key !== 'stock' || modules.stock !== false))
+        {[{ key: 'products', label: 'Товары' }, { key: 'stock', label: 'Склад' }]
+          .filter(t => t.key !== 'stock' || modules.stock !== false)
           .map(t => (
           <Pressable key={t.key} style={[styles.tabBtn, tab === t.key && styles.tabBtnActive]} onPress={() => { setTab(t.key); setSelected(null); }}>
             <Text style={[styles.tabTxt, tab === t.key && styles.tabTxtActive]}>{t.label}</Text>
@@ -693,6 +737,8 @@ export default function ProductsScreen({ navigation, route }) {
             categories={allCategoryNames}
             allModGroups={modGroups}
             onIngPicker={(vi, callback) => { try { setStock(getAllStock()); } catch(_){} setIngPickerState(vi !== null ? { vi } : null); setIngSearch(''); pendingIngCallback.current = callback; }}
+            onCreateGroup={() => setGroupModal({ name: '', mode: 'add' })}
+            modifiersEnabled={modules.modifiers !== false}
           />
         )}
       </Sheet>
@@ -730,7 +776,7 @@ export default function ProductsScreen({ navigation, route }) {
             <Text style={styles.combLabel}>Название</Text>
             <TextInput color={colors.text} style={styles.combInput}
               value={combinedForm.name} onChangeText={v => setCombinedForm(f => ({ ...f, name: v }))}
-              placeholder="напр. Краска синяя" placeholderTextColor={colors.muted} autoFocus />
+              placeholder="Название" placeholderTextColor={colors.muted} autoFocus />
 
             <Text style={styles.combLabel}>Категория</Text>
             <TextInput color={colors.text} style={styles.combInput}
@@ -777,7 +823,77 @@ export default function ProductsScreen({ navigation, route }) {
       </Sheet>
 
       {/* Пикер ингредиентов — на уровне экрана */}
-      <Sheet visible={ingPickerState !== null} onClose={() => setIngPickerState(null)} title="Выбрать из склада">
+      <Sheet
+        visible={ingPickerState !== null}
+        onClose={() => { setIngPickerState(null); setIngCreateForm(null); }}
+        title={ingCreateForm ? 'Новая позиция склада' : 'Выбрать из склада'}
+      >
+        {ingCreateForm ? (
+          <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
+            <Pressable onPress={() => setIngCreateForm(null)} style={{ marginBottom: 8 }}>
+              <Text style={styles.catBackTxt}>‹ Назад к выбору</Text>
+            </Pressable>
+
+            <Text style={styles.combLabel}>Название</Text>
+            <TextInput color={colors.text} style={styles.combInput}
+              value={ingCreateForm.name} onChangeText={v => setIngCreateForm(f => ({ ...f, name: v }))}
+              placeholder="Название" placeholderTextColor={colors.muted} />
+
+            <Text style={styles.combLabel}>Категория склада</Text>
+            {stockCatsList.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
+                {stockCatsList.map(cat => (
+                  <Pressable key={cat} style={[styles.chip, ingCreateForm.category === cat && styles.chipActive]} onPress={() => setIngCreateForm(f => ({ ...f, category: cat }))}>
+                    <Text style={[styles.chipTxt, ingCreateForm.category === cat && styles.chipTxtActive]}>{cat}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+            <TextInput color={colors.text} style={[styles.combInput, { marginTop: stockCatsList.length > 0 ? 8 : 0 }]}
+              value={ingCreateForm.category} onChangeText={v => setIngCreateForm(f => ({ ...f, category: v }))}
+              placeholder="Или впишите новую категорию" placeholderTextColor={colors.muted} />
+
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.combLabel}>Единица</Text>
+                <TextInput color={colors.text} style={styles.combInput}
+                  value={ingCreateForm.unit} onChangeText={v => setIngCreateForm(f => ({ ...f, unit: v }))}
+                  placeholder="шт, мл, г..." placeholderTextColor={colors.muted} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.combLabel}>Порог (необязательно)</Text>
+                <TextInput color={colors.text} style={styles.combInput} keyboardType="numeric"
+                  value={ingCreateForm.threshold} onChangeText={v => setIngCreateForm(f => ({ ...f, threshold: v }))}
+                  placeholder="0" placeholderTextColor={colors.muted} />
+              </View>
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.combLabel}>Себестоимость</Text>
+                <TextInput color={colors.text} style={styles.combInput} keyboardType="numeric"
+                  value={ingCreateForm.costPrice} onChangeText={v => setIngCreateForm(f => ({ ...f, costPrice: v }))}
+                  placeholder="0" placeholderTextColor={colors.muted} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.combLabel}>Цена продажи</Text>
+                <TextInput color={colors.text} style={styles.combInput} keyboardType="numeric"
+                  value={ingCreateForm.sellPrice} onChangeText={v => setIngCreateForm(f => ({ ...f, sellPrice: v }))}
+                  placeholder="0" placeholderTextColor={colors.muted} />
+              </View>
+            </View>
+
+            <Text style={styles.combLabel}>Начальный остаток (необязательно)</Text>
+            <TextInput color={colors.text} style={styles.combInput} keyboardType="numeric"
+              value={ingCreateForm.initialStock} onChangeText={v => setIngCreateForm(f => ({ ...f, initialStock: v }))}
+              placeholder="0" placeholderTextColor={colors.muted} />
+
+            <Pressable style={styles.combSaveBtn} onPress={saveIngCreateForm}>
+              <Text style={styles.combSaveTxt}>Создать и добавить в товар</Text>
+            </Pressable>
+          </ScrollView>
+        ) : (
+        <>
           <TextInput
             style={styles.ingPickerSearch}
             color={colors.text}
@@ -791,18 +907,7 @@ export default function ProductsScreen({ navigation, route }) {
             {ingSearch.trim().length > 0 && (
               <Pressable
                 style={styles.ingPickerCreateRow}
-                onPress={() => {
-                  const res = insertStockItem({ name: ingSearch.trim(), unit: 'шт' });
-                  if (!res.ok) { toast.show(res.error, 'warn'); return; }
-                  const created = { id: res.id, name: ingSearch.trim(), unit: 'шт' };
-                  try { setStock(getAllStock()); } catch (_) {}
-                  if (pendingIngCallback.current) {
-                    pendingIngCallback.current(created);
-                    pendingIngCallback.current = null;
-                  }
-                  setIngPickerState(null);
-                  setIngSearch('');
-                }}
+                onPress={() => setIngCreateForm({ name: ingSearch.trim(), unit: 'шт', category: '', costPrice: '', sellPrice: '', threshold: '', initialStock: '' })}
               >
                 <Text style={styles.ingPickerCreateTxt}>+ Создать «{ingSearch.trim()}» на складе</Text>
               </Pressable>
@@ -824,6 +929,8 @@ export default function ProductsScreen({ navigation, route }) {
               <Text style={styles.ingPickerEmpty}>Ничего не найдено</Text>
             )}
           </ScrollView>
+        </>
+        )}
       </Sheet>
 
       {/* Модалка управления категориями */}

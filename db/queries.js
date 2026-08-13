@@ -1433,7 +1433,7 @@ export function initPurchasesTable() {
   try { db.execSync(`ALTER TABLE stock ADD COLUMN last_price REAL DEFAULT 0`); } catch (_) {}
   try { db.execSync(`ALTER TABLE stock ADD COLUMN sell_price REAL DEFAULT 0`); } catch (_) {}
   // 'fixed' — количество ингредиента задано заранее (молоко в капучино всегда 150мл).
-  // 'variable' — количество вводится каждый раз заново при продаже (краска на окрашивании).
+  // 'variable' — количество вводится каждый раз заново при продаже (расход у каждого клиента разный).
   try { db.execSync(`ALTER TABLE product_variants ADD COLUMN deduction_mode TEXT DEFAULT 'fixed'`); } catch (_) {}
 }
 
