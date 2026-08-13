@@ -5,6 +5,7 @@ import {
   Modal, TextInput, Alert, Animated, FlatList,
 } from 'react-native';
 import TopBar from '../components/TopBar';
+import Sheet from '../components/Sheet';
 import AppNav from '../components/AppNav';
 import DatePicker from '../components/DatePicker';
 import { useFocusEffect } from '@react-navigation/native';
@@ -61,6 +62,7 @@ export default function SalesScreen({ navigation }) {
   const [dateFrom, setDateFrom]     = useState(todayStr());
   const [dateTo, setDateTo]         = useState(todayStr());
   const [search, setSearch]         = useState('');
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [payFilter, setPayFilter]   = useState('all');
   const [picker, setPicker]         = useState(null);
 
@@ -75,7 +77,6 @@ export default function SalesScreen({ navigation }) {
   const [editMethod, setEditMethod]     = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [returnTarget, setReturnTarget] = useState(null);
-  const [containerWidth, setContainerWidth] = useState(0);
 
   // Анимации
   const fadeAnim  = useState(new Animated.Value(0))[0];
@@ -163,82 +164,22 @@ export default function SalesScreen({ navigation }) {
         onBack={() => goBackSmart(navigation)}
       />
 
-      <View style={styles.layout} onLayout={e => setContainerWidth(e.nativeEvent.layout.width)}>
+      <View style={styles.layout}>
 
-        {/* ── Левая панель: фильтры + статистика ── */}
-        <View style={[styles.left, containerWidth > 0 && { width: Math.min(380, Math.max(260, containerWidth * 0.3)) }]}>
-          {/* Периоды */}
-          <Text style={styles.sectionLabel}>Период</Text>
-          <View style={styles.periodList}>
-            {PERIODS.map(p => (
-              <Pressable
-                key={p.key}
-                style={[styles.periodBtn, period === p.key && styles.periodBtnActive]}
-                onPress={() => p.key === 'custom' ? setPicker('range') : setPeriod(p.key)}
-              >
-                {period === p.key && <View style={styles.periodBar} />}
-                <Text style={[styles.periodTxt, period === p.key && styles.periodTxtActive]}>
-                  {p.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          <View style={styles.divider} />
-
-          {/* Фильтр по оплате */}
-          <Text style={styles.sectionLabel}>Оплата</Text>
-          {['all','cash','card','returns'].map(key => {
-            const labels = { all: 'Все', cash: 'Наличные', card: 'Карта', returns: 'Возвраты' };
-            return (
-              <Pressable
-                key={key}
-                style={[styles.periodBtn, payFilter === key && styles.periodBtnActive]}
-                onPress={() => setPayFilter(key)}
-              >
-                {payFilter === key && <View style={styles.periodBar} />}
-                <Text style={[styles.periodTxt, payFilter === key && styles.periodTxtActive]}>
-                  {labels[key]}
-                </Text>
-              </Pressable>
-            );
-          })}
-
-          <View style={styles.divider} />
-
-          {/* Статистика */}
-          <Animated.View style={{ opacity: fadeAnim }}>
-            <Text style={styles.sectionLabel}>Итоги</Text>
-            {[
-              { label: 'Выручка',  value: `${fmt(total)} ₽`,    color: colors.orange },
-              { label: 'Заказов',  value: filtered.length,       color: colors.text },
-              { label: 'Ср. чек', value: `${fmt(avgCheck)} ₽`,  color: colors.text },
-              cash  > 0 && { label: 'Наличные', value: `${fmt(cash)} ₽`,  color: colors.text },
-              card  > 0 && { label: 'Карта',    value: `${fmt(card)} ₽`,  color: colors.text },
-              qr    > 0 && { label: 'QR/СБП',   value: `${fmt(qr)} ₽`,    color: colors.text },
-              mixed > 0 && { label: 'Смешанная',value: `${fmt(mixed)} ₽`, color: colors.text },
-            ].filter(Boolean).map((s, i) => (
-              <View key={i} style={styles.statRow}>
-                <Text style={styles.statLabel}>{s.label}</Text>
-                <Text style={[styles.statVal, { color: s.color }]}>{s.value}</Text>
-              </View>
-            ))}
-          </Animated.View>
-        </View>
-
-        {/* ── Правая панель: поиск + список ── */}
+        {/* ── Список: поиск + заказы, на всю ширину ── */}
         <View style={styles.right}>
-          {/* Поиск — прилеплен к верху */}
           <View style={styles.searchWrap}>
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, { flex: 1 }]}
               color={colors.text}
               value={search}
               onChangeText={setSearch}
               placeholder="Поиск по товару, сумме или способу оплаты..."
               placeholderTextColor={colors.muted}
-              clearButtonMode="while-editing"
             />
+            <Pressable onPress={() => setFiltersOpen(true)} hitSlop={8} style={styles.filtersBtn}>
+              <Text style={styles.filtersBtnTxt}>⚙ Фильтры</Text>
+            </Pressable>
           </View>
 
           {/* Список заказов */}
@@ -354,6 +295,63 @@ export default function SalesScreen({ navigation }) {
         </View>
       </View>
 
+      <Sheet visible={filtersOpen} onClose={() => setFiltersOpen(false)} title="Фильтры и итоги">
+        <ScrollView contentContainerStyle={{ padding: 20 }}>
+          <Text style={styles.sectionLabel}>Период</Text>
+          <View style={styles.periodList}>
+            {PERIODS.map(p => (
+              <Pressable
+                key={p.key}
+                style={[styles.periodBtn, period === p.key && styles.periodBtnActive]}
+                onPress={() => p.key === 'custom' ? setPicker('range') : setPeriod(p.key)}
+              >
+                {period === p.key && <View style={styles.periodBar} />}
+                <Text style={[styles.periodTxt, period === p.key && styles.periodTxtActive]}>
+                  {p.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <View style={styles.divider} />
+
+          <Text style={styles.sectionLabel}>Оплата</Text>
+          {['all','cash','card','returns'].map(key => {
+            const labels = { all: 'Все', cash: 'Наличные', card: 'Карта', returns: 'Возвраты' };
+            return (
+              <Pressable
+                key={key}
+                style={[styles.periodBtn, payFilter === key && styles.periodBtnActive]}
+                onPress={() => setPayFilter(key)}
+              >
+                {payFilter === key && <View style={styles.periodBar} />}
+                <Text style={[styles.periodTxt, payFilter === key && styles.periodTxtActive]}>
+                  {labels[key]}
+                </Text>
+              </Pressable>
+            );
+          })}
+
+          <View style={styles.divider} />
+
+          <Text style={styles.sectionLabel}>Итоги</Text>
+          {[
+            { label: 'Выручка',  value: `${fmt(total)} ₽`,    color: colors.orange },
+            { label: 'Заказов',  value: filtered.length,       color: colors.text },
+            { label: 'Ср. чек', value: `${fmt(avgCheck)} ₽`,  color: colors.text },
+            cash  > 0 && { label: 'Наличные', value: `${fmt(cash)} ₽`,  color: colors.text },
+            card  > 0 && { label: 'Карта',    value: `${fmt(card)} ₽`,  color: colors.text },
+            qr    > 0 && { label: 'QR/СБП',   value: `${fmt(qr)} ₽`,    color: colors.text },
+            mixed > 0 && { label: 'Смешанная',value: `${fmt(mixed)} ₽`, color: colors.text },
+          ].filter(Boolean).map((s, i) => (
+            <View key={i} style={styles.statRow}>
+              <Text style={styles.statLabel}>{s.label}</Text>
+              <Text style={[styles.statVal, { color: s.color }]}>{s.value}</Text>
+            </View>
+          ))}
+        </ScrollView>
+      </Sheet>
+
       <AppNav navigation={navigation} activeScreen="Sales" />
 
       {/* Пикер периода — один календарь, тап на начало и конец */}
@@ -367,11 +365,8 @@ export default function SalesScreen({ navigation }) {
       />
 
       {/* Модалка редактирования */}
-      <Modal visible={!!editOrder} transparent animationType="fade" onRequestClose={() => setEditOrder(null)}>
-        <View style={styles.modalOverlay}>
-          <Pressable style={{ ...StyleSheet.absoluteFillObject }} onPress={() => setEditOrder(null)} />
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Изменить заказ</Text>
+      <Sheet visible={!!editOrder} onClose={() => setEditOrder(null)} title="Изменить заказ">
+          <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
             <Text style={styles.fieldLabel}>Сумма</Text>
             <TextInput style={styles.modalInput} color={colors.text} value={editTotal}
               onChangeText={setEditTotal} keyboardType="numeric" placeholder="0"
@@ -407,9 +402,8 @@ export default function SalesScreen({ navigation }) {
                 <Text style={styles.modalSaveTxt}>Сохранить</Text>
               </Pressable>
             </View>
-          </View>
-        </View>
-      </Modal>
+          </ScrollView>
+      </Sheet>
 
       {/* Модалка подтверждения удаления */}
       <Modal visible={!!deleteTarget} transparent animationType="fade" onRequestClose={() => setDeleteTarget(null)}>
@@ -455,7 +449,7 @@ export default function SalesScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   root:   { flex: 1, backgroundColor: colors.bg },
-  layout: { flex: 1, flexDirection: 'row' },
+  layout: { flex: 1 },
 
   // Левая панель
   left:   { width: 200, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface, padding: 14 },
@@ -473,7 +467,9 @@ const styles = StyleSheet.create({
 
   // Правая панель
   right:       { flex: 1 },
-  searchWrap:  { padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+  searchWrap:  { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+  filtersBtn:  { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
+  filtersBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
   searchInput: { backgroundColor: colors.surface, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14, fontFamily: fonts.familyRegular, fontSize: 16, color: colors.text },
 
   emptyWrap:  { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
