@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import EmptyState from '../EmptyState';
 import {
-  getAllStock, addPurchase, updateMaxOstatok, insertStockItem,
+  getAllStock, addPurchase, updateMaxOstatok, insertStockItem, getAvgCostLast10,
   setStockForLocation, adjustStockForLocation,
   getStockHistory, getLocations,
   getCurrentLocationId, setCurrentLocationId,
@@ -17,6 +17,7 @@ import { colors, fonts, spacing } from '../../constants/theme';
 import { useToast } from '../Toast';
 import Sheet from '../Sheet';
 import InfoTip from '../InfoTip';
+import UnitPicker from '../UnitPicker';
 
 function updateStockLocal(itemId, newValue) {
   const db = getDb();
@@ -43,6 +44,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
   const [qty, setQty]               = useState('');
   const [price, setPrice]           = useState('');
   const [history, setHistory]       = useState([]);
+  const [avgCost, setAvgCost]       = useState(0);
   const [showHistory, setShowHistory] = useState(false);
   const [locations, setLocations]   = useState([]);
   const [selectedLocId, setSelectedLocId] = useState(null);
@@ -51,9 +53,6 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
   const [newItemModal, setNewItemModal] = useState(null); // { name, unit, category, threshold }
   const [stockCats, setStockCats]   = useState([]);
   const [catModal2, setCatModal2]   = useState(null); // {oldName, newName}
-  const [priceCalcOpen, setPriceCalcOpen] = useState(false);
-  const [priceCalcQty, setPriceCalcQty]   = useState('');
-  const [priceCalcSum, setPriceCalcSum]   = useState('');
 
   const openMode = (key) => {
     setMode(key);
@@ -112,24 +111,8 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
     setQty('');
     setPrice('');
     setShowHistory(false);
-    setPriceCalcOpen(false);
-    setPriceCalcQty('');
-    setPriceCalcSum('');
     try { setHistory(getStockHistory(item.id).slice(0, 10)); } catch (_) { setHistory([]); }
-  };
-
-  const savePrice = (newPrice) => {
-    if (!selected) return;
-    const p = parseFloat(newPrice);
-    if (isNaN(p) || p < 0) return;
-    try {
-      const db = getDb();
-      db.runSync(`UPDATE stock SET avg_price = ?, last_price = ? WHERE id = ?`, [p, p, selected.id]);
-      db.runSync(`UPDATE cost_ingredients SET price_per_unit = ? WHERE LOWER(name) = LOWER(?)`, [p, selected.name]);
-      reload();
-      setSelected(m => ({ ...m, avg_price: p }));
-      toast.show(`Цена ${p} ₽/ед. сохранена ✓`, 'info');
-    } catch(e) { console.error(e); toast.show('Ошибка сохранения', 'warn'); }
+    try { setAvgCost(getAvgCostLast10(item.name)); } catch (_) { setAvgCost(0); }
   };
 
   const saveSellPrice = (newPrice) => {
@@ -176,6 +159,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
       if (updated) {
         setSelected(updated);
         try { setHistory(getStockHistory(id).slice(0, 10)); } catch (_) {}
+        try { setAvgCost(getAvgCostLast10(name)); } catch (_) {}
       }
     } catch (e) { console.error(e); }
   };
@@ -413,24 +397,11 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
               <View style={styles.priceRow}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Text style={styles.curAvg}>Себестоимость:</Text>
-                  <InfoTip title="Себестоимость" text="Сколько эта единица стоит вам самим — по этой цене считается закупка и маржа. Клиент её никогда не видит." />
+                  <InfoTip title="Себестоимость" text="Считается автоматически по последним закупкам этой позиции — не редактируется вручную. Если закупок ещё не было, тут прочерк, пока не оформите первую («Закупка»)." />
                 </View>
-                <TextInput
-                  color={colors.text}
-                  style={styles.priceInput}
-                  keyboardType="numeric"
-                  value={String(selected.avg_price || '')}
-                  placeholder="0"
-                  placeholderTextColor={colors.muted}
-                  onChangeText={v => setSelected(m => ({ ...m, avg_price: v }))}
-                />
-                <Text style={styles.curAvg}>₽/ед.</Text>
-                <Pressable
-                  style={({ pressed }) => [styles.priceSaveBtn, pressed && { opacity: 0.7, backgroundColor: 'rgba(240,160,80,0.3)' }]}
-                  onPress={() => savePrice(String(selected.avg_price || ''))}
-                >
-                  <Text style={styles.priceSaveTxt}>✓</Text>
-                </Pressable>
+                <Text style={styles.curAvgVal}>
+                  {avgCost > 0 ? `${avgCost} ₽/ед.` : '— (нет закупок)'}
+                </Text>
               </View>
 
               <View style={[styles.priceRow, { marginTop: 10 }]}>
@@ -455,52 +426,6 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
                   <Text style={styles.priceSaveTxt}>✓</Text>
                 </Pressable>
               </View>
-              <Pressable onPress={() => setPriceCalcOpen(o => !o)}>
-                <Text style={styles.priceCalcToggle}>{priceCalcOpen ? '✕ скрыть калькулятор' : '🧮 посчитать по сумме (без записи в Расходы)'}</Text>
-              </Pressable>
-              {priceCalcOpen && (
-                <View style={styles.priceCalcBox}>
-                  <View style={styles.priceCalcRow}>
-                    <TextInput
-                      color={colors.text}
-                      style={styles.priceCalcInput}
-                      keyboardType="numeric"
-                      value={priceCalcQty}
-                      onChangeText={setPriceCalcQty}
-                      placeholder={`Кол-во, ${selected.unit}`}
-                      placeholderTextColor={colors.muted}
-                    />
-                    <TextInput
-                      color={colors.text}
-                      style={styles.priceCalcInput}
-                      keyboardType="numeric"
-                      value={priceCalcSum}
-                      onChangeText={setPriceCalcSum}
-                      placeholder="Сумма, ₽"
-                      placeholderTextColor={colors.muted}
-                    />
-                  </View>
-                  {!!priceCalcQty && !!priceCalcSum && parseFloat(priceCalcQty) > 0 && (
-                    <Text style={styles.purchasePerUnitHint}>
-                      ≈ {(parseFloat(priceCalcSum) / parseFloat(priceCalcQty)).toFixed(2)} ₽/{selected.unit}
-                    </Text>
-                  )}
-                  <Pressable
-                    style={({ pressed }) => [styles.priceCalcApplyBtn, pressed && { opacity: 0.8 }]}
-                    onPress={() => {
-                      const q = parseFloat(priceCalcQty), s = parseFloat(priceCalcSum);
-                      if (!q || q <= 0 || isNaN(s)) return;
-                      const per = s / q;
-                      setSelected(m => ({ ...m, avg_price: per.toFixed(2) }));
-                      savePrice(String(per));
-                      setPriceCalcOpen(false);
-                      setPriceCalcQty(''); setPriceCalcSum('');
-                    }}
-                  >
-                    <Text style={styles.priceCalcApplyTxt}>Применить</Text>
-                  </Pressable>
-                </View>
-              )}
             </View>
 
             {/* Режимы */}
@@ -572,38 +497,36 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
                   placeholderTextColor={colors.muted}
                   autoFocus
                 />
-                <View style={{ flexDirection: 'row', gap: 10 }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.sectionLabel}>Единица</Text>
-                    <TextInput
-                      color={colors.text}
-                      style={[styles.input, { marginBottom: 12 }]}
-                      value={newItemModal.unit}
-                      onChangeText={v => setNewItemModal(m => ({ ...m, unit: v }))}
-                      placeholder="шт, кг, мл..."
-                      placeholderTextColor={colors.muted}
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.sectionLabel}>Порог (необязательно)</Text>
-                    <TextInput
-                      color={colors.text}
-                      style={[styles.input, { marginBottom: 12 }]}
-                      value={newItemModal.threshold}
-                      onChangeText={v => setNewItemModal(m => ({ ...m, threshold: v }))}
-                      keyboardType="numeric"
-                      placeholder="0"
-                      placeholderTextColor={colors.muted}
-                    />
-                  </View>
+                <Text style={styles.sectionLabel}>Единица</Text>
+                <View style={{ marginBottom: 12 }}>
+                  <UnitPicker value={newItemModal.unit} onChange={v => setNewItemModal(m => ({ ...m, unit: v }))} />
                 </View>
+                <Text style={styles.sectionLabel}>Порог (необязательно)</Text>
+                <TextInput
+                  color={colors.text}
+                  style={[styles.input, { marginBottom: 12 }]}
+                  value={newItemModal.threshold}
+                  onChangeText={v => setNewItemModal(m => ({ ...m, threshold: v }))}
+                  keyboardType="numeric"
+                  placeholder="0"
+                  placeholderTextColor={colors.muted}
+                />
                 <Text style={styles.sectionLabel}>Категория</Text>
+                {stockCats.length > 0 && (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 8 }}>
+                    {stockCats.map(cat => (
+                      <Pressable key={cat} style={[styles.catChip, newItemModal.category === cat && styles.catChipActive]} onPress={() => setNewItemModal(m => ({ ...m, category: cat }))}>
+                        <Text style={[styles.catChipTxt, newItemModal.category === cat && styles.catChipTxtActive]}>{cat}</Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                )}
                 <TextInput
                   color={colors.text}
                   style={styles.input}
                   value={newItemModal.category}
                   onChangeText={v => setNewItemModal(m => ({ ...m, category: v }))}
-                  placeholder="напр. Сиропы и пюре"
+                  placeholder="Или впишите новую категорию"
                   placeholderTextColor={colors.muted}
                 />
                 <Pressable
@@ -724,6 +647,10 @@ const styles = StyleSheet.create({
     fontFamily: fonts.family,
   },
   catBtn: { width: 38, height: 38, borderRadius: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  catChip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
+  catChipActive: { backgroundColor: 'rgba(240,160,80,0.12)', borderColor: 'rgba(240,160,80,0.5)' },
+  catChipTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  catChipTxtActive: { color: colors.orange },
   catBtnText: { fontSize: 16, color: colors.muted },
   addStockBtn: { paddingHorizontal: 12, height: 38, borderRadius: 10, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
   addStockBtnText: { fontSize: 13, color: colors.orange, fontFamily: fonts.familySemibold },
@@ -786,6 +713,7 @@ const styles = StyleSheet.create({
   curThrLabel:{ fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
   curThrVal: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, marginTop: 2 },
   curAvg:    { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.textDim, marginTop: 10 },
+  curAvgVal: { fontFamily: fonts.family, fontSize: 14, fontWeight: '700', color: colors.text },
 
   modeList:   { borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(64,60,55,0.25)' },
   modeRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, backgroundColor: colors.surface2 },
