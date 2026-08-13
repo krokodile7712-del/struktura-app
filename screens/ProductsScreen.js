@@ -302,7 +302,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
                       style={[styles.modRow, idx < allModGroups.length-1 && styles.modRowDiv]}>
                       <Pressable style={{ flex: 1 }} onPress={() => onCreateGroup(g)}>
                         <Text style={styles.modName}>{g.name}</Text>
-                        <Text style={styles.modSub}>{g.mode === 'replace' ? 'Замена' : 'Добавление'} · нажмите, чтобы изменить</Text>
+                        <Text style={styles.modSub}>{g.apply_mode === 'replace' ? 'Замена' : 'Добавление'} · нажмите, чтобы изменить</Text>
                       </Pressable>
                       <Pressable
                         style={[styles.modCheck, on && styles.modCheckActive]}
@@ -684,7 +684,7 @@ export default function ProductsScreen({ navigation, route }) {
                 <Pressable key={g.id} style={styles.modGroupCard} onPress={() => setGroupModal(g)}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.modGroupName}>{g.name}</Text>
-                    <Text style={styles.modGroupSub}>{g.mode === 'replace' ? 'Замена' : 'Добавление'}</Text>
+                    <Text style={styles.modGroupSub}>{g.apply_mode === 'replace' ? 'Замена' : 'Добавление'}</Text>
                   </View>
                   <Text style={styles.modGroupArrow}>›</Text>
                 </Pressable>
@@ -982,7 +982,7 @@ export default function ProductsScreen({ navigation, route }) {
 function ModGroupModal({ group, onSave, onDelete, onClose, stock }) {
   const isNew = !group?.id;
   const [name, setName]       = useState(group?.name || '');
-  const [mode, setMode]       = useState(group?.mode || 'add');
+  const [mode, setMode]       = useState(group?.apply_mode || 'add');
   const [options, setOptions] = useState(() => {
     try { return group?.id ? (getAllModifierGroups().find(g=>g.id===group.id)?.options || []) : []; } catch { return []; }
   });

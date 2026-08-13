@@ -306,6 +306,9 @@ export function initDatabase() {
     `ALTER TABLE product_variants ADD COLUMN deduction_mode TEXT DEFAULT 'fixed'`,
     // Единица продажи самого товара (не складской позиции) — для развесных/объёмных товаров
     `ALTER TABLE product_variants ADD COLUMN unit TEXT DEFAULT 'шт'`,
+    // Добавление или Замена ингредиента — отдельно от selection_type
+    // (тот отвечает за "один вариант можно выбрать или несколько")
+    `ALTER TABLE modifier_groups ADD COLUMN apply_mode TEXT DEFAULT 'add'`,
     // Права доступа сотрудника
     `ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT '{}'`,
     // Расширенный профиль бизнеса

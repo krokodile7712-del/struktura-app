@@ -458,18 +458,18 @@ export function getAllModifierGroups() {
   }));
 }
 
-export function insertModifierGroup({ name, selectionType }) {
+export function insertModifierGroup({ name, selectionType, mode }) {
   const db = getDb();
   const { lastInsertRowId } = db.runSync(
-    `INSERT INTO modifier_groups (name, selection_type) VALUES (?, ?)`,
-    [name, selectionType || 'single']
+    `INSERT INTO modifier_groups (name, selection_type, apply_mode) VALUES (?, ?, ?)`,
+    [name, selectionType || 'single', mode === 'replace' ? 'replace' : 'add']
   );
   return lastInsertRowId;
 }
 
-export function updateModifierGroup(id, { name, selectionType }) {
+export function updateModifierGroup(id, { name, selectionType, mode }) {
   const db = getDb();
-  db.runSync(`UPDATE modifier_groups SET name = ?, selection_type = ? WHERE id = ?`, [name, selectionType || 'single', id]);
+  db.runSync(`UPDATE modifier_groups SET name = ?, selection_type = ?, apply_mode = ? WHERE id = ?`, [name, selectionType || 'single', mode === 'replace' ? 'replace' : 'add', id]);
 }
 
 export function deleteModifierGroup(id) {
