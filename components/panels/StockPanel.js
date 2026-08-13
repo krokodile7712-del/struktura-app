@@ -49,6 +49,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
   const [history, setHistory]       = useState([]);
   const [avgCost, setAvgCost]       = useState(0);
   const [deletePrompt, setDeletePrompt] = useState(null); // {id, name, usedIn: [{id,name}]}
+  const [lowStockSheetOpen, setLowStockSheetOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [locations, setLocations]   = useState([]);
   const [selectedLocId, setSelectedLocId] = useState(null);
@@ -301,6 +302,9 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
             <Text style={styles.addStockBtnText}>+ Позиция</Text>
           </Pressable>
           )}
+          <Pressable onPress={() => setLowStockSheetOpen(true)} hitSlop={8} style={styles.catBtn}>
+            <Text style={styles.catBtnText}>⚠️</Text>
+          </Pressable>
           <Pressable onPress={() => setCatModal(true)} hitSlop={8} style={styles.catBtn}>
             <Text style={styles.catBtnText}>⚙</Text>
           </Pressable>
@@ -583,6 +587,45 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
           </View>
         </View>
       </Modal>
+
+      {/* Отдельный экран — всё, что скоро закончится, в одном месте */}
+      <Sheet visible={lowStockSheetOpen} onClose={() => setLowStockSheetOpen(false)} title="Скоро закончится">
+        <ScrollView contentContainerStyle={{ padding: 16 }}>
+          {(() => {
+            const negItems = stock.filter(s => (s['остаток'] ?? 0) < 0);
+            const lowItems = stock.filter(s => {
+              const cur = s['остаток'] ?? 0;
+              const thr = s['порог'] ?? 0;
+              return cur >= 0 && thr > 0 && cur <= thr;
+            });
+            if (negItems.length === 0 && lowItems.length === 0) {
+              return (
+                <EmptyState icon="✅" title="Всё в норме" text="Ни одна позиция не приближается к порогу" />
+              );
+            }
+            return (
+              <>
+                {negItems.length > 0 && (
+                  <>
+                    <Text style={styles.lowSheetSectionTitle}>В минусе</Text>
+                    <View style={styles.catCard}>
+                      {negItems.map((item, idx) => renderItemRow(item, idx === negItems.length - 1))}
+                    </View>
+                  </>
+                )}
+                {lowItems.length > 0 && (
+                  <>
+                    <Text style={[styles.lowSheetSectionTitle, { marginTop: negItems.length > 0 ? 20 : 0 }]}>Ниже порога</Text>
+                    <View style={styles.catCard}>
+                      {lowItems.map((item, idx) => renderItemRow(item, idx === lowItems.length - 1))}
+                    </View>
+                  </>
+                )}
+              </>
+            );
+          })()}
+        </ScrollView>
+      </Sheet>
 
       {/* Модалка новой позиции склада */}
       <Modal visible={!!newItemModal} transparent animationType="fade" onRequestClose={() => setNewItemModal(null)}>
@@ -878,6 +921,7 @@ const styles = StyleSheet.create({
   addStockBtnText: { fontSize: 13, color: colors.orange, fontFamily: fonts.familySemibold },
 
   catGroup: { marginTop: 24, paddingHorizontal: spacing.lg },
+  lowSheetSectionTitle: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.red, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 },
 
   catHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   catName: { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.text, letterSpacing: -0.3 },
