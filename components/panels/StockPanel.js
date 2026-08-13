@@ -6,6 +6,7 @@ import {
 import EmptyState from '../EmptyState';
 import {
   getAllStock, addPurchase, updateMaxOstatok, insertStockItem, getAvgCostLast10,
+  getProductsUsingStockName, deleteStockItem,
   setStockForLocation, adjustStockForLocation,
   getStockHistory, getLocations,
   getCurrentLocationId, setCurrentLocationId,
@@ -47,6 +48,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
   const [price, setPrice]           = useState('');
   const [history, setHistory]       = useState([]);
   const [avgCost, setAvgCost]       = useState(0);
+  const [deletePrompt, setDeletePrompt] = useState(null); // {id, name, usedIn: [{id,name}]}
   const [showHistory, setShowHistory] = useState(false);
   const [locations, setLocations]   = useState([]);
   const [selectedLocId, setSelectedLocId] = useState(null);
@@ -129,6 +131,22 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
       setSelected(m => ({ ...m, sell_price: p }));
       toast.show(`Цена продажи ${p} ₽/ед. сохранена ✓`, 'info');
     } catch(e) { console.error(e); toast.show('Ошибка сохранения', 'warn'); }
+  };
+
+  const requestDelete = () => {
+    if (!selected) return;
+    const usedIn = getProductsUsingStockName(selected.name);
+    setDeletePrompt({ id: selected.id, name: selected.name, usedIn });
+  };
+
+  const confirmDelete = (removeFromRecipes) => {
+    if (!deletePrompt) return;
+    const res = deleteStockItem(deletePrompt.id, deletePrompt.name, removeFromRecipes);
+    if (!res.ok) { toast.show(res.error || 'Не удалось удалить', 'warn'); return; }
+    toast.show(`«${deletePrompt.name}» удалено со склада`, 'info');
+    setDeletePrompt(null);
+    setSelected(null);
+    reload();
   };
 
   const confirm = () => {
@@ -504,9 +522,67 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
                 {h.price > 0 && <Text style={styles.histPrice}>{h.price} ₽/ед.</Text>}
               </View>
             ))}
+
+            {can('edit_stock') && (
+              <Pressable style={styles.deleteItemBtn} onPress={requestDelete}>
+                <Text style={styles.deleteItemTxt}>Удалить позицию</Text>
+              </Pressable>
+            )}
           </ScrollView>
         ))}
       </Sheet>
+
+      {/* Предупреждение при удалении — позиция может использоваться в техкартах */}
+      <Modal visible={!!deletePrompt} transparent animationType="fade" onRequestClose={() => setDeletePrompt(null)}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setDeletePrompt(null)} />
+          <View style={[styles.catModalBox, { maxHeight: '70%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Удалить «{deletePrompt?.name}»?</Text>
+              <Pressable onPress={() => setDeletePrompt(null)} hitSlop={14} style={styles.modalClose}>
+                <Text style={styles.modalCloseTxt}>✕</Text>
+              </Pressable>
+            </View>
+            <ScrollView contentContainerStyle={{ padding: 16 }}>
+              {deletePrompt?.usedIn?.length > 0 ? (
+                <>
+                  <Text style={styles.sectionLabel}>
+                    Эта позиция используется в техкарте {deletePrompt.usedIn.length === 1 ? 'товара' : 'товаров'}:
+                  </Text>
+                  <View style={{ marginTop: 8, marginBottom: 16 }}>
+                    {deletePrompt.usedIn.map(p => (
+                      <Text key={p.id} style={styles.catItemName}>• {p.name}</Text>
+                    ))}
+                  </View>
+
+                  <Pressable style={styles.confirmBtn} onPress={() => confirmDelete(false)}>
+                    <Text style={styles.confirmBtnText}>Удалить со склада, оставить в техкартах</Text>
+                  </Pressable>
+                  <Text style={styles.sectionLabel}>Товары продолжат ссылаться на это название, но остаток по нему больше не будет отслеживаться.</Text>
+
+                  <Pressable style={[styles.catDeleteBtn, { marginTop: 16 }]} onPress={() => confirmDelete(true)}>
+                    <Text style={styles.catDeleteTxt}>Удалить и убрать из техкарт тоже</Text>
+                  </Pressable>
+
+                  <Pressable style={[styles.cancelBtn, { marginTop: 10 }]} onPress={() => setDeletePrompt(null)}>
+                    <Text style={styles.cancelTxt}>Отменить</Text>
+                  </Pressable>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.sectionLabel}>Позиция нигде не используется в техкартах — можно удалить без последствий.</Text>
+                  <Pressable style={[styles.catDeleteBtn, { marginTop: 16 }]} onPress={() => confirmDelete(false)}>
+                    <Text style={styles.catDeleteTxt}>Удалить</Text>
+                  </Pressable>
+                  <Pressable style={[styles.cancelBtn, { marginTop: 10 }]} onPress={() => setDeletePrompt(null)}>
+                    <Text style={styles.cancelTxt}>Отменить</Text>
+                  </Pressable>
+                </>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {/* Модалка новой позиции склада */}
       <Modal visible={!!newItemModal} transparent animationType="fade" onRequestClose={() => setNewItemModal(null)}>
@@ -790,6 +866,10 @@ const styles = StyleSheet.create({
   catItemName: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.text },
   catItemQty: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
   catDeleteBtn: { backgroundColor: 'rgba(160,16,32,0.06)', borderWidth: 1, borderColor: 'rgba(160,16,32,0.35)', borderRadius: 12, paddingVertical: 13, alignItems: 'center' },
+  deleteItemBtn: { marginTop: 20, marginBottom: 8, paddingVertical: 13, alignItems: 'center', borderRadius: 12, backgroundColor: 'rgba(160,16,32,0.06)', borderWidth: 1, borderColor: 'rgba(160,16,32,0.3)' },
+  deleteItemTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red },
+  cancelBtn: { paddingVertical: 13, alignItems: 'center', borderRadius: 12, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
+  cancelTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   catDeleteTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red },
   catChipTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
   catChipTxtActive: { color: colors.orange },

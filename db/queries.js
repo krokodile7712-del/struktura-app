@@ -1085,6 +1085,39 @@ export function getAllStock() {
   return db.getAllSync(`SELECT * FROM stock ORDER BY category, name`);
 }
 
+// Список товаров, где эта складская позиция используется как ингредиент
+// (совпадение по названию, как и всё остальное списание техкарт в проекте).
+export function getProductsUsingStockName(stockName) {
+  const db = getDb();
+  try {
+    return db.getAllSync(
+      `SELECT DISTINCT p.id, p.name
+       FROM cost_ingredients ci
+       JOIN cost_cards cc ON cc.id = ci.cost_card_id
+       JOIN products p ON p.id = cc.product_id
+       WHERE LOWER(ci.name) = LOWER(?)`,
+      [stockName]
+    );
+  } catch (_) { return []; }
+}
+
+// Удаляет позицию склада. removeFromRecipes=true — убирает её заодно из
+// техкарт всех товаров, где использовалась; false — оставляет техкарты как
+// есть (просто перестаёт отслеживаться остаток по этому названию).
+export function deleteStockItem(id, name, removeFromRecipes = false) {
+  const db = getDb();
+  try {
+    if (removeFromRecipes && name) {
+      db.runSync(`DELETE FROM cost_ingredients WHERE LOWER(name) = LOWER(?)`, [name]);
+    }
+    db.runSync(`DELETE FROM stock WHERE id = ?`, [id]);
+    try { db.runSync(`DELETE FROM stock_by_location WHERE stock_id = ?`, [id]); } catch (_) {}
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
 // Создаёт одновременно и товар (для продажи), и складскую позицию (для учёта
 // остатка) — связанные напрямую, 1 к 1. Режим "И то, и другое" в едином
 // экране создания позиции: одна форма вместо двух последовательных.
