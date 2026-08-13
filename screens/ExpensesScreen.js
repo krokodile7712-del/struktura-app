@@ -4,6 +4,7 @@ import {
   TextInput, Modal, Animated, FlatList,
 } from 'react-native';
 import TopBar from '../components/TopBar';
+import Sheet from '../components/Sheet';
 import AppNav from '../components/AppNav';
 import { useFocusEffect } from '@react-navigation/native';
 import { getAllExpenses, insertExpense } from '../db/queries';
@@ -28,7 +29,7 @@ export default function ExpensesScreen({ navigation }) {
   const [expenses, setExpenses]     = useState([]);
   const [addModal, setAddModal]     = useState(false);
   const [category, setCategory]     = useState(CATEGORIES[0]);
-  const [containerWidth, setContainerWidth] = useState(0);
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const [amount, setAmount]         = useState('');
   const [comment, setComment]       = useState('');
   const amountRef = useRef(null);
@@ -131,46 +132,14 @@ export default function ExpensesScreen({ navigation }) {
             </Text>
           </Pressable>
         ))}
+        <Pressable onPress={() => setSummaryOpen(true)} hitSlop={8} style={styles.summaryBtn}>
+          <Text style={styles.summaryBtnTxt}>📊</Text>
+        </Pressable>
       </View>
 
-      <Animated.View style={[styles.layout, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]} onLayout={e => setContainerWidth(e.nativeEvent.layout.width)}>
+      <Animated.View style={[styles.layout, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
 
-        {/* Левая колонка — сводка */}
-        <View style={[styles.left, containerWidth > 0 && { width: Math.min(380, Math.max(260, containerWidth * 0.3)) }]}>
-          {/* Итого */}
-          <View style={styles.totalCard}>
-            <Text style={styles.totalLabel}>За период</Text>
-            <Text style={styles.totalVal}>{fmt(total)} ₽</Text>
-            <Text style={styles.totalSub}>{expenses.length} расходов</Text>
-          </View>
-
-          {/* По категориям */}
-          {byCategory.length > 0 && (
-            <View style={styles.catCard}>
-              <Text style={styles.catTitle}>По категориям</Text>
-              {byCategory.map((c, i) => (
-                <View key={c.cat} style={[styles.catRow, i < byCategory.length-1 && styles.catRowDiv]}>
-                  <Text style={styles.catName}>{c.cat}</Text>
-                  <View style={styles.catRight}>
-                    <Text style={styles.catVal}>{fmt(c.sum)} ₽</Text>
-                    <View style={[styles.catBar, { width: `${Math.round(c.sum / total * 100)}%` }]} />
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
-
-          {byCategory.length === 0 && (
-            <View style={styles.hintCard}>
-              <Text style={styles.hintTitle}>Как использовать</Text>
-              <Text style={styles.hintText}>
-                Фиксируйте все затраты бизнеса — аренду, зарплаты, закупки. Это позволит видеть реальную прибыль в разделе Отчётность.
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Правая колонка — список */}
+        {/* Список расходов на всю ширину */}
         <FlatList
           style={styles.right}
           data={expenses}
@@ -198,16 +167,8 @@ export default function ExpensesScreen({ navigation }) {
       </Animated.View>
 
       {/* Модалка добавления */}
-      <Modal visible={addModal} transparent animationType="none" onRequestClose={() => setAddModal(false)}>
-        <Pressable style={styles.overlay} onPress={() => setAddModal(false)}>
-          <Animated.View
-            style={[styles.modalBox, {
-              opacity: modalAnim,
-              transform: [{ scale: modalAnim.interpolate({ inputRange: [0,1], outputRange: [0.94, 1] }) }],
-            }]}
-          >
-            <Pressable onPress={e => e.stopPropagation()}>
-              <Text style={styles.modalTitle}>Новый расход</Text>
+      <Sheet visible={addModal} onClose={() => setAddModal(false)} title="Новый расход">
+        <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
               <Text style={styles.modalHint}>Укажите категорию, сумму и при необходимости комментарий</Text>
 
               {/* Категории */}
@@ -266,10 +227,42 @@ export default function ExpensesScreen({ navigation }) {
                   <Text style={styles.saveTxt}>Сохранить</Text>
                 </Pressable>
               </View>
-            </Pressable>
-          </Animated.View>
-        </Pressable>
-      </Modal>
+        </ScrollView>
+      </Sheet>
+
+      <Sheet visible={summaryOpen} onClose={() => setSummaryOpen(false)} title="Сводка">
+        <ScrollView contentContainerStyle={{ padding: 20 }}>
+          <View style={styles.totalCard}>
+            <Text style={styles.totalLabel}>За период</Text>
+            <Text style={styles.totalVal}>{fmt(total)} ₽</Text>
+            <Text style={styles.totalSub}>{expenses.length} расходов</Text>
+          </View>
+
+          {byCategory.length > 0 && (
+            <View style={styles.catCard}>
+              <Text style={styles.catTitle}>По категориям</Text>
+              {byCategory.map((c, i) => (
+                <View key={c.cat} style={[styles.catRow, i < byCategory.length-1 && styles.catRowDiv]}>
+                  <Text style={styles.catName}>{c.cat}</Text>
+                  <View style={styles.catRight}>
+                    <Text style={styles.catVal}>{fmt(c.sum)} ₽</Text>
+                    <View style={[styles.catBar, { width: `${Math.round(c.sum / total * 100)}%` }]} />
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {byCategory.length === 0 && (
+            <View style={styles.hintCard}>
+              <Text style={styles.hintTitle}>Как использовать</Text>
+              <Text style={styles.hintText}>
+                Фиксируйте все затраты бизнеса — аренду, зарплаты, закупки. Это позволит видеть реальную прибыль в разделе Отчётность.
+              </Text>
+            </View>
+          )}
+        </ScrollView>
+      </Sheet>
 
       <AppNav navigation={navigation} activeScreen="Expenses" />
     </View>
@@ -278,9 +271,11 @@ export default function ExpensesScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   root:       { flex: 1, backgroundColor: colors.bg },
-  layout:     { flex: 1, flexDirection: 'row' },
+  layout:     { flex: 1 },
 
-  periodRow:  { flexDirection: 'row', padding: 12, gap: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
+  periodRow:  { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
+  summaryBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, marginLeft: 'auto' },
+  summaryBtnTxt: { fontSize: 16 },
   periodBtn:  { paddingVertical: 7, paddingHorizontal: 16, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   periodBtnActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.08)' },
   periodTxt:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
