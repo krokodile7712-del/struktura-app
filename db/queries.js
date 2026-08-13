@@ -3069,13 +3069,14 @@ export function upsertProductVariants(productId, vars) {
     const price = parseFloat(v.price) || 0;
     const label = v.label || '';
     const deductionMode = v.deduction_mode === 'variable' ? 'variable' : 'fixed';
+    const unit = v.unit || 'шт';
     if (v.id) {
-      db.runSync(`UPDATE product_variants SET label=?, price=?, active=1, deduction_mode=? WHERE id=?`, [label, price, deductionMode, v.id]);
+      db.runSync(`UPDATE product_variants SET label=?, price=?, active=1, deduction_mode=?, unit=? WHERE id=?`, [label, price, deductionMode, unit, v.id]);
       saved.push({ ...v, id: Number(v.id) });
     } else {
       const res = db.runSync(
-        `INSERT INTO product_variants (product_id, label, price, axis_values, sku, active, deduction_mode) VALUES (?,?,?,?,?,1,?)`,
-        [productId, label, price, '{}', '', deductionMode]
+        `INSERT INTO product_variants (product_id, label, price, axis_values, sku, active, deduction_mode, unit) VALUES (?,?,?,?,?,1,?,?)`,
+        [productId, label, price, '{}', '', deductionMode, unit]
       );
       saved.push({ ...v, id: res.lastInsertRowId });
     }

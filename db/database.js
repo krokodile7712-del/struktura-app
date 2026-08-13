@@ -304,6 +304,8 @@ export function initDatabase() {
     // Режим списания варианта товара: 'fixed' — количество задано заранее,
     // 'variable' — вводится каждый раз заново при продаже
     `ALTER TABLE product_variants ADD COLUMN deduction_mode TEXT DEFAULT 'fixed'`,
+    // Единица продажи самого товара (не складской позиции) — для развесных/объёмных товаров
+    `ALTER TABLE product_variants ADD COLUMN unit TEXT DEFAULT 'шт'`,
     // Права доступа сотрудника
     `ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT '{}'`,
     // Расширенный профиль бизнеса

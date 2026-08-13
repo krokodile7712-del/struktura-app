@@ -10,7 +10,7 @@ import { colors, fonts } from '../constants/theme';
 // без отдельного анимированного слоя затемнения) — только с добавленной
 // анимацией выезда самой карточки. Снизу на узком/среднем экране, сбоку на
 // широком — решает useResponsive.
-export default function Sheet({ visible, onClose, title, children, sideWidth = 480 }) {
+export default function Sheet({ visible, onClose, onBack, title, children, sideWidth = 480 }) {
   const { sheetPosition, width: screenWidth } = useResponsive();
   const insets = useSafeAreaInsets();
   const isBottom = sheetPosition === 'bottom';
@@ -79,6 +79,11 @@ export default function Sheet({ visible, onClose, title, children, sideWidth = 4
           <View {...pan.panHandlers}>
             {isBottom && <View style={styles.grabber} />}
             <View style={styles.header}>
+              {onBack && (
+                <Pressable onPress={onBack} hitSlop={12} style={styles.backBtn}>
+                  <Text style={styles.backTxt}>‹</Text>
+                </Pressable>
+              )}
               {title ? <Text style={styles.title} numberOfLines={1}>{title}</Text> : <View style={{ flex: 1 }} />}
               <Pressable onPress={onClose} hitSlop={12} style={styles.closeBtn}>
                 <Text style={styles.closeTxt}>✕</Text>
@@ -111,6 +116,8 @@ const styles = StyleSheet.create({
 
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
   title: { flex: 1, fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, marginRight: 12 },
+  backBtn: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
+  backTxt: { fontSize: 22, color: colors.orange, fontFamily: fonts.family, marginTop: -2 },
   closeBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' },
   closeTxt: { fontSize: 13, color: colors.muted, fontFamily: fonts.familySemibold },
 });
