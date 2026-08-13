@@ -362,8 +362,6 @@ export default function ProductsScreen({ navigation, route }) {
   const [modGroups, setModGroups]   = useState([]);
   const [search, setSearch]         = useState('');
   const [selected, setSelected]     = useState(null);      // {id, name, ...} | 'new'
-  const [createModeOpen, setCreateModeOpen] = useState(false);
-  const [combinedForm, setCombinedForm]     = useState(null);
   const [stockCreateSignal, setStockCreateSignal] = useState(0);
   const [ingCreateForm, setIngCreateForm] = useState(null);
   const [expandedCats, setExpandedCats] = useState({});
@@ -507,36 +505,6 @@ export default function ProductsScreen({ navigation, route }) {
     setIngCreateForm(null);
     setIngPickerState(null);
     setIngSearch('');
-  };
-
-  const chooseCreateMode = (mode) => {
-    setCreateModeOpen(false);
-    if (mode === 'product') {
-      setTab('products');
-      setSelected('new');
-    } else if (mode === 'stock') {
-      setTab('stock');
-      setStockCreateSignal(s => s + 1);
-    } else {
-      setCombinedForm({ name: '', category: '', sellPrice: '', costPrice: '', initialStock: '', unit: 'шт', threshold: '' });
-    }
-  };
-
-  const saveCombined = () => {
-    if (!combinedForm?.name?.trim()) { toast.show('Укажите название', 'warn'); return; }
-    const res = createCombinedProductAndStock({
-      name: combinedForm.name,
-      category: combinedForm.category,
-      sellPrice: parseFloat(combinedForm.sellPrice) || 0,
-      costPrice: parseFloat(combinedForm.costPrice) || 0,
-      initialStock: parseFloat(combinedForm.initialStock) || 0,
-      unit: combinedForm.unit,
-      threshold: parseFloat(combinedForm.threshold) || 0,
-    });
-    if (!res.ok) { toast.show(res.error, 'warn'); return; }
-    toast.show(`«${combinedForm.name}» создано — и товар, и складская позиция ✓`, 'info');
-    setCombinedForm(null);
-    load();
   };
 
   const handleSave = (data) => {
@@ -744,83 +712,12 @@ export default function ProductsScreen({ navigation, route }) {
       </Sheet>
 
       {tab !== 'modifiers' && (
-        <Pressable style={styles.fab} onPress={() => setCreateModeOpen(true)}>
+        <Pressable style={styles.fab} onPress={() => { if (tab === 'stock') { setStockCreateSignal(s => s + 1); } else { setTab('products'); setSelected('new'); } }}>
           <Text style={styles.fabTxt}>+</Text>
         </Pressable>
       )}
 
       <AppNav navigation={navigation} activeScreen="Products" />
-
-      {/* Выбор режима создания — Только продаю / Только слежу за остатком / И то и другое */}
-      <Sheet visible={createModeOpen} onClose={() => setCreateModeOpen(false)} title="Что создаём?">
-        <View style={{ padding: 20 }}>
-          <Pressable style={styles.modeCard} onPress={() => chooseCreateMode('product')}>
-            <Text style={styles.modeCardTitle}>Только продаю</Text>
-            <Text style={styles.modeCardSub}>Услуга или товар без учёта остатка — клиент покупает, склад не участвует</Text>
-          </Pressable>
-          <Pressable style={styles.modeCard} onPress={() => chooseCreateMode('stock')}>
-            <Text style={styles.modeCardTitle}>Только слежу за остатком</Text>
-            <Text style={styles.modeCardSub}>Расходник или сырьё — не продаётся клиенту напрямую, только учитывается остаток</Text>
-          </Pressable>
-          <Pressable style={[styles.modeCard, styles.modeCardHighlight]} onPress={() => chooseCreateMode('both')}>
-            <Text style={styles.modeCardTitle}>И то, и другое</Text>
-            <Text style={styles.modeCardSub}>Продаётся сама по себе клиенту и одновременно списывается со склада</Text>
-          </Pressable>
-        </View>
-      </Sheet>
-
-      {/* Совмещённая форма — товар и складская позиция одновременно, одним действием */}
-      <Sheet visible={!!combinedForm} onClose={() => setCombinedForm(null)} title="Новая позиция">
-        {combinedForm && (
-          <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
-            <Text style={styles.combLabel}>Название</Text>
-            <TextInput color={colors.text} style={styles.combInput}
-              value={combinedForm.name} onChangeText={v => setCombinedForm(f => ({ ...f, name: v }))}
-              placeholder="Название" placeholderTextColor={colors.muted} autoFocus />
-
-            <Text style={styles.combLabel}>Категория</Text>
-            <TextInput color={colors.text} style={styles.combInput}
-              value={combinedForm.category} onChangeText={v => setCombinedForm(f => ({ ...f, category: v }))}
-              placeholder="напр. Материалы" placeholderTextColor={colors.muted} />
-
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.combLabel}>Цена продажи</Text>
-                <TextInput color={colors.text} style={styles.combInput} keyboardType="numeric"
-                  value={combinedForm.sellPrice} onChangeText={v => setCombinedForm(f => ({ ...f, sellPrice: v }))}
-                  placeholder="0" placeholderTextColor={colors.muted} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.combLabel}>Себестоимость</Text>
-                <TextInput color={colors.text} style={styles.combInput} keyboardType="numeric"
-                  value={combinedForm.costPrice} onChangeText={v => setCombinedForm(f => ({ ...f, costPrice: v }))}
-                  placeholder="0" placeholderTextColor={colors.muted} />
-              </View>
-            </View>
-
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.combLabel}>Остаток сейчас</Text>
-                <TextInput color={colors.text} style={styles.combInput} keyboardType="numeric"
-                  value={combinedForm.initialStock} onChangeText={v => setCombinedForm(f => ({ ...f, initialStock: v }))}
-                  placeholder="0" placeholderTextColor={colors.muted} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.combLabel}>Единица</Text>
-                <TextInput color={colors.text} style={styles.combInput}
-                  value={combinedForm.unit} onChangeText={v => setCombinedForm(f => ({ ...f, unit: v }))}
-                  placeholder="шт, мл, г..." placeholderTextColor={colors.muted} />
-              </View>
-            </View>
-
-            <Text style={styles.combHint}>Продаётся сама по себе за «Цену продажи» и одновременно списывается со склада 1-к-1 при продаже.</Text>
-
-            <Pressable style={styles.combSaveBtn} onPress={saveCombined}>
-              <Text style={styles.combSaveTxt}>Создать</Text>
-            </Pressable>
-          </ScrollView>
-        )}
-      </Sheet>
 
       {/* Пикер ингредиентов — на уровне экрана */}
       <Sheet
