@@ -50,6 +50,7 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
       title: 'Работа',
       items: [
         { label: 'Товары',    screen: 'Products',    adminOnly: true },
+        { label: 'Записи',    screen: 'Bookings',    adminOnly: true },
         { label: 'Настройки', screen: 'Settings',    perm: 'access_settings' },
       ],
     },
@@ -57,6 +58,7 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
       title: 'Аналитика',
       items: [
         { label: 'Отчётность',  screen: 'Reports',     perm: 'view_reports' },
+        { label: 'Расходы',     screen: 'Expenses',    adminOnly: true },
         { label: 'Оборудование',screen: 'Equipment',   adminOnly: true },
         { label: 'Накладные',   screen: 'Overheads',   adminOnly: true },
         { label: 'Инвестиции',  screen: 'Investments', adminOnly: true },
