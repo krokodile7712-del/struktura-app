@@ -297,6 +297,13 @@ export function initDatabase() {
     `ALTER TABLE business_profile ADD COLUMN logo_base64 TEXT DEFAULT ''`,
     // Исторический максимум остатка для шкалы склада
     `ALTER TABLE stock ADD COLUMN max_ostatok REAL DEFAULT 0`,
+    // Себестоимость и цена продажи складской позиции
+    `ALTER TABLE stock ADD COLUMN avg_price REAL DEFAULT 0`,
+    `ALTER TABLE stock ADD COLUMN last_price REAL DEFAULT 0`,
+    `ALTER TABLE stock ADD COLUMN sell_price REAL DEFAULT 0`,
+    // Режим списания варианта товара: 'fixed' — количество задано заранее,
+    // 'variable' — вводится каждый раз заново при продаже
+    `ALTER TABLE product_variants ADD COLUMN deduction_mode TEXT DEFAULT 'fixed'`,
     // Права доступа сотрудника
     `ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT '{}'`,
     // Расширенный профиль бизнеса

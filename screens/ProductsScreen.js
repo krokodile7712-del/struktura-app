@@ -117,15 +117,25 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
         {/* Категория */}
         <View style={styles.labelRow}>
           <Text style={styles.fieldLabel}>Категория</Text>
-          <InfoTip title="Категория" text="Группирует товары в списке и в кассе. Клиент её не видит." />
+          <InfoTip title="Категория" text="Группирует товары в списке и в кассе. Клиент её не видит. Есть нужная — выберите её; нет — впишите новую, она появится в списке для следующих товаров." />
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
-          {categories.map(cat => (
-            <Pressable key={cat} style={[styles.chip, category === cat && styles.chipActive]} onPress={() => setCategory(cat)}>
-              <Text style={[styles.chipTxt, category === cat && styles.chipTxtActive]}>{cat}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+        {categories.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
+            {categories.map(cat => (
+              <Pressable key={cat} style={[styles.chip, category === cat && styles.chipActive]} onPress={() => setCategory(cat)}>
+                <Text style={[styles.chipTxt, category === cat && styles.chipTxtActive]}>{cat}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
+        <TextInput
+          style={[styles.input, { marginTop: categories.length > 0 ? 8 : 0 }]}
+          color={colors.text}
+          value={category}
+          onChangeText={setCategory}
+          placeholder={categories.length > 0 ? 'Или впишите новую категорию' : 'Название категории (например, Напитки)'}
+          placeholderTextColor={colors.muted}
+        />
 
         {/* Варианты и цены */}
         <View style={styles.labelRow}>
@@ -238,12 +248,15 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
                         )}
                         {v.deduction_mode !== 'variable' && (
                         <View style={styles.ingFieldRow}>
-                          <Text style={styles.ingFieldLabel}>Цена за {ing.unit}</Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={styles.ingFieldLabel}>Себестоимость за {ing.unit}</Text>
+                            <InfoTip title="Себестоимость ингредиента" text="Подставляется автоматически из карточки склада. Если тут пусто — значит на складе для этой позиции ещё не задана себестоимость. Можно поправить только для этого товара." />
+                          </View>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                             <TextInput style={[styles.ingInput, { width: 58 }]} color={colors.text}
                               keyboardType="numeric" value={ing.price_per_unit}
                               onChangeText={val => setIngField(vi, ii, 'price_per_unit', val)}
-                              placeholder="авто" placeholderTextColor={colors.muted} />
+                              placeholder="со склада" placeholderTextColor={colors.muted} />
                             <Text style={styles.ingUnit}>₽</Text>
                           </View>
                         </View>
@@ -697,15 +710,15 @@ export default function ProductsScreen({ navigation, route }) {
         <View style={{ padding: 20 }}>
           <Pressable style={styles.modeCard} onPress={() => chooseCreateMode('product')}>
             <Text style={styles.modeCardTitle}>Только продаю</Text>
-            <Text style={styles.modeCardSub}>Например, «Стрижка» — услуга без учёта остатка</Text>
+            <Text style={styles.modeCardSub}>Услуга или товар без учёта остатка — клиент покупает, склад не участвует</Text>
           </Pressable>
           <Pressable style={styles.modeCard} onPress={() => chooseCreateMode('stock')}>
             <Text style={styles.modeCardTitle}>Только слежу за остатком</Text>
-            <Text style={styles.modeCardSub}>Например, «Стаканы» — расходник, который клиенту не продаётся напрямую</Text>
+            <Text style={styles.modeCardSub}>Расходник или сырьё — не продаётся клиенту напрямую, только учитывается остаток</Text>
           </Pressable>
           <Pressable style={[styles.modeCard, styles.modeCardHighlight]} onPress={() => chooseCreateMode('both')}>
             <Text style={styles.modeCardTitle}>И то, и другое</Text>
-            <Text style={styles.modeCardSub}>Например, «Краска для окрашивания» — продаётся сама по себе и убывает со склада</Text>
+            <Text style={styles.modeCardSub}>Продаётся сама по себе клиенту и одновременно списывается со склада</Text>
           </Pressable>
         </View>
       </Sheet>
