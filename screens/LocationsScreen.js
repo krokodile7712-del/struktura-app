@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput } from 
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
+import Sheet from '../components/Sheet';
 import AppNav from '../components/AppNav';
 import {
   getLocations, addLocation, updateLocation, deleteLocation, initDefaultLocation,
@@ -116,18 +117,9 @@ export default function LocationsScreen({ navigation }) {
       </ScrollView>
       <AppNav navigation={navigation} activeScreen="Locations" />
 
-      <Modal visible={!!modal} transparent animationType="fade" onRequestClose={closeModal}>
-        <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={closeModal} />
-          {modal && (
-            <View style={styles.modalInner}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>{modal.id ? 'Редактировать локацию' : 'Новая локация'}</Text>
-                <Pressable onPress={closeModal} hitSlop={12}>
-                  <Text style={styles.modalClose}>✕</Text>
-                </Pressable>
-              </View>
-
+      <Sheet visible={!!modal} onClose={closeModal} title={modal?.id ? 'Редактировать локацию' : 'Новая локация'}>
+        {modal && (
+            <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
               <Text style={styles.fieldLabel}>Название</Text>
               <TextInput
                 style={styles.input}
@@ -165,10 +157,9 @@ export default function LocationsScreen({ navigation }) {
               {modal.id && locations.length <= 1 && (
                 <Text style={styles.hint}>Нельзя удалить единственную локацию.</Text>
               )}
-            </View>
-          )}
-        </View>
-      </Modal>
+            </ScrollView>
+        )}
+      </Sheet>
     </View>
   );
 }

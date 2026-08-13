@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Modal, Alert, Animated, TextInput } from 'react-native';
 import TopBar from '../components/TopBar';
+import Sheet from '../components/Sheet';
 import AppNav from '../components/AppNav';
 import InfoTip from '../components/InfoTip';
 import { useFocusEffect } from '@react-navigation/native';
@@ -257,11 +258,8 @@ export default function InventoryScreen({ navigation }) {
       </Modal>
 
       {/* Модалка создания акта */}
-      <Modal visible={showSetup} transparent animationType="fade" onRequestClose={() => setShowSetup(false)}>
-        <View style={styles.modalOverlay}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setShowSetup(false)} />
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Новый акт инвентаризации</Text>
+      <Sheet visible={showSetup} onClose={() => setShowSetup(false)} title="Новый акт инвентаризации">
+        <View style={{ padding: 20 }}>
             <Text style={styles.modalSub}>Выберите охват пересчёта</Text>
 
             <View style={styles.scopeList}>
@@ -288,9 +286,8 @@ export default function InventoryScreen({ navigation }) {
             <Pressable style={styles.cancelBtn} onPress={() => setShowSetup(false)}>
               <Text style={styles.cancelBtnTxt}>Отмена</Text>
             </Pressable>
-          </View>
         </View>
-      </Modal>
+      </Sheet>
     </View>
   );
 }
