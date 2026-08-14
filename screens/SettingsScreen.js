@@ -1424,10 +1424,20 @@ export default function SettingsScreen({ navigation, route }) {
                       text: 'Стереть всё и начать заново', style: 'destructive',
                       onPress: () => {
                         try {
-                          resetDatabase(true); // true — стереть и сотрудников тоже
+                          const res = resetDatabase(true); // true — стереть и сотрудников тоже
                           resetKassaCart();
                           clearSession();
-                          navigation.navigate('Onboarding');
+                          if (res && res.ok === false) {
+                            console.error('[Начать заново] Не все таблицы удалились:', res.errors);
+                          }
+                          setTimeout(() => {
+                            try {
+                              navigation.reset({ index: 0, routes: [{ name: 'Onboarding' }] });
+                            } catch (navErr) {
+                              console.error('[Начать заново] Ошибка перехода на Onboarding:', navErr);
+                              toast.show('Данные стёрты, но не удалось открыть регистрацию — перезапустите приложение', 'warn');
+                            }
+                          }, 50);
                         } catch (e) {
                           console.error('[Регистрация бизнеса] ошибка запуска:', e);
                           toast.show('Не удалось начать заново: ' + (e?.message || 'ошибка'), 'warn');
