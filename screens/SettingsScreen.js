@@ -145,17 +145,125 @@ export default function SettingsScreen({ navigation, route }) {
   const [showPin, setShowPin]           = useState(false);
   const [roleNames, setRoleNames]       = useState({ admin: 'Администратор', barista: 'Сотрудник' });
 
-  const toggleSection = (key) => {
-    LayoutAnimation.configureNext({
-      duration: 260,
-      create:  { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
-      update:  { type: LayoutAnimation.Types.easeInEaseOut },
-      delete:  { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
-    });
-    setOpenSections(s => ({ ...s, [key]: !s[key] }));
-  }; // { businessName, modules, terms, units, unitInput }
-
   useEffect(() => { loadAll(); }, []);
+
+  // ── Лояльность ──
+  const saveLoyalty = () => {
+    try { updateLoyaltyConfig(loyaltyModel, loyaltyConfig); loadAll(); toast.show('Лояльность сохранена ✓', 'info'); } catch (e) { console.error(e); toast.show('Ошибка', 'warn'); }
+  };
+
+  // ── PIN ──
+  const savePins = () => {
+    try {
+      if (pinBarista.trim()) updateUserPin('barista', pinBarista.trim());
+      if (pinAdmin.trim()) updateUserPin('admin', pinAdmin.trim());
+      loadAll();
+      toast.show('PIN-коды сохранены ✓', 'info');
+    } catch (e) { console.error(e); toast.show('Ошибка', 'warn'); }
+  };
+
+  // ── Способы оплаты ──
+  const openNewPayMethod = () => {
+    const id = 'pm_' + Date.now();
+    setPayMethodModal({ index: -1, id, name: '', icon: '💳', type: 'card', active: true });
+  };
+  const openEditPayMethod = (m, idx) => setPayMethodModal({ ...m, index: idx });
+  const savePayMethod = () => {
+    if (!payMethodModal || !payMethodModal.name.trim()) return;
+    const list = [...payMethodsList];
+    const m = { id: payMethodModal.id, name: payMethodModal.name.trim(), icon: payMethodModal.icon || '💳', type: payMethodModal.type, active: payMethodModal.active };
+    if (payMethodModal.index === -1) list.push(m);
+    else list[payMethodModal.index] = m;
+    savePayMethods(list);
+    setPayMethodsList(list);
+    setPayMethodModal(null);
+  };
+  const deletePayMethod = () => {
+    if (!payMethodModal || payMethodsList.length <= 1) return;
+    const list = payMethodsList.filter((_, i) => i !== payMethodModal.index);
+    savePayMethods(list);
+    setPayMethodsList(list);
+    setPayMethodModal(null);
+  };
+  const togglePayMethodActive = (idx) => {
+    const list = payMethodsList.map((m, i) => i === idx ? { ...m, active: !m.active } : m);
+    savePayMethods(list);
+    setPayMethodsList(list);
+  };
+
+  // ── Зоны/столы ──
+  const saveZoneName = () => {
+    if (!zoneModal || !zoneModal.name.trim()) return;
+    try {
+      if (zoneModal.id) updateZone(zoneModal.id, zoneModal.name.trim());
+      else {
+        const newId = addZone(zoneModal.name.trim());
+        setZoneModal(m => ({ ...m, id: newId, tables: [] }));
+        setZones(getZones());
+        return; // остаёмся в модалке для добавления столов
+      }
+      setZones(getZones());
+    } catch (e) { console.error(e); }
+    setZoneModal(null);
+  };
+  const addTableToZone = () => {
+    if (!zoneModal?.id || !zoneModal.newTableInput?.trim()) return;
+    try {
+      addZoneTable(zoneModal.id, zoneModal.newTableInput.trim());
+      const updated = getZones();
+      setZones(updated);
+      const z = updated.find(z => z.id === zoneModal.id);
+      setZoneModal(m => ({ ...m, tables: z?.tables || [], newTableInput: '' }));
+    } catch (e) { console.error(e); }
+  };
+  const removeTableFromZone = (tableId) => {
+    try {
+      deleteZoneTable(tableId);
+      const updated = getZones();
+      setZones(updated);
+      const z = updated.find(z => z.id === zoneModal?.id);
+      setZoneModal(m => ({ ...m, tables: z?.tables || [] }));
+    } catch (e) { console.error(e); }
+  };
+  const bulkAddTables = () => {
+    if (!zoneModal?.id) return;
+    const prefix = zoneModal.bulkPrefix?.trim() || 'Стол';
+    const from = parseInt(zoneModal.bulkFrom) || 1;
+    const to = parseInt(zoneModal.bulkTo) || from;
+    if (from > to || to - from > 99) return;
+    try {
+      bulkAddZoneTables(zoneModal.id, prefix, from, to);
+      const updated = getZones();
+      setZones(updated);
+      const z = updated.find(z => z.id === zoneModal.id);
+      setZoneModal(m => ({ ...m, tables: z?.tables || [], bulkFrom: '', bulkTo: '' }));
+    } catch (e) { console.error(e); }
+  };
+  const removeZone = () => {
+    if (!zoneModal?.id) return;
+    try { deleteZone(zoneModal.id); setZones(getZones()); } catch (e) { console.error(e); }
+    setZoneModal(null);
+  };
+
+  // ── Скидки ──
+  const saveDiscounts = (list) => {
+    try { setSetting('discounts', JSON.stringify(list)); setDiscounts(list); toast.show('Скидки сохранены ✓', 'info'); } catch (e) { console.error(e); toast.show('Ошибка', 'warn'); }
+  };
+  const openNewDiscount = () => setDiscountModal({ index: -1, name: '', pct: '', desc: '' });
+  const openEditDiscount = (i) => setDiscountModal({ index: i, name: discounts[i].name, pct: String(discounts[i].pct), desc: discounts[i].desc || '' });
+  const saveDiscountModal = () => {
+    if (!discountModal || !discountModal.name.trim() || !discountModal.pct) return;
+    const entry = { name: discountModal.name.trim(), pct: parseFloat(discountModal.pct) || 0, desc: (discountModal.desc || '').trim() };
+    const list = [...discounts];
+    if (discountModal.index === -1) list.push(entry); else list[discountModal.index] = entry;
+    saveDiscounts(list);
+    setDiscountModal(null);
+  };
+  const deleteDiscountModal = () => {
+    if (!discountModal || discountModal.index === -1) return;
+    saveDiscounts(discounts.filter((_, i) => i !== discountModal.index));
+    setDiscountModal(null);
+  };
 
   // Открываем редактор профиля при переходе в секцию
   React.useEffect(() => {
@@ -1611,6 +1719,313 @@ export default function SettingsScreen({ navigation, route }) {
       </View>
       <AppNav navigation={navigation} activeScreen="Settings" />
 
+
+      <Modal visible={!!zoneModal} transparent animationType="fade" onRequestClose={() => setZoneModal(null)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setZoneModal(null)} />
+          {zoneModal && (
+            <View style={[styles.modalInner, { width: '55%', maxWidth: 500, maxHeight: '88%' }]}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{zoneModal.id ? `Зона: ${zoneModal.name}` : 'Новая зона'}</Text>
+                <Pressable onPress={() => setZoneModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
+              </View>
+
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {/* Название зоны */}
+                <Text style={styles.fieldLabel}>Название зоны</Text>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TextInput
+                    style={[styles.input, { flex: 1 }]}
+                    value={zoneModal.name}
+                    onChangeText={v => setZoneModal(m => ({ ...m, name: v }))}
+                    placeholder="Зал, Терраса, Бар, Вынос..."
+                    placeholderTextColor={colors.muted}
+                    autoFocus={!zoneModal.id}
+                  />
+                  <MetalButton title={zoneModal.id ? 'Сохранить' : 'Создать →'} variant="success" onPress={saveZoneName} style={{ paddingHorizontal: 16 }} />
+                </View>
+
+                {/* Столы — только если зона уже сохранена */}
+                {zoneModal.id ? (<>
+                  <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Столы в этой зоне ({(zoneModal.tables || []).length})</Text>
+
+                  {/* Список столов */}
+                  {(zoneModal.tables || []).length === 0 && (
+                    <Text style={styles.empty}>Столов пока нет. Добавьте вручную или используйте быстрое добавление.</Text>
+                  )}
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                    {(zoneModal.tables || []).map(t => (
+                      <View key={t.id} style={styles.tableChipEdit}>
+                        <Text style={styles.tableChipEditText}>{t.name}</Text>
+                        <Pressable onPress={() => removeTableFromZone(t.id)} hitSlop={6}>
+                          <Text style={{ fontSize: 13, color: colors.red, marginLeft: 4 }}>✕</Text>
+                        </Pressable>
+                      </View>
+                    ))}
+                  </View>
+
+                  {/* Добавить один стол */}
+                  <Text style={styles.fieldLabel}>Добавить стол</Text>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <TextInput
+                      style={[styles.input, { flex: 1 }]}
+                      value={zoneModal.newTableInput || ''}
+                      onChangeText={v => setZoneModal(m => ({ ...m, newTableInput: v }))}
+                      placeholder="Стол 1 / VIP / Место у окна"
+                      placeholderTextColor={colors.muted}
+                      onSubmitEditing={addTableToZone}
+                      returnKeyType="done"
+                    />
+                    <MetalButton title="+" variant="default" onPress={addTableToZone} style={{ paddingHorizontal: 20 }} />
+                  </View>
+
+                  {/* Быстрое добавление диапазона */}
+                  <Text style={styles.fieldLabel}>Быстро добавить диапазон</Text>
+                  <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <TextInput
+                      style={[styles.input, { flex: 2 }]}
+                      value={zoneModal.bulkPrefix || 'Стол'}
+                      onChangeText={v => setZoneModal(m => ({ ...m, bulkPrefix: v }))}
+                      placeholder="Стол"
+                      placeholderTextColor={colors.muted}
+                    />
+                    <Text style={{ color: colors.muted, fontFamily: fonts.family }}>с</Text>
+                    <TextInput
+                      style={[styles.input, { flex: 1 }]}
+                      value={zoneModal.bulkFrom || ''}
+                      onChangeText={v => setZoneModal(m => ({ ...m, bulkFrom: v }))}
+                      keyboardType="numeric"
+                      placeholder="1"
+                      placeholderTextColor={colors.muted}
+                    />
+                    <Text style={{ color: colors.muted, fontFamily: fonts.family }}>по</Text>
+                    <TextInput
+                      style={[styles.input, { flex: 1 }]}
+                      value={zoneModal.bulkTo || ''}
+                      onChangeText={v => setZoneModal(m => ({ ...m, bulkTo: v }))}
+                      keyboardType="numeric"
+                      placeholder="10"
+                      placeholderTextColor={colors.muted}
+                    />
+                    <MetalButton title="Добавить" variant="default" onPress={bulkAddTables} style={{ flex: 2 }} />
+                  </View>
+                  <Hint>Например: префикс "Стол", с 1 по 10 → создаст Стол 1, Стол 2 ... Стол 10</Hint>
+
+                  {/* Удалить зону */}
+                  <MetalButton title="Удалить зону" variant="danger" onPress={removeZone} style={{ marginTop: 12 }} />
+                </>) : (
+                  <Hint>После создания вы сможете добавить столы к этой зоне.</Hint>
+                )}
+              </ScrollView>
+            </View>
+          )}
+        </View>
+      </Modal>
+
+      {/* Модалка скидки */}
+      <Modal visible={!!discountModal} transparent animationType="fade" onRequestClose={() => setDiscountModal(null)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setDiscountModal(null)} />
+          {discountModal && (
+            <View style={styles.modalInner}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{discountModal.index === -1 ? 'Новая скидка' : 'Изменить скидку'}</Text>
+                <Pressable onPress={() => setDiscountModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
+              </View>
+              <Text style={styles.fieldLabel}>Название</Text>
+              <TextInput style={styles.input} value={discountModal.name} onChangeText={(v) => setDiscountModal(m => ({ ...m, name: v }))} placeholderTextColor={colors.muted} />
+              <Text style={styles.fieldLabel}>Процент</Text>
+              <TextInput style={styles.input} keyboardType="numeric" value={discountModal.pct} onChangeText={(v) => setDiscountModal(m => ({ ...m, pct: v }))} placeholderTextColor={colors.muted} />
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
+                <Pressable style={({ pressed }) => [styles.discSaveBtn, { flex: 1 }, pressed && { opacity: 0.85 }]} onPress={saveDiscountModal}>
+                  <Text style={styles.discSaveBtnTxt}>Сохранить</Text>
+                </Pressable>
+                {discountModal.index !== -1 && (
+                  <Pressable style={({ pressed }) => [styles.discDeleteBtn, { flex: 1 }, pressed && { opacity: 0.85 }]} onPress={deleteDiscountModal}>
+                    <Text style={styles.discDeleteBtnTxt}>Удалить</Text>
+                  </Pressable>
+                )}
+              </View>
+            </View>
+          )}
+        </View>
+      </Modal>
+
+      {/* Модалка способа оплаты */}
+      <Modal visible={!!payMethodModal} transparent animationType="fade" onRequestClose={() => setPayMethodModal(null)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setPayMethodModal(null)} />
+          {payMethodModal && (
+            <View style={styles.modalInner}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{payMethodModal.index === -1 ? 'Новый способ оплаты' : 'Изменить способ оплаты'}</Text>
+                <Pressable onPress={() => setPayMethodModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
+              </View>
+
+              <Text style={styles.fieldLabel}>Название</Text>
+              <TextInput
+                style={styles.input}
+                value={payMethodModal.name}
+                onChangeText={v => setPayMethodModal(m => ({ ...m, name: v }))}
+                placeholder="напр. Наличные, СБП, ЮMoney"
+                placeholderTextColor={colors.muted}
+              />
+
+              <Text style={styles.fieldLabel}>Иконка (эмодзи)</Text>
+              <TextInput
+                style={[styles.input, { fontSize: 22 }]}
+                value={payMethodModal.icon}
+                onChangeText={v => setPayMethodModal(m => ({ ...m, icon: v }))}
+                placeholder="💳"
+                placeholderTextColor={colors.muted}
+              />
+
+              <Text style={styles.fieldLabel}>Тип</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                {[
+                  { key: 'cash',  label: '💵 Наличные' },
+                  { key: 'card',  label: '💳 Безнал' },
+                  { key: 'mixed', label: '💰 Смешанная' },
+                ].map(t => (
+                  <Pressable
+                    key={t.key}
+                    style={[styles.catChip, payMethodModal.type === t.key && styles.catChipActive]}
+                    onPress={() => setPayMethodModal(m => ({ ...m, type: t.key }))}
+                  >
+                    <Text style={[styles.catChipLabel, payMethodModal.type === t.key && { color: colors.orange }]}>{t.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={styles.hintText}>Тип определяет учёт в отчётах. «Смешанная» показывает UI разделения суммы на нал и безнал.</Text>
+
+              <Pressable style={[styles.row, { marginTop: 8 }]} onPress={() => setPayMethodModal(m => ({ ...m, active: !m.active }))}>
+                <Text style={styles.rowName}>Включён в кассе</Text>
+                <Toggle value={payMethodModal.active !== false} onValueChange={() => setPayMethodModal(m => ({ ...m, active: !m.active }))} size="sm" />
+              </Pressable>
+
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+                <MetalButton title="Сохранить" variant="success" onPress={savePayMethod} style={{ flex: 1 }} />
+                {payMethodModal.index !== -1 && payMethodsList.length > 1 && (
+                  <MetalButton title="Удалить" variant="danger" onPress={deletePayMethod} style={{ flex: 1 }} />
+                )}
+              </View>
+            </View>
+          )}
+        </View>
+      </Modal>
+
+      {/* Модалка группы модификаторов */}
+      <Modal visible={!!groupModal} transparent animationType="fade" onRequestClose={() => setGroupModal(null)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setGroupModal(null)} />
+          {groupModal && (
+            <View style={[styles.modalInner, { maxHeight: '80%' }]}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{groupModal.id ? 'Группа модификаторов' : 'Новая группа'}</Text>
+                <Pressable onPress={() => setGroupModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
+              </View>
+              <Text style={styles.fieldLabel}>Название группы</Text>
+              <TextInput style={styles.input} value={groupModal.name} onChangeText={(v) => setGroupModal(m => ({ ...m, name: v }))} placeholder="напр. Размер" placeholderTextColor={colors.muted} />
+              <View style={styles.chipsRowSmall}>
+                <Pressable style={[styles.chipSmall, groupModal.selectionType === 'single' && styles.chipSmallActive]} onPress={() => setGroupModal(m => ({ ...m, selectionType: 'single' }))}>
+                  <Text style={[styles.chipSmallLabel, groupModal.selectionType === 'single' && styles.chipSmallLabelActive]}>Один вариант</Text>
+                </Pressable>
+                <Pressable style={[styles.chipSmall, groupModal.selectionType === 'multiple' && styles.chipSmallActive]} onPress={() => setGroupModal(m => ({ ...m, selectionType: 'multiple' }))}>
+                  <Text style={[styles.chipSmallLabel, groupModal.selectionType === 'multiple' && styles.chipSmallLabelActive]}>Несколько</Text>
+                </Pressable>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                <MetalButton title="Сохранить" variant="success" onPress={saveGroupModal} style={{ flex: 1 }} />
+                {groupModal.id && <MetalButton title="Удалить группу" variant="danger" onPress={deleteGroupModal} style={{ flex: 1 }} />}
+              </View>
+
+              {groupModal.id && (
+                <>
+                  <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Опции</Text>
+                  {(modifierGroups.find(g => g.id === groupModal.id)?.options || []).map(opt => (
+                    <Pressable key={opt.id} style={({ pressed }) => [styles.row, pressed && { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 8 }]} onPress={() => openEditOption(groupModal.id, opt)}>
+                      <Text style={styles.rowName}>{opt.name}</Text>
+                      <Text style={styles.rowPrice}>{opt.price_delta > 0 ? `+${opt.price_delta}₽ ` : ''}›</Text>
+                    </Pressable>
+                  ))}
+                  <MetalButton title="+ Добавить опцию" variant="default" onPress={() => openNewOption(groupModal.id)} style={{ marginTop: 8 }} />
+                </>
+              )}
+            </View>
+          )}
+        </View>
+      </Modal>
+
+      {/* Модалка опции модификатора */}
+      <Modal visible={!!optionModal} transparent animationType="fade" onRequestClose={() => setOptionModal(null)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setOptionModal(null)} />
+          {optionModal && (
+            <View style={styles.modalInner}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{optionModal.id ? 'Изменить опцию' : 'Новая опция'}</Text>
+                <Pressable onPress={() => setOptionModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
+              </View>
+              <Text style={styles.fieldLabel}>Название</Text>
+              <TextInput style={styles.input} value={optionModal.name} onChangeText={(v) => setOptionModal(m => ({ ...m, name: v }))} placeholderTextColor={colors.muted} />
+              <Text style={styles.fieldLabel}>Доплата, ₽</Text>
+              <TextInput style={styles.input} keyboardType="numeric" value={optionModal.priceDelta} onChangeText={(v) => setOptionModal(m => ({ ...m, priceDelta: v }))} placeholderTextColor={colors.muted} />
+
+              <Text style={styles.fieldLabel}>Заменяет ингредиент склада на (если это замена)</Text>
+              <TextInput style={styles.input} value={optionModal.ingrToReplace} onChangeText={(v) => setOptionModal(m => ({ ...m, ingrToReplace: v }))} placeholder="Название как на складе" placeholderTextColor={colors.muted} />
+              <Text style={styles.hintText}>Сработает, если в техкарте {genitiveSingularRu(terms.item).toLowerCase()} есть ингредиент с таким же названием, как у группы модификатора.</Text>
+
+              <Text style={styles.fieldLabel}>Или списывает дополнительно (если это добавка)</Text>
+              <TextInput style={styles.input} value={optionModal.ingrToDeduct} onChangeText={(v) => setOptionModal(m => ({ ...m, ingrToDeduct: v }))} placeholder="напр. Упаковка подарочная" placeholderTextColor={colors.muted} />
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <View style={{ flex: 2 }}>
+                  <Text style={styles.fieldLabel}>Расход</Text>
+                  <TextInput style={styles.input} keyboardType="numeric" value={optionModal.deductAmount} onChangeText={(v) => setOptionModal(m => ({ ...m, deductAmount: v }))} placeholderTextColor={colors.muted} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.fieldLabel}>Ед.</Text>
+                  <TextInput style={styles.input} value={optionModal.deductUnit} onChangeText={(v) => setOptionModal(m => ({ ...m, deductUnit: v }))} placeholderTextColor={colors.muted} />
+                </View>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
+                <MetalButton title="Сохранить" variant="success" onPress={saveOptionModal} style={{ flex: 1 }} />
+                {optionModal.id && <MetalButton title="Удалить" variant="danger" onPress={deleteOptionModal} style={{ flex: 1 }} />}
+              </View>
+            </View>
+          )}
+        </View>
+      </Modal>
+
+      {/* Модалка переименования категории склада */}
+      <Modal visible={!!stockCatModal} transparent animationType="fade" onRequestClose={() => setStockCatModal(null)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setStockCatModal(null)} />
+          {stockCatModal && (
+            <View style={[styles.modalInner, { maxWidth: 380 }]}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Переименовать категорию</Text>
+                <Pressable onPress={() => setStockCatModal(null)} hitSlop={14}><Text style={styles.modalClose}>✕</Text></Pressable>
+              </View>
+              <Text style={styles.fieldLabel}>Новое название</Text>
+              <TextInput
+                style={styles.input}
+                value={stockCatModal.newName}
+                onChangeText={v => setStockCatModal(m => ({ ...m, newName: v }))}
+                placeholder={stockCatModal.oldName}
+                placeholderTextColor={colors.muted}
+                autoFocus
+              />
+              <Text style={styles.hintText}>Будет применено ко всем позициям категории «{stockCatModal.oldName}»</Text>
+              <MetalButton
+                title="Переименовать"
+                variant="success"
+                onPress={() => renameStockCategory(stockCatModal.oldName, stockCatModal.newName)}
+                style={{ marginTop: 12 }}
+              />
+            </View>
+          )}
+        </View>
+      </Modal>
 
       {/* QR Модалка */}
       <Modal visible={qrModal} transparent animationType="fade" onRequestClose={() => setQrModal(false)}>
