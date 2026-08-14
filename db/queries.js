@@ -1897,10 +1897,27 @@ export function importAllData(data) {
 // используется, когда владелец сам явно подтвердил полное удаление.
 export function resetDatabase(includeUsers = false) {
   const db = getDb();
+  const errors = [];
   for (const table of BACKUP_TABLES) {
     if (table === 'users' && !includeUsers) continue;
-    try { db.execSync(`DELETE FROM ${table}`); } catch (_) {}
+    try {
+      db.execSync(`DELETE FROM ${table}`);
+    } catch (e) {
+      console.error(`[resetDatabase] Не удалось очистить таблицу ${table}:`, e?.message || e);
+      errors.push(table);
+    }
   }
+  if (includeUsers) {
+    try {
+      const remaining = db.getFirstSync(`SELECT COUNT(*) AS c FROM users`);
+      if (remaining?.c > 0) {
+        console.error(`[resetDatabase] После удаления в users всё ещё осталось строк: ${remaining.c}`);
+        // Принудительная повторная попытка — на случай единичного сбоя выше
+        try { db.execSync(`DELETE FROM users`); } catch (e) { console.error('[resetDatabase] Повторная попытка тоже не удалась:', e?.message || e); }
+      }
+    } catch (_) {}
+  }
+  return { ok: errors.length === 0, errors };
 }
 
 // ─── Прогресс первых шагов после регистрации ───────────────────────────────
