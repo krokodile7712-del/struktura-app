@@ -6,6 +6,7 @@ import {
 import TopBar from '../components/TopBar';
 import EmptyState from '../components/EmptyState';
 import StockPanel from '../components/panels/StockPanel';
+import { useResponsive } from '../hooks/useResponsive';
 import Sheet from '../components/Sheet';
 import UnitPicker from '../components/UnitPicker';
 import AppNav from '../components/AppNav';
@@ -353,6 +354,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
 // ─── Главный экран ─────────────────────────────────────────────────────────────
 export default function ProductsScreen({ navigation, route }) {
   const toast = useToast();
+  const { isLandscape } = useResponsive();
   const [tab, setTab]               = useState(route?.params?.initialTab || 'products'); // products | stock | modifiers
   const [modules, setModules]       = useState({});
   const [products, setProducts]     = useState([]);
@@ -598,6 +600,10 @@ export default function ProductsScreen({ navigation, route }) {
         }
       />
 
+      <View style={[{ flex: 1 }, isLandscape && { flexDirection: 'row' }]}>
+        {isLandscape && <AppNav navigation={navigation} activeScreen="Products" />}
+        <View style={{ flex: 1 }}>
+
       {/* Вкладки — всегда видны, независимо от активной */}
       <View style={styles.tabBarOuter}>
         {[{ key: 'products', label: 'Товары' }, { key: 'stock', label: 'Склад' }]
@@ -612,10 +618,10 @@ export default function ProductsScreen({ navigation, route }) {
       {tab === 'stock' ? (
         <StockPanel navigation={navigation} openCreateSignal={stockCreateSignal} hideOwnCreateButton />
       ) : (
-      <View style={styles.layout}>
+      <View style={[styles.layout, isLandscape && { flexDirection: 'row' }]}>
 
         {/* ── Левая панель ── */}
-        <View style={styles.left}>
+        <View style={[styles.left, isLandscape && styles.leftLandscape]}>
 
           {tab === 'products' && (
             <>
@@ -695,13 +701,8 @@ export default function ProductsScreen({ navigation, route }) {
       </View>
       )}
 
-      {/* Редактор товара — выезжающий слой поверх списка, а не соседняя колонка */}
-      <Sheet
-        visible={!!selected}
-        onClose={() => setSelected(null)}
-        title={selected === 'new' ? 'Новый товар' : (selected?.name || 'Товар')}
-      >
-        {selected && (
+      {(() => {
+        const editorContent = selected && (
           <ProductEditor
             key={selected?.id ? selected.id : `new-${selected?.category || ''}`}
             product={selected === 'new' ? null : selected}
@@ -715,8 +716,36 @@ export default function ProductsScreen({ navigation, route }) {
             onCreateGroup={(g) => setGroupModal(g || { name: '', mode: 'add' })}
             modifiersEnabled={modules.modifiers !== false}
           />
-        )}
-      </Sheet>
+        );
+        const editorTitle = selected === 'new' ? 'Новый товар' : (selected?.name || 'Товар');
+
+        return isLandscape && tab === 'products' ? (
+          /* Альбомная ориентация — редактор товара постоянной панелью справа от списка */
+          <View style={styles.landscapeEditorPanel}>
+            {selected ? (
+              <>
+                <View style={styles.landscapeHeader}>
+                  <Text style={styles.landscapeHeaderTxt} numberOfLines={1}>{editorTitle}</Text>
+                </View>
+                {editorContent}
+              </>
+            ) : (
+              <View style={styles.emptyRight}>
+                <Text style={{ fontSize: 48 }}>🛍</Text>
+                <Text style={styles.emptyRightTxt}>Выберите товар</Text>
+              </View>
+            )}
+          </View>
+        ) : (
+          /* Редактор товара — выезжающий слой поверх списка, а не соседняя колонка */
+          <Sheet visible={!!selected} onClose={() => setSelected(null)} title={editorTitle}>
+            {editorContent}
+          </Sheet>
+        );
+      })()}
+
+        </View>
+      </View>
 
       {tab !== 'modifiers' && (
         <Pressable style={styles.fab} onPress={() => { if (tab === 'stock') { setStockCreateSignal(s => s + 1); } else { setTab('products'); setSelected('new'); } }}>
@@ -724,7 +753,7 @@ export default function ProductsScreen({ navigation, route }) {
         </Pressable>
       )}
 
-      <AppNav navigation={navigation} activeScreen="Products" />
+      {!isLandscape && <AppNav navigation={navigation} activeScreen="Products" />}
 
       {/* Пикер ингредиентов — на уровне экрана */}
       <Sheet
@@ -1097,6 +1126,7 @@ const styles = StyleSheet.create({
 
   // Левая панель
   left:   { flex: 1, backgroundColor: colors.surface },
+  leftLandscape: { flex: 0, width: '38%', maxWidth: 420, borderRightWidth: 1, borderRightColor: colors.border },
 
   tabBar: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border },
   tabBarOuter: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
@@ -1157,6 +1187,9 @@ const styles = StyleSheet.create({
   right:      { flex: 1, backgroundColor: colors.bg },
   emptyRight: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
   emptyRightTxt: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', opacity: 0.6 },
+  landscapeEditorPanel: { flex: 1, backgroundColor: colors.bg, borderLeftWidth: 1, borderLeftColor: colors.border },
+  landscapeHeader: { paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
+  landscapeHeaderTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text },
 
   // Редактор товара
   editorContent: { padding: 24, paddingBottom: 40 },
