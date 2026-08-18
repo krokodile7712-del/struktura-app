@@ -1521,8 +1521,8 @@ export default function SettingsScreen({ navigation, route }) {
               style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: 'rgba(255,59,48,0.04)' }]}
               onPress={() => {
                 Alert.alert(
-                  'Сбросить все данные?',
-                  'Удалятся все продажи, клиенты, товары и настройки. Это действие невозможно отменить.',
+                  'Сбросить продажи и клиентов?',
+                  'Удалятся все продажи, клиенты, смены и расходы. Остатки на складе обнулятся.\n\nТовары, техкарты, сотрудники и настройки останутся как есть.\n\nЭто действие нельзя отменить.',
                   [
                     { text: 'Отмена', style: 'cancel' },
                     { text: 'Сбросить', style: 'destructive', onPress: () => {
@@ -1541,7 +1541,7 @@ export default function SettingsScreen({ navigation, route }) {
                         // Сбрасываем остатки склада в 0
                         try { db.runSync(`UPDATE stock SET остаток = 0, max_ostatok = 0`); } catch (_) {}
                         loadAll();
-                        toast.show('Данные сброшены ✓', 'info');
+                        toast.show('Продажи и клиенты сброшены ✓', 'info');
                       } catch (e) { console.error(e); toast.show('Ошибка сброса', 'warn'); }
                     }},
                   ]
@@ -1550,8 +1550,8 @@ export default function SettingsScreen({ navigation, route }) {
             >
               <Text style={{ fontSize: 20, marginRight: 12 }}>🗑</Text>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.menuItemName, { color: colors.red }]}>Сбросить все данные</Text>
-                <Text style={styles.menuItemSub}>Удалить продажи, клиентов, товары. Настройки сохранятся</Text>
+                <Text style={[styles.menuItemName, { color: colors.red }]}>Сбросить продажи и клиентов</Text>
+                <Text style={styles.menuItemSub}>Начать статистику заново — товары и настройки останутся как есть</Text>
               </View>
               <Text style={styles.menuItemArrow}>›</Text>
             </Pressable>
