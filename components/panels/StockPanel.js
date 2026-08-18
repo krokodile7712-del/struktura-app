@@ -17,6 +17,7 @@ import { can } from '../../db/session';
 import { colors, fonts, spacing } from '../../constants/theme';
 import { useToast } from '../Toast';
 import Sheet from '../Sheet';
+import { useResponsive } from '../../hooks/useResponsive';
 import InfoTip from '../InfoTip';
 import UnitPicker from '../UnitPicker';
 
@@ -37,6 +38,7 @@ const MODES = [
 // и встроенной панелью внутри Admin/Dashboard (раньше это были два отдельных
 // файла с продублированной логикой, из-за чего они периодически расходились).
 export default function StockPanel({ navigation, openCreateSignal, hideOwnCreateButton }) {
+  const { isLandscape } = useResponsive();
   const toast = useToast();
   const [stock, setStock]           = useState([]);
   const [search, setSearch]         = useState('');
@@ -268,108 +270,8 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
     );
   };
 
-  return (
-    <View style={styles.layout}>
-
-      {/* Список — теперь единственная колонка на весь экран */}
-      <View style={styles.left}>
-
-        {locEnabled && locations.length > 0 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}
-            style={styles.locBar} contentContainerStyle={styles.locInner}>
-            {locations.map(l => (
-              <Pressable key={l.id}
-                style={[styles.locChip, selectedLocId === l.id && styles.locChipActive]}
-                onPress={() => { setCurrentLocationId(l.id); setSelectedLocId(l.id); reload(); }}>
-                <Text style={[styles.locChipText, selectedLocId === l.id && styles.locChipActive]}>
-                  {l.name}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        )}
-
-        <View style={styles.searchWrap}>
-          <TextInput
-            style={[styles.searchInput, { flex: 1 }]}
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Поиск..."
-            placeholderTextColor={colors.muted}
-          />
-          {!hideOwnCreateButton && (
-          <Pressable onPress={() => setNewItemModal({ name: '', unit: 'шт', category: '', threshold: '' })} hitSlop={8} style={styles.addStockBtn}>
-            <Text style={styles.addStockBtnText}>+ Позиция</Text>
-          </Pressable>
-          )}
-          <Pressable onPress={() => setLowStockSheetOpen(true)} hitSlop={8} style={styles.catBtn}>
-            <Text style={styles.catBtnText}>⚠️</Text>
-          </Pressable>
-          <Pressable onPress={() => setCatModal(true)} hitSlop={8} style={styles.catBtn}>
-            <Text style={styles.catBtnText}>⚙</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.filterRow}>
-          <Pressable style={[styles.filterChip, showLowOnly && styles.filterChipActive]} onPress={() => setShowLowOnly(v => !v)}>
-            <Text style={[styles.filterChipTxt, showLowOnly && styles.filterChipTxtActive]}>⚠️ Мало</Text>
-          </Pressable>
-          <View style={styles.viewSwitch}>
-            <Pressable style={[styles.viewSwitchBtn, viewMode === 'categories' && styles.viewSwitchBtnActive]} onPress={() => setViewMode('categories')}>
-              <Text style={[styles.viewSwitchTxt, viewMode === 'categories' && styles.viewSwitchTxtActive]}>По категориям</Text>
-            </Pressable>
-            <Pressable style={[styles.viewSwitchBtn, viewMode === 'list' && styles.viewSwitchBtnActive]} onPress={() => setViewMode('list')}>
-              <Text style={[styles.viewSwitchTxt, viewMode === 'list' && styles.viewSwitchTxtActive]}>Список</Text>
-            </Pressable>
-          </View>
-        </View>
-
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.inner}
-          keyboardShouldPersistTaps="handled">
-          {filtered.length === 0 ? (
-            stock.length === 0 ? (
-              <EmptyState icon="📦" title="Склад пуст"
-                text="Добавьте первую позицию — то, что физически заканчивается: ингредиенты, расходники, товары для перепродажи."
-                action={hideOwnCreateButton ? undefined : '+ Добавить позицию'}
-                onAction={hideOwnCreateButton ? undefined : () => setNewItemModal({ name: '', unit: 'шт', category: '', threshold: '' })} />
-            ) : (
-              <EmptyState icon="✅" title={showLowOnly ? 'Ничего не заканчивается' : 'Ничего не найдено'}
-                text={showLowOnly ? 'Все остатки в норме' : 'Попробуйте другой поиск'} />
-            )
-          ) : viewMode === 'list' ? (
-            <View style={styles.catCard}>
-              {[...filtered].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ru')).map((item, idx, arr) =>
-                renderItemRow(item, idx === arr.length - 1)
-              )}
-            </View>
-          ) : cats.map(cat => {
-            const items = [...filtered.filter(i => (i.category || 'Без категории') === cat)]
-              .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ru'));
-            const hasLow = items.some(i => i['порог'] > 0 && i['остаток'] <= i['порог']);
-            return (
-              <View key={cat} style={styles.catGroup}>
-                <View style={styles.catHeadRow}>
-                  <Text style={[styles.catName, hasLow && styles.catNameWarn]}>{cat}</Text>
-                  {hasLow && <Text style={styles.catWarnDot}>⚠️</Text>}
-                </View>
-
-                <View style={styles.catCard}>
-                  {items.map((item, idx) => renderItemRow(item, idx === items.length - 1))}
-                </View>
-              </View>
-            );
-          })}
-        </ScrollView>
-      </View>
-
-      {/* Карточка товара — выезжающий слой поверх списка */}
-      <Sheet
-        visible={!!selected}
-        onClose={() => setSelected(null)}
-        onBack={mode ? closeSlidePanel : undefined}
-        title={mode ? MODES.find(m => m.key === mode)?.label : selected?.name}
-      >
-        {selected && (mode ? (
+  const detailContent = (
+        selected && (mode ? (
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
             <Text style={styles.slidePanelDesc}>{MODES.find(m => m.key === mode)?.desc}</Text>
 
@@ -531,8 +433,138 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
               </Pressable>
             )}
           </ScrollView>
-        ))}
-      </Sheet>
+        ))
+  );
+
+  return (
+    <View style={[styles.layout, isLandscape && { flexDirection: 'row' }]}>
+
+      {/* Список — на всю ширину в портрете, узкой колонкой слева в альбомной */}
+      <View style={[styles.left, isLandscape && styles.leftLandscape]}>
+
+        {locEnabled && locations.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}
+            style={styles.locBar} contentContainerStyle={styles.locInner}>
+            {locations.map(l => (
+              <Pressable key={l.id}
+                style={[styles.locChip, selectedLocId === l.id && styles.locChipActive]}
+                onPress={() => { setCurrentLocationId(l.id); setSelectedLocId(l.id); reload(); }}>
+                <Text style={[styles.locChipText, selectedLocId === l.id && styles.locChipActive]}>
+                  {l.name}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
+
+        <View style={styles.searchWrap}>
+          <TextInput
+            style={[styles.searchInput, { flex: 1 }]}
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Поиск..."
+            placeholderTextColor={colors.muted}
+          />
+          {!hideOwnCreateButton && (
+          <Pressable onPress={() => setNewItemModal({ name: '', unit: 'шт', category: '', threshold: '' })} hitSlop={8} style={styles.addStockBtn}>
+            <Text style={styles.addStockBtnText}>+ Позиция</Text>
+          </Pressable>
+          )}
+          <Pressable onPress={() => setLowStockSheetOpen(true)} hitSlop={8} style={styles.catBtn}>
+            <Text style={styles.catBtnText}>⚠️</Text>
+          </Pressable>
+          <Pressable onPress={() => setCatModal(true)} hitSlop={8} style={styles.catBtn}>
+            <Text style={styles.catBtnText}>⚙</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.filterRow}>
+          <Pressable style={[styles.filterChip, showLowOnly && styles.filterChipActive]} onPress={() => setShowLowOnly(v => !v)}>
+            <Text style={[styles.filterChipTxt, showLowOnly && styles.filterChipTxtActive]}>⚠️ Мало</Text>
+          </Pressable>
+          <View style={styles.viewSwitch}>
+            <Pressable style={[styles.viewSwitchBtn, viewMode === 'categories' && styles.viewSwitchBtnActive]} onPress={() => setViewMode('categories')}>
+              <Text style={[styles.viewSwitchTxt, viewMode === 'categories' && styles.viewSwitchTxtActive]}>По категориям</Text>
+            </Pressable>
+            <Pressable style={[styles.viewSwitchBtn, viewMode === 'list' && styles.viewSwitchBtnActive]} onPress={() => setViewMode('list')}>
+              <Text style={[styles.viewSwitchTxt, viewMode === 'list' && styles.viewSwitchTxtActive]}>Список</Text>
+            </Pressable>
+          </View>
+        </View>
+
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.inner}
+          keyboardShouldPersistTaps="handled">
+          {filtered.length === 0 ? (
+            stock.length === 0 ? (
+              <EmptyState icon="📦" title="Склад пуст"
+                text="Добавьте первую позицию — то, что физически заканчивается: ингредиенты, расходники, товары для перепродажи."
+                action={hideOwnCreateButton ? undefined : '+ Добавить позицию'}
+                onAction={hideOwnCreateButton ? undefined : () => setNewItemModal({ name: '', unit: 'шт', category: '', threshold: '' })} />
+            ) : (
+              <EmptyState icon="✅" title={showLowOnly ? 'Ничего не заканчивается' : 'Ничего не найдено'}
+                text={showLowOnly ? 'Все остатки в норме' : 'Попробуйте другой поиск'} />
+            )
+          ) : viewMode === 'list' ? (
+            <View style={styles.catCard}>
+              {[...filtered].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ru')).map((item, idx, arr) =>
+                renderItemRow(item, idx === arr.length - 1)
+              )}
+            </View>
+          ) : cats.map(cat => {
+            const items = [...filtered.filter(i => (i.category || 'Без категории') === cat)]
+              .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ru'));
+            const hasLow = items.some(i => i['порог'] > 0 && i['остаток'] <= i['порог']);
+            return (
+              <View key={cat} style={styles.catGroup}>
+                <View style={styles.catHeadRow}>
+                  <Text style={[styles.catName, hasLow && styles.catNameWarn]}>{cat}</Text>
+                  {hasLow && <Text style={styles.catWarnDot}>⚠️</Text>}
+                </View>
+
+                <View style={styles.catCard}>
+                  {items.map((item, idx) => renderItemRow(item, idx === items.length - 1))}
+                </View>
+              </View>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      {isLandscape ? (
+        /* Альбомная ориентация — карточка товара постоянной панелью справа от списка */
+        <View style={styles.landscapeDetail}>
+          {selected ? (
+            <>
+              <View style={styles.landscapeHeader}>
+                <Text style={styles.landscapeHeaderTxt} numberOfLines={1}>
+                  {mode ? MODES.find(m => m.key === mode)?.label : selected?.name}
+                </Text>
+                {mode && (
+                  <Pressable onPress={closeSlidePanel} hitSlop={12} style={styles.landscapeBackBtn}>
+                    <Text style={styles.landscapeBackTxt}>‹ Назад</Text>
+                  </Pressable>
+                )}
+              </View>
+              {detailContent}
+            </>
+          ) : (
+            <View style={styles.emptyRight}>
+              <Text style={{ fontSize: 48 }}>📦</Text>
+              <Text style={styles.emptyRightTxt}>Выберите товар</Text>
+            </View>
+          )}
+        </View>
+      ) : (
+        /* Портретная ориентация — карточка товара выезжающим слоем поверх списка */
+        <Sheet
+          visible={!!selected}
+          onClose={() => setSelected(null)}
+          onBack={mode ? closeSlidePanel : undefined}
+          title={mode ? MODES.find(m => m.key === mode)?.label : selected?.name}
+        >
+          {detailContent}
+        </Sheet>
+      )}
 
       {/* Предупреждение при удалении — позиция может использоваться в техкартах */}
       <Modal visible={!!deletePrompt} transparent animationType="fade" onRequestClose={() => setDeletePrompt(null)}>
@@ -849,6 +881,12 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
 const styles = StyleSheet.create({
   layout: { flex: 1 },
   left:   { flex: 1, backgroundColor: colors.surface },
+  leftLandscape: { flex: 0, width: '38%', maxWidth: 420, borderRightWidth: 1, borderRightColor: colors.border },
+  landscapeDetail: { flex: 1, backgroundColor: colors.bg },
+  landscapeHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
+  landscapeHeaderTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, flex: 1 },
+  landscapeBackBtn: { paddingHorizontal: 10, paddingVertical: 6 },
+  landscapeBackTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
   right:  { flex: 1, backgroundColor: colors.bg },
 
   emptyRight:    { flex: 1, alignItems: 'center', justifyContent: 'center', opacity: 0.3 },
