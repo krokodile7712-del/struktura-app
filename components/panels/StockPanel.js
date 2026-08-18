@@ -492,7 +492,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
           </View>
         </View>
 
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.inner}
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.inner, filtered.length === 0 && { flexGrow: 1, justifyContent: 'center' }]}
           keyboardShouldPersistTaps="handled">
           {filtered.length === 0 ? (
             stock.length === 0 ? (

@@ -633,7 +633,8 @@ export default function ProductsScreen({ navigation, route }) {
               </View>
 
               {/* Список по категориям */}
-              <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+              <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}
+                contentContainerStyle={catGroups.length === 0 ? { flexGrow: 1, justifyContent: 'center' } : undefined}>
                 {catGroups.length === 0 ? (
                   <EmptyState icon="🛍" title={search ? 'Ничего не найдено' : 'Нет товаров'}
                     text={search ? undefined : 'Добавьте первый товар или услугу, чтобы начать продавать'}
