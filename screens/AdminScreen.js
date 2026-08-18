@@ -5,8 +5,9 @@ import TopBar from '../components/TopBar';
 import AppNav from '../components/AppNav';
 import NextStepsCard from '../components/NextStepsCard';
 import ShiftBanner from '../components/ShiftBanner';
+import { useResponsive } from '../hooks/useResponsive';
 import {
-  getOpenShift, getBusinessProfile, getDashboardStats, getRoleNames,
+  getOpenShift, getBusinessProfile, getDashboardStats, getRoleNames, getTerms,
 } from '../db/queries';
 import { getSession } from '../db/session';
 import { colors, fonts } from '../constants/theme';
@@ -18,17 +19,35 @@ function getGreeting() {
   return 'Добрый вечер';
 }
 
-// Этап 2 разворота на адаптивность: Admin — теперь просто "Обзор" + хост
-// навигации. Раньше здесь же переключались встроенные панели (Продажи,
-// Склад, Отчётность и т.д.) в две колонки — теперь любой переход всегда
-// открывает отдельный полноэкранный маршрут, независимо от размера экрана.
+// Полный список разделов — используется только для широкой боковой панели
+// в альбомной ориентации (по образцу прежнего планшетного меню). Каждый
+// пункт теперь по-настоящему переходит на отдельный экран (а не переключает
+// встроенную панель, как было раньше) — соответствует общей архитектуре
+// после разворота на мобильный.
+const SECTIONS = [
+  { key: 'Sales',       label: 'Продажи',   route: 'Sales' },
+  { key: 'ClientsList', label: 'Клиенты',   route: 'ClientsList' },
+  { key: 'Reports',     label: 'Отчётность',route: 'Reports' },
+  { key: 'Stock',       label: 'Склад',     route: 'Products', params: { initialTab: 'stock' } },
+  { key: 'Expenses',    label: 'Расходы',   route: 'Expenses' },
+  { key: 'Bookings',    label: 'Записи',    route: 'Bookings' },
+  { key: 'Settings',    label: 'Настройки', route: 'Settings' },
+];
+
+// Этап 2 разворота на адаптивность: Admin — просто "Обзор" + хост навигации.
+// В портретной ориентации — только AppNav снизу. В альбомной — рядом с
+// содержимым появляется широкая боковая панель (по образцу прежнего
+// планшетного меню), с которой можно перейти в любой раздел напрямую.
 export default function AdminScreen({ navigation }) {
+  const { isLandscape } = useResponsive();
   const [profile, setProfile]   = useState(null);
   const [stats, setStats]       = useState({});
   const [hasShift, setHasShift] = useState(false);
   const [roleNames, setRoleNames] = useState({ admin: 'Администратор' });
   const [sessionName, setSessionName] = useState('');
   const [stockOpen, setStockOpen] = useState(false);
+  const [terms, setTerms] = useState({ order: 'Заказ' });
+  const [bookingActive, setBookingActive] = useState(false);
 
   const loadStats = useCallback(() => {
     try {
@@ -39,16 +58,14 @@ export default function AdminScreen({ navigation }) {
       setHasShift(!!getOpenShift());
       setRoleNames(getRoleNames());
       setStats(getDashboardStats());
+      setTerms(getTerms());
+      setBookingActive(!!(p?.booking_slug));
     } catch (e) { console.error(e); }
   }, []);
 
   useFocusEffect(useCallback(() => { loadStats(); }, [loadStats]));
 
-  return (
-    <View style={styles.root}>
-      <TopBar title={roleNames.admin || 'Администратор'} navigation={navigation} activeScreen="Admin" />
-      {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift')} />}
-
+  const overviewContent = (
       <ScrollView contentContainerStyle={styles.panelContent}>
         {stats.lowStockCount > 0 && (
           <Pressable
@@ -111,14 +128,90 @@ export default function AdminScreen({ navigation }) {
           </>
         )}
       </ScrollView>
+  );
 
-      <AppNav navigation={navigation} activeScreen="Admin" />
+  return (
+    <View style={styles.root}>
+      <TopBar title={roleNames.admin || 'Администратор'} navigation={navigation} activeScreen="Admin" />
+      {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift')} />}
+
+      <View style={[{ flex: 1 }, isLandscape && { flexDirection: 'row' }]}>
+        {isLandscape && (
+          /* Широкая боковая панель — по образцу прежнего планшетного меню.
+             Каждый пункт теперь настоящий переход на отдельный экран. */
+          <View style={styles.leftPanel}>
+            <View style={styles.bizHeader}>
+              <Text style={styles.bizName} numberOfLines={1}>{profile?.business_name || 'Мой бизнес'}</Text>
+              {profile?.city ? <Text style={styles.bizCity}>{profile.city}</Text> : null}
+            </View>
+
+            <Pressable style={({ pressed }) => [styles.ctaBtn, pressed && { opacity: 0.85 }]}
+              onPress={() => navigation.navigate('Kassa')}>
+              <Text style={styles.ctaLabel}>Новый {terms.order?.toLowerCase()}</Text>
+              <Text style={styles.ctaSub}>Открыть кассу</Text>
+            </Pressable>
+
+            <View style={styles.divider} />
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={[styles.menuItem, styles.menuItemActive]}>
+                <View style={styles.activeBar} />
+                <Text style={[styles.menuLabel, styles.menuLabelActive]}>Обзор</Text>
+              </View>
+
+              {SECTIONS.map(s => {
+                if (s.key === 'Bookings' && !bookingActive) {
+                  return (
+                    <View key={s.key} style={styles.menuItemInactive}>
+                      <Text style={styles.menuLabelInactive}>{s.label}</Text>
+                      <Text style={styles.menuSub}>Не подключено</Text>
+                    </View>
+                  );
+                }
+                return (
+                  <Pressable key={s.key}
+                    style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: 'rgba(245,240,232,0.04)' }]}
+                    onPress={() => navigation.navigate(s.route, s.params)}>
+                    <Text style={styles.menuLabel}>{s.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
+
+        <View style={{ flex: 1 }}>
+          {overviewContent}
+        </View>
+      </View>
+
+      {!isLandscape && <AppNav navigation={navigation} activeScreen="Admin" />}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root:        { flex: 1, backgroundColor: colors.bg },
+
+  leftPanel:   { width: 220, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface },
+  bizHeader:   { padding: 18, paddingBottom: 10 },
+  bizName:     { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.text },
+  bizCity:     { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
+
+  ctaBtn:      { marginHorizontal: 12, marginBottom: 12, padding: 14, borderRadius: 12, backgroundColor: colors.orange, alignItems: 'center' },
+  ctaLabel:    { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: '#fff', textTransform: 'capitalize' },
+  ctaSub:      { fontFamily: fonts.familyRegular, fontSize: 10, color: 'rgba(255,255,255,0.7)', marginTop: 1 },
+
+  divider:     { height: 1, backgroundColor: colors.border, marginHorizontal: 12, marginVertical: 4 },
+
+  menuItem:        { paddingVertical: 12, paddingHorizontal: 16, position: 'relative' },
+  menuItemActive:  { backgroundColor: 'rgba(245,240,232,0.06)' },
+  menuItemInactive:{ paddingVertical: 12, paddingHorizontal: 16, opacity: 0.45 },
+  activeBar:       { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
+  menuLabel:       { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
+  menuLabelActive: { color: colors.text },
+  menuLabelInactive:{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
+  menuSub:         { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, marginTop: 1 },
 
   panelContent:{ padding: 24, paddingBottom: 40 },
   panelGreeting:{ fontFamily: fonts.family, fontSize: 24, fontWeight: '800', color: colors.text, marginBottom: 4 },
