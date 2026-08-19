@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, FlatList, TextInput, Animated, Easing } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
+import { useResponsive } from '../hooks/useResponsive';
 import AppNav from '../components/AppNav';
 import { getTerms, pluralizeRu, getLoyaltyConfig, getAllClients, searchClients } from '../db/queries';
 import { colors, fonts } from '../constants/theme';
@@ -25,6 +26,7 @@ const MODEL_INFO = {
 };
 
 export default function LoyaltyScreen({ navigation }) {
+  const { isLandscape } = useResponsive();
   const [terms, setTerms]           = useState({ client: 'Клиент', order: 'Заказ' });
   const [loyaltyModel, setLoyaltyModel] = useState('points');
   const [clients, setClients]       = useState([]);
@@ -83,6 +85,10 @@ export default function LoyaltyScreen({ navigation }) {
   return (
     <View style={styles.root}>
       <TopBar title={pluralizeRu(terms.client)} navigation={navigation} activeScreen="Loyalty" />
+
+      <View style={[{ flex: 1 }, isLandscape && { flexDirection: 'row' }]}>
+        {isLandscape && <AppNav navigation={navigation} activeScreen="Loyalty" />}
+        <View style={{ flex: 1 }}>
 
       <View style={styles.layout}>
 
@@ -194,7 +200,10 @@ export default function LoyaltyScreen({ navigation }) {
 
       </View>
 
-      <AppNav navigation={navigation} activeScreen="Loyalty" />
+        </View>
+      </View>
+
+      {!isLandscape && <AppNav navigation={navigation} activeScreen="Loyalty" />}
     </View>
   );
 }

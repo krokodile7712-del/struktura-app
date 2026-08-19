@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, Animated } from 'react-native';
 import TopBar from '../components/TopBar';
+import { useResponsive } from '../hooks/useResponsive';
 import EmptyState from '../components/EmptyState';
 import AppNav from '../components/AppNav';
 import InfoTip from '../components/InfoTip';
@@ -30,6 +31,7 @@ function monthlyAmt(item) {
 }
 
 export default function OverheadsScreen({ navigation }) {
+  const { isLandscape } = useResponsive();
   const [items, setItems]       = useState([]);
   const [selected, setSelected] = useState(null);
   const [draft, setDraft]       = useState(null);
@@ -101,6 +103,10 @@ export default function OverheadsScreen({ navigation }) {
           </Pressable>
         }
       />
+
+      <View style={[{ flex: 1 }, isLandscape && { flexDirection: 'row' }]}>
+        {isLandscape && <AppNav navigation={navigation} activeScreen="Overheads" />}
+        <View style={{ flex: 1 }}>
 
       <View style={styles.layout}>
 
@@ -255,7 +261,10 @@ export default function OverheadsScreen({ navigation }) {
 
       </View>
 
-      <AppNav navigation={navigation} activeScreen="Overheads" />
+        </View>
+      </View>
+
+      {!isLandscape && <AppNav navigation={navigation} activeScreen="Overheads" />}
     </View>
   );
 }
