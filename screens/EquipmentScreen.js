@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, Animated } from 'react-native';
 import TopBar from '../components/TopBar';
+import { useResponsive } from '../hooks/useResponsive';
 import AppNav from '../components/AppNav';
 import InfoTip from '../components/InfoTip';
 import Toggle from '../components/Toggle';
@@ -48,6 +49,7 @@ function wearPct(eq) {
 }
 
 export default function EquipmentScreen({ navigation }) {
+  const { isLandscape } = useResponsive();
   const [items, setItems]       = useState([]);
   const [products, setProducts] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -121,6 +123,10 @@ export default function EquipmentScreen({ navigation }) {
           </Pressable>
         }
       />
+
+      <View style={[{ flex: 1 }, isLandscape && { flexDirection: 'row' }]}>
+        {isLandscape && <AppNav navigation={navigation} activeScreen="Equipment" />}
+        <View style={{ flex: 1 }}>
 
       <View style={styles.layout}>
 
@@ -310,7 +316,10 @@ export default function EquipmentScreen({ navigation }) {
 
       </View>
 
-      <AppNav navigation={navigation} activeScreen="Equipment" />
+        </View>
+      </View>
+
+      {!isLandscape && <AppNav navigation={navigation} activeScreen="Equipment" />}
       <DatePicker
         visible={showDatePicker}
         value={draft?.purchase_date || new Date().toISOString().slice(0,10)}
