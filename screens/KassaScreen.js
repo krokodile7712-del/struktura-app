@@ -16,10 +16,12 @@ import AppNav from '../components/AppNav';
 import InfoTip from '../components/InfoTip';
 import { getAllProducts, getAllClients, getCategories, getCategoryOrder, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, getAllVariantsWithSku, getZones, getOrderTemplates, saveOrderTemplate, deleteOrderTemplate, applyPendingPriceSchedules, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms, getLoyaltyConfig, spendPoints, checkSubscriptionBalance, getCostCardForVariant, getAllStock } from '../db/queries';
 import Sheet from '../components/Sheet';
+import { useResponsive } from '../hooks/useResponsive';
 import { cartStore } from '../db/cartStore';
 import { colors, fonts, spacing, anim } from '../constants/theme';
 
 export default function KassaScreen({ navigation, route }) {
+  const { isLandscape } = useResponsive();
   const loading2 = false; // placeholder
   const toast = useToast();
   const [loading, setLoading] = useState(true);
@@ -680,12 +682,15 @@ export default function KassaScreen({ navigation, route }) {
     return (
       <View style={{ flex: 1 }}>
         <TopBar title="Касса" onBack={() => goBackSmart(navigation)} />
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
-          <Text style={styles.emptyTitle}>Меню пустое</Text>
-          <Text style={styles.emptyHint}>Добавьте товары в разделе Товары</Text>
-          <MetalButton title="← Назад" variant="back" onPress={() => goBackSmart(navigation)} />
+        <View style={[{ flex: 1 }, isLandscape && { flexDirection: 'row' }]}>
+          {isLandscape && <AppNav navigation={navigation} activeScreen="Kassa" />}
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
+            <Text style={styles.emptyTitle}>Меню пустое</Text>
+            <Text style={styles.emptyHint}>Добавьте товары в разделе Товары</Text>
+            <MetalButton title="← Назад" variant="back" onPress={() => goBackSmart(navigation)} />
+          </View>
         </View>
-        <AppNav navigation={navigation} activeScreen="Kassa" />
+        {!isLandscape && <AppNav navigation={navigation} activeScreen="Kassa" />}
       </View>
     );
   }
@@ -695,6 +700,10 @@ export default function KassaScreen({ navigation, route }) {
       <TopBar title="Касса" onBack={() => goBackSmart(navigation)} />
 
       {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift', { returnTo: 'Kassa' })} />}
+      <View style={[{ flex: 1 }, isLandscape && { flexDirection: 'row' }]}>
+        {isLandscape && <AppNav navigation={navigation} activeScreen="Kassa" />}
+        <View style={{ flex: 1 }}>
+
       <Animated.View style={[styles.layout, { opacity: fadeAnim }]}>
         {/* ── Вертикальная колонка категорий ── */}
         <View style={styles.catRail}>
@@ -999,7 +1008,10 @@ export default function KassaScreen({ navigation, route }) {
         </View>
       </Animated.View>
 
-      <AppNav navigation={navigation} activeScreen="Kassa" />
+        </View>
+      </View>
+
+      {!isLandscape && <AppNav navigation={navigation} activeScreen="Kassa" />}
 
       {/* Расход по факту — база + количество каждого материала вводится на месте */}
       <Sheet
