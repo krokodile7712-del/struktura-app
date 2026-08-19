@@ -28,13 +28,11 @@ import ShiftScreen from './screens/ShiftScreen';
 import ShiftCloseScreen from './screens/ShiftCloseScreen';
 import SalesScreen from './screens/SalesScreen';
 import BookingsScreen from './screens/BookingsScreen';
-import StockScreen from './screens/StockScreen';
 import RegScreen from './screens/RegScreen';
 import RegResultScreen from './screens/RegResultScreen';
 import SearchScreen from './screens/SearchScreen';
 import ClientCardScreen from './screens/ClientCardScreen';
 import ClientsListScreen from './screens/ClientsListScreen';
-import CostCardsScreen from './screens/CostCardsScreen';
 import ExpensesScreen from './screens/ExpensesScreen';
 import AdminScreen from './screens/AdminScreen';
 import SettingsScreen from './screens/SettingsScreen';
@@ -137,13 +135,11 @@ export default function App() {
             <Stack.Screen name="ShiftClose"  component={ShiftCloseScreen} />
             <Stack.Screen name="Sales"       component={SalesScreen} />
             <Stack.Screen name="Bookings"    component={BookingsScreen} />
-            <Stack.Screen name="Stock"       component={StockScreen} />
             <Stack.Screen name="Reg"         component={RegScreen} />
             <Stack.Screen name="RegResult"   component={RegResultScreen} />
             <Stack.Screen name="Search"      component={SearchScreen} />
             <Stack.Screen name="ClientCard"  component={ClientCardScreen} />
             <Stack.Screen name="ClientsList" component={ClientsListScreen} />
-            <Stack.Screen name="CostCards"   component={CostCardsScreen} />
             <Stack.Screen name="Products"    component={ProductsScreen} />
             <Stack.Screen name="Expenses"    component={ExpensesScreen} />
             <Stack.Screen name="Migrate"     component={MigrateScreen} />

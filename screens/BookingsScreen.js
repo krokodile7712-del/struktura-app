@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
 import AppNav from '../components/AppNav';
+import { useResponsive } from '../hooks/useResponsive';
 import { getHomeRoute, goBackSmart } from '../db/session';
 import { getBookings, updateBookingStatus } from '../db/supabase';
 import { getBusinessProfile } from '../db/queries';
@@ -34,6 +35,7 @@ function fmtDate(str) {
 }
 
 export default function BookingsScreen({ navigation }) {
+  const { isLandscape } = useResponsive();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [expanded, setExpanded] = useState(null);
@@ -98,6 +100,10 @@ export default function BookingsScreen({ navigation }) {
           </Pressable>
         }
       />
+
+      <View style={[{ flex: 1 }, isLandscape && { flexDirection: 'row' }]}>
+        {isLandscape && <AppNav navigation={navigation} activeScreen="Bookings" />}
+        <View style={{ flex: 1 }}>
 
       <View style={styles.layout} onLayout={e => setContainerWidth(e.nativeEvent.layout.width)}>
 
@@ -230,7 +236,10 @@ export default function BookingsScreen({ navigation }) {
 
       </View>
 
-      <AppNav navigation={navigation} activeScreen="Bookings" />
+        </View>
+      </View>
+
+      {!isLandscape && <AppNav navigation={navigation} activeScreen="Bookings" />}
     </View>
   );
 }
