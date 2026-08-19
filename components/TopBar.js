@@ -29,7 +29,20 @@ export default function TopBar({ title, onBack, rightElement, syncPending, navig
           ) : null}
         </View>
 
-        <Text style={styles.title} numberOfLines={1}>{title || ''}</Text>
+        {navigation ? (
+          <Pressable
+            style={{ flex: 1 }}
+            onPress={() => {
+              const home = getSession()?.role === 'admin' ? 'Admin' : 'Dashboard';
+              if (activeScreen !== home) navigation.navigate(home);
+            }}
+            hitSlop={8}
+          >
+            <Text style={styles.title} numberOfLines={1}>{title || ''}</Text>
+          </Pressable>
+        ) : (
+          <Text style={styles.title} numberOfLines={1}>{title || ''}</Text>
+        )}
 
         <View style={[styles.side, { alignItems: 'flex-end' }]}>
           {syncPending > 0
