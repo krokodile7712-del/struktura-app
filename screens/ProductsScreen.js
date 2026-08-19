@@ -699,9 +699,6 @@ export default function ProductsScreen({ navigation, route }) {
             </ScrollView>
           )}
         </View>
-      </View>
-      )}
-
       {(() => {
         const editorContent = selected && (
           <ProductEditor
@@ -746,13 +743,16 @@ export default function ProductsScreen({ navigation, route }) {
       })()}
 
         </View>
-      </View>
+      )}
 
       {tab !== 'modifiers' && (
         <Pressable style={styles.fab} onPress={() => { if (tab === 'stock') { setStockCreateSignal(s => s + 1); } else { setTab('products'); setSelected('new'); } }}>
           <Text style={styles.fabTxt}>+</Text>
         </Pressable>
       )}
+
+        </View>
+      </View>
 
       {!isLandscape && <AppNav navigation={navigation} activeScreen="Products" />}
 
