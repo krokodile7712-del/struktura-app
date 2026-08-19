@@ -8,7 +8,7 @@ import { useResponsive } from '../hooks/useResponsive';
 import {
   getOpenShift, getBusinessProfile, getDashboardStats, getRoleNames,
 } from '../db/queries';
-import { getSession, can } from '../db/session';
+import { getSession } from '../db/session';
 import { colors, fonts } from '../constants/theme';
 
 function getGreeting() {
@@ -19,17 +19,10 @@ function getGreeting() {
 }
 function fmt(n) { return (n || 0).toLocaleString('ru-RU'); }
 
-// Список разделов сотрудника — только то, на что есть права.
-const SECTIONS = [
-  { key: 'Sales',       label: 'Продажи', route: 'Sales',    perm: 'view_order_history' },
-  { key: 'ClientsList', label: 'Клиенты', route: 'ClientsList', perm: 'view_clients' },
-  { key: 'Expenses',    label: 'Расходы', route: 'Expenses', perm: 'add_expenses' },
-  { key: 'Stock',       label: 'Склад',   route: 'Products', params: { initialTab: 'stock' }, perm: 'view_stock' },
-];
-
-// Этап 2 разворота на адаптивность: Dashboard — тоже просто "Обзор"
-// сотрудника + хост навигации. В альбомной ориентации рядом появляется
-// широкая боковая панель с доступными сотруднику разделами.
+// Обзор сотрудника. AppNav сам решает, как себя показать — снизу компактной
+// панелью в портрете, широкой боковой панелью (с разделами по правам
+// доступа) в альбомной ориентации — этому экрану не нужно ничего
+// специально достраивать самому.
 export default function DashboardScreen({ navigation }) {
   const { isLandscape } = useResponsive();
   const [profile, setProfile]         = useState(null);
@@ -52,85 +45,48 @@ export default function DashboardScreen({ navigation }) {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const availableSections = SECTIONS.filter(s => can(s.perm));
-
-  const overviewContent = (
-      <ScrollView contentContainerStyle={styles.dashContent}>
-        <Text style={styles.greeting}>{getGreeting()}{sessionName ? `, ${sessionName}` : ''}</Text>
-        <Text style={styles.greetingSub}>{profile?.business_name || 'Сводка текущей смены'}</Text>
-
-        <View style={styles.statsGrid}>
-          {[
-            { label: 'Выручка',     value: `${fmt(stats.todayTotal)} ₽` },
-            { label: 'Заказов',     value: stats.todayOrders || 0 },
-            { label: 'Средний чек', value: `${stats.todayOrders > 0 ? fmt(Math.round((stats.todayTotal||0) / stats.todayOrders)) : 0} ₽` },
-            { label: 'Наличные',    value: `${fmt(stats.todayCash)} ₽` },
-          ].map((s, i) => (
-            <View key={i} style={styles.statCard}>
-              <Text style={styles.statVal}>{s.value}</Text>
-              <Text style={styles.statLbl}>{s.label}</Text>
-            </View>
-          ))}
-        </View>
-
-        {stats.shift && (
-          <>
-            <View style={styles.shiftDivider} />
-            <Pressable
-              style={({ pressed }) => [styles.shiftCloseBtn, pressed && { opacity: 0.85 }]}
-              onPress={() => navigation.navigate('ShiftClose')}
-            >
-              <View>
-                <Text style={styles.shiftCloseTxt}>Закрыть смену</Text>
-                <Text style={styles.shiftCloseSub}>Открыта {stats.shiftDuration || ''} · {fmt(stats.todayTotal)} ₽</Text>
-              </View>
-              <Text style={{ fontSize: 18, color: colors.red }}>›</Text>
-            </Pressable>
-          </>
-        )}
-      </ScrollView>
-  );
-
   return (
     <View style={styles.root}>
       <TopBar title={roleNames.barista || 'Сотрудник'} navigation={navigation} activeScreen="Dashboard" />
       {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift')} />}
 
-      <View style={[{ flex: 1 }, isLandscape && { flexDirection: 'row' }]}>
-        {isLandscape && (
-          <View style={styles.leftPanel}>
-            <View style={styles.bizHeader}>
-              <Text style={styles.bizName} numberOfLines={1}>{profile?.business_name || 'Мой бизнес'}</Text>
-            </View>
+      <View style={{ flex: 1, flexDirection: isLandscape ? 'row' : 'column' }}>
+        {isLandscape && <AppNav navigation={navigation} activeScreen="Dashboard" />}
 
-            <Pressable style={({ pressed }) => [styles.ctaBtn, pressed && { opacity: 0.85 }]}
-              onPress={() => navigation.navigate('Kassa')}>
-              <Text style={styles.ctaLabel}>Новый заказ</Text>
-              <Text style={styles.ctaSub}>Открыть кассу</Text>
-            </Pressable>
+        <ScrollView contentContainerStyle={styles.dashContent} style={{ flex: 1 }}>
+          <Text style={styles.greeting}>{getGreeting()}{sessionName ? `, ${sessionName}` : ''}</Text>
+          <Text style={styles.greetingSub}>{profile?.business_name || 'Сводка текущей смены'}</Text>
 
-            <View style={styles.divider} />
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={[styles.menuItem, styles.menuItemActive]}>
-                <View style={styles.activeBar} />
-                <Text style={[styles.menuLabel, styles.menuLabelActive]}>Обзор</Text>
+          <View style={styles.statsGrid}>
+            {[
+              { label: 'Выручка',     value: `${fmt(stats.todayTotal)} ₽` },
+              { label: 'Заказов',     value: stats.todayOrders || 0 },
+              { label: 'Средний чек', value: `${stats.todayOrders > 0 ? fmt(Math.round((stats.todayTotal||0) / stats.todayOrders)) : 0} ₽` },
+              { label: 'Наличные',    value: `${fmt(stats.todayCash)} ₽` },
+            ].map((s, i) => (
+              <View key={i} style={styles.statCard}>
+                <Text style={styles.statVal}>{s.value}</Text>
+                <Text style={styles.statLbl}>{s.label}</Text>
               </View>
-
-              {availableSections.map(s => (
-                <Pressable key={s.key}
-                  style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: 'rgba(245,240,232,0.04)' }]}
-                  onPress={() => navigation.navigate(s.route, s.params)}>
-                  <Text style={styles.menuLabel}>{s.label}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
+            ))}
           </View>
-        )}
 
-        <View style={{ flex: 1 }}>
-          {overviewContent}
-        </View>
+          {stats.shift && (
+            <>
+              <View style={styles.shiftDivider} />
+              <Pressable
+                style={({ pressed }) => [styles.shiftCloseBtn, pressed && { opacity: 0.85 }]}
+                onPress={() => navigation.navigate('ShiftClose')}
+              >
+                <View>
+                  <Text style={styles.shiftCloseTxt}>Закрыть смену</Text>
+                  <Text style={styles.shiftCloseSub}>Открыта {stats.shiftDuration || ''} · {fmt(stats.todayTotal)} ₽</Text>
+                </View>
+                <Text style={{ fontSize: 18, color: colors.red }}>›</Text>
+              </Pressable>
+            </>
+          )}
+        </ScrollView>
       </View>
 
       {!isLandscape && <AppNav navigation={navigation} activeScreen="Dashboard" />}
@@ -140,22 +96,6 @@ export default function DashboardScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   root:    { flex: 1, backgroundColor: colors.bg },
-
-  leftPanel:   { width: 220, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface },
-  bizHeader:   { padding: 18, paddingBottom: 10 },
-  bizName:     { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.text },
-
-  ctaBtn:      { marginHorizontal: 12, marginBottom: 12, padding: 14, borderRadius: 12, backgroundColor: colors.orange, alignItems: 'center' },
-  ctaLabel:    { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: '#fff' },
-  ctaSub:      { fontFamily: fonts.familyRegular, fontSize: 10, color: 'rgba(255,255,255,0.7)', marginTop: 1 },
-
-  divider:     { height: 1, backgroundColor: colors.border, marginHorizontal: 12, marginVertical: 4 },
-
-  menuItem:        { paddingVertical: 12, paddingHorizontal: 16, position: 'relative' },
-  menuItemActive:  { backgroundColor: 'rgba(245,240,232,0.06)' },
-  activeBar:       { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
-  menuLabel:       { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
-  menuLabelActive: { color: colors.text },
 
   dashContent: { padding: 24, paddingBottom: 40 },
   greeting:    { fontFamily: fonts.family, fontSize: 26, fontWeight: '800', color: colors.text, marginBottom: 4 },

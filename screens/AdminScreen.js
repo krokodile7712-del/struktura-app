@@ -7,7 +7,7 @@ import NextStepsCard from '../components/NextStepsCard';
 import ShiftBanner from '../components/ShiftBanner';
 import { useResponsive } from '../hooks/useResponsive';
 import {
-  getOpenShift, getBusinessProfile, getDashboardStats, getRoleNames, getTerms,
+  getOpenShift, getBusinessProfile, getDashboardStats, getRoleNames,
 } from '../db/queries';
 import { getSession } from '../db/session';
 import { colors, fonts } from '../constants/theme';
@@ -19,25 +19,10 @@ function getGreeting() {
   return 'Добрый вечер';
 }
 
-// Полный список разделов — используется только для широкой боковой панели
-// в альбомной ориентации (по образцу прежнего планшетного меню). Каждый
-// пункт теперь по-настоящему переходит на отдельный экран (а не переключает
-// встроенную панель, как было раньше) — соответствует общей архитектуре
-// после разворота на мобильный.
-const SECTIONS = [
-  { key: 'Sales',       label: 'Продажи',   route: 'Sales' },
-  { key: 'ClientsList', label: 'Клиенты',   route: 'ClientsList' },
-  { key: 'Reports',     label: 'Отчётность',route: 'Reports' },
-  { key: 'Stock',       label: 'Склад',     route: 'Products', params: { initialTab: 'stock' } },
-  { key: 'Expenses',    label: 'Расходы',   route: 'Expenses' },
-  { key: 'Bookings',    label: 'Записи',    route: 'Bookings' },
-  { key: 'Settings',    label: 'Настройки', route: 'Settings' },
-];
-
-// Этап 2 разворота на адаптивность: Admin — просто "Обзор" + хост навигации.
-// В портретной ориентации — только AppNav снизу. В альбомной — рядом с
-// содержимым появляется широкая боковая панель (по образцу прежнего
-// планшетного меню), с которой можно перейти в любой раздел напрямую.
+// Обзор администратора. AppNav сам решает, как себя показать — снизу
+// компактной панелью в портрете, широкой боковой панелью со всеми
+// разделами в альбомной ориентации (см. components/AppNav.js) — этому
+// экрану не нужно ничего специально достраивать самому.
 export default function AdminScreen({ navigation }) {
   const { isLandscape } = useResponsive();
   const [profile, setProfile]   = useState(null);
@@ -46,8 +31,6 @@ export default function AdminScreen({ navigation }) {
   const [roleNames, setRoleNames] = useState({ admin: 'Администратор' });
   const [sessionName, setSessionName] = useState('');
   const [stockOpen, setStockOpen] = useState(false);
-  const [terms, setTerms] = useState({ order: 'Заказ' });
-  const [bookingActive, setBookingActive] = useState(false);
 
   const loadStats = useCallback(() => {
     try {
@@ -58,131 +41,81 @@ export default function AdminScreen({ navigation }) {
       setHasShift(!!getOpenShift());
       setRoleNames(getRoleNames());
       setStats(getDashboardStats());
-      setTerms(getTerms());
-      setBookingActive(!!(p?.booking_slug));
     } catch (e) { console.error(e); }
   }, []);
 
   useFocusEffect(useCallback(() => { loadStats(); }, [loadStats]));
-
-  const overviewContent = (
-      <ScrollView contentContainerStyle={styles.panelContent}>
-        {stats.lowStockCount > 0 && (
-          <Pressable
-            style={[styles.stockBanner, stockOpen && styles.stockBannerOpen]}
-            onPress={() => setStockOpen(v => !v)}
-          >
-            <View style={styles.stockBannerRow}>
-              <Text style={styles.stockBannerTxt}>
-                Мало на складе: {stats.lowStockCount} поз.
-              </Text>
-              <Text style={styles.stockBannerChevron}>{stockOpen ? '▲' : '▼'}</Text>
-            </View>
-            {stockOpen && (
-              <Pressable onPress={() => navigation.navigate('Products', { initialTab: 'stock' })}>
-                {(stats.lowStockItems || []).map((it, i) => (
-                  <Text key={i} style={styles.stockBannerItem}>
-                    · {it.name} — {it['остаток']} {it.unit}
-                  </Text>
-                ))}
-                <Text style={styles.stockBannerLink}>Перейти на склад →</Text>
-              </Pressable>
-            )}
-          </Pressable>
-        )}
-
-        <Text style={styles.panelGreeting}>{getGreeting()}{sessionName ? `, ${sessionName}` : ''}</Text>
-        <Text style={styles.panelSub}>{profile?.business_name || 'Сводка за сегодня'}</Text>
-
-        <NextStepsCard navigation={navigation} />
-
-        <View style={styles.statsGrid}>
-          {[
-            { label: 'Выручка', value: `${(stats.todayTotal || 0).toLocaleString('ru-RU')} ₽` },
-            { label: 'Заказов', value: stats.todayOrders || 0 },
-            { label: 'Средний чек', value: `${stats.todayOrders > 0 ? Math.round((stats.todayTotal||0) / stats.todayOrders).toLocaleString('ru-RU') : 0} ₽` },
-            { label: 'Наличные', value: `${(stats.todayCash || 0).toLocaleString('ru-RU')} ₽` },
-            { label: 'Карта', value: `${(stats.todayCard || 0).toLocaleString('ru-RU')} ₽` },
-            { label: 'Смена открыта', value: stats.shiftDuration || '—' },
-          ].map((s, i) => (
-            <View key={i} style={styles.statCard}>
-              <Text style={styles.statVal}>{s.value}</Text>
-              <Text style={styles.statLbl}>{s.label}</Text>
-            </View>
-          ))}
-        </View>
-
-        {stats.shift && (
-          <>
-          <View style={styles.shiftSep} />
-          <Pressable
-            style={({ pressed }) => [styles.shiftCloseBtn, pressed && { opacity: 0.85 }]}
-            onPress={() => navigation.navigate('ShiftClose')}
-          >
-            <View>
-              <Text style={styles.shiftCloseTxt}>Закрыть смену</Text>
-              <Text style={styles.shiftCloseSub}>Открыта {stats.shiftDuration || ''} · {(stats.todayTotal||0).toLocaleString('ru-RU')} ₽</Text>
-            </View>
-            <Text style={{ fontSize: 18, color: colors.muted }}>›</Text>
-          </Pressable>
-          </>
-        )}
-      </ScrollView>
-  );
 
   return (
     <View style={styles.root}>
       <TopBar title={roleNames.admin || 'Администратор'} navigation={navigation} activeScreen="Admin" />
       {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift')} />}
 
-      <View style={[{ flex: 1 }, isLandscape && { flexDirection: 'row' }]}>
-        {isLandscape && (
-          /* Широкая боковая панель — по образцу прежнего планшетного меню.
-             Каждый пункт теперь настоящий переход на отдельный экран. */
-          <View style={styles.leftPanel}>
-            <View style={styles.bizHeader}>
-              <Text style={styles.bizName} numberOfLines={1}>{profile?.business_name || 'Мой бизнес'}</Text>
-              {profile?.city ? <Text style={styles.bizCity}>{profile.city}</Text> : null}
-            </View>
+      <View style={{ flex: 1, flexDirection: isLandscape ? 'row' : 'column' }}>
+        {isLandscape && <AppNav navigation={navigation} activeScreen="Admin" />}
 
-            <Pressable style={({ pressed }) => [styles.ctaBtn, pressed && { opacity: 0.85 }]}
-              onPress={() => navigation.navigate('Kassa')}>
-              <Text style={styles.ctaLabel}>Новый {terms.order?.toLowerCase()}</Text>
-              <Text style={styles.ctaSub}>Открыть кассу</Text>
-            </Pressable>
-
-            <View style={styles.divider} />
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={[styles.menuItem, styles.menuItemActive]}>
-                <View style={styles.activeBar} />
-                <Text style={[styles.menuLabel, styles.menuLabelActive]}>Обзор</Text>
+        <ScrollView contentContainerStyle={styles.panelContent} style={{ flex: 1 }}>
+          {stats.lowStockCount > 0 && (
+            <Pressable
+              style={[styles.stockBanner, stockOpen && styles.stockBannerOpen]}
+              onPress={() => setStockOpen(v => !v)}
+            >
+              <View style={styles.stockBannerRow}>
+                <Text style={styles.stockBannerTxt}>
+                  Мало на складе: {stats.lowStockCount} поз.
+                </Text>
+                <Text style={styles.stockBannerChevron}>{stockOpen ? '▲' : '▼'}</Text>
               </View>
+              {stockOpen && (
+                <Pressable onPress={() => navigation.navigate('Products', { initialTab: 'stock' })}>
+                  {(stats.lowStockItems || []).map((it, i) => (
+                    <Text key={i} style={styles.stockBannerItem}>
+                      · {it.name} — {it['остаток']} {it.unit}
+                    </Text>
+                  ))}
+                  <Text style={styles.stockBannerLink}>Перейти на склад →</Text>
+                </Pressable>
+              )}
+            </Pressable>
+          )}
 
-              {SECTIONS.map(s => {
-                if (s.key === 'Bookings' && !bookingActive) {
-                  return (
-                    <View key={s.key} style={styles.menuItemInactive}>
-                      <Text style={styles.menuLabelInactive}>{s.label}</Text>
-                      <Text style={styles.menuSub}>Не подключено</Text>
-                    </View>
-                  );
-                }
-                return (
-                  <Pressable key={s.key}
-                    style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: 'rgba(245,240,232,0.04)' }]}
-                    onPress={() => navigation.navigate(s.route, s.params)}>
-                    <Text style={styles.menuLabel}>{s.label}</Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
+          <Text style={styles.panelGreeting}>{getGreeting()}{sessionName ? `, ${sessionName}` : ''}</Text>
+          <Text style={styles.panelSub}>{profile?.business_name || 'Сводка за сегодня'}</Text>
+
+          <NextStepsCard navigation={navigation} />
+
+          <View style={styles.statsGrid}>
+            {[
+              { label: 'Выручка', value: `${(stats.todayTotal || 0).toLocaleString('ru-RU')} ₽` },
+              { label: 'Заказов', value: stats.todayOrders || 0 },
+              { label: 'Средний чек', value: `${stats.todayOrders > 0 ? Math.round((stats.todayTotal||0) / stats.todayOrders).toLocaleString('ru-RU') : 0} ₽` },
+              { label: 'Наличные', value: `${(stats.todayCash || 0).toLocaleString('ru-RU')} ₽` },
+              { label: 'Карта', value: `${(stats.todayCard || 0).toLocaleString('ru-RU')} ₽` },
+              { label: 'Смена открыта', value: stats.shiftDuration || '—' },
+            ].map((s, i) => (
+              <View key={i} style={styles.statCard}>
+                <Text style={styles.statVal}>{s.value}</Text>
+                <Text style={styles.statLbl}>{s.label}</Text>
+              </View>
+            ))}
           </View>
-        )}
 
-        <View style={{ flex: 1 }}>
-          {overviewContent}
-        </View>
+          {stats.shift && (
+            <>
+            <View style={styles.shiftSep} />
+            <Pressable
+              style={({ pressed }) => [styles.shiftCloseBtn, pressed && { opacity: 0.85 }]}
+              onPress={() => navigation.navigate('ShiftClose')}
+            >
+              <View>
+                <Text style={styles.shiftCloseTxt}>Закрыть смену</Text>
+                <Text style={styles.shiftCloseSub}>Открыта {stats.shiftDuration || ''} · {(stats.todayTotal||0).toLocaleString('ru-RU')} ₽</Text>
+              </View>
+              <Text style={{ fontSize: 18, color: colors.muted }}>›</Text>
+            </Pressable>
+            </>
+          )}
+        </ScrollView>
       </View>
 
       {!isLandscape && <AppNav navigation={navigation} activeScreen="Admin" />}
@@ -192,26 +125,6 @@ export default function AdminScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   root:        { flex: 1, backgroundColor: colors.bg },
-
-  leftPanel:   { width: 220, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface },
-  bizHeader:   { padding: 18, paddingBottom: 10 },
-  bizName:     { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.text },
-  bizCity:     { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
-
-  ctaBtn:      { marginHorizontal: 12, marginBottom: 12, padding: 14, borderRadius: 12, backgroundColor: colors.orange, alignItems: 'center' },
-  ctaLabel:    { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: '#fff', textTransform: 'capitalize' },
-  ctaSub:      { fontFamily: fonts.familyRegular, fontSize: 10, color: 'rgba(255,255,255,0.7)', marginTop: 1 },
-
-  divider:     { height: 1, backgroundColor: colors.border, marginHorizontal: 12, marginVertical: 4 },
-
-  menuItem:        { paddingVertical: 12, paddingHorizontal: 16, position: 'relative' },
-  menuItemActive:  { backgroundColor: 'rgba(245,240,232,0.06)' },
-  menuItemInactive:{ paddingVertical: 12, paddingHorizontal: 16, opacity: 0.45 },
-  activeBar:       { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
-  menuLabel:       { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
-  menuLabelActive: { color: colors.text },
-  menuLabelInactive:{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
-  menuSub:         { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, marginTop: 1 },
 
   panelContent:{ padding: 24, paddingBottom: 40 },
   panelGreeting:{ fontFamily: fonts.family, fontSize: 24, fontWeight: '800', color: colors.text, marginBottom: 4 },
