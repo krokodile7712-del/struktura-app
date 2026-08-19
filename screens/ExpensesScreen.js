@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import TopBar from '../components/TopBar';
 import Sheet from '../components/Sheet';
+import { useResponsive } from '../hooks/useResponsive';
 import AppNav from '../components/AppNav';
 import { useFocusEffect } from '@react-navigation/native';
 import { getAllExpenses, insertExpense } from '../db/queries';
@@ -25,6 +26,7 @@ const PERIODS = [
 ];
 
 export default function ExpensesScreen({ navigation }) {
+  const { isLandscape } = useResponsive();
   const [period, setPeriod]         = useState('week');
   const [expenses, setExpenses]     = useState([]);
   const [addModal, setAddModal]     = useState(false);
@@ -119,6 +121,10 @@ export default function ExpensesScreen({ navigation }) {
         }
       />
 
+      <View style={[{ flex: 1 }, isLandscape && { flexDirection: 'row' }]}>
+        {isLandscape && <AppNav navigation={navigation} activeScreen="Expenses" />}
+        <View style={{ flex: 1 }}>
+
       {/* Фильтры периода */}
       <View style={styles.periodRow}>
         {PERIODS.map(p => (
@@ -165,6 +171,9 @@ export default function ExpensesScreen({ navigation }) {
         />
 
       </Animated.View>
+
+        </View>
+      </View>
 
       {/* Модалка добавления */}
       <Sheet visible={addModal} onClose={() => setAddModal(false)} title="Новый расход">
@@ -264,7 +273,7 @@ export default function ExpensesScreen({ navigation }) {
         </ScrollView>
       </Sheet>
 
-      <AppNav navigation={navigation} activeScreen="Expenses" />
+      {!isLandscape && <AppNav navigation={navigation} activeScreen="Expenses" />}
     </View>
   );
 }

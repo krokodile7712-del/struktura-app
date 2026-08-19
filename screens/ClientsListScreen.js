@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, FlatList, Animated } from 'react-native';
 import TopBar from '../components/TopBar';
 import AppNav from '../components/AppNav';
+import { useResponsive } from '../hooks/useResponsive';
 import EmptyState from '../components/EmptyState';
 import { useFocusEffect } from '@react-navigation/native';
 import { getAllClients, searchClients, getClientOrders, getTerms, pluralizeRu,
@@ -256,6 +257,7 @@ function ClientCard({ client, onNewOrder, onSaved, loyaltyModel, loyaltyConfig }
 }
 
 export default function ClientsListScreen({ navigation, initialClientId }) {
+  const { isLandscape } = useResponsive();
   const [query, setQuery]       = useState('');
   const [clients, setClients]   = useState([]);
   const [selected, setSelected] = useState(null);
@@ -310,6 +312,10 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
           </Pressable>
         }
       />
+
+      <View style={[{ flex: 1 }, isLandscape && { flexDirection: 'row' }]}>
+        {isLandscape && <AppNav navigation={navigation} activeScreen="ClientsList" />}
+        <View style={{ flex: 1 }}>
 
       <View style={styles.layout}>
         {/* Левая колонка — список */}
@@ -389,7 +395,10 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
         </View>
       </View>
 
-      <AppNav navigation={navigation} activeScreen="ClientsList" />
+        </View>
+      </View>
+
+      {!isLandscape && <AppNav navigation={navigation} activeScreen="ClientsList" />}
     </View>
   );
 }
