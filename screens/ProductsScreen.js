@@ -203,8 +203,8 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
                 {!deductOn ? (
                   <View style={styles.deductQuestion}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                      <Text style={styles.deductQuestionTxt}>Списывать со склада при продаже?</Text>
-                      <InfoTip title="Списание со склада" text="Если для этого товара или услуги расходуются материалы — краска, ингредиенты, расходники — укажите их здесь. Каждая продажа автоматически уменьшит остаток на складе. Полностью необязательно, можно пропустить." />
+                      <Text style={styles.deductQuestionTxt}>Нужна техкарта?</Text>
+                      <InfoTip title="Техкарта" text="Список того, что расходуется на одну продажу — ингредиенты, материалы, расходники. Например, для «Стрижка мужская» — шампунь и бальзам. Каждая продажа автоматически спишет остаток нужных позиций на складе. Не нужна — просто пропустите." />
                     </View>
                     <Toggle value={false} onValueChange={() => setExpandedVar(vi)} size="sm" />
                   </View>
@@ -213,9 +213,9 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
                 <Pressable style={styles.techToggle} onPress={() => setExpandedVar(hasIngs ? (isOpen ? -1 : vi) : vi)}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                     <Text style={styles.techToggleTxt}>
-                      Списывать со склада{hasIngs ? ` · ${v.ings.length} поз.` : ''}
+                      Техкарта{hasIngs ? ` · ${v.ings.length} поз.` : ''}
                     </Text>
-                    <InfoTip title="Списание со склада" text="Каждая продажа автоматически уменьшит остаток указанных позиций на складе. Уберите все позиции, чтобы отключить списание для этого товара." />
+                    <InfoTip title="Техкарта" text="Каждая продажа автоматически спишет остаток указанных позиций на складе. Уберите все позиции, чтобы отключить техкарту для этого товара." />
                   </View>
                   <Toggle value={true} onValueChange={() => setExpandedVar(-1)} size="sm" />
                 </Pressable>
@@ -496,7 +496,7 @@ export default function ProductsScreen({ navigation, route }) {
       unit: ingCreateForm.unit || 'шт',
       category: ingCreateForm.category || 'Прочее',
       threshold: parseFloat(ingCreateForm.threshold) || 0,
-      initialQty: 0,
+      initialQty: parseFloat(ingCreateForm.initialStock) || 0,
     });
     if (!res.ok) { toast.show(res.error, 'warn'); return; }
     if (parseFloat(ingCreateForm.sellPrice) > 0) {
@@ -768,7 +768,7 @@ export default function ProductsScreen({ navigation, route }) {
             style={styles.ingPickerCreateRow}
             onPress={() => setIngCreateForm(f => f
               ? null
-              : { name: ingSearch.trim(), unit: 'шт', category: '', sellPrice: '', threshold: '' }
+              : { name: ingSearch.trim(), unit: 'шт', category: '', sellPrice: '', threshold: '', initialStock: '' }
             )}
           >
             <Text style={styles.ingPickerCreateTxt}>
@@ -803,17 +803,27 @@ export default function ProductsScreen({ navigation, route }) {
                   <UnitPicker value={ingCreateForm.unit} onChange={v => setIngCreateForm(f => ({ ...f, unit: v }))} />
                 </View>
                 <View style={{ flex: 1 }}>
+                  <Text style={styles.combLabel}>Остаток сейчас</Text>
+                  <TextInput color={colors.text} style={styles.combInput} keyboardType="numeric"
+                    value={ingCreateForm.initialStock} onChangeText={v => setIngCreateForm(f => ({ ...f, initialStock: v }))}
+                    placeholder="0" placeholderTextColor={colors.muted} />
+                </View>
+              </View>
+
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <View style={{ flex: 1 }}>
                   <Text style={styles.combLabel}>Порог (необязательно)</Text>
                   <TextInput color={colors.text} style={styles.combInput} keyboardType="numeric"
                     value={ingCreateForm.threshold} onChangeText={v => setIngCreateForm(f => ({ ...f, threshold: v }))}
                     placeholder="0" placeholderTextColor={colors.muted} />
                 </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.combLabel}>Цена продажи (необязательно)</Text>
+                  <TextInput color={colors.text} style={styles.combInput} keyboardType="numeric"
+                    value={ingCreateForm.sellPrice} onChangeText={v => setIngCreateForm(f => ({ ...f, sellPrice: v }))}
+                    placeholder="0" placeholderTextColor={colors.muted} />
+                </View>
               </View>
-
-              <Text style={styles.combLabel}>Цена продажи (необязательно)</Text>
-              <TextInput color={colors.text} style={styles.combInput} keyboardType="numeric"
-                value={ingCreateForm.sellPrice} onChangeText={v => setIngCreateForm(f => ({ ...f, sellPrice: v }))}
-                placeholder="0" placeholderTextColor={colors.muted} />
               <Text style={styles.combHint}>Себестоимость появится сама после первой закупки на складе.</Text>
 
               <Pressable style={styles.combSaveBtn} onPress={saveIngCreateForm}>

@@ -91,7 +91,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
   }, []);
 
   useEffect(() => {
-    if (openCreateSignal) setNewItemModal({ name: '', unit: 'шт', category: '', threshold: '' });
+    if (openCreateSignal) setNewItemModal({ name: '', unit: 'шт', category: '', threshold: '', initialStock: '' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openCreateSignal]);
 
@@ -104,6 +104,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
       unit: newItemModal.unit?.trim() || 'шт',
       category: newItemModal.category?.trim() || 'Прочее',
       threshold: parseFloat(newItemModal.threshold) || 0,
+      initialQty: parseFloat(newItemModal.initialStock) || 0,
     });
     if (!res.ok) { toast.show(res.error, 'warn'); return; }
     reload();
@@ -466,7 +467,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
             placeholderTextColor={colors.muted}
           />
           {!hideOwnCreateButton && (
-          <Pressable onPress={() => setNewItemModal({ name: '', unit: 'шт', category: '', threshold: '' })} hitSlop={8} style={styles.addStockBtn}>
+          <Pressable onPress={() => setNewItemModal({ name: '', unit: 'шт', category: '', threshold: '', initialStock: '' })} hitSlop={8} style={styles.addStockBtn}>
             <Text style={styles.addStockBtnText}>+ Позиция</Text>
           </Pressable>
           )}
@@ -499,7 +500,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
               <EmptyState icon="📦" title="Склад пуст"
                 text="Добавьте первую позицию — то, что физически заканчивается: ингредиенты, расходники, товары для перепродажи."
                 action={hideOwnCreateButton ? undefined : '+ Добавить позицию'}
-                onAction={hideOwnCreateButton ? undefined : () => setNewItemModal({ name: '', unit: 'шт', category: '', threshold: '' })} />
+                onAction={hideOwnCreateButton ? undefined : () => setNewItemModal({ name: '', unit: 'шт', category: '', threshold: '', initialStock: '' })} />
             ) : (
               <EmptyState icon="✅" title={showLowOnly ? 'Ничего не заканчивается' : 'Ничего не найдено'}
                 text={showLowOnly ? 'Все остатки в норме' : 'Попробуйте другой поиск'} />
@@ -674,20 +675,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
               placeholderTextColor={colors.muted}
               autoFocus
             />
-            <Text style={styles.sectionLabel}>Единица</Text>
-            <View style={{ marginBottom: 12 }}>
-              <UnitPicker value={newItemModal.unit} onChange={v => setNewItemModal(m => ({ ...m, unit: v }))} />
-            </View>
-            <Text style={styles.sectionLabel}>Порог (необязательно)</Text>
-            <TextInput
-              color={colors.text}
-              style={[styles.input, { marginBottom: 12 }]}
-              value={newItemModal.threshold}
-              onChangeText={v => setNewItemModal(m => ({ ...m, threshold: v }))}
-              keyboardType="numeric"
-              placeholder="0"
-              placeholderTextColor={colors.muted}
-            />
+
             <Text style={styles.sectionLabel}>Категория</Text>
             {stockCats.length > 0 && (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 8 }}>
@@ -700,12 +688,48 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
             )}
             <TextInput
               color={colors.text}
-              style={styles.input}
+              style={[styles.input, { marginBottom: 12 }]}
               value={newItemModal.category}
               onChangeText={v => setNewItemModal(m => ({ ...m, category: v }))}
               placeholder="Или впишите новую категорию"
               placeholderTextColor={colors.muted}
             />
+
+            <Text style={styles.sectionLabel}>Единица</Text>
+            <View style={{ marginBottom: 12 }}>
+              <UnitPicker value={newItemModal.unit} onChange={v => setNewItemModal(m => ({ ...m, unit: v }))} />
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={styles.sectionLabel}>Остаток сейчас</Text>
+                  <InfoTip title="Остаток сейчас" text="Сколько этой позиции у вас физически есть на момент создания. Если ещё нет — оставьте 0, пополните через «Закупка» позже." />
+                </View>
+                <TextInput
+                  color={colors.text}
+                  style={[styles.input, { marginBottom: 12 }]}
+                  value={newItemModal.initialStock}
+                  onChangeText={v => setNewItemModal(m => ({ ...m, initialStock: v }))}
+                  keyboardType="numeric"
+                  placeholder="0"
+                  placeholderTextColor={colors.muted}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.sectionLabel}>Порог (необязательно)</Text>
+                <TextInput
+                  color={colors.text}
+                  style={[styles.input, { marginBottom: 12 }]}
+                  value={newItemModal.threshold}
+                  onChangeText={v => setNewItemModal(m => ({ ...m, threshold: v }))}
+                  keyboardType="numeric"
+                  placeholder="0"
+                  placeholderTextColor={colors.muted}
+                />
+              </View>
+            </View>
+
             <Pressable
               style={({ pressed }) => [styles.confirmBtn, { marginTop: 14 }, pressed && { opacity: 0.88 }]}
               onPress={saveNewItem}
