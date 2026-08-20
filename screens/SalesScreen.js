@@ -162,6 +162,8 @@ export default function SalesScreen({ navigation }) {
       <TopBar
         title={pluralizeRu(terms.order)}
         onBack={() => goBackSmart(navigation)}
+        navigation={navigation}
+        activeScreen="Sales"
       />
 
       <View style={styles.layout}>

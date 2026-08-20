@@ -103,6 +103,8 @@ export default function ExpensesScreen({ navigation }) {
       <TopBar
         title="Расходы"
         onBack={() => goBackSmart(navigation)}
+        navigation={navigation}
+        activeScreen="Expenses"
         rightElement={
           can('add_expense') !== false && (
             <Animated.View style={{ transform: [{ scale: btnScale }] }}>

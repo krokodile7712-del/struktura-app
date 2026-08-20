@@ -17,16 +17,25 @@ export default function TopBar({ title, onBack, rightElement, syncPending, navig
     <>
       <View style={[styles.bar, { paddingTop: insets.top, height: 52 + insets.top }]}>
         <View style={styles.side}>
-          {onBack ? (
+          {onBack && (
             <Pressable onPress={onBack} style={styles.backBtn} hitSlop={12} accessibilityLabel="Назад" accessibilityRole="button">
               <Text style={styles.backArrow}>‹</Text>
-              <Text style={styles.backLabel}>Назад</Text>
             </Pressable>
-          ) : navigation ? (
+          )}
+          {navigation && (() => {
+            const home = getSession()?.role === 'admin' ? 'Admin' : 'Dashboard';
+            if (activeScreen === home) return null;
+            return (
+              <Pressable onPress={() => navigation.navigate(home)} style={styles.homeBtn} hitSlop={12} accessibilityLabel="Обзор" accessibilityRole="button">
+                <Text style={styles.homeIcon}>🏠</Text>
+              </Pressable>
+            );
+          })()}
+          {!onBack && navigation && (
             <Pressable onPress={() => setDrawerOpen(true)} style={styles.menuBtn} hitSlop={12} accessibilityLabel="Открыть меню" accessibilityRole="button">
               <Text style={styles.menuIcon}>☰</Text>
             </Pressable>
-          ) : null}
+          )}
         </View>
 
         {navigation ? (
@@ -83,16 +92,25 @@ const styles = StyleSheet.create({
   },
   side: {
     width: 110,
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-  },
-  backBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
+    justifyContent: 'flex-start',
+    gap: 2,
+  },
+  backBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
     paddingVertical: 8,
     borderRadius: 10,
-    gap: 2,
+  },
+  homeBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  homeIcon: {
+    fontSize: 17,
   },
   menuBtn: {
     paddingHorizontal: 12,
@@ -109,12 +127,6 @@ const styles = StyleSheet.create({
     color: colors.greenLight,
     lineHeight: 28,
     fontFamily: fonts.family,
-  },
-  backLabel: {
-    fontFamily: fonts.familySemibold,
-    fontSize: 14,
-    color: colors.greenLight,
-    letterSpacing: 0.5,
   },
   title: {
     flex: 1,

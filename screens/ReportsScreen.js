@@ -202,6 +202,8 @@ export default function ReportsScreen({ navigation }) {
       <TopBar
         title="Отчётность"
         onBack={() => goBackSmart(navigation)}
+        navigation={navigation}
+        activeScreen="Reports"
         rightElement={
           <Pressable style={styles.exportBtn} onPress={async () => {
             try { const d = exportAllData(); await Share.share({ message: d, title: 'Отчёт СТРУКТУРА' }); } catch(_) {}

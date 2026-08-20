@@ -95,6 +95,8 @@ export default function OverheadsScreen({ navigation }) {
       <TopBar
         title="Накладные расходы"
         onBack={() => goBackSmart(navigation)}
+        navigation={navigation}
+        activeScreen="Overheads"
         rightElement={
           <Pressable style={styles.addBtn} onPress={openNew}>
             <Text style={styles.addBtnTxt}>+ Добавить</Text>

@@ -304,6 +304,8 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
       <TopBar
         title={pluralizeRu(terms.client)}
         onBack={() => goBackSmart(navigation)}
+        navigation={navigation}
+        activeScreen="ClientsList"
         rightElement={
           <Pressable style={styles.addBtn} onPress={() => navigation.navigate('Loyalty')} hitSlop={8}>
             <Text style={styles.addBtnTxt}>＋</Text>

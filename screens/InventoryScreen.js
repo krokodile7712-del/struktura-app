@@ -116,6 +116,8 @@ export default function InventoryScreen({ navigation }) {
       <TopBar
         title="Инвентаризация"
         onBack={() => goBackSmart(navigation)}
+        navigation={navigation}
+        activeScreen="Inventory"
         rightElement={
           <Pressable style={styles.addBtn} onPress={() => setShowSetup(true)}>
             <Text style={styles.addBtnTxt}>+ Новый акт</Text>

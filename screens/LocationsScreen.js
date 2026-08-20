@@ -75,7 +75,7 @@ export default function LocationsScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title="Локации" onBack={() => navigation.navigate('Admin')} />
+      <TopBar title="Локации" onBack={() => navigation.navigate('Admin')} navigation={navigation} activeScreen="Locations" />
 
       <ScrollView style={styles.screen} contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
         <MetalCard>

@@ -115,6 +115,8 @@ export default function EquipmentScreen({ navigation }) {
       <TopBar
         title="Оборудование"
         onBack={() => goBackSmart(navigation)}
+        navigation={navigation}
+        activeScreen="Equipment"
         rightElement={
           <Pressable style={styles.addBtn} onPress={openNew}>
             <Text style={styles.addBtnTxt}>+ Добавить</Text>

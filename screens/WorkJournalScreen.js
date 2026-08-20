@@ -58,7 +58,7 @@ export default function WorkJournalScreen({ navigation }) {
 
   return (
     <View style={styles.root}>
-      <TopBar title="Журнал работы" onBack={() => goBackSmart(navigation)} />
+      <TopBar title="Журнал работы" onBack={() => goBackSmart(navigation)} navigation={navigation} activeScreen="WorkJournal" />
 
       <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
         {/* Поиск */}

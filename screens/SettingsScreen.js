@@ -1603,7 +1603,7 @@ export default function SettingsScreen({ navigation, route }) {
 
   if (!can('access_settings')) return (
     <View style={{ flex: 1 }}>
-      <TopBar title="Настройки" onBack={() => goBackSmart(navigation)} />
+      <TopBar title="Настройки" onBack={() => goBackSmart(navigation)} navigation={navigation} activeScreen="Settings" />
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
         <Text style={{ fontSize: 32, marginBottom: 16 }}>🔒</Text>
         <Text style={{ fontFamily: 'AnekDevanagari_700Bold', fontSize: 18, color: colors.text, textAlign: 'center' }}>Нет доступа</Text>
@@ -1683,7 +1683,7 @@ export default function SettingsScreen({ navigation, route }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title="Настройки" onBack={() => navigation.navigate('Admin')} />
+      <TopBar title="Настройки" onBack={() => navigation.navigate('Admin')} navigation={navigation} activeScreen="Settings" />
       <View style={styles.twoCol}>
 
         {/* Левая панель навигации */}

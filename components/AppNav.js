@@ -74,10 +74,20 @@ export default function AppNav({ navigation, activeScreen }) {
     });
   }, [isWide]);
 
+  // Переход между разделами — стек истории держим плоским (максимум
+  // Обзор + текущий раздел), а не бесконечно растущим при переходах между
+  // разделами подряд. С Обзора — обычный navigate (Обзор остаётся внизу
+  // стека). С любого другого раздела на раздел — replace (подменяет
+  // текущий раздел новым, Обзор всегда остаётся ровно на один шаг назад).
+  const goToSection = (route, params) => {
+    if (route === activeScreen) return;
+    if (activeScreen === home) navigation.navigate(route, params);
+    else navigation.replace(route, params);
+  };
+
   const handlePress = (item) => {
     if (item.key === 'more') { setDrawerOpen(true); return; }
-    if (item.key === activeScreen) return; // уже здесь
-    navigation.navigate(item.route);
+    goToSection(item.route);
   };
 
   // ── Панель альбомной ориентации — один и тот же элемент, просто плавно
@@ -101,7 +111,7 @@ export default function AppNav({ navigation, activeScreen }) {
                 </View>
 
                 <Pressable style={({ pressed }) => [styles.ctaBtn, pressed && { opacity: 0.85 }]}
-                  onPress={() => navigation.navigate('Kassa')}>
+                  onPress={() => goToSection('Kassa')}>
                   <Text style={styles.ctaLabel}>Новый {terms.order?.toLowerCase() || 'заказ'}</Text>
                   <Text style={styles.ctaSub}>Открыть кассу</Text>
                 </Pressable>
@@ -126,7 +136,7 @@ export default function AppNav({ navigation, activeScreen }) {
                     return (
                       <Pressable key={s.key}
                         style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: 'rgba(245,240,232,0.04)' }]}
-                        onPress={() => navigation.navigate(s.route, s.params)}>
+                        onPress={() => goToSection(s.route, s.params)}>
                         <Text style={styles.menuLabel}>{s.label}</Text>
                       </Pressable>
                     );
@@ -136,12 +146,12 @@ export default function AppNav({ navigation, activeScreen }) {
             ) : (
               <View style={{ alignItems: 'center', paddingTop: 8 }}>
                 <Pressable style={({ pressed }) => [styles.narrowCta, pressed && { opacity: 0.85 }]}
-                  onPress={() => navigation.navigate('Kassa')}>
+                  onPress={() => goToSection('Kassa')}>
                   <Text style={styles.narrowCtaIcon}>🛒</Text>
                 </Pressable>
                 <View style={styles.narrowDivider} />
 
-                <Pressable style={styles.narrowItem} onPress={() => navigation.navigate(home)}>
+                <Pressable style={styles.narrowItem} onPress={() => goToSection(home)}>
                   <View style={styles.narrowDot} />
                 </Pressable>
 
@@ -152,7 +162,7 @@ export default function AppNav({ navigation, activeScreen }) {
                     <Pressable key={s.key}
                       style={styles.narrowItem}
                       disabled={disabled}
-                      onPress={() => !isActive && navigation.navigate(s.route, s.params)}>
+                      onPress={() => !isActive && goToSection(s.route, s.params)}>
                       <View style={[styles.narrowDot, isActive && styles.narrowDotActive, disabled && styles.narrowDotDisabled]} />
                     </Pressable>
                   );

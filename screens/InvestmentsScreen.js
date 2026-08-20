@@ -100,6 +100,8 @@ export default function InvestmentsScreen({ navigation }) {
       <TopBar
         title="Инвестиции"
         onBack={() => goBackSmart(navigation)}
+        navigation={navigation}
+        activeScreen="Investments"
         rightElement={
           <Pressable style={styles.addBtn} onPress={openNew}>
             <Text style={styles.addBtnTxt}>+ Добавить</Text>

@@ -92,6 +92,8 @@ export default function BookingsScreen({ navigation }) {
       <TopBar
         title="Записи"
         onBack={() => goBackSmart(navigation)}
+        navigation={navigation}
+        activeScreen="Bookings"
         rightElement={
           <Pressable onPress={load} hitSlop={12}>
             <Text style={styles.refreshBtn}>↻</Text>

@@ -679,7 +679,7 @@ export default function KassaScreen({ navigation, route }) {
   if (allProducts.length === 0) {
     return (
       <View style={{ flex: 1 }}>
-        <TopBar title="Касса" onBack={() => goBackSmart(navigation)} />
+        <TopBar title="Касса" onBack={() => goBackSmart(navigation)} navigation={navigation} activeScreen="Kassa" />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
           <Text style={styles.emptyTitle}>Меню пустое</Text>
           <Text style={styles.emptyHint}>Добавьте товары в разделе Товары</Text>
@@ -691,7 +691,7 @@ export default function KassaScreen({ navigation, route }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title="Касса" onBack={() => goBackSmart(navigation)} />
+      <TopBar title="Касса" onBack={() => goBackSmart(navigation)} navigation={navigation} activeScreen="Kassa" />
 
       {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift', { returnTo: 'Kassa' })} />}
       <Animated.View style={[styles.layout, { opacity: fadeAnim }]}>

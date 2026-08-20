@@ -126,6 +126,8 @@ export default function EmployeesScreen({ navigation }) {
       <TopBar
         title="Сотрудники"
         onBack={() => goBackSmart(navigation)}
+        navigation={navigation}
+        activeScreen="Employees"
         rightElement={
           <Pressable style={styles.addBtn} onPress={openNew}>
             <Text style={styles.addBtnTxt}>+ Добавить</Text>
