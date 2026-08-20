@@ -78,7 +78,7 @@ export default function App() {
   // Проба: встроенная (не пересоздаваемая при переходах) AppNav — пока
   // только на экране Товаров, чтобы проверить подход прежде чем менять
   // остальные 17 экранов.
-  const PILOT_SCREENS = ['Products', 'Admin', 'Dashboard', 'Sales', 'ClientsList', 'Reports', 'Expenses', 'Locations', 'Inventory'];
+  const PILOT_SCREENS = ['Products', 'Admin', 'Dashboard', 'Sales', 'ClientsList', 'Reports', 'Expenses', 'Locations', 'Inventory', 'Kassa'];
 
   const [fontsLoaded] = useFonts({
     AnekDevanagari_400Regular,
