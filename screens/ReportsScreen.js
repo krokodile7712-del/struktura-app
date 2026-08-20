@@ -6,7 +6,6 @@ import {
 import TopBar from '../components/TopBar';
 import Sheet from '../components/Sheet';
 import { useResponsive } from '../hooks/useResponsive';
-import AppNav from '../components/AppNav';
 import Toggle from '../components/Toggle';
 import InfoTip from '../components/InfoTip';
 import { useFocusEffect } from '@react-navigation/native';
@@ -114,7 +113,6 @@ function MetricRow({ label, value, sub, color, delta, tip, isLast }) {
 
 // ─── Экран ───────────────────────────────────────────────────────────────────
 export default function ReportsScreen({ navigation }) {
-  const { isLandscape } = useResponsive();
   const [preset, setPreset]         = useState('week');
   const [customFrom, setCustomFrom] = useState(nDaysAgo(29));
   const [customTo, setCustomTo]     = useState(todayStr());
@@ -212,10 +210,6 @@ export default function ReportsScreen({ navigation }) {
           </Pressable>
         }
       />
-
-      <View style={[{ flex: 1 }, isLandscape && { flexDirection: 'row' }]}>
-        {isLandscape && <AppNav navigation={navigation} activeScreen="Reports" />}
-        <View style={{ flex: 1 }}>
 
       <View style={styles.layout}>
 
@@ -394,9 +388,6 @@ export default function ReportsScreen({ navigation }) {
         </View>
       </View>
 
-        </View>
-      </View>
-
       <Sheet visible={filtersOpen} onClose={() => setFiltersOpen(false)} title="Период и итоги">
         <ScrollView contentContainerStyle={{ padding: 20 }}>
           <Text style={styles.sectionLabel}>Период</Text>
@@ -446,8 +437,6 @@ export default function ReportsScreen({ navigation }) {
           )}
         </ScrollView>
       </Sheet>
-
-      {!isLandscape && <AppNav navigation={navigation} activeScreen="Reports" />}
 
       <DatePicker visible={picker === 'from'} value={customFrom}
         onChange={v => { setCustomFrom(v); setPreset('custom'); setPicker(null); }}
