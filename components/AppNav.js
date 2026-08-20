@@ -51,15 +51,28 @@ export default function AppNav({ navigation, activeScreen }) {
   const terms = getTerms();
   const bookingActive = !!(profile?.booking_slug);
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(8)).current;
+  const isWide = activeScreen === home;
+  const widthAnim = useRef(new Animated.Value(isWide ? 220 : 72)).current;
+  const [renderWide, setRenderWide] = useState(isWide);
+  const contentFade = useRef(new Animated.Value(1)).current;
+
   useEffect(() => {
-    fadeAnim.setValue(0); slideAnim.setValue(8);
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 220, useNativeDriver: true }),
-      Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, damping: 18, stiffness: 180 }),
-    ]).start();
-  }, [isBottom, activeScreen === home]);
+    Animated.spring(widthAnim, {
+      toValue: isWide ? 220 : 72,
+      useNativeDriver: false, // ширина — layout-свойство, нативный драйвер её не поддерживает
+      damping: 22, stiffness: 210, mass: 0.9,
+    }).start();
+
+    // Содержимое (подписи ↔ точки) подменяем и слегка притухаем/зажигаем
+    // ровно в середине движения панели — так подмена незаметна на глаз,
+    // а не выглядит внезапной подменой контента на месте.
+    Animated.sequence([
+      Animated.timing(contentFade, { toValue: 0, duration: 90, useNativeDriver: true }),
+    ]).start(() => {
+      setRenderWide(isWide);
+      Animated.timing(contentFade, { toValue: 1, duration: 140, useNativeDriver: true }).start();
+    });
+  }, [isWide]);
 
   const handlePress = (item) => {
     if (item.key === 'more') { setDrawerOpen(true); return; }
@@ -67,62 +80,10 @@ export default function AppNav({ navigation, activeScreen }) {
     navigation.navigate(item.route);
   };
 
-  // ── Широкая панель — только на Обзоре, в альбомной ориентации ──
-  if (!isBottom && activeScreen === home) {
-    const sections = (isAdmin ? ADMIN_SECTIONS : STAFF_SECTIONS)
-      .filter(s => !s.module || modules[s.module] !== false)
-      .filter(s => !s.perm || can(s.perm));
-
-    return (
-      <>
-        <Animated.View style={[styles.wide, { paddingTop: insets.top, opacity: fadeAnim, transform: [{ translateX: slideAnim }] }]}>
-          <View style={styles.bizHeader}>
-            <Text style={styles.bizName} numberOfLines={1}>{profile?.business_name || 'Мой бизнес'}</Text>
-            {profile?.city ? <Text style={styles.bizCity}>{profile.city}</Text> : null}
-          </View>
-
-          <Pressable style={({ pressed }) => [styles.ctaBtn, pressed && { opacity: 0.85 }]}
-            onPress={() => navigation.navigate('Kassa')}>
-            <Text style={styles.ctaLabel}>Новый {terms.order?.toLowerCase() || 'заказ'}</Text>
-            <Text style={styles.ctaSub}>Открыть кассу</Text>
-          </Pressable>
-
-          <View style={styles.divider} />
-
-          <ScrollView showsVerticalScrollIndicator={false}>
-            <View style={[styles.menuItem, styles.menuItemActive]}>
-              <View style={styles.activeBar} />
-              <Text style={[styles.menuLabel, styles.menuLabelActive]}>Обзор</Text>
-            </View>
-
-            {sections.map(s => {
-              if (s.bookingOnly && !bookingActive) {
-                return (
-                  <View key={s.key} style={styles.menuItemInactive}>
-                    <Text style={styles.menuLabelInactive}>{s.label}</Text>
-                    <Text style={styles.menuSub}>Не подключено</Text>
-                  </View>
-                );
-              }
-              return (
-                <Pressable key={s.key}
-                  style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: 'rgba(245,240,232,0.04)' }]}
-                  onPress={() => navigation.navigate(s.route, s.params)}>
-                  <Text style={styles.menuLabel}>{s.label}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </Animated.View>
-
-        <Drawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} navigation={navigation} activeScreen={home} />
-      </>
-    );
-  }
-
-  // ── Узкая свёрнутая панель — альбомная ориентация, любой раздел кроме
-  // Обзора. Тот же список пунктов, что и в широкой панели, просто без
-  // подписей — точки-заглушки вместо иконок, до отрисовки кастомных. ──
+  // ── Панель альбомной ориентации — один и тот же элемент, просто плавно
+  // меняет ширину между узкой (72px, точки) и широкой (220px, подписи +
+  // название бизнеса + кнопка быстрого заказа) в зависимости от того,
+  // находимся мы на Обзоре или на любом другом разделе. ──
   if (!isBottom) {
     const sections = (isAdmin ? ADMIN_SECTIONS : STAFF_SECTIONS)
       .filter(s => !s.module || modules[s.module] !== false)
@@ -130,29 +91,75 @@ export default function AppNav({ navigation, activeScreen }) {
 
     return (
       <>
-        <Animated.View style={[styles.narrow, { paddingTop: insets.top + 8, opacity: fadeAnim, transform: [{ translateX: slideAnim }] }]}>
-          <Pressable style={({ pressed }) => [styles.narrowCta, pressed && { opacity: 0.85 }]}
-            onPress={() => navigation.navigate('Kassa')}>
-            <Text style={styles.narrowCtaIcon}>🛒</Text>
-          </Pressable>
-          <View style={styles.narrowDivider} />
+        <Animated.View style={[styles.landscapeNav, { width: widthAnim, paddingTop: insets.top }]}>
+          <Animated.View style={{ flex: 1, opacity: contentFade }}>
+            {renderWide ? (
+              <>
+                <View style={styles.bizHeader}>
+                  <Text style={styles.bizName} numberOfLines={1}>{profile?.business_name || 'Мой бизнес'}</Text>
+                  {profile?.city ? <Text style={styles.bizCity}>{profile.city}</Text> : null}
+                </View>
 
-          <Pressable style={styles.narrowItem} onPress={() => navigation.navigate(home)}>
-            <View style={styles.narrowDot} />
-          </Pressable>
+                <Pressable style={({ pressed }) => [styles.ctaBtn, pressed && { opacity: 0.85 }]}
+                  onPress={() => navigation.navigate('Kassa')}>
+                  <Text style={styles.ctaLabel}>Новый {terms.order?.toLowerCase() || 'заказ'}</Text>
+                  <Text style={styles.ctaSub}>Открыть кассу</Text>
+                </Pressable>
 
-          {sections.map(s => {
-            const isActive = activeScreen === s.key;
-            const disabled = s.bookingOnly && !bookingActive;
-            return (
-              <Pressable key={s.key}
-                style={styles.narrowItem}
-                disabled={disabled}
-                onPress={() => !isActive && navigation.navigate(s.route, s.params)}>
-                <View style={[styles.narrowDot, isActive && styles.narrowDotActive, disabled && styles.narrowDotDisabled]} />
-              </Pressable>
-            );
-          })}
+                <View style={styles.divider} />
+
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  <View style={[styles.menuItem, styles.menuItemActive]}>
+                    <View style={styles.activeBar} />
+                    <Text style={[styles.menuLabel, styles.menuLabelActive]}>Обзор</Text>
+                  </View>
+
+                  {sections.map(s => {
+                    if (s.bookingOnly && !bookingActive) {
+                      return (
+                        <View key={s.key} style={styles.menuItemInactive}>
+                          <Text style={styles.menuLabelInactive}>{s.label}</Text>
+                          <Text style={styles.menuSub}>Не подключено</Text>
+                        </View>
+                      );
+                    }
+                    return (
+                      <Pressable key={s.key}
+                        style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: 'rgba(245,240,232,0.04)' }]}
+                        onPress={() => navigation.navigate(s.route, s.params)}>
+                        <Text style={styles.menuLabel}>{s.label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              </>
+            ) : (
+              <View style={{ alignItems: 'center', paddingTop: 8 }}>
+                <Pressable style={({ pressed }) => [styles.narrowCta, pressed && { opacity: 0.85 }]}
+                  onPress={() => navigation.navigate('Kassa')}>
+                  <Text style={styles.narrowCtaIcon}>🛒</Text>
+                </Pressable>
+                <View style={styles.narrowDivider} />
+
+                <Pressable style={styles.narrowItem} onPress={() => navigation.navigate(home)}>
+                  <View style={styles.narrowDot} />
+                </Pressable>
+
+                {sections.map(s => {
+                  const isActive = activeScreen === s.key;
+                  const disabled = s.bookingOnly && !bookingActive;
+                  return (
+                    <Pressable key={s.key}
+                      style={styles.narrowItem}
+                      disabled={disabled}
+                      onPress={() => !isActive && navigation.navigate(s.route, s.params)}>
+                      <View style={[styles.narrowDot, isActive && styles.narrowDotActive, disabled && styles.narrowDotDisabled]} />
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+          </Animated.View>
         </Animated.View>
 
         <Drawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} navigation={navigation} activeScreen={home} />
@@ -238,8 +245,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.orange,
   },
 
-  // ── Широкая панель ──
-  wide:        { width: 220, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface },
+  // ── Панель альбомной ориентации ──
+  landscapeNav: { borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface, overflow: 'hidden' },
   bizHeader:   { padding: 18, paddingBottom: 10 },
   bizName:     { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.text },
   bizCity:     { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
@@ -259,9 +266,11 @@ const styles = StyleSheet.create({
   menuLabelInactive:{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   menuSub:         { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, marginTop: 1 },
 
-  // ── Узкая свёрнутая панель ──
-  narrow:      { width: 72, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface, alignItems: 'center' },
-  narrowItem:  { width: 72, height: 52, alignItems: 'center', justifyContent: 'center' },
+  // ── Узкая свёрнутая — внутренние элементы ──
+  narrowCta:   { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+  narrowCtaIcon: { fontSize: 20 },
+  narrowDivider: { width: 36, height: 1, backgroundColor: colors.border, marginBottom: 6 },
+  narrowItem:  { width: 72, height: 44, alignItems: 'center', justifyContent: 'center' },
   narrowDot:   { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.muted, opacity: 0.4 },
   narrowDotActive: { backgroundColor: colors.orange, opacity: 1, width: 10, height: 10, borderRadius: 5 },
   narrowDotDisabled: { opacity: 0.15 },

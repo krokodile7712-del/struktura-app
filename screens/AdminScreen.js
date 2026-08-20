@@ -2,10 +2,8 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
-import AppNav from '../components/AppNav';
 import NextStepsCard from '../components/NextStepsCard';
 import ShiftBanner from '../components/ShiftBanner';
-import { useResponsive } from '../hooks/useResponsive';
 import {
   getOpenShift, getBusinessProfile, getDashboardStats, getRoleNames,
 } from '../db/queries';
@@ -24,7 +22,6 @@ function getGreeting() {
 // разделами в альбомной ориентации (см. components/AppNav.js) — этому
 // экрану не нужно ничего специально достраивать самому.
 export default function AdminScreen({ navigation }) {
-  const { isLandscape } = useResponsive();
   const [profile, setProfile]   = useState(null);
   const [stats, setStats]       = useState({});
   const [hasShift, setHasShift] = useState(false);
@@ -51,8 +48,7 @@ export default function AdminScreen({ navigation }) {
       <TopBar title={roleNames.admin || 'Администратор'} navigation={navigation} activeScreen="Admin" />
       {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift')} />}
 
-      <View style={{ flex: 1, flexDirection: isLandscape ? 'row' : 'column' }}>
-        {isLandscape && <AppNav navigation={navigation} activeScreen="Admin" />}
+      <View style={{ flex: 1 }}>
 
         <ScrollView contentContainerStyle={styles.panelContent} style={{ flex: 1 }}>
           {stats.lowStockCount > 0 && (
@@ -117,8 +113,6 @@ export default function AdminScreen({ navigation }) {
           )}
         </ScrollView>
       </View>
-
-      {!isLandscape && <AppNav navigation={navigation} activeScreen="Admin" />}
     </View>
   );
 }

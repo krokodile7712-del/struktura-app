@@ -2,9 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
-import AppNav from '../components/AppNav';
 import ShiftBanner from '../components/ShiftBanner';
-import { useResponsive } from '../hooks/useResponsive';
 import {
   getOpenShift, getBusinessProfile, getDashboardStats, getRoleNames,
 } from '../db/queries';
@@ -24,7 +22,6 @@ function fmt(n) { return (n || 0).toLocaleString('ru-RU'); }
 // доступа) в альбомной ориентации — этому экрану не нужно ничего
 // специально достраивать самому.
 export default function DashboardScreen({ navigation }) {
-  const { isLandscape } = useResponsive();
   const [profile, setProfile]         = useState(null);
   const [stats, setStats]             = useState({});
   const [hasShift, setHasShift]       = useState(false);
@@ -50,8 +47,7 @@ export default function DashboardScreen({ navigation }) {
       <TopBar title={roleNames.barista || 'Сотрудник'} navigation={navigation} activeScreen="Dashboard" />
       {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift')} />}
 
-      <View style={{ flex: 1, flexDirection: isLandscape ? 'row' : 'column' }}>
-        {isLandscape && <AppNav navigation={navigation} activeScreen="Dashboard" />}
+      <View style={{ flex: 1 }}>
 
         <ScrollView contentContainerStyle={styles.dashContent} style={{ flex: 1 }}>
           <Text style={styles.greeting}>{getGreeting()}{sessionName ? `, ${sessionName}` : ''}</Text>
@@ -88,8 +84,6 @@ export default function DashboardScreen({ navigation }) {
           )}
         </ScrollView>
       </View>
-
-      {!isLandscape && <AppNav navigation={navigation} activeScreen="Dashboard" />}
     </View>
   );
 }

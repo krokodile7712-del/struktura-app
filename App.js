@@ -78,7 +78,7 @@ export default function App() {
   // Проба: встроенная (не пересоздаваемая при переходах) AppNav — пока
   // только на экране Товаров, чтобы проверить подход прежде чем менять
   // остальные 17 экранов.
-  const PILOT_SCREENS = ['Products'];
+  const PILOT_SCREENS = ['Products', 'Admin', 'Dashboard'];
 
   const [fontsLoaded] = useFonts({
     AnekDevanagari_400Regular,
@@ -130,7 +130,7 @@ export default function App() {
         onStateChange={() => setCurrentRoute(navigationRef.getCurrentRoute()?.name)}
       >
         <AppBackground>
-          <View style={{ flex: 1, flexDirection: (isLandscape && PILOT_SCREENS.includes(currentRoute)) ? 'row' : 'column' }}>
+          <View style={{ flex: 1, flexDirection: isLandscape ? 'row' : 'column' }}>
             {isLandscape && PILOT_SCREENS.includes(currentRoute) && (
               <AppNav navigation={navigationRef} activeScreen={currentRoute} />
             )}
@@ -174,6 +174,9 @@ export default function App() {
             <Stack.Screen name="WorkJournal"    component={WorkJournalScreen} />
           </Stack.Navigator>
             </View>
+            {!isLandscape && PILOT_SCREENS.includes(currentRoute) && (
+              <AppNav navigation={navigationRef} activeScreen={currentRoute} />
+            )}
           </View>
         </AppBackground>
       </NavigationContainer>
