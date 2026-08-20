@@ -6,7 +6,6 @@ import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import { useResponsive } from '../hooks/useResponsive';
-import AppNav from '../components/AppNav';
 import {
   getAllProductsAdmin, insertProduct, setProductActive,
   getProductVariants, getProductAxesWithValues, saveProductAxesAndVariants,
@@ -101,7 +100,6 @@ function SectionAccordion({ sectionKey, selectedSection, children }) {
 // LayoutAnimation работает автоматически в New Architecture
 
 export default function SettingsScreen({ navigation, route }) {
-  const { isLandscape } = useResponsive();
   // ── Данные ──
   const [products, setProducts]             = useState([]);
   const [users, setUsers]                   = useState([]);
@@ -1686,10 +1684,6 @@ export default function SettingsScreen({ navigation, route }) {
   return (
     <View style={{ flex: 1 }}>
       <TopBar title="Настройки" onBack={() => navigation.navigate('Admin')} />
-      <View style={[{ flex: 1 }, isLandscape && { flexDirection: 'row' }]}>
-        {isLandscape && <AppNav navigation={navigation} activeScreen="Settings" />}
-        <View style={{ flex: 1 }}>
-
       <View style={styles.twoCol}>
 
         {/* Левая панель навигации */}
@@ -1733,11 +1727,6 @@ export default function SettingsScreen({ navigation, route }) {
         )}
 
       </View>
-
-        </View>
-      </View>
-
-      {!isLandscape && <AppNav navigation={navigation} activeScreen="Settings" />}
 
 
       <Modal visible={!!zoneModal} transparent animationType="fade" onRequestClose={() => setZoneModal(null)}>

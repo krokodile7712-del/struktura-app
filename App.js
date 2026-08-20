@@ -75,10 +75,11 @@ export default function App() {
   const navigationRef = useNavigationContainerRef();
   const [currentRoute, setCurrentRoute] = useState(null);
   const { isLandscape } = useResponsive();
-  // Проба: встроенная (не пересоздаваемая при переходах) AppNav — пока
-  // только на экране Товаров, чтобы проверить подход прежде чем менять
-  // остальные 17 экранов.
-  const PILOT_SCREENS = ['Products', 'Admin', 'Dashboard', 'Sales', 'ClientsList', 'Reports', 'Expenses', 'Locations', 'Inventory', 'Kassa', 'Equipment', 'Investments', 'Loyalty', 'Overheads', 'WorkJournal', 'Bookings'];
+  // Единая (не пересоздаваемая при переходах) AppNav — живёт на уровне
+  // App.js, а не внутри каждого экрана. Список экранов, у которых она есть
+  // (все, кроме служебных вроде Login/Onboarding/Shift/Search и т.п.,
+  // где навигация не нужна вовсе).
+  const NAV_SCREENS = ['Products', 'Admin', 'Dashboard', 'Sales', 'ClientsList', 'Reports', 'Expenses', 'Locations', 'Inventory', 'Kassa', 'Equipment', 'Investments', 'Loyalty', 'Overheads', 'WorkJournal', 'Bookings', 'Employees', 'Settings'];
 
   const [fontsLoaded] = useFonts({
     AnekDevanagari_400Regular,
@@ -131,7 +132,7 @@ export default function App() {
       >
         <AppBackground>
           <View style={{ flex: 1, flexDirection: isLandscape ? 'row' : 'column' }}>
-            {isLandscape && PILOT_SCREENS.includes(currentRoute) && (
+            {isLandscape && NAV_SCREENS.includes(currentRoute) && (
               <AppNav navigation={navigationRef} activeScreen={currentRoute} />
             )}
             <View style={{ flex: 1 }}>
@@ -174,7 +175,7 @@ export default function App() {
             <Stack.Screen name="WorkJournal"    component={WorkJournalScreen} />
           </Stack.Navigator>
             </View>
-            {!isLandscape && PILOT_SCREENS.includes(currentRoute) && (
+            {!isLandscape && NAV_SCREENS.includes(currentRoute) && (
               <AppNav navigation={navigationRef} activeScreen={currentRoute} />
             )}
           </View>

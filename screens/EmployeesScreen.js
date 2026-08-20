@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Alert, Animated } from 'react-native';
 import TopBar from '../components/TopBar';
 import EmptyState from '../components/EmptyState';
-import AppNav from '../components/AppNav';
 import { useResponsive } from '../hooks/useResponsive';
 import { getAllUsers, addUser, updateUser, toggleUserActive, getRoleNames, deleteUser } from '../db/queries';
 import { useToast } from '../components/Toast';
@@ -20,7 +19,6 @@ const SALARY_TYPES = [
 const empty = { id: null, name: '', pin: '', pinConfirm: '', role: 'barista', active: 1, salary_type: 'shift', salary_amount: '' };
 
 export default function EmployeesScreen({ navigation }) {
-  const { isLandscape } = useResponsive();
   const [users, setUsers]         = useState([]);
   const [roleNames, setRoleNames] = useState({ barista: 'Сотрудник', admin: 'Администратор' });
   const [selected, setSelected]   = useState(null); // редактируемый юзер
@@ -134,10 +132,6 @@ export default function EmployeesScreen({ navigation }) {
           </Pressable>
         }
       />
-
-      <View style={[{ flex: 1 }, isLandscape && { flexDirection: 'row' }]}>
-        {isLandscape && <AppNav navigation={navigation} activeScreen="Employees" />}
-        <View style={{ flex: 1 }}>
 
       <View style={styles.layout}>
         {/* Список */}
@@ -326,11 +320,6 @@ export default function EmployeesScreen({ navigation }) {
           )}
         </View>
       </View>
-
-        </View>
-      </View>
-
-      {!isLandscape && <AppNav navigation={navigation} activeScreen="Employees" />}
     </View>
   );
 }
