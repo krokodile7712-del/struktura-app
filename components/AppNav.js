@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useResponsive } from '../hooks/useResponsive';
+import { StackActions } from '@react-navigation/native';
 import { colors, fonts } from '../constants/theme';
 import { getSession, can } from '../db/session';
 import { getBusinessProfile, getTerms } from '../db/queries';
@@ -82,7 +83,7 @@ export default function AppNav({ navigation, activeScreen }) {
   const goToSection = (route, params) => {
     if (route === activeScreen) return;
     if (activeScreen === home) navigation.navigate(route, params);
-    else navigation.replace(route, params);
+    else navigation.dispatch(StackActions.replace(route, params));
   };
 
   const handlePress = (item) => {
