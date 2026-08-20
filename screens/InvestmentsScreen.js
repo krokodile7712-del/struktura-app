@@ -2,7 +2,6 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, Animated } from 'react-native';
 import TopBar from '../components/TopBar';
 import { useResponsive } from '../hooks/useResponsive';
-import AppNav from '../components/AppNav';
 import InfoTip from '../components/InfoTip';
 import DatePicker from '../components/DatePicker';
 import { useFocusEffect } from '@react-navigation/native';
@@ -23,7 +22,6 @@ const fmt = n => Math.round(n||0).toLocaleString('ru-RU');
 const fmtDate = s => s ? s.split('-').reverse().join('.') : '—';
 
 export default function InvestmentsScreen({ navigation }) {
-  const { isLandscape } = useResponsive();
   const [items, setItems]       = useState([]);
   const [summary, setSummary]   = useState(null);
   const [avgProfit, setAvgProfit] = useState(0);
@@ -108,10 +106,6 @@ export default function InvestmentsScreen({ navigation }) {
           </Pressable>
         }
       />
-
-      <View style={[{ flex: 1 }, isLandscape && { flexDirection: 'row' }]}>
-        {isLandscape && <AppNav navigation={navigation} activeScreen="Investments" />}
-        <View style={{ flex: 1 }}>
 
       <View style={styles.layout}>
 
@@ -261,11 +255,6 @@ export default function InvestmentsScreen({ navigation }) {
         </View>
 
       </View>
-
-        </View>
-      </View>
-
-      {!isLandscape && <AppNav navigation={navigation} activeScreen="Investments" />}
 
       <DatePicker
         visible={showDatePicker}
