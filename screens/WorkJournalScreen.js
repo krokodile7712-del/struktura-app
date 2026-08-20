@@ -2,7 +2,6 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Animated } from 'react-native';
 import TopBar from '../components/TopBar';
 import { useResponsive } from '../hooks/useResponsive';
-import AppNav from '../components/AppNav';
 import { useFocusEffect } from '@react-navigation/native';
 import { getWorkJournal, getShiftOrderItems } from '../db/queries';
 import { getHomeRoute, goBackSmart } from '../db/session';
@@ -24,7 +23,6 @@ function fmtDuration(open, close) {
 }
 
 export default function WorkJournalScreen({ navigation }) {
-  const { isLandscape } = useResponsive();
   const [entries, setEntries]   = useState([]);
   const [search, setSearch]     = useState('');
   const [expanded, setExpanded] = useState(null);
@@ -61,10 +59,6 @@ export default function WorkJournalScreen({ navigation }) {
   return (
     <View style={styles.root}>
       <TopBar title="Журнал работы" onBack={() => goBackSmart(navigation)} />
-
-      <View style={[{ flex: 1 }, isLandscape && { flexDirection: 'row' }]}>
-        {isLandscape && <AppNav navigation={navigation} activeScreen="WorkJournal" />}
-        <View style={{ flex: 1 }}>
 
       <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
         {/* Поиск */}
@@ -160,11 +154,6 @@ export default function WorkJournalScreen({ navigation }) {
           </ScrollView>
         )}
       </Animated.View>
-
-        </View>
-      </View>
-
-      {!isLandscape && <AppNav navigation={navigation} activeScreen="WorkJournal" />}
     </View>
   );
 }
