@@ -57,8 +57,8 @@ export default function AppNav({ navigation, activeScreen }) {
     navigation.navigate(item.route);
   };
 
-  // ── Широкая панель (альбомная ориентация, любой экран) ──
-  if (!isBottom) {
+  // ── Широкая панель — только на Обзоре, в альбомной ориентации ──
+  if (!isBottom && activeScreen === home) {
     const sections = (isAdmin ? ADMIN_SECTIONS : STAFF_SECTIONS)
       .filter(s => !s.module || modules[s.module] !== false)
       .filter(s => !s.perm || can(s.perm));
@@ -80,13 +80,10 @@ export default function AppNav({ navigation, activeScreen }) {
           <View style={styles.divider} />
 
           <ScrollView showsVerticalScrollIndicator={false}>
-            <Pressable
-              style={[styles.menuItem, activeScreen === home && styles.menuItemActive]}
-              onPress={() => activeScreen !== home && navigation.navigate(home)}
-            >
-              {activeScreen === home && <View style={styles.activeBar} />}
-              <Text style={[styles.menuLabel, activeScreen === home && styles.menuLabelActive]}>Обзор</Text>
-            </Pressable>
+            <View style={[styles.menuItem, styles.menuItemActive]}>
+              <View style={styles.activeBar} />
+              <Text style={[styles.menuLabel, styles.menuLabelActive]}>Обзор</Text>
+            </View>
 
             {sections.map(s => {
               if (s.bookingOnly && !bookingActive) {
@@ -97,17 +94,49 @@ export default function AppNav({ navigation, activeScreen }) {
                   </View>
                 );
               }
-              const isActive = activeScreen === s.key;
               return (
                 <Pressable key={s.key}
-                  style={[styles.menuItem, isActive && styles.menuItemActive]}
-                  onPress={() => !isActive && navigation.navigate(s.route, s.params)}>
-                  {isActive && <View style={styles.activeBar} />}
-                  <Text style={[styles.menuLabel, isActive && styles.menuLabelActive]}>{s.label}</Text>
+                  style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: 'rgba(245,240,232,0.04)' }]}
+                  onPress={() => navigation.navigate(s.route, s.params)}>
+                  <Text style={styles.menuLabel}>{s.label}</Text>
                 </Pressable>
               );
             })}
           </ScrollView>
+        </View>
+
+        <Drawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} navigation={navigation} activeScreen={home} />
+      </>
+    );
+  }
+
+  // ── Узкая свёрнутая панель — альбомная ориентация, любой раздел кроме
+  // Обзора. Тот же список пунктов, что и в широкой панели, просто без
+  // подписей — точки-заглушки вместо иконок, до отрисовки кастомных. ──
+  if (!isBottom) {
+    const sections = (isAdmin ? ADMIN_SECTIONS : STAFF_SECTIONS)
+      .filter(s => !s.module || modules[s.module] !== false)
+      .filter(s => !s.perm || can(s.perm));
+
+    return (
+      <>
+        <View style={[styles.narrow, { paddingTop: insets.top + 8 }]}>
+          <Pressable style={styles.narrowItem} onPress={() => navigation.navigate(home)}>
+            <View style={styles.narrowDot} />
+          </Pressable>
+
+          {sections.map(s => {
+            const isActive = activeScreen === s.key;
+            const disabled = s.bookingOnly && !bookingActive;
+            return (
+              <Pressable key={s.key}
+                style={styles.narrowItem}
+                disabled={disabled}
+                onPress={() => !isActive && navigation.navigate(s.route, s.params)}>
+                <View style={[styles.narrowDot, isActive && styles.narrowDotActive, disabled && styles.narrowDotDisabled]} />
+              </Pressable>
+            );
+          })}
         </View>
 
         <Drawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} navigation={navigation} activeScreen={home} />
@@ -213,4 +242,11 @@ const styles = StyleSheet.create({
   menuLabelActive: { color: colors.text },
   menuLabelInactive:{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   menuSub:         { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, marginTop: 1 },
+
+  // ── Узкая свёрнутая панель ──
+  narrow:      { width: 72, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface, alignItems: 'center' },
+  narrowItem:  { width: 72, height: 52, alignItems: 'center', justifyContent: 'center' },
+  narrowDot:   { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.muted, opacity: 0.4 },
+  narrowDotActive: { backgroundColor: colors.orange, opacity: 1, width: 10, height: 10, borderRadius: 5 },
+  narrowDotDisabled: { opacity: 0.15 },
 });
