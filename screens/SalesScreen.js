@@ -7,7 +7,6 @@ import {
 import TopBar from '../components/TopBar';
 import Sheet from '../components/Sheet';
 import { useResponsive } from '../hooks/useResponsive';
-import AppNav from '../components/AppNav';
 import DatePicker from '../components/DatePicker';
 import { useFocusEffect } from '@react-navigation/native';
 import {
@@ -55,7 +54,6 @@ function groupByDate(orders) {
 
 // ─── Экран ────────────────────────────────────────────────────────────────────
 export default function SalesScreen({ navigation }) {
-  const { isLandscape } = useResponsive();
   const isAdmin  = getSession()?.role === 'admin';
   const terms    = getTerms();
   const toast    = useToast();
@@ -165,10 +163,6 @@ export default function SalesScreen({ navigation }) {
         title={pluralizeRu(terms.order)}
         onBack={() => goBackSmart(navigation)}
       />
-
-      <View style={[{ flex: 1 }, isLandscape && { flexDirection: 'row' }]}>
-        {isLandscape && <AppNav navigation={navigation} activeScreen="Sales" />}
-        <View style={{ flex: 1 }}>
 
       <View style={styles.layout}>
 
@@ -301,9 +295,6 @@ export default function SalesScreen({ navigation }) {
         </View>
       </View>
 
-        </View>
-      </View>
-
       <Sheet visible={filtersOpen} onClose={() => setFiltersOpen(false)} title="Фильтры и итоги">
         <ScrollView contentContainerStyle={{ padding: 20 }}>
           <Text style={styles.sectionLabel}>Период</Text>
@@ -360,8 +351,6 @@ export default function SalesScreen({ navigation }) {
           ))}
         </ScrollView>
       </Sheet>
-
-      {!isLandscape && <AppNav navigation={navigation} activeScreen="Sales" />}
 
       {/* Пикер периода — один календарь, тап на начало и конец */}
       <DatePicker
