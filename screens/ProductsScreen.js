@@ -600,10 +600,6 @@ export default function ProductsScreen({ navigation, route }) {
         }
       />
 
-      <View style={[{ flex: 1 }, isLandscape && { flexDirection: 'row' }]}>
-        {isLandscape && <AppNav navigation={navigation} activeScreen="Products" />}
-        <View style={{ flex: 1 }}>
-
       {/* Вкладки — всегда видны, независимо от активной */}
       <View style={styles.tabBarOuter}>
         {[{ key: 'products', label: 'Товары' }, { key: 'stock', label: 'Склад' }]
@@ -742,7 +738,7 @@ export default function ProductsScreen({ navigation, route }) {
         );
       })()}
 
-        </View>
+      </View>
       )}
 
       {tab !== 'modifiers' && (
@@ -750,11 +746,6 @@ export default function ProductsScreen({ navigation, route }) {
           <Text style={styles.fabTxt}>+</Text>
         </Pressable>
       )}
-
-        </View>
-      </View>
-
-      {!isLandscape && <AppNav navigation={navigation} activeScreen="Products" />}
 
       {/* Пикер ингредиентов — на уровне экрана */}
       <Sheet

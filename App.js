@@ -2,9 +2,11 @@ import 'react-native-url-polyfill/auto';
 import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator, Text } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import AppNav from './components/AppNav';
+import { useResponsive } from './hooks/useResponsive';
 import {
   useFonts,
   AnekDevanagari_400Regular,
@@ -70,6 +72,14 @@ const navTheme = {
 };
 
 export default function App() {
+  const navigationRef = useNavigationContainerRef();
+  const [currentRoute, setCurrentRoute] = useState(null);
+  const { isLandscape } = useResponsive();
+  // Проба: встроенная (не пересоздаваемая при переходах) AppNav — пока
+  // только на экране Товаров, чтобы проверить подход прежде чем менять
+  // остальные 17 экранов.
+  const PILOT_SCREENS = ['Products'];
+
   const [fontsLoaded] = useFonts({
     AnekDevanagari_400Regular,
     AnekDevanagari_600SemiBold,
@@ -113,8 +123,18 @@ export default function App() {
     <SafeAreaProvider>
       <StatusBar style="light" backgroundColor={colors.bg} />
       <ToastProvider>
-      <NavigationContainer theme={navTheme}>
+      <NavigationContainer
+        theme={navTheme}
+        ref={navigationRef}
+        onReady={() => setCurrentRoute(navigationRef.getCurrentRoute()?.name)}
+        onStateChange={() => setCurrentRoute(navigationRef.getCurrentRoute()?.name)}
+      >
         <AppBackground>
+          <View style={{ flex: 1, flexDirection: (isLandscape && PILOT_SCREENS.includes(currentRoute)) ? 'row' : 'column' }}>
+            {isLandscape && PILOT_SCREENS.includes(currentRoute) && (
+              <AppNav navigation={navigationRef} activeScreen={currentRoute} />
+            )}
+            <View style={{ flex: 1 }}>
           <Stack.Navigator
             initialRouteName={initialRoute}
             screenOptions={{
@@ -153,6 +173,8 @@ export default function App() {
             <Stack.Screen name="Investments"    component={InvestmentsScreen} />
             <Stack.Screen name="WorkJournal"    component={WorkJournalScreen} />
           </Stack.Navigator>
+            </View>
+          </View>
         </AppBackground>
       </NavigationContainer>
       </ToastProvider>

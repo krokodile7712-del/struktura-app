@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, Pressable, ScrollView, StyleSheet, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useResponsive } from '../hooks/useResponsive';
 import { colors, fonts } from '../constants/theme';
@@ -51,6 +51,16 @@ export default function AppNav({ navigation, activeScreen }) {
   const terms = getTerms();
   const bookingActive = !!(profile?.booking_slug);
 
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(8)).current;
+  useEffect(() => {
+    fadeAnim.setValue(0); slideAnim.setValue(8);
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 220, useNativeDriver: true }),
+      Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, damping: 18, stiffness: 180 }),
+    ]).start();
+  }, [isBottom, activeScreen === home]);
+
   const handlePress = (item) => {
     if (item.key === 'more') { setDrawerOpen(true); return; }
     if (item.key === activeScreen) return; // уже здесь
@@ -65,7 +75,7 @@ export default function AppNav({ navigation, activeScreen }) {
 
     return (
       <>
-        <View style={[styles.wide, { paddingTop: insets.top }]}>
+        <Animated.View style={[styles.wide, { paddingTop: insets.top, opacity: fadeAnim, transform: [{ translateX: slideAnim }] }]}>
           <View style={styles.bizHeader}>
             <Text style={styles.bizName} numberOfLines={1}>{profile?.business_name || 'Мой бизнес'}</Text>
             {profile?.city ? <Text style={styles.bizCity}>{profile.city}</Text> : null}
@@ -103,7 +113,7 @@ export default function AppNav({ navigation, activeScreen }) {
               );
             })}
           </ScrollView>
-        </View>
+        </Animated.View>
 
         <Drawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} navigation={navigation} activeScreen={home} />
       </>
@@ -120,7 +130,13 @@ export default function AppNav({ navigation, activeScreen }) {
 
     return (
       <>
-        <View style={[styles.narrow, { paddingTop: insets.top + 8 }]}>
+        <Animated.View style={[styles.narrow, { paddingTop: insets.top + 8, opacity: fadeAnim, transform: [{ translateX: slideAnim }] }]}>
+          <Pressable style={({ pressed }) => [styles.narrowCta, pressed && { opacity: 0.85 }]}
+            onPress={() => navigation.navigate('Kassa')}>
+            <Text style={styles.narrowCtaIcon}>🛒</Text>
+          </Pressable>
+          <View style={styles.narrowDivider} />
+
           <Pressable style={styles.narrowItem} onPress={() => navigation.navigate(home)}>
             <View style={styles.narrowDot} />
           </Pressable>
@@ -137,7 +153,7 @@ export default function AppNav({ navigation, activeScreen }) {
               </Pressable>
             );
           })}
-        </View>
+        </Animated.View>
 
         <Drawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} navigation={navigation} activeScreen={home} />
       </>
