@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, ScrollView, Pressable, Modal, Alert, Animated, 
 import TopBar from '../components/TopBar';
 import Sheet from '../components/Sheet';
 import { useResponsive } from '../hooks/useResponsive';
-import AppNav from '../components/AppNav';
 import InfoTip from '../components/InfoTip';
 import { useFocusEffect } from '@react-navigation/native';
 import {
@@ -30,7 +29,6 @@ const SCOPE_OPTIONS = [
 ];
 
 export default function InventoryScreen({ navigation }) {
-  const { isLandscape } = useResponsive();
   const [acts, setActs]             = useState([]);
   const [stock, setStock]           = useState([]);
   const [showSetup, setShowSetup]   = useState(false);
@@ -125,10 +123,6 @@ export default function InventoryScreen({ navigation }) {
         }
       />
 
-      <View style={[{ flex: 1 }, isLandscape && { flexDirection: 'row' }]}>
-        {isLandscape && <AppNav navigation={navigation} activeScreen="Inventory" />}
-        <View style={{ flex: 1 }}>
-
       <Animated.View style={[{ flex: 1 }, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
 
         {/* Подсказка */}
@@ -219,11 +213,6 @@ export default function InventoryScreen({ navigation }) {
           </ScrollView>
         )}
       </Animated.View>
-
-        </View>
-      </View>
-
-      {!isLandscape && <AppNav navigation={navigation} activeScreen="Inventory" />}
 
       {/* Экран заполнения акта */}
       <Modal visible={!!activeAct} transparent={false} animationType="slide">

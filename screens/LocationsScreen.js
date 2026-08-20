@@ -5,7 +5,6 @@ import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import Sheet from '../components/Sheet';
 import { useResponsive } from '../hooks/useResponsive';
-import AppNav from '../components/AppNav';
 import {
   getLocations, addLocation, updateLocation, deleteLocation, initDefaultLocation,
 } from '../db/queries';
@@ -14,7 +13,6 @@ import { getCurrentLocationId, setCurrentLocationId } from '../db/session';
 import { colors, fonts, spacing } from '../constants/theme';
 
 export default function LocationsScreen({ navigation }) {
-  const { isLandscape } = useResponsive();
   const [locations, setLocations]   = useState([]);
   const [modal, setModal]           = useState(null); // null | { id?, name, description }
   const toast = useToast();
@@ -79,10 +77,6 @@ export default function LocationsScreen({ navigation }) {
     <View style={{ flex: 1 }}>
       <TopBar title="Локации" onBack={() => navigation.navigate('Admin')} />
 
-      <View style={[{ flex: 1 }, isLandscape && { flexDirection: 'row' }]}>
-        {isLandscape && <AppNav navigation={navigation} activeScreen="Locations" />}
-        <View style={{ flex: 1 }}>
-
       <ScrollView style={styles.screen} contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
         <MetalCard>
           <Text style={styles.hint}>
@@ -122,11 +116,6 @@ export default function LocationsScreen({ navigation }) {
           </Text>
         </MetalCard>
       </ScrollView>
-
-        </View>
-      </View>
-
-      {!isLandscape && <AppNav navigation={navigation} activeScreen="Locations" />}
 
       <Sheet visible={!!modal} onClose={closeModal} title={modal?.id ? 'Редактировать локацию' : 'Новая локация'}>
         {modal && (
