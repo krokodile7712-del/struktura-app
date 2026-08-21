@@ -54,6 +54,7 @@ function groupByDate(orders) {
 
 // ─── Экран ────────────────────────────────────────────────────────────────────
 export default function SalesScreen({ navigation }) {
+  const { isLandscape } = useResponsive();
   const isAdmin  = getSession()?.role === 'admin';
   const terms    = getTerms();
   const toast    = useToast();
@@ -62,7 +63,7 @@ export default function SalesScreen({ navigation }) {
   const [dateFrom, setDateFrom]     = useState(todayStr());
   const [dateTo, setDateTo]         = useState(todayStr());
   const [search, setSearch]         = useState('');
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [payFilter, setPayFilter]   = useState('all');
   const [picker, setPicker]         = useState(null);
 
@@ -166,10 +167,40 @@ export default function SalesScreen({ navigation }) {
         activeScreen="Sales"
       />
 
-      <View style={styles.layout}>
+      <View style={{ flex: 1, flexDirection: isLandscape ? 'row' : 'column' }}>
 
-        {/* ── Список: поиск + заказы, на всю ширину ── */}
-        <View style={styles.right}>
+        {!isLandscape && (
+          /* Портрет — компактная сводка сверху, по умолчанию свёрнута */
+          <Pressable style={styles.stripWrap} onPress={() => setSummaryExpanded(v => !v)}>
+            <View style={styles.stripRow}>
+              <View>
+                <Text style={styles.stripLabel}>Выручка за период</Text>
+                <Text style={styles.stripVal}>{fmt(total)} ₽</Text>
+              </View>
+              <Text style={styles.stripChevron}>{summaryExpanded ? '▲' : '▼'}</Text>
+            </View>
+            {summaryExpanded && (
+              <View style={styles.stripBody}>
+                {[
+                  { label: 'Заказов',  value: filtered.length },
+                  { label: 'Ср. чек', value: `${fmt(avgCheck)} ₽` },
+                  cash  > 0 && { label: 'Наличные', value: `${fmt(cash)} ₽` },
+                  card  > 0 && { label: 'Карта',    value: `${fmt(card)} ₽` },
+                  qr    > 0 && { label: 'QR/СБП',   value: `${fmt(qr)} ₽` },
+                  mixed > 0 && { label: 'Смешанная',value: `${fmt(mixed)} ₽` },
+                ].filter(Boolean).map((s, i) => (
+                  <View key={i} style={styles.catRow}>
+                    <Text style={styles.catName}>{s.label}</Text>
+                    <Text style={styles.catVal}>{s.value}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </Pressable>
+        )}
+
+        {/* ── Список: поиск + заказы ── */}
+        <View style={{ flex: 1 }}>
           <View style={styles.searchWrap}>
             <TextInput
               style={[styles.searchInput, { flex: 1 }]}
@@ -179,12 +210,9 @@ export default function SalesScreen({ navigation }) {
               placeholder="Поиск по товару, сумме или способу оплаты..."
               placeholderTextColor={colors.muted}
             />
-            <Pressable onPress={() => setFiltersOpen(true)} hitSlop={8} style={styles.filtersBtn}>
-              <Text style={styles.filtersBtnTxt}>⚙ Оплата и итоги</Text>
-            </Pressable>
           </View>
 
-          {/* Чипы периода — видны сразу, без захода в фильтры */}
+          {/* Чипы периода и оплаты — видны сразу, без захода в фильтры */}
           <View style={styles.periodRowOuter}>
             {PERIODS.map(p => (
               <Pressable
@@ -197,6 +225,22 @@ export default function SalesScreen({ navigation }) {
                 </Text>
               </Pressable>
             ))}
+          </View>
+          <View style={styles.periodRowOuter}>
+            {['all','cash','card','returns'].map(key => {
+              const labels = { all: 'Все', cash: 'Наличные', card: 'Карта', returns: 'Возвраты' };
+              return (
+                <Pressable
+                  key={key}
+                  style={[styles.periodChip, payFilter === key && styles.periodChipActive]}
+                  onPress={() => setPayFilter(key)}
+                >
+                  <Text style={[styles.periodChipTxt, payFilter === key && styles.periodChipTxtActive]}>
+                    {labels[key]}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
 
           {/* Список заказов */}
@@ -212,7 +256,7 @@ export default function SalesScreen({ navigation }) {
           ) : (
             <Animated.ScrollView
               style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
-              contentContainerStyle={{ paddingBottom: 32 }}
+              contentContainerStyle={{ paddingBottom: 32, paddingHorizontal: 16 }}
               showsVerticalScrollIndicator={false}
             >
               {grouped.map(([date, dayOrders]) => (
@@ -310,46 +354,31 @@ export default function SalesScreen({ navigation }) {
             </Animated.ScrollView>
           )}
         </View>
+
+        {isLandscape && (
+          /* Альбомная — сводка постоянной панелью справа */
+          <View style={styles.sidePanel}>
+            <Text style={styles.sideLabel}>Выручка за период</Text>
+            <Text style={styles.sideVal}>{fmt(total)} ₽</Text>
+            <Text style={styles.sideSub}>{filtered.length} заказов</Text>
+            <View style={styles.sideDivider} />
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {[
+                { label: 'Ср. чек', value: `${fmt(avgCheck)} ₽` },
+                cash  > 0 && { label: 'Наличные', value: `${fmt(cash)} ₽` },
+                card  > 0 && { label: 'Карта',    value: `${fmt(card)} ₽` },
+                qr    > 0 && { label: 'QR/СБП',   value: `${fmt(qr)} ₽` },
+                mixed > 0 && { label: 'Смешанная',value: `${fmt(mixed)} ₽` },
+              ].filter(Boolean).map((s, i) => (
+                <View key={i} style={styles.catRow}>
+                  <Text style={styles.catName}>{s.label}</Text>
+                  <Text style={styles.catVal}>{s.value}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        )}
       </View>
-
-      <Sheet visible={filtersOpen} onClose={() => setFiltersOpen(false)} title="Оплата и итоги">
-        <ScrollView contentContainerStyle={{ padding: 20 }}>
-          <Text style={styles.sectionLabel}>Оплата</Text>
-          {['all','cash','card','returns'].map(key => {
-            const labels = { all: 'Все', cash: 'Наличные', card: 'Карта', returns: 'Возвраты' };
-            return (
-              <Pressable
-                key={key}
-                style={[styles.periodBtn, payFilter === key && styles.periodBtnActive]}
-                onPress={() => setPayFilter(key)}
-              >
-                {payFilter === key && <View style={styles.periodBar} />}
-                <Text style={[styles.periodTxt, payFilter === key && styles.periodTxtActive]}>
-                  {labels[key]}
-                </Text>
-              </Pressable>
-            );
-          })}
-
-          <View style={styles.divider} />
-
-          <Text style={styles.sectionLabel}>Итоги</Text>
-          {[
-            { label: 'Выручка',  value: `${fmt(total)} ₽`,    color: colors.orange },
-            { label: 'Заказов',  value: filtered.length,       color: colors.text },
-            { label: 'Ср. чек', value: `${fmt(avgCheck)} ₽`,  color: colors.text },
-            cash  > 0 && { label: 'Наличные', value: `${fmt(cash)} ₽`,  color: colors.text },
-            card  > 0 && { label: 'Карта',    value: `${fmt(card)} ₽`,  color: colors.text },
-            qr    > 0 && { label: 'QR/СБП',   value: `${fmt(qr)} ₽`,    color: colors.text },
-            mixed > 0 && { label: 'Смешанная',value: `${fmt(mixed)} ₽`, color: colors.text },
-          ].filter(Boolean).map((s, i) => (
-            <View key={i} style={styles.statRow}>
-              <Text style={styles.statLabel}>{s.label}</Text>
-              <Text style={[styles.statVal, { color: s.color }]}>{s.value}</Text>
-            </View>
-          ))}
-        </ScrollView>
-      </Sheet>
 
       {/* Пикер периода — один календарь, тап на начало и конец */}
       <DatePicker
@@ -463,9 +492,28 @@ const styles = StyleSheet.create({
   statVal:    { fontFamily: fonts.familySemibold, fontSize: 15 },
 
   // Правая панель
-  right:       { flex: 1, width: '100%', maxWidth: 820, alignSelf: 'center' },
-  searchWrap:  { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
-  periodRowOuter: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
+  searchWrap:  { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, paddingBottom: 6 },
+  periodRowOuter: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingVertical: 6 },
+
+  // ── Сводка — общие строки (переиспользуются в боковой панели и полоске) ──
+  catRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 9 },
+  catName:    { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, flex: 1 },
+  catVal:     { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
+
+  // ── Портрет — сворачиваемая полоска сверху ──
+  stripWrap:  { borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 16, paddingVertical: 12 },
+  stripRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  stripLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
+  stripVal:   { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.orange, marginTop: 2 },
+  stripChevron: { fontSize: 11, color: colors.muted, opacity: 0.6 },
+  stripBody:  { marginTop: 10 },
+
+  // ── Альбомная — постоянная боковая панель сводки ──
+  sidePanel:  { width: '40%', maxWidth: 340, borderLeftWidth: 1, borderLeftColor: colors.border, backgroundColor: colors.surface, padding: 20 },
+  sideLabel:  { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
+  sideVal:    { fontFamily: fonts.family, fontSize: 34, fontWeight: '800', color: colors.orange, marginTop: 6 },
+  sideSub:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
+  sideDivider:{ height: 1, backgroundColor: colors.border, marginVertical: 16 },
   periodChip: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 18, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
   periodChipActive: { backgroundColor: 'rgba(240,160,80,0.14)', borderColor: colors.orange },
   periodChipTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },

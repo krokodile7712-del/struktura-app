@@ -113,6 +113,7 @@ function MetricRow({ label, value, sub, color, delta, tip, isLast }) {
 
 // ─── Экран ───────────────────────────────────────────────────────────────────
 export default function ReportsScreen({ navigation }) {
+  const { isLandscape } = useResponsive();
   const [preset, setPreset]         = useState('week');
   const [customFrom, setCustomFrom] = useState(nDaysAgo(29));
   const [customTo, setCustomTo]     = useState(todayStr());
@@ -213,10 +214,10 @@ export default function ReportsScreen({ navigation }) {
         }
       />
 
-      <View style={styles.layout}>
+      <View style={{ flex: 1, flexDirection: isLandscape ? 'row' : 'column' }}>
 
-        {/* ── Отчётность: одна колонка на всю ширину ── */}
-        <View style={styles.right}>
+        {/* ── Отчётность: вкладки и контент — сужены в альбомной ── */}
+        <View style={{ flex: 1 }}>
           {/* Табы + кнопка фильтров */}
           <View style={styles.tabBarRow}>
             <View style={styles.tabBar}>
@@ -388,6 +389,38 @@ export default function ReportsScreen({ navigation }) {
 
           </Animated.ScrollView>
         </View>
+
+        {isLandscape && pnl && (
+          /* Альбомная — быстрый обзор постоянной панелью справа, виден на любой вкладке */
+          <View style={styles.sidePanel}>
+            <Text style={styles.sideLabel}>Выручка за период</Text>
+            <Text style={styles.sideVal}>{fmt(pnl.revenue)} ₽</Text>
+            <Text style={styles.sideSub}>{pnl.orderCount} заказов</Text>
+
+            <View style={styles.sideDivider} />
+
+            <Text style={styles.sideLabel}>Чистая прибыль</Text>
+            <Text style={[styles.sideVal, { fontSize: 26, color: pnl.netProfit >= 0 ? colors.green : colors.red }]}>
+              {pnl.netProfit >= 0 ? '+' : ''}{fmt(pnl.netProfit)} ₽
+            </Text>
+            <Text style={styles.sideSub}>Маржа {pnl.netMarginPct}%</Text>
+
+            {payBreakdown.length > 0 && (
+              <>
+                <View style={styles.sideDivider} />
+                <Text style={styles.sideLabel}>Способы оплаты</Text>
+                <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 4 }}>
+                  {payBreakdown.map((p, i) => (
+                    <View key={i} style={styles.catRow}>
+                      <Text style={styles.catName}>{p.pay_method || 'Другое'}</Text>
+                      <Text style={styles.catVal}>{fmt(p.total)} ₽</Text>
+                    </View>
+                  ))}
+                </ScrollView>
+              </>
+            )}
+          </View>
+        )}
       </View>
 
       <Sheet visible={filtersOpen} onClose={() => setFiltersOpen(false)} title="Период и итоги">
@@ -471,10 +504,7 @@ export default function ReportsScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   root:    { flex: 1, backgroundColor: colors.bg },
-  layout:  { flex: 1 },
 
-  // Левая панель
-  left:    { width: 220, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface, padding: 16 },
   sectionLabel: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8 },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 14 },
 
@@ -492,8 +522,16 @@ const styles = StyleSheet.create({
   compareRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   compareTxt: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
 
-  // Правая панель
-  right:   { flex: 1 },
+  // ── Боковая панель быстрого обзора (альбомная) ──
+  sidePanel:  { width: '40%', maxWidth: 320, borderLeftWidth: 1, borderLeftColor: colors.border, backgroundColor: colors.surface, padding: 20 },
+  sideLabel:  { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
+  sideVal:    { fontFamily: fonts.family, fontSize: 30, fontWeight: '800', color: colors.orange, marginTop: 6 },
+  sideSub:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
+  sideDivider:{ height: 1, backgroundColor: colors.border, marginVertical: 16 },
+  catRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 9 },
+  catName:    { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, flex: 1 },
+  catVal:     { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
+
   tabBarRow: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: colors.border },
   tabBar:  { flexDirection: 'row', flex: 1 },
   filtersBtn:  { paddingHorizontal: 12, paddingVertical: 9, marginRight: 10, borderRadius: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
