@@ -207,7 +207,7 @@ export default function ExpensesScreen({ navigation }) {
           </Pressable>
         )}
 
-        <Animated.View style={{ flex: isLandscape ? 0.6 : 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+        <Animated.View style={{ flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
           {periodChips}
           <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>{addBtn}</View>
           <View style={{ flex: 1, paddingHorizontal: 16 }}>{list}</View>
