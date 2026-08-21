@@ -37,7 +37,7 @@ const MODES = [
 // Единая реализация Склада — используется и отдельным экраном (StockScreen),
 // и встроенной панелью внутри Admin/Dashboard (раньше это были два отдельных
 // файла с продублированной логикой, из-за чего они периодически расходились).
-export default function StockPanel({ navigation, openCreateSignal, hideOwnCreateButton }) {
+export default function StockPanel({ navigation, openCreateSignal, hideOwnCreateButton, onSelectedChange }) {
   const { isLandscape } = useResponsive();
   const toast = useToast();
   const [stock, setStock]           = useState([]);
@@ -45,6 +45,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
   const [showLowOnly, setShowLowOnly] = useState(false);
   const [viewMode, setViewMode]     = useState('categories'); // categories | list
   const [selected, setSelected]     = useState(null);
+  useEffect(() => { onSelectedChange?.(!!selected); }, [selected]);
   const [mode, setMode]             = useState(null);
   const [qty, setQty]               = useState('');
   const [price, setPrice]           = useState('');

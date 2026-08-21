@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet, Animated } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet, Animated, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useResponsive } from '../hooks/useResponsive';
 import { StackActions } from '@react-navigation/native';
@@ -146,6 +146,15 @@ export default function AppNav({ navigation, activeScreen }) {
               </>
             ) : (
               <View style={{ alignItems: 'center', paddingTop: 16 }}>
+                <View style={styles.narrowLogoWrap}>
+                  {profile?.logo_base64 ? (
+                    <Image source={{ uri: profile.logo_base64 }} style={styles.narrowLogo} />
+                  ) : (
+                    <Text style={styles.narrowLogoFallback}>{(profile?.business_name || 'С')[0].toUpperCase()}</Text>
+                  )}
+                </View>
+                <View style={styles.narrowDivider} />
+
                 <Pressable style={styles.narrowItem} onPress={() => goToSection(home)}>
                   <View style={styles.narrowDot} />
                 </Pressable>
@@ -278,6 +287,9 @@ const styles = StyleSheet.create({
   menuSub:         { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, marginTop: 1 },
 
   // ── Узкая свёрнутая — внутренние элементы ──
+  narrowLogoWrap: { width: 36, height: 36, borderRadius: 10, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  narrowLogo: { width: 36, height: 36 },
+  narrowLogoFallback: { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: colors.muted },
   narrowCta:   { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
   narrowCtaIcon: { fontSize: 20 },
   narrowDivider: { width: 36, height: 1, backgroundColor: colors.border, marginBottom: 6 },

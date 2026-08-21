@@ -365,6 +365,7 @@ export default function ProductsScreen({ navigation, route }) {
   const [modGroups, setModGroups]   = useState([]);
   const [search, setSearch]         = useState('');
   const [selected, setSelected]     = useState(null);      // {id, name, ...} | 'new'
+  const [stockSelected, setStockSelected] = useState(false); // есть ли выбранная позиция внутри StockPanel
   const [stockCreateSignal, setStockCreateSignal] = useState(0);
   const [ingCreateForm, setIngCreateForm] = useState(null);
   const [expandedCats, setExpandedCats] = useState({});
@@ -612,7 +613,7 @@ export default function ProductsScreen({ navigation, route }) {
       </View>
 
       {tab === 'stock' ? (
-        <StockPanel navigation={navigation} openCreateSignal={stockCreateSignal} hideOwnCreateButton />
+        <StockPanel navigation={navigation} openCreateSignal={stockCreateSignal} hideOwnCreateButton onSelectedChange={setStockSelected} />
       ) : (
       <View style={[styles.layout, isLandscape && { flexDirection: 'row' }]}>
 
@@ -741,7 +742,7 @@ export default function ProductsScreen({ navigation, route }) {
       </View>
       )}
 
-      {tab !== 'modifiers' && (
+      {tab !== 'modifiers' && !(isLandscape && (tab === 'stock' ? stockSelected : selected)) && (
         <Pressable style={styles.fab} onPress={() => { if (tab === 'stock') { setStockCreateSignal(s => s + 1); } else { setTab('products'); setSelected('new'); } }}>
           <Text style={styles.fabTxt}>+</Text>
         </Pressable>
