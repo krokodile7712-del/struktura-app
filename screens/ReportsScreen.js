@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
   tabBtnActive: { borderBottomWidth: 2, borderBottomColor: colors.orange },
   tabTxt:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
   tabTxtActive: { color: colors.orange },
-  tabContent: { padding: 16, paddingBottom: 32 },
+  tabContent: { padding: 16, paddingBottom: 32, width: '100%', maxWidth: 720, alignSelf: 'center' },
 
   // Карточки
   card:    { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
