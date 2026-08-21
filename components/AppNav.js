@@ -145,7 +145,7 @@ export default function AppNav({ navigation, activeScreen }) {
                 </ScrollView>
               </>
             ) : (
-              <View style={{ alignItems: 'center', paddingTop: 16 }}>
+              <View style={{ flex: 1, alignItems: 'center', paddingTop: 20, paddingBottom: 16 }}>
                 <View style={styles.narrowLogoWrap}>
                   {profile?.logo_base64 ? (
                     <Image source={{ uri: profile.logo_base64 }} style={styles.narrowLogo} />
@@ -153,17 +153,11 @@ export default function AppNav({ navigation, activeScreen }) {
                     <Text style={styles.narrowLogoFallback}>{(profile?.business_name || 'С')[0].toUpperCase()}</Text>
                   )}
                 </View>
-                <View style={styles.narrowDivider} />
+                <View style={styles.narrowDividerWide} />
 
-                <Pressable style={styles.narrowItem} onPress={() => goToSection(home)}>
-                  <View style={styles.narrowDot} />
+                <Pressable style={[styles.narrowItemBig, activeScreen === home && styles.narrowItemBigActive]} onPress={() => goToSection(home)}>
+                  <View style={[styles.narrowDot, activeScreen === home && styles.narrowDotActive]} />
                 </Pressable>
-
-                <Pressable style={({ pressed }) => [styles.narrowCta, pressed && { opacity: 0.85 }]}
-                  onPress={() => goToSection('Kassa')}>
-                  <Text style={styles.narrowCtaIcon}>🛒</Text>
-                </Pressable>
-                <View style={styles.narrowDivider} />
 
                 {sections.map(s => {
                   const isActive = activeScreen === s.key;
@@ -177,6 +171,14 @@ export default function AppNav({ navigation, activeScreen }) {
                     </Pressable>
                   );
                 })}
+
+                <View style={{ flex: 1 }} />
+
+                <View style={styles.narrowDividerWide} />
+                <Pressable style={({ pressed }) => [styles.narrowCta, pressed && { opacity: 0.85 }]}
+                  onPress={() => goToSection('Kassa')}>
+                  <Text style={styles.narrowCtaIcon}>🛒</Text>
+                </Pressable>
               </View>
             )}
           </Animated.View>
@@ -287,13 +289,16 @@ const styles = StyleSheet.create({
   menuSub:         { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, marginTop: 1 },
 
   // ── Узкая свёрнутая — внутренние элементы ──
-  narrowLogoWrap: { width: 36, height: 36, borderRadius: 10, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  narrowLogo: { width: 36, height: 36 },
-  narrowLogoFallback: { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: colors.muted },
-  narrowCta:   { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+  narrowLogoWrap: { width: 44, height: 44, borderRadius: 12, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: 14 },
+  narrowLogo: { width: 44, height: 44 },
+  narrowLogoFallback: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.muted },
+  narrowCta:   { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center', marginTop: 12 },
   narrowCtaIcon: { fontSize: 20 },
   narrowDivider: { width: 36, height: 1, backgroundColor: colors.border, marginBottom: 6 },
+  narrowDividerWide: { width: 44, height: 1, backgroundColor: colors.border, marginBottom: 10 },
   narrowItem:  { width: 72, height: 44, alignItems: 'center', justifyContent: 'center' },
+  narrowItemBig: { width: 60, height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  narrowItemBigActive: { backgroundColor: 'rgba(240,160,80,0.12)' },
   narrowDot:   { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.muted, opacity: 0.4 },
   narrowDotActive: { backgroundColor: colors.orange, opacity: 1, width: 10, height: 10, borderRadius: 5 },
   narrowDotDisabled: { opacity: 0.15 },

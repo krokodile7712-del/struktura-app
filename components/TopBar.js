@@ -18,17 +18,9 @@ export default function TopBar({ title, onBack, rightElement, syncPending, navig
           {onBack && (
             <Pressable onPress={onBack} style={styles.backBtn} hitSlop={12} accessibilityLabel="Назад" accessibilityRole="button">
               <Text style={styles.backArrow}>‹</Text>
+              <Text style={styles.backLabel}>Назад</Text>
             </Pressable>
           )}
-          {navigation && (() => {
-            const home = getSession()?.role === 'admin' ? 'Admin' : 'Dashboard';
-            if (activeScreen === home) return null;
-            return (
-              <Pressable onPress={() => navigation.navigate(home)} style={styles.homeBtn} hitSlop={12} accessibilityLabel="Обзор" accessibilityRole="button">
-                <Text style={styles.homeIcon}>🏠</Text>
-              </Pressable>
-            );
-          })()}
         </View>
 
         {navigation ? (
@@ -76,26 +68,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   side: {
-    width: 110,
+    width: 128,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-start',
     gap: 2,
   },
   backBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 10,
-  },
-  homeBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 10,
-  },
-  homeIcon: {
-    fontSize: 17,
+    gap: 2,
   },
   menuBtn: {
     paddingHorizontal: 12,
@@ -108,10 +93,16 @@ const styles = StyleSheet.create({
     fontFamily: fonts.family,
   },
   backArrow: {
-    fontSize: 26,
+    fontSize: 30,
     color: colors.greenLight,
-    lineHeight: 28,
+    lineHeight: 32,
     fontFamily: fonts.family,
+    fontWeight: '800',
+  },
+  backLabel: {
+    fontFamily: fonts.familySemibold,
+    fontSize: 15,
+    color: colors.greenLight,
   },
   title: {
     flex: 1,
