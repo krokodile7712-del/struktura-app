@@ -587,8 +587,8 @@ export default function ProductsScreen({ navigation, route }) {
         rightElement={
           <View style={{ flexDirection: 'row', gap: 8 }}>
             {tab === 'products' && (
-              <Pressable style={styles.headerBtn} onPress={openCategoryMgmt}>
-                <Text style={styles.headerBtnTxt}>🗂</Text>
+              <Pressable style={styles.headerBtn} onPress={openCategoryMgmt} accessibilityLabel="Категории" accessibilityRole="button">
+                <Text style={styles.headerBtnTxt}>🏷</Text>
               </Pressable>
             )}
             {tab === 'modifiers' && (

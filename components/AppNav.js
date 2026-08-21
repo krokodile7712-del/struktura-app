@@ -145,16 +145,16 @@ export default function AppNav({ navigation, activeScreen }) {
                 </ScrollView>
               </>
             ) : (
-              <View style={{ alignItems: 'center', paddingTop: 8 }}>
+              <View style={{ alignItems: 'center', paddingTop: 16 }}>
+                <Pressable style={styles.narrowItem} onPress={() => goToSection(home)}>
+                  <View style={styles.narrowDot} />
+                </Pressable>
+
                 <Pressable style={({ pressed }) => [styles.narrowCta, pressed && { opacity: 0.85 }]}
                   onPress={() => goToSection('Kassa')}>
                   <Text style={styles.narrowCtaIcon}>🛒</Text>
                 </Pressable>
                 <View style={styles.narrowDivider} />
-
-                <Pressable style={styles.narrowItem} onPress={() => goToSection(home)}>
-                  <View style={styles.narrowDot} />
-                </Pressable>
 
                 {sections.map(s => {
                   const isActive = activeScreen === s.key;
