@@ -141,7 +141,7 @@ export default function InventoryScreen({ navigation }) {
             <Text style={styles.emptyHint}>Нажмите «+ Новый акт» чтобы начать пересчёт склада</Text>
           </View>
         ) : (
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingBottom: 32, width: '100%', maxWidth: 760, alignSelf: 'center' }}>
             {acts.map((act, idx) => {
               const isOpen = expanded === act.id;
               const items = act.items || [];
@@ -295,7 +295,7 @@ export default function InventoryScreen({ navigation }) {
 const styles = StyleSheet.create({
   root:   { flex: 1, backgroundColor: colors.bg },
 
-  infoCard:  { margin: 12, backgroundColor: 'rgba(139,127,212,0.08)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(139,127,212,0.2)', padding: 14 },
+  infoCard:  { margin: 12, backgroundColor: 'rgba(139,127,212,0.08)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(139,127,212,0.2)', padding: 14, width: '100%', maxWidth: 760, alignSelf: 'center' },
   infoTitle: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.indigo, marginBottom: 6 },
   infoTxt:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.textDim, lineHeight: 18 },
 

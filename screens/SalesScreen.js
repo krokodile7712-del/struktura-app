@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
   statVal:    { fontFamily: fonts.familySemibold, fontSize: 15 },
 
   // Правая панель
-  right:       { flex: 1 },
+  right:       { flex: 1, width: '100%', maxWidth: 820, alignSelf: 'center' },
   searchWrap:  { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
   periodRowOuter: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
   periodChip: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 18, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },

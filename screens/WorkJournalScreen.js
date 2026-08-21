@@ -79,7 +79,7 @@ export default function WorkJournalScreen({ navigation }) {
             <Text style={styles.emptyHint}>История смен появится здесь после первого закрытия смены</Text>
           </View>
         ) : (
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingBottom: 32, width: '100%', maxWidth: 760, alignSelf: 'center' }}>
             {filtered.map((entry, idx) => {
               const isOpen = expanded === entry.id;
               const duration = fmtDuration(entry.opened_at, entry.closed_at);
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
   root:    { flex: 1, backgroundColor: colors.bg },
   content: { flex: 1 },
 
-  searchWrap:  { padding: 12, paddingBottom: 4 },
+  searchWrap:  { padding: 12, paddingBottom: 4, width: '100%', maxWidth: 792, alignSelf: 'center' },
   searchInput: { backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, paddingVertical: 12, paddingHorizontal: 14, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 16 },
 
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
