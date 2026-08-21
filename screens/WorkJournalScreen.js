@@ -23,6 +23,7 @@ function fmtDuration(open, close) {
 }
 
 export default function WorkJournalScreen({ navigation }) {
+  const { isLandscape } = useResponsive();
   const [entries, setEntries]   = useState([]);
   const [search, setSearch]     = useState('');
   const [expanded, setExpanded] = useState(null);
@@ -56,11 +57,25 @@ export default function WorkJournalScreen({ navigation }) {
     fmtDate(e.opened_at).includes(search)
   );
 
+  // Сводка — итоги и разбивка по сотрудникам
+  const totalRevenue = filtered.reduce((s, e) => s + (e.total_revenue || 0), 0);
+  const avgRevenue = filtered.length > 0 ? totalRevenue / filtered.length : 0;
+  const byEmployee = Object.values(
+    filtered.reduce((acc, e) => {
+      const name = e.user_name || 'Сотрудник';
+      if (!acc[name]) acc[name] = { name, shifts: 0, revenue: 0 };
+      acc[name].shifts += 1;
+      acc[name].revenue += e.total_revenue || 0;
+      return acc;
+    }, {})
+  ).sort((a, b) => b.revenue - a.revenue);
+
   return (
     <View style={styles.root}>
       <TopBar title="Журнал работы" onBack={() => goBackSmart(navigation)} navigation={navigation} activeScreen="WorkJournal" />
 
-      <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+      <View style={{ flex: 1, flexDirection: isLandscape ? 'row' : 'column' }}>
+      <Animated.View style={[styles.content, { flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
         {/* Поиск */}
         <View style={styles.searchWrap}>
           <TextInput
@@ -154,6 +169,31 @@ export default function WorkJournalScreen({ navigation }) {
           </ScrollView>
         )}
       </Animated.View>
+
+      {isLandscape && filtered.length > 0 && (
+        /* Альбомная — сводка постоянной панелью справа */
+        <View style={styles.sidePanel}>
+          <Text style={styles.sideLabel}>Выручка за смены</Text>
+          <Text style={styles.sideVal}>{fmt(totalRevenue)} ₽</Text>
+          <Text style={styles.sideSub}>{filtered.length} смен · ср. {fmt(avgRevenue)} ₽</Text>
+
+          <View style={styles.sideDivider} />
+
+          <Text style={styles.sideLabel}>По сотрудникам</Text>
+          <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 4 }}>
+            {byEmployee.map((emp, i) => (
+              <View key={emp.name} style={[styles.catRow, i < byEmployee.length - 1 && styles.catRowDiv]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.catName} numberOfLines={1}>{emp.name}</Text>
+                  <Text style={styles.catSub}>{emp.shifts} смен</Text>
+                </View>
+                <Text style={styles.catVal}>{fmt(emp.revenue)} ₽</Text>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+      </View>
     </View>
   );
 }
@@ -161,6 +201,18 @@ export default function WorkJournalScreen({ navigation }) {
 const styles = StyleSheet.create({
   root:    { flex: 1, backgroundColor: colors.bg },
   content: { flex: 1 },
+
+  // ── Боковая панель сводки (альбомная) ──
+  sidePanel:  { width: '40%', maxWidth: 320, borderLeftWidth: 1, borderLeftColor: colors.border, backgroundColor: colors.surface, padding: 20 },
+  sideLabel:  { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
+  sideVal:    { fontFamily: fonts.family, fontSize: 30, fontWeight: '800', color: colors.orange, marginTop: 6 },
+  sideSub:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
+  sideDivider:{ height: 1, backgroundColor: colors.border, marginVertical: 16 },
+  catRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10 },
+  catRowDiv:  { borderBottomWidth: 1, borderBottomColor: colors.border },
+  catName:    { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
+  catSub:     { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 1 },
+  catVal:     { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginLeft: 8 },
 
   searchWrap:  { padding: 12, paddingBottom: 4, width: '100%', maxWidth: 792, alignSelf: 'center' },
   searchInput: { backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, paddingVertical: 12, paddingHorizontal: 14, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 16 },

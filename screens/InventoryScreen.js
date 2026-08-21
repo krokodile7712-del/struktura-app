@@ -29,6 +29,7 @@ const SCOPE_OPTIONS = [
 ];
 
 export default function InventoryScreen({ navigation }) {
+  const { isLandscape } = useResponsive();
   const [acts, setActs]             = useState([]);
   const [stock, setStock]           = useState([]);
   const [showSetup, setShowSetup]   = useState(false);
@@ -40,10 +41,28 @@ export default function InventoryScreen({ navigation }) {
   const fadeAnim = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(anim.slideFrom))[0];
 
+  const [discrepancy, setDiscrepancy] = useState(0);
+
   const load = useCallback(() => {
     try {
-      setActs(getInventoryActs());
+      const list = getInventoryActs();
+      setActs(list);
       setStock(getAllStock());
+
+      // Суммарное расхождение план/факт в деньгах по завершённым актам из списка
+      try {
+        const db = require('../db/database').getDb();
+        const completedIds = list.filter(a => a.status === 'completed').map(a => a.id);
+        if (completedIds.length > 0) {
+          const row = db.getFirstSync(
+            `SELECT SUM(diff_money) AS total FROM inventory_act_items WHERE act_id IN (${completedIds.join(',')})`
+          );
+          setDiscrepancy(row?.total || 0);
+        } else {
+          setDiscrepancy(0);
+        }
+      } catch (_) { setDiscrepancy(0); }
+
       fadeAnim.setValue(0);
       slideAnim.setValue(anim.slideFrom);
       Animated.parallel([
@@ -125,6 +144,7 @@ export default function InventoryScreen({ navigation }) {
         }
       />
 
+      <View style={{ flex: 1, flexDirection: isLandscape ? 'row' : 'column' }}>
       <Animated.View style={[{ flex: 1 }, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
 
         {/* Подсказка */}
@@ -216,6 +236,35 @@ export default function InventoryScreen({ navigation }) {
         )}
       </Animated.View>
 
+      {isLandscape && acts.length > 0 && (
+        /* Альбомная — сводка расхождений постоянной панелью справа */
+        <View style={styles.sidePanel}>
+          <Text style={styles.sideLabel}>Актов всего</Text>
+          <Text style={styles.sideVal}>{acts.length}</Text>
+          <Text style={styles.sideSub}>
+            {acts.filter(a => a.status === 'completed').length} завершено · {acts.filter(a => a.status !== 'completed').length} в процессе
+          </Text>
+
+          <View style={styles.sideDivider} />
+
+          <Text style={styles.sideLabel}>Расхождение план/факт</Text>
+          <Text style={[styles.sideVal, { fontSize: 26, color: discrepancy >= 0 ? colors.green : colors.red }]}>
+            {discrepancy >= 0 ? '+' : ''}{fmt(discrepancy)} ₽
+          </Text>
+          <Text style={styles.sideSub}>
+            {discrepancy >= 0 ? 'Найдено больше, чем ожидалось' : 'Недостача по завершённым актам'}
+          </Text>
+
+          <View style={styles.sideDivider} />
+
+          <Text style={styles.sideLabel}>Мало на складе</Text>
+          <Text style={styles.sideSub}>
+            {stock.filter(s => s['остаток'] <= (s.threshold || 0)).length} позиций ниже порога
+          </Text>
+        </View>
+      )}
+      </View>
+
       {/* Экран заполнения акта */}
       <Modal visible={!!activeAct} transparent={false} animationType="slide">
         <View style={styles.fillRoot}>
@@ -294,6 +343,13 @@ export default function InventoryScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   root:   { flex: 1, backgroundColor: colors.bg },
+
+  // ── Боковая панель сводки (альбомная) ──
+  sidePanel:  { width: '40%', maxWidth: 320, borderLeftWidth: 1, borderLeftColor: colors.border, backgroundColor: colors.surface, padding: 20 },
+  sideLabel:  { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
+  sideVal:    { fontFamily: fonts.family, fontSize: 30, fontWeight: '800', color: colors.orange, marginTop: 6 },
+  sideSub:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
+  sideDivider:{ height: 1, backgroundColor: colors.border, marginVertical: 16 },
 
   infoCard:  { margin: 12, backgroundColor: 'rgba(139,127,212,0.08)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(139,127,212,0.2)', padding: 14, width: '100%', maxWidth: 760, alignSelf: 'center' },
   infoTitle: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.indigo, marginBottom: 6 },
