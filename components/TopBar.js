@@ -1,13 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts } from '../constants/theme';
 import { getSession } from '../db/session';
 import { useNextStepsProgress } from './NextStepsCard';
-import Drawer from './Drawer';
 
 export default function TopBar({ title, onBack, rightElement, syncPending, navigation, activeScreen }) {
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const insets = useSafeAreaInsets();
   const isAdmin = getSession()?.role === 'admin';
   const { doneCount, visible: stepsVisible } = useNextStepsProgress();
@@ -31,11 +29,6 @@ export default function TopBar({ title, onBack, rightElement, syncPending, navig
               </Pressable>
             );
           })()}
-          {!onBack && navigation && (
-            <Pressable onPress={() => setDrawerOpen(true)} style={styles.menuBtn} hitSlop={12} accessibilityLabel="Открыть меню" accessibilityRole="button">
-              <Text style={styles.menuIcon}>☰</Text>
-            </Pressable>
-          )}
         </View>
 
         {navigation ? (
@@ -68,14 +61,6 @@ export default function TopBar({ title, onBack, rightElement, syncPending, navig
         </Pressable>
       )}
 
-      {navigation && (
-        <Drawer
-          visible={drawerOpen}
-          onClose={() => setDrawerOpen(false)}
-          navigation={navigation}
-          activeScreen={activeScreen}
-        />
-      )}
     </>
   );
 }

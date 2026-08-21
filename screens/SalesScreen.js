@@ -180,8 +180,23 @@ export default function SalesScreen({ navigation }) {
               placeholderTextColor={colors.muted}
             />
             <Pressable onPress={() => setFiltersOpen(true)} hitSlop={8} style={styles.filtersBtn}>
-              <Text style={styles.filtersBtnTxt}>⚙ Фильтры</Text>
+              <Text style={styles.filtersBtnTxt}>⚙ Оплата и итоги</Text>
             </Pressable>
+          </View>
+
+          {/* Чипы периода — видны сразу, без захода в фильтры */}
+          <View style={styles.periodRowOuter}>
+            {PERIODS.map(p => (
+              <Pressable
+                key={p.key}
+                style={[styles.periodChip, period === p.key && styles.periodChipActive]}
+                onPress={() => p.key === 'custom' ? setPicker('range') : setPeriod(p.key)}
+              >
+                <Text style={[styles.periodChipTxt, period === p.key && styles.periodChipTxtActive]}>
+                  {p.label}
+                </Text>
+              </Pressable>
+            ))}
           </View>
 
           {/* Список заказов */}
@@ -297,26 +312,8 @@ export default function SalesScreen({ navigation }) {
         </View>
       </View>
 
-      <Sheet visible={filtersOpen} onClose={() => setFiltersOpen(false)} title="Фильтры и итоги">
+      <Sheet visible={filtersOpen} onClose={() => setFiltersOpen(false)} title="Оплата и итоги">
         <ScrollView contentContainerStyle={{ padding: 20 }}>
-          <Text style={styles.sectionLabel}>Период</Text>
-          <View style={styles.periodList}>
-            {PERIODS.map(p => (
-              <Pressable
-                key={p.key}
-                style={[styles.periodBtn, period === p.key && styles.periodBtnActive]}
-                onPress={() => p.key === 'custom' ? setPicker('range') : setPeriod(p.key)}
-              >
-                {period === p.key && <View style={styles.periodBar} />}
-                <Text style={[styles.periodTxt, period === p.key && styles.periodTxtActive]}>
-                  {p.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          <View style={styles.divider} />
-
           <Text style={styles.sectionLabel}>Оплата</Text>
           {['all','cash','card','returns'].map(key => {
             const labels = { all: 'Все', cash: 'Наличные', card: 'Карта', returns: 'Возвраты' };
@@ -468,6 +465,11 @@ const styles = StyleSheet.create({
   // Правая панель
   right:       { flex: 1 },
   searchWrap:  { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+  periodRowOuter: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
+  periodChip: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 18, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
+  periodChipActive: { backgroundColor: 'rgba(240,160,80,0.14)', borderColor: colors.orange },
+  periodChipTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  periodChipTxtActive: { color: colors.orange },
   filtersBtn:  { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
   filtersBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
   searchInput: { backgroundColor: colors.surface, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14, fontFamily: fonts.familyRegular, fontSize: 16, color: colors.text },

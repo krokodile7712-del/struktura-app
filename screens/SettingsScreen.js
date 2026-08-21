@@ -903,10 +903,12 @@ export default function SettingsScreen({ navigation, route }) {
                 onValueChange={v => {
                   try {
                     const db = getDb();
+                    const row = db.getFirstSync('SELECT id FROM business_profile ORDER BY id LIMIT 1');
+                    if (!row) return;
                     const mods = { ...(profile?.modules || {}), autoDebit: v };
-                    db.runSync('UPDATE business_profile SET modules = ? WHERE id = 1', [JSON.stringify(mods)]);
+                    db.runSync('UPDATE business_profile SET modules = ? WHERE id = ?', [JSON.stringify(mods), row.id]);
                     loadAll();
-                  } catch(e) {}
+                  } catch(e) { console.error('[Автосписание]', e); }
                 }}
                 size="sm"
               />
@@ -921,10 +923,12 @@ export default function SettingsScreen({ navigation, route }) {
                 onValueChange={v => {
                   try {
                     const db = getDb();
+                    const row = db.getFirstSync('SELECT id FROM business_profile ORDER BY id LIMIT 1');
+                    if (!row) return;
                     const mods = { ...(profile?.modules || {}), stockWarning: v };
-                    db.runSync('UPDATE business_profile SET modules = ? WHERE id = 1', [JSON.stringify(mods)]);
+                    db.runSync('UPDATE business_profile SET modules = ? WHERE id = ?', [JSON.stringify(mods), row.id]);
                     loadAll();
-                  } catch(e) {}
+                  } catch(e) { console.error('[Предупреждение об остатке]', e); }
                 }}
                 size="sm"
               />
@@ -1639,7 +1643,8 @@ export default function SettingsScreen({ navigation, route }) {
         try {
           const db = getDb();
           try { db.execSync(`ALTER TABLE business_profile ADD COLUMN booking_slug TEXT DEFAULT ''`); } catch(_) {}
-          db.runSync('UPDATE business_profile SET booking_slug = ? WHERE id = 1', [slug]);
+          const row = db.getFirstSync('SELECT id FROM business_profile ORDER BY id LIMIT 1');
+          if (row) db.runSync('UPDATE business_profile SET booking_slug = ? WHERE id = ?', [slug, row.id]);
         } catch(dbErr) { console.error(dbErr); }
         Alert.alert('Готово', 'Онлайн запись подключена!');
       } else {

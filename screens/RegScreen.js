@@ -9,7 +9,7 @@ import { colors, fonts } from '../constants/theme';
 export default function RegScreen({ navigation }) {
   const toast    = useToast();
   const [fio, setFio]           = useState('');
-  const [phone, setPhone]       = useState('');
+  const [phone, setPhone]       = useState('+7 ');
   const [birthDate, setBirthDate] = useState('');
   const [error, setError]       = useState('');
 
