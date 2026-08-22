@@ -71,7 +71,7 @@ export default function Sheet({ visible, onClose, onBack, title, children, sideW
           style={[
             isBottom ? styles.sheetBottom : styles.sheetSide,
             isBottom
-              ? { maxHeight: '90%', paddingBottom: Math.max(insets.bottom, 16) }
+              ? { height: '90%', paddingBottom: Math.max(insets.bottom, 16) }
               : { width: Math.min(sideWidth, screenWidth * 0.92), height: '100%', paddingTop: Math.max(insets.top, 20) },
             transformStyle,
           ]}
