@@ -63,7 +63,7 @@ export default function Sheet({ visible, onClose, onBack, title, children, sideW
     : { transform: [{ translateX: translateAnim }] };
 
   return (
-    <RNModal transparent visible={shouldRender} animationType="none" onRequestClose={onClose} statusBarTranslucent>
+    <RNModal transparent visible={shouldRender} animationType="none" onRequestClose={onClose} statusBarTranslucent={!isBottom}>
       <View style={[styles.overlay, isBottom ? { justifyContent: 'flex-end' } : { alignItems: 'flex-end' }]}>
         <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
 
@@ -71,7 +71,7 @@ export default function Sheet({ visible, onClose, onBack, title, children, sideW
           style={[
             isBottom ? styles.sheetBottom : styles.sheetSide,
             isBottom
-              ? { height: '90%', paddingBottom: Math.max(insets.bottom, 16) }
+              ? { maxHeight: '90%', paddingBottom: Math.max(insets.bottom, 16) }
               : { width: Math.min(sideWidth, screenWidth * 0.92), height: '100%', paddingTop: Math.max(insets.top, 20) },
             transformStyle,
           ]}
