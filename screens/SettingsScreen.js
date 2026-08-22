@@ -1929,6 +1929,257 @@ export default function SettingsScreen({ navigation, route }) {
       </Modal>
 
 
+      <Modal visible={!!empModal} transparent animationType="fade" onRequestClose={() => setEmpModal(null)}>
+        <View style={styles.prodModalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setEmpModal(null)} />
+          {empModal && (
+            <View style={styles.empModalBox}>
+              {/* Шапка */}
+              <View style={styles.prodModalHeader}>
+                <Text style={styles.prodModalTitle}>{empModal.id ? 'Редактировать сотрудника' : 'Новый сотрудник'}</Text>
+                <Pressable onPress={() => setEmpModal(null)} hitSlop={14} style={styles.itemModalClose}>
+                  <Text style={styles.itemModalCloseText}>✕</Text>
+                </Pressable>
+              </View>
+
+              {/* Горизонтальный layout */}
+              <View style={{ flexDirection: 'row', flex: 1 }}>
+
+                {/* Левая: основные данные */}
+                {/* Правая: основные данные */}
+                <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 32 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+
+                  <Text style={styles.productFieldLabel}>Тип ставки</Text>
+                  <View style={styles.menuCard}>
+                    {[
+                      { key: 'shift',       label: 'За смену',     unit: '₽/смена', hint: 'Фиксированная сумма за каждую смену' },
+                      { key: 'hourly',      label: 'Почасовая',    unit: '₽/час',   hint: 'Ставка умножается на часы смены' },
+                      { key: 'monthly',     label: 'Оклад',        unit: '₽/мес',   hint: 'Месячный оклад ÷ 22 рабочих дня' },
+                      { key: 'revenue_pct', label: '% от выручки', unit: '%',        hint: 'Процент от выручки за смену' },
+                    ].map((s, idx) => (
+                      <Pressable
+                        key={s.key}
+                        style={[styles.menuRow, idx < 3 && styles.menuRowDiv]}
+                        onPress={() => setEmpModal(m => ({ ...m, salaryType: s.key }))}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.menuItemName}>{s.label}</Text>
+                          <Text style={styles.menuItemSub}>{s.hint}</Text>
+                        </View>
+                        {empModal.salaryType === s.key && (
+                          <TextInput
+                            color={colors.text}
+                            style={[styles.prodInput, { width: 72, marginRight: 8, padding: 6, textAlign: 'right', marginBottom: 0 }]}
+                            value={empModal.salaryAmount}
+                            onChangeText={v => setEmpModal(m => ({ ...m, salaryAmount: v }))}
+                            keyboardType="numeric"
+                            placeholder="0"
+                            placeholderTextColor={colors.muted}
+                          />
+                        )}
+                        <Text style={[styles.menuItemSub, { marginRight: 8 }]}>{s.unit}</Text>
+                        <View style={[styles.productCheckbox, empModal.salaryType === s.key && styles.productCheckboxOn]}>
+                          {empModal.salaryType === s.key && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
+                        </View>
+                      </Pressable>
+                    ))}
+                  </View>
+
+                  {/* Права доступа — только для сотрудника */}
+                  {empModal.role !== 'admin' && empModal.permissions && (
+                    <>
+                      <Text style={[styles.productFieldLabel, { marginTop: 20 }]}>Права доступа</Text>
+                      <Text style={{ fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginBottom: 10, lineHeight: 16 }}>
+                        Выберите что сотрудник может видеть и делать в приложении
+                      </Text>
+                      {[
+                        { group: 'Касса', items: [
+                          { key: 'apply_discounts',    label: 'Применять скидки' },
+                          { key: 'view_order_history', label: 'История заказов' },
+                          { key: 'cancel_orders',      label: 'Отменять заказы' },
+                        ]},
+                        { group: 'Клиенты', items: [
+                          { key: 'view_clients',   label: 'Просматривать клиентов' },
+                          { key: 'edit_clients',   label: 'Редактировать клиентов' },
+                          { key: 'manage_loyalty', label: 'Управлять баллами' },
+                        ]},
+                        { group: 'Склад', items: [
+                          { key: 'view_stock',      label: 'Просматривать остатки' },
+                          { key: 'edit_stock',      label: 'Закупки и списания' },
+                          { key: 'edit_thresholds', label: 'Изменять пороги' },
+                        ]},
+                        { group: 'Финансы', items: [
+                          { key: 'view_reports', label: 'Отчётность и P&L' },
+                          { key: 'add_expenses', label: 'Добавлять расходы' },
+                          { key: 'view_revenue', label: 'Видеть выручку смены' },
+                        ]},
+                        { group: 'Настройки', items: [
+                          { key: 'access_settings', label: 'Доступ к разделу Настройки' },
+                        ]},
+                        { group: 'Смена', items: [
+                          { key: 'open_shift',  label: 'Открывать смену' },
+                          { key: 'close_shift', label: 'Закрывать смену' },
+                        ]},
+                      ].map(group => (
+                        <View key={group.group} style={{ marginBottom: 12 }}>
+                          <Text style={styles.catHeader}>{group.group}</Text>
+                          <View style={styles.menuCard}>
+                            {group.items.map((item, idx) => (
+                              <Pressable
+                                key={item.key}
+                                style={[styles.menuRow, idx < group.items.length - 1 && styles.menuRowDiv]}
+                                onPress={() => setEmpModal(m => ({
+                                  ...m,
+                                  permissions: { ...m.permissions, [item.key]: !m.permissions[item.key] }
+                                }))}
+                              >
+                                <Text style={[styles.menuItemName, { flex: 1 }]}>{item.label}</Text>
+                                <Toggle
+                                  value={!!empModal.permissions[item.key]}
+                                  onValueChange={() => setEmpModal(m => ({
+                                    ...m,
+                                    permissions: { ...m.permissions, [item.key]: !m.permissions[item.key] }
+                                  }))}
+                                  size="sm"
+                                />
+                              </Pressable>
+                            ))}
+                          </View>
+                        </View>
+                      ))}
+                    </>
+                  )}
+
+                  {empModal.role === 'admin' && (
+                    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 40 }}>
+                      <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, textAlign: 'center' }}>
+                        Администратор имеет полный доступ ко всем функциям
+                      </Text>
+                    </View>
+                  )}
+
+                </ScrollView>
+
+                <View style={{ width: 1, backgroundColor: colors.border }} />
+
+                {/* Правая: ставка + права */}
+                <View style={{ flex: 1 }}>
+                  <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 32 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+
+                    <Text style={styles.productFieldLabel}>Имя <Text style={{ color: colors.orange }}>*</Text></Text>
+                    <TextInput
+                      color={colors.text}
+                      style={styles.prodInput}
+                      value={empModal.name}
+                      onChangeText={v => setEmpModal(m => ({ ...m, name: v }))}
+                      placeholder="Иван Петров"
+                      placeholderTextColor={colors.muted}
+                      autoFocus={!empModal.id}
+                    />
+
+                    <Text style={[styles.productFieldLabel, { marginTop: 16 }]}>{empModal.id ? 'Новый PIN (необязательно)' : 'PIN-код *'}</Text>
+                    <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                      <TextInput
+                        color={colors.text}
+                        style={[styles.prodInput, { flex: 1, textAlign: 'center', letterSpacing: 6, fontSize: 18 }]}
+                        value={empModal.pin}
+                        onChangeText={v => setEmpModal(m => ({ ...m, pin: v.replace(/\D/g,'') }))}
+                        keyboardType="number-pad"
+                        maxLength={6}
+                        secureTextEntry={!showPin}
+                        placeholder="• • • •"
+                        placeholderTextColor={colors.muted}
+                      />
+                      <TextInput
+                        color={colors.text}
+                        style={[styles.prodInput, { flex: 1, textAlign: 'center', letterSpacing: 6, fontSize: 18 }]}
+                        value={empModal.pin2}
+                        onChangeText={v => setEmpModal(m => ({ ...m, pin2: v.replace(/\D/g,'') }))}
+                        keyboardType="number-pad"
+                        maxLength={6}
+                        secureTextEntry={!showPin}
+                        placeholder="Повтор"
+                        placeholderTextColor={colors.muted}
+                      />
+                    </View>
+                    <Pressable onPress={() => setShowPin(v => !v)} style={{ marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={{ fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted }}>
+                        {showPin ? '🙈 Скрыть PIN' : '👁 Показать PIN'}
+                      </Text>
+                    </Pressable>
+                    <Text style={{ fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 4, lineHeight: 16 }}>
+                      Минимум 4 цифры. Оставьте пустым чтобы не менять.
+                    </Text>
+
+                    <Text style={[styles.productFieldLabel, { marginTop: 16 }]}>Роль</Text>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      {[
+                        { key: 'admin',   label: roleNames.admin },
+                        { key: 'barista', label: roleNames.barista },
+                      ].map(r => (
+                        <Pressable
+                          key={r.key}
+                          style={[styles.typeChip, empModal.role === r.key && styles.typeChipActive, { flex: 1, alignItems: 'center' }]}
+                          onPress={() => setEmpModal(m => ({ ...m, role: r.key }))}
+                        >
+                          <Text style={[styles.typeChipTxt, empModal.role === r.key && styles.typeChipTxtActive]}>{r.label}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                    <Text style={{ fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 6, lineHeight: 16 }}>
+                      {empModal.role === 'admin' ? 'Полный доступ: настройки, отчёты, все разделы' : 'Базовый доступ: касса, клиенты. Права настраиваются справа'}
+                    </Text>
+
+                    {/* Кнопки */}
+                    <Pressable
+                      style={({ pressed }) => [styles.confirmBtn, { marginTop: 24 }, pressed && { opacity: 0.88 }]}
+                      onPress={() => {
+                        if (!empModal.name.trim()) return;
+                        if (empModal.pin !== empModal.pin2) return;
+                        if (!empModal.id && empModal.pin.length < 4) return;
+                        try {
+                          if (empModal.id) {
+                            updateUser(empModal.id, empModal.name, empModal.pin, empModal.role, empModal.salaryType, parseFloat(empModal.salaryAmount) || 0);
+                            if (empModal.role !== 'admin') {
+                              saveUserPermissions(empModal.id, empModal.permissions || DEFAULT_PERMISSIONS);
+                              setUserPermissions(empModal.id, empModal.permissions || DEFAULT_PERMISSIONS);
+                            }
+                          } else {
+                            addUser(empModal.name, empModal.pin, empModal.role, empModal.salaryType, parseFloat(empModal.salaryAmount) || 0);
+                            if (empModal.role !== 'admin') {
+                              const newUser = getUsers().find(u => u.name === empModal.name.trim());
+                              if (newUser) saveUserPermissions(newUser.id, empModal.permissions || DEFAULT_PERMISSIONS);
+                            }
+                          }
+                          loadAll();
+                          setEmpModal(null);
+                        } catch (e) { console.error(e); }
+                      }}
+                    >
+                      <Text style={styles.confirmBtnText}>Сохранить</Text>
+                    </Pressable>
+
+                    {empModal.id && (
+                      <Pressable
+                        style={{ paddingVertical: 13, alignItems: 'center', marginTop: 8, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(217,95,95,0.3)', backgroundColor: 'rgba(217,95,95,0.06)' }}
+                        onPress={() => {
+                          try { deleteUser(empModal.id); loadAll(); setEmpModal(null); } catch (e) { console.error(e); }
+                        }}
+                      >
+                        <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red }}>Удалить сотрудника</Text>
+                      </Pressable>
+                    )}
+
+                  </ScrollView>
+                </View>
+
+
+              </View>
+            </View>
+          )}
+        </View>
+      </Modal>
+
       {/* QR Модалка */}
       <Modal visible={qrModal} transparent animationType="fade" onRequestClose={() => setQrModal(false)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center', gap: 24 }}>
