@@ -49,11 +49,12 @@ export default function TourGuide({ visible, onClose, steps = [] }) {
     }
   }, [visible, stepIndex, steps]);
 
+  const { width: screenW, height: screenH } = useWindowDimensions();
+
   if (!visible || steps.length === 0) return null;
 
   const step = steps[stepIndex];
   const isLast = stepIndex === steps.length - 1;
-  const { width: screenW, height: screenH } = useWindowDimensions();
   const pad = 8;
   const overshoot = 60; // запас за пределы вычисленных границ экрана
 
