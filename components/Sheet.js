@@ -66,9 +66,17 @@ export default function Sheet({ visible, onClose, onBack, title, children, sideW
     <RNModal transparent visible={shouldRender} animationType="none" onRequestClose={onClose} statusBarTranslucent={!isBottom}>
       <View style={[styles.overlay, isBottom ? { justifyContent: 'flex-end' } : { alignItems: 'flex-end' }]}>
         <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
-        {isBottom && (
+        {/* Отдельная, независимая от общего фона зона закрытия — точно
+            повторяет размер реального зазора (10% сверху для нижней
+            карточки, полоса слева от боковой), не приблизительная. */}
+        {isBottom ? (
           <Pressable
-            style={{ position: 'absolute', top: 0, left: 0, right: 0, height: Math.max(insets.top, 24) + 40 }}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '10%' }}
+            onPress={onClose}
+          />
+        ) : (
+          <Pressable
+            style={{ position: 'absolute', top: 0, left: 0, bottom: 0, right: Math.min(sideWidth, screenWidth * 0.92) }}
             onPress={onClose}
           />
         )}
