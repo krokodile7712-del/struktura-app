@@ -55,18 +55,36 @@ export default function TourGuide({ visible, onClose, steps = [] }) {
     height: rect.height + pad * 2,
   } : null;
 
-  const cardBelowFits = r ? (r.y + r.height + 190 < screenH) : true;
   const cardW = Math.min(420, screenW - 32);
-  const cardLeft = r
-    ? Math.min(Math.max(r.x + r.width / 2 - cardW / 2, 16), screenW - 16 - cardW)
-    : (screenW - cardW) / 2;
-  const cardStyle = {
-    width: cardW,
-    left: cardLeft,
-    ...(r
-      ? (cardBelowFits ? { top: r.y + r.height + 16 } : { top: Math.max(60, r.y - 190) })
-      : { top: screenH / 2 - 90 }),
-  };
+  const cardH = 200; // приблизительная высота карточки, с запасом
+  const gap = 16;
+
+  const clampX = x => Math.min(Math.max(x, 16), screenW - 16 - cardW);
+  const clampY = y => Math.min(Math.max(y, 16), screenH - 16 - cardH);
+
+  let cardStyle;
+  if (!r) {
+    cardStyle = { width: cardW, top: screenH / 2 - cardH / 2, left: (screenW - cardW) / 2 };
+  } else {
+    const spaceBelow = screenH - (r.y + r.height);
+    const spaceAbove = r.y;
+    const spaceRight = screenW - (r.x + r.width);
+    const spaceLeft  = r.x;
+
+    // Приоритет: снизу → сверху → справа → слева → по центру поверх всего,
+    // если подсвеченный элемент занимает практически весь экран.
+    if (spaceBelow >= cardH + gap) {
+      cardStyle = { width: cardW, top: r.y + r.height + gap, left: clampX(r.x + r.width / 2 - cardW / 2) };
+    } else if (spaceAbove >= cardH + gap) {
+      cardStyle = { width: cardW, top: r.y - cardH - gap, left: clampX(r.x + r.width / 2 - cardW / 2) };
+    } else if (spaceRight >= cardW + gap) {
+      cardStyle = { width: cardW, left: r.x + r.width + gap, top: clampY(r.y + r.height / 2 - cardH / 2) };
+    } else if (spaceLeft >= cardW + gap) {
+      cardStyle = { width: cardW, left: r.x - cardW - gap, top: clampY(r.y + r.height / 2 - cardH / 2) };
+    } else {
+      cardStyle = { width: cardW, top: screenH / 2 - cardH / 2, left: (screenW - cardW) / 2 };
+    }
+  }
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
