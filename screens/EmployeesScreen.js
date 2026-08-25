@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Alert, Animated } from 'react-native';
 import TopBar from '../components/TopBar';
 import EmptyState from '../components/EmptyState';
+import Sheet from '../components/Sheet';
 import { useResponsive } from '../hooks/useResponsive';
 import { getAllUsers, addUser, updateUser, toggleUserActive, getRoleNames, deleteUser } from '../db/queries';
 import { useToast } from '../components/Toast';
@@ -19,6 +20,7 @@ const SALARY_TYPES = [
 const empty = { id: null, name: '', pin: '', pinConfirm: '', role: 'barista', active: 1, salary_type: 'shift', salary_amount: '' };
 
 export default function EmployeesScreen({ navigation }) {
+  const { isLandscape } = useResponsive();
   const [users, setUsers]         = useState([]);
   const [roleNames, setRoleNames] = useState({ barista: 'Сотрудник', admin: 'Администратор' });
   const [selected, setSelected]   = useState(null); // редактируемый юзер
@@ -135,9 +137,9 @@ export default function EmployeesScreen({ navigation }) {
         }
       />
 
-      <View style={styles.layout}>
+      <View style={[styles.layout, !isLandscape && { flexDirection: 'column' }]}>
         {/* Список */}
-        <View style={styles.left}>
+        <View style={[styles.left, !isLandscape && { width: undefined, flex: 1, borderRightWidth: 0 }]}>
           <Text style={styles.listHint}>Нажмите на сотрудника чтобы редактировать</Text>
           <ScrollView showsVerticalScrollIndicator={false}>
             {users.length <= 1 && (
@@ -179,7 +181,7 @@ export default function EmployeesScreen({ navigation }) {
           </ScrollView>
         </View>
 
-        {/* Правая панель — редактирование */}
+        {isLandscape ? (
         <View style={styles.right}>
           {selected ? (
             <Animated.View style={[{ flex: 1 }, { opacity: cardAnim, transform: [{ translateY: cardSlide }] }]}>
@@ -321,6 +323,140 @@ export default function EmployeesScreen({ navigation }) {
             </View>
           )}
         </View>
+        ) : (
+          <Sheet visible={!!selected} onClose={() => setSelected(null)} title={isNew ? 'Новый сотрудник' : (draft.name || 'Сотрудник')}>
+            {selected && (
+              <ScrollView contentContainerStyle={styles.editContent}>
+                <Text style={styles.editTitle}>{isNew ? 'Новый сотрудник' : draft.name}</Text>
+                {!isNew && (
+                  <Text style={styles.editHint}>
+                    Оставьте поля PIN пустыми если не хотите менять пароль
+                  </Text>
+                )}
+
+                {/* Имя */}
+                <Text style={styles.fieldLabel}>Имя <Text style={{ color: colors.orange }}>*</Text></Text>
+                <TextInput
+                  style={styles.input}
+                  color={colors.text}
+                  value={draft.name}
+                  onChangeText={v => setDraft(d => ({ ...d, name: v }))}
+                  placeholder="Иван Петров"
+                  placeholderTextColor={colors.muted}
+                  autoFocus={isNew}
+                />
+
+                {/* Роль */}
+                <Text style={styles.fieldLabel}>Роль</Text>
+                <View style={styles.chips}>
+                  {['barista', 'admin'].map(role => (
+                    <Pressable
+                      key={role}
+                      style={[styles.chip, draft.role === role && styles.chipActive]}
+                      onPress={() => setDraft(d => ({ ...d, role }))}
+                    >
+                      <Text style={[styles.chipTxt, draft.role === role && styles.chipTxtActive]}>
+                        {role === 'admin' ? roleNames.admin : roleNames.barista}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <Text style={styles.roleHint}>
+                  {draft.role === 'admin'
+                    ? 'Администратор видит все разделы, отчёты и настройки'
+                    : 'Сотрудник работает только с кассой и лояльностью'}
+                </Text>
+
+                {/* PIN */}
+                <Text style={styles.fieldLabel}>{isNew ? 'PIN-код *' : 'Новый PIN (необязательно)'}</Text>
+                <View style={styles.pinRow}>
+                  <TextInput
+                    style={[styles.input, { flex: 1, textAlign: 'center', letterSpacing: 6, fontSize: 20 }]}
+                    color={colors.text}
+                    value={draft.pin}
+                    onChangeText={v => setDraft(d => ({ ...d, pin: v.replace(/\D/g,'') }))}
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    secureTextEntry={!showPin}
+                    placeholder="• • • •"
+                    placeholderTextColor={colors.muted}
+                  />
+                  <TextInput
+                    style={[styles.input, { flex: 1, textAlign: 'center', letterSpacing: 6, fontSize: 20 }]}
+                    color={colors.text}
+                    value={draft.pinConfirm}
+                    onChangeText={v => setDraft(d => ({ ...d, pinConfirm: v.replace(/\D/g,'') }))}
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    secureTextEntry={!showPin}
+                    placeholder="Повтор"
+                    placeholderTextColor={colors.muted}
+                  />
+                  <Pressable style={styles.showPinBtn} onPress={() => setShowPin(v => !v)}>
+                    <Text style={styles.showPinTxt}>{showPin ? 'Скрыть' : 'Показать'}</Text>
+                  </Pressable>
+                </View>
+                <Text style={styles.pinHint}>PIN используется для входа в приложение. Минимум 4 цифры.</Text>
+
+                {/* Зарплата */}
+                <Text style={styles.fieldLabel}>Тип зарплаты</Text>
+                <View style={styles.chips}>
+                  {SALARY_TYPES.map(st => (
+                    <Pressable
+                      key={st.key}
+                      style={[styles.chip, draft.salary_type === st.key && styles.chipActive]}
+                      onPress={() => setDraft(d => ({ ...d, salary_type: st.key }))}
+                    >
+                      <Text style={[styles.chipTxt, draft.salary_type === st.key && styles.chipTxtActive]}>{st.label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <Text style={styles.roleHint}>
+                  {SALARY_TYPES.find(s => s.key === draft.salary_type)?.hint}
+                </Text>
+
+                <Text style={styles.fieldLabel}>Размер</Text>
+                <TextInput
+                  style={styles.input}
+                  color={colors.text}
+                  value={draft.salary_amount}
+                  onChangeText={v => setDraft(d => ({ ...d, salary_amount: v }))}
+                  keyboardType="numeric"
+                  placeholder="0"
+                  placeholderTextColor={colors.muted}
+                />
+
+                {error ? <Text style={styles.errorTxt}>{error}</Text> : null}
+
+                {/* Кнопки */}
+                <View style={styles.btnRow}>
+                  {!isNew && (
+                    <>
+                    <Pressable
+                      style={[styles.toggleBtn, { borderColor: selected?.active ? 'rgba(217,95,95,0.4)' : 'rgba(123,175,142,0.4)' }]}
+                      onPress={() => handleToggle(selected)}
+                    >
+                      <Text style={[styles.toggleTxt, { color: selected?.active ? colors.red : colors.green }]}>
+                        {selected?.active ? 'Деактивировать' : 'Активировать'}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      style={[styles.toggleBtn, { borderColor: 'rgba(217,95,95,0.5)', backgroundColor: 'rgba(217,95,95,0.07)' }]}
+                      onPress={() => handleDelete(selected)}
+                    >
+                      <Text style={[styles.toggleTxt, { color: colors.red }]}>Удалить</Text>
+                    </Pressable>
+                    </>
+                  )}
+                  <Pressable style={styles.saveBtn} onPress={handleSave}>
+                    <Text style={styles.saveTxt}>{isNew ? 'Создать' : 'Сохранить'}</Text>
+                  </Pressable>
+                </View>
+
+              </ScrollView>
+            )}
+          </Sheet>
+        )}
       </View>
     </View>
   );

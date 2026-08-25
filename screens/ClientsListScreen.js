@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, FlatList, Ani
 import TopBar from '../components/TopBar';
 import { useResponsive } from '../hooks/useResponsive';
 import EmptyState from '../components/EmptyState';
+import Sheet from '../components/Sheet';
 import { useFocusEffect } from '@react-navigation/native';
 import { getAllClients, searchClients, getClientOrders, getTerms, pluralizeRu,
          getLoyaltyConfig, updateClientNote, getClientById } from '../db/queries';
@@ -256,6 +257,7 @@ function ClientCard({ client, onNewOrder, onSaved, loyaltyModel, loyaltyConfig }
 }
 
 export default function ClientsListScreen({ navigation, initialClientId }) {
+  const { isLandscape } = useResponsive();
   const [query, setQuery]       = useState('');
   const [clients, setClients]   = useState([]);
   const [selected, setSelected] = useState(null);
@@ -313,9 +315,9 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
         }
       />
 
-      <View style={styles.layout}>
+      <View style={[styles.layout, !isLandscape && { flexDirection: 'column' }]}>
         {/* Левая колонка — список */}
-        <View style={styles.listCol}>
+        <View style={[styles.listCol, !isLandscape && { width: undefined, flex: 1, borderRightWidth: 0 }]}>
           <View style={styles.searchWrap}>
             <TextInput
               color={colors.text}
@@ -367,28 +369,42 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
           </ScrollView>
         </View>
 
-        {/* Правая колонка — карточка */}
-        <View style={styles.cardCol}>
-          {selected ? (
-            <Animated.View style={{ flex: 1, opacity: cardAnim, transform: [{ translateY: cardSlide }] }}>
-            <ClientCard
-              key={selected.id}
-              client={selected}
-              loyaltyModel={loyaltyModel}
-              loyaltyConfig={loyaltyConfig}
-              onNewOrder={(c) => navigation.navigate('Kassa', { forClient: { id: c.id, fio: c.fio, code: c.code } })}
-              onSaved={() => load()}
-            />
-            </Animated.View>
-          ) : (
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', opacity: 0.3 }}>
-              <Text style={{ fontSize: 48 }}>👥</Text>
-              <Text style={{ fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted, marginTop: 12 }}>
-                Выберите клиента
-              </Text>
-            </View>
-          )}
-        </View>
+        {isLandscape ? (
+          <View style={styles.cardCol}>
+            {selected ? (
+              <Animated.View style={{ flex: 1, opacity: cardAnim, transform: [{ translateY: cardSlide }] }}>
+                <ClientCard
+                  key={selected.id}
+                  client={selected}
+                  loyaltyModel={loyaltyModel}
+                  loyaltyConfig={loyaltyConfig}
+                  onNewOrder={(c) => navigation.navigate('Kassa', { forClient: { id: c.id, fio: c.fio, code: c.code } })}
+                  onSaved={() => load()}
+                />
+              </Animated.View>
+            ) : (
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', opacity: 0.3 }}>
+                <Text style={{ fontSize: 48 }}>👥</Text>
+                <Text style={{ fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted, marginTop: 12 }}>
+                  Выберите клиента
+                </Text>
+              </View>
+            )}
+          </View>
+        ) : (
+          <Sheet visible={!!selected} onClose={() => setSelected(null)} title={selected?.fio || 'Клиент'}>
+            {selected && (
+              <ClientCard
+                key={selected.id}
+                client={selected}
+                loyaltyModel={loyaltyModel}
+                loyaltyConfig={loyaltyConfig}
+                onNewOrder={(c) => navigation.navigate('Kassa', { forClient: { id: c.id, fio: c.fio, code: c.code } })}
+                onSaved={() => load()}
+              />
+            )}
+          </Sheet>
+        )}
       </View>
     </View>
   );
