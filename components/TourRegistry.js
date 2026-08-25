@@ -1,65 +1,53 @@
-import React, { createContext, useContext, useRef, useCallback, useState } from 'react';
+import React, { createContext, useContext, useState } from 'react';
+import { colors } from '../constants/theme';
 
-// Общий реестр реальных экранных координат элементов, подсвечиваемых в
-// интерактивном туре (TourGuide). Ключевая идея — не измерять элемент
-// снаружи по таймеру (угадывая, устоялась ли уже разметка), а заставить
-// сам элемент сообщать о себе через onLayout, который React вызывает
-// именно тогда, когда его раскладка действительно завершена — в том
-// числе повторно, если она позже сдвинется (например, из-за данных,
-// подгрузившихся чуть позже).
-//
-// Использование на подсвечиваемом элементе:
-//   const client = useTourTarget('kassa.client');
-//   <View ref={client.ref} onLayout={client.onLayout}>...</View>
-//
-// Использование в самом TourGuide — см. useTourRect(key).
+// Раньше здесь был реестр экранных координат (измерение снаружи через
+// measureInWindow) — оказалось ненадёжным в сложных случаях (вложенные
+// анимированные родители, flex gap). Новый, гораздо более простой и
+// надёжный принцип: TourGuide просто транслирует, какой ШАГ сейчас
+// активен (строковый ключ) — а каждый подсвечиваемый участок экрана сам
+// решает, ярче ли ему быть (это я, рисую вокруг себя рамку) или притухнуть
+// (это не я, значит я — фон). Никаких координат вообще не нужно.
 
-const TourRegistryContext = createContext(null);
+const TourActiveContext = createContext({ activeKey: null, setActiveKey: () => {} });
 
 export function TourRegistryProvider({ children }) {
-  const [registry, setRegistry] = useState({});
-
-  const report = useCallback((key, rect) => {
-    setRegistry(prev => {
-      const old = prev[key];
-      if (old && old.x === rect.x && old.y === rect.y && old.width === rect.width && old.height === rect.height) {
-        return prev; // ничего не изменилось — не гоняем лишние перерисовки
-      }
-      return { ...prev, [key]: rect };
-    });
-  }, []);
-
+  const [activeKey, setActiveKey] = useState(null);
   return (
-    <TourRegistryContext.Provider value={{ registry, report }}>
+    <TourActiveContext.Provider value={{ activeKey, setActiveKey }}>
       {children}
-    </TourRegistryContext.Provider>
+    </TourActiveContext.Provider>
   );
 }
 
-// Вешается на подсвечиваемый элемент: даёт ref (для measureInWindow) и
-// onLayout (чтобы React сам сообщил, когда пересчитывать координаты).
-export function useTourTarget(key) {
-  const ctx = useContext(TourRegistryContext);
-  const ref = useRef(null);
-
-  const onLayout = useCallback(() => {
-    // requestAnimationFrame — небольшая, но надёжная пауза, чтобы нативный
-    // слой точно успел отрисоваться перед измерением координат в окне.
-    requestAnimationFrame(() => {
-      ref.current?.measureInWindow?.((x, y, width, height) => {
-        if (width > 0 && height > 0 && ctx) {
-          ctx.report(key, { x, y, width, height });
-        }
-      });
-    });
-  }, [key, ctx]);
-
-  return { ref, onLayout };
+// Для самого TourGuide — сообщает наружу, какой шаг сейчас показан.
+export function useTourActiveSetter() {
+  return useContext(TourActiveContext).setActiveKey;
 }
 
-// Читает актуальные координаты элемента по ключу — реактивно обновляется
-// сам, если элемент позже сообщит о себе снова (сдвинулся/появился).
-export function useTourRect(key) {
-  const ctx = useContext(TourRegistryContext);
-  return (key && ctx?.registry[key]) || null;
+// Для подсвечиваемого участка экрана. Возвращает готовый набор стилей:
+// когда именно этот участок активен — яркая рамка; когда активен другой
+// участок (тур идёт, но не по этому месту) — лёгкое притухание; когда тур
+// не идёт вообще — ничего не меняется.
+//
+// Использование:
+//   const highlight = useTourHighlight('kassa.clientRow');
+//   <View style={[styles.v2Client, highlight.style]}>...</View>
+export function useTourHighlight(key) {
+  const { activeKey } = useContext(TourActiveContext);
+  const isActive = !!key && activeKey === key;
+  // Не притухаем, если активен сам этот элемент, ИЛИ активен один из его
+  // "потомков" по иерархии ключа (например, 'kassa.cart.client' — потомок
+  // 'kassa.cart') — иначе родитель притух бы вместе с собой и накрыл своей
+  // прозрачностью то, что внутри него как раз должно оставаться ярким.
+  const isDimmed = !!activeKey && activeKey !== key && !activeKey.startsWith(key + '.');
+  return {
+    isActive,
+    isDimmed,
+    style: isActive
+      ? { borderWidth: 2, borderColor: colors.orange, borderRadius: 12, opacity: 1 }
+      : isDimmed
+        ? { opacity: 0.25 }
+        : null,
+  };
 }

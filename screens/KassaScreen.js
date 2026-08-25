@@ -16,7 +16,7 @@ import InfoTip from '../components/InfoTip';
 import { getAllProducts, getAllClients, getCategories, getCategoryOrder, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, getAllVariantsWithSku, getZones, getOrderTemplates, saveOrderTemplate, deleteOrderTemplate, applyPendingPriceSchedules, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms, getLoyaltyConfig, spendPoints, checkSubscriptionBalance, getCostCardForVariant, getAllStock, markTourSeen } from '../db/queries';
 import Sheet from '../components/Sheet';
 import TourGuide from '../components/TourGuide';
-import { useTourTarget } from '../components/TourRegistry';
+import { useTourHighlight } from '../components/TourRegistry';
 import { useResponsive } from '../hooks/useResponsive';
 import { cartStore } from '../db/cartStore';
 import { colors, fonts, spacing, anim } from '../constants/theme';
@@ -27,19 +27,19 @@ export default function KassaScreen({ navigation, route }) {
 
   // ── Интерактивный тур по разделу ──
   const [tourOpen, setTourOpen] = useState(false);
-  const catRailTarget = useTourTarget('kassa.catRail');
-  const productGridTarget = useTourTarget('kassa.productGrid');
-  const cartTarget = useTourTarget('kassa.cart');
-  const payBtnTarget = useTourTarget('kassa.payBtn');
-  const clientRowTarget = useTourTarget('kassa.clientRow');
-  const discountRowTarget = useTourTarget('kassa.discountRow');
+  const catRailHighlight = useTourHighlight('kassa.catRail');
+  const productGridHighlight = useTourHighlight('kassa.productGrid');
+  const cartHighlight = useTourHighlight('kassa.cart');
+  const payBtnHighlight = useTourHighlight('kassa.cart.pay');
+  const clientRowHighlight = useTourHighlight('kassa.cart.client');
+  const discountRowHighlight = useTourHighlight('kassa.cart.discount');
   const tourSteps = [
     { key: 'kassa.catRail', title: 'Категории', text: 'Слева — категории товаров. Нажмите, чтобы переключиться между ними, не листая весь список.' },
     { key: 'kassa.productGrid', title: 'Выбор товаров', text: 'Нажимайте на товары здесь, чтобы добавить их в текущий заказ.' },
     { key: 'kassa.cart', title: 'Корзина', text: 'Здесь собирается заказ — можно менять количество, добавлять заметку или удалять позицию свайпом.' },
-    { key: 'kassa.clientRow', title: 'Клиент', text: 'Привяжите заказ к клиенту — если у него есть личная скидка или баллы лояльности, они применятся автоматически.' },
-    { key: 'kassa.discountRow', title: 'Скидка', text: 'Здесь можно вручную применить скидку на весь заказ, если она не пришла автоматически вместе с клиентом.' },
-    { key: 'kassa.payBtn', title: 'Оплата', text: 'Когда всё добавлено — нажмите здесь, чтобы выбрать способ оплаты и завершить заказ.' },
+    { key: 'kassa.cart.client', title: 'Клиент', text: 'Привяжите заказ к клиенту — если у него есть личная скидка или баллы лояльности, они применятся автоматически.' },
+    { key: 'kassa.cart.discount', title: 'Скидка', text: 'Здесь можно вручную применить скидку на весь заказ, если она не пришла автоматически вместе с клиентом.' },
+    { key: 'kassa.cart.pay', title: 'Оплата', text: 'Когда всё добавлено — нажмите здесь, чтобы выбрать способ оплаты и завершить заказ.' },
   ];
   const [loading, setLoading] = useState(true);
   const [groups, setGroups] = useState([]);
@@ -736,7 +736,7 @@ export default function KassaScreen({ navigation, route }) {
       {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift', { returnTo: 'Kassa' })} />}
       <Animated.View style={[styles.layout, { opacity: fadeAnim }]}>
         {/* ── Вертикальная колонка категорий ── */}
-        <View style={styles.catRail} ref={catRailTarget.ref} onLayout={catRailTarget.onLayout}>
+        <View style={[styles.catRail, catRailHighlight.style]}>
           {groups.map(group => {
             const isActive = activeCat === group && !searchQuery;
             return (
@@ -755,7 +755,7 @@ export default function KassaScreen({ navigation, route }) {
         </View>
 
         {/* ── Центр: поиск + сетка товаров ── */}
-        <View style={styles.left} ref={productGridTarget.ref} onLayout={productGridTarget.onLayout}>
+        <View style={[styles.left, productGridHighlight.style]}>
           <View style={styles.searchWrap}>
             <TextInput
               style={styles.searchInput}
@@ -801,7 +801,7 @@ export default function KassaScreen({ navigation, route }) {
           </Animated.ScrollView>
         </View>
 
-        <View style={styles.orderPanel} ref={cartTarget.ref} onLayout={cartTarget.onLayout}>
+        <View style={[styles.orderPanel, cartHighlight.style]}>
 
           {/* Слоты — только если 2+ отложенных */}
           {slots.length > 1 && (
@@ -929,7 +929,7 @@ export default function KassaScreen({ navigation, route }) {
           <View style={styles.v2Footer}>
 
             {/* Клиент */}
-            <View style={styles.v2Client} ref={clientRowTarget.ref} onLayout={clientRowTarget.onLayout}>
+            <View style={[styles.v2Client, clientRowHighlight.style]}>
               {forClient ? (
                 <>
                   <Pressable
@@ -968,7 +968,7 @@ export default function KassaScreen({ navigation, route }) {
             {/* Ручной выбор скидки — недоступен, если скидка уже применяется автоматически (личная/по лояльности) */}
             {loyaltyModel !== 'discount' && can('apply_discounts') && !(forClient?.discount_pct > 0) && (
               appliedDiscount ? (
-                <View style={styles.v2Client} ref={discountRowTarget.ref} onLayout={discountRowTarget.onLayout}>
+                <View style={[styles.v2Client, discountRowHighlight.style]}>
                   <Pressable style={{ flex: 1 }} onPress={() => setDiscountDropOpen(true)}>
                     <Text style={styles.v2DiscountApplied}>🏷 {appliedDiscount.name}</Text>
                   </Pressable>
@@ -977,7 +977,7 @@ export default function KassaScreen({ navigation, route }) {
                   </Pressable>
                 </View>
               ) : (
-                <View style={styles.v2Client} ref={discountRowTarget.ref} onLayout={discountRowTarget.onLayout}>
+                <View style={[styles.v2Client, discountRowHighlight.style]}>
                   <Pressable style={{ flex: 1 }} onPress={() => setDiscountDropOpen(true)}>
                     <Text style={styles.v2ClientAdd}>🏷 Добавить скидку</Text>
                   </Pressable>
@@ -1025,9 +1025,7 @@ export default function KassaScreen({ navigation, route }) {
 
             {/* Оплатить */}
             <Pressable
-              ref={payBtnTarget.ref}
-              onLayout={payBtnTarget.onLayout}
-              style={({pressed})=>[styles.v2Pay, order.length===0 && styles.v2PayOff, pressed && order.length>0 && {opacity:0.88}]}
+              style={({pressed})=>[styles.v2Pay, order.length===0 && styles.v2PayOff, pressed && order.length>0 && {opacity:0.88}, payBtnHighlight.style]}
               onPress={()=>order.length>0 && openPrePay()}
               disabled={order.length===0}
             >
