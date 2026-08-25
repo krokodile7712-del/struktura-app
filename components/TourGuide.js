@@ -27,22 +27,19 @@ export default function TourGuide({ visible, onClose, steps = [] }) {
 
   useEffect(() => {
     if (!visible || !steps[stepIndex]) { setRect(null); return; }
-    // Сбрасываем сразу — иначе на мгновение видна рамка от прошлого шага,
-    // пока не измерен новый элемент (рассинхрон подсветки и текста).
-    setRect(null);
     const node = steps[stepIndex].ref?.current;
     if (node?.measureInWindow) {
       const measure = (attempt = 0) => {
         node.measureInWindow((x, y, width, height) => {
-          if ((width === 0 || height === 0) && attempt < 3) {
+          if ((width === 0 || height === 0) && attempt < 4) {
             // Разметка ещё не устоялась — пробуем ещё раз чуть позже
-            setTimeout(() => measure(attempt + 1), 120);
+            setTimeout(() => measure(attempt + 1), 150);
           } else {
             setRect({ x, y, width, height });
           }
         });
       };
-      const t = setTimeout(() => measure(), 120);
+      const t = setTimeout(() => measure(), 200);
       return () => clearTimeout(t);
     } else {
       setRect(null);
@@ -138,7 +135,7 @@ export default function TourGuide({ visible, onClose, steps = [] }) {
 }
 
 const styles = StyleSheet.create({
-  dim: { position: 'absolute', backgroundColor: 'rgba(0,0,0,0.9)' },
+  dim: { position: 'absolute', backgroundColor: 'rgba(0,0,0,0.78)' },
   spotlightBorder: {
     position: 'absolute',
     borderWidth: 2,
