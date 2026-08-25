@@ -51,7 +51,22 @@ export function getBusinessProfile() {
     roles:          safeParse(row.roles,          {}),
     units:          safeParse(row.units,          []),
     loyalty_config: safeParse(row.loyalty_config, {}),
+    tours_seen:     safeParse(row.tours_seen,     {}),
   };
+}
+
+// Отмечает, что пользователь увидел интерактивный тур по разделу screenKey
+// (например 'Kassa') — при следующем заходе тур сам не запустится, останется
+// доступен только по кнопке "?" вручную.
+export function markTourSeen(screenKey) {
+  try {
+    const db = getDb();
+    const row = db.getFirstSync(`SELECT id, tours_seen FROM business_profile ORDER BY id LIMIT 1`);
+    if (!row) return;
+    const seen = safeParse(row.tours_seen, {});
+    seen[screenKey] = true;
+    db.runSync(`UPDATE business_profile SET tours_seen = ? WHERE id = ?`, [JSON.stringify(seen), row.id]);
+  } catch (e) { console.error('[markTourSeen]', e); }
 }
 
 const DEFAULT_TERMS = { item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' };

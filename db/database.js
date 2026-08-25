@@ -295,6 +295,7 @@ export function initDatabase() {
     `CREATE TABLE IF NOT EXISTS zone_tables (id INTEGER PRIMARY KEY AUTOINCREMENT, zone_id INTEGER NOT NULL, name TEXT NOT NULL, position INTEGER DEFAULT 0)`,
     // Лого бизнеса в base64
     `ALTER TABLE business_profile ADD COLUMN logo_base64 TEXT DEFAULT ''`,
+    `ALTER TABLE business_profile ADD COLUMN tours_seen TEXT DEFAULT '{}'`,
     // Исторический максимум остатка для шкалы склада
     `ALTER TABLE stock ADD COLUMN max_ostatok REAL DEFAULT 0`,
     // Себестоимость и цена продажи складской позиции

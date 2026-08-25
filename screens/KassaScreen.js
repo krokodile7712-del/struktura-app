@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { LogBox } from 'react-native';
 LogBox.ignoreLogs(['Text strings must be rendered', 'Each child in a list', 'VirtualizedLists']);
 import SwipeableRow from '../components/SwipeableRow';
@@ -13,8 +13,9 @@ import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import ShiftBanner from '../components/ShiftBanner';
 import InfoTip from '../components/InfoTip';
-import { getAllProducts, getAllClients, getCategories, getCategoryOrder, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, getAllVariantsWithSku, getZones, getOrderTemplates, saveOrderTemplate, deleteOrderTemplate, applyPendingPriceSchedules, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms, getLoyaltyConfig, spendPoints, checkSubscriptionBalance, getCostCardForVariant, getAllStock } from '../db/queries';
+import { getAllProducts, getAllClients, getCategories, getCategoryOrder, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, getAllVariantsWithSku, getZones, getOrderTemplates, saveOrderTemplate, deleteOrderTemplate, applyPendingPriceSchedules, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms, getLoyaltyConfig, spendPoints, checkSubscriptionBalance, getCostCardForVariant, getAllStock, markTourSeen } from '../db/queries';
 import Sheet from '../components/Sheet';
+import TourGuide from '../components/TourGuide';
 import { useResponsive } from '../hooks/useResponsive';
 import { cartStore } from '../db/cartStore';
 import { colors, fonts, spacing, anim } from '../constants/theme';
@@ -22,6 +23,19 @@ import { colors, fonts, spacing, anim } from '../constants/theme';
 export default function KassaScreen({ navigation, route }) {
   const loading2 = false; // placeholder
   const toast = useToast();
+
+  // ── Интерактивный тур по разделу ──
+  const [tourOpen, setTourOpen] = useState(false);
+  const catRailRef = useRef(null);
+  const productGridRef = useRef(null);
+  const cartRef = useRef(null);
+  const payBtnRef = useRef(null);
+  const tourSteps = [
+    { ref: catRailRef, title: 'Категории', text: 'Слева — категории товаров. Нажмите, чтобы переключиться между ними, не листая весь список.' },
+    { ref: productGridRef, title: 'Выбор товаров', text: 'Нажимайте на товары здесь, чтобы добавить их в текущий заказ.' },
+    { ref: cartRef, title: 'Корзина', text: 'Здесь собирается заказ — можно менять количество, добавлять заметку или удалять позицию свайпом.' },
+    { ref: payBtnRef, title: 'Оплата', text: 'Когда всё добавлено — нажмите здесь, чтобы выбрать способ оплаты и завершить заказ.' },
+  ];
   const [loading, setLoading] = useState(true);
   const [groups, setGroups] = useState([]);
   const [allProducts, setAllProducts] = useState([]);
@@ -177,6 +191,17 @@ export default function KassaScreen({ navigation, route }) {
   const [mixedCard, setMixedCard] = useState('');
 
   useEffect(() => { loadData(); }, []);
+
+  // Автозапуск тура при первом заходе на Кассу
+  useEffect(() => {
+    try {
+      const profile = getBusinessProfile();
+      if (!profile?.tours_seen?.Kassa) {
+        const t = setTimeout(() => setTourOpen(true), 500);
+        return () => clearTimeout(t);
+      }
+    } catch (_) {}
+  }, []);
 
   // Перезагружаем настройки при каждом возврате на экран
   // (зоны, шаблоны, модули, лояльность могли измениться в Настройках)
@@ -691,12 +716,22 @@ export default function KassaScreen({ navigation, route }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title="Касса" onBack={() => goBackSmart(navigation)} navigation={navigation} activeScreen="Kassa" />
+      <TopBar
+        title="Касса"
+        onBack={() => goBackSmart(navigation)}
+        navigation={navigation}
+        activeScreen="Kassa"
+        rightElement={
+          <Pressable onPress={() => setTourOpen(true)} hitSlop={10} style={styles.tourBtn}>
+            <Text style={styles.tourBtnTxt}>?</Text>
+          </Pressable>
+        }
+      />
 
       {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift', { returnTo: 'Kassa' })} />}
       <Animated.View style={[styles.layout, { opacity: fadeAnim }]}>
         {/* ── Вертикальная колонка категорий ── */}
-        <View style={styles.catRail}>
+        <View style={styles.catRail} ref={catRailRef}>
           {groups.map(group => {
             const isActive = activeCat === group && !searchQuery;
             return (
@@ -715,7 +750,7 @@ export default function KassaScreen({ navigation, route }) {
         </View>
 
         {/* ── Центр: поиск + сетка товаров ── */}
-        <View style={styles.left}>
+        <View style={styles.left} ref={productGridRef}>
           <View style={styles.searchWrap}>
             <TextInput
               style={styles.searchInput}
@@ -761,7 +796,7 @@ export default function KassaScreen({ navigation, route }) {
           </Animated.ScrollView>
         </View>
 
-        <View style={styles.orderPanel}>
+        <View style={styles.orderPanel} ref={cartRef}>
 
           {/* Слоты — только если 2+ отложенных */}
           {slots.length > 1 && (
@@ -985,6 +1020,7 @@ export default function KassaScreen({ navigation, route }) {
 
             {/* Оплатить */}
             <Pressable
+              ref={payBtnRef}
               style={({pressed})=>[styles.v2Pay, order.length===0 && styles.v2PayOff, pressed && order.length>0 && {opacity:0.88}]}
               onPress={()=>order.length>0 && openPrePay()}
               disabled={order.length===0}
@@ -1588,6 +1624,12 @@ export default function KassaScreen({ navigation, route }) {
         </View>
       </Modal>
 
+      <TourGuide
+        visible={tourOpen}
+        onClose={() => { setTourOpen(false); markTourSeen('Kassa'); }}
+        steps={tourSteps}
+      />
+
     </View>
   );
 }
@@ -1970,6 +2012,8 @@ const styles = StyleSheet.create({
   clientBadgeName: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
   clientBadgeSub: { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.green, marginTop: 1 },
   warnIcon: { fontSize: 40, textAlign: 'center', marginBottom: 8 },
+  tourBtn:  { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  tourBtnTxt: { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: colors.muted },
   warnTitle: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, textAlign: 'center', marginBottom: 8 },
   warnText: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center' },
 });
