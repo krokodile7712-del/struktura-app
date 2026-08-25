@@ -56,9 +56,17 @@ export default function TourGuide({ visible, onClose, steps = [] }) {
   } : null;
 
   const cardBelowFits = r ? (r.y + r.height + 190 < screenH) : true;
-  const cardStyle = r
-    ? (cardBelowFits ? { top: r.y + r.height + 16 } : { top: Math.max(60, r.y - 190) })
-    : { top: screenH / 2 - 90 };
+  const cardW = Math.min(420, screenW - 32);
+  const cardLeft = r
+    ? Math.min(Math.max(r.x + r.width / 2 - cardW / 2, 16), screenW - 16 - cardW)
+    : (screenW - cardW) / 2;
+  const cardStyle = {
+    width: cardW,
+    left: cardLeft,
+    ...(r
+      ? (cardBelowFits ? { top: r.y + r.height + 16 } : { top: Math.max(60, r.y - 190) })
+      : { top: screenH / 2 - 90 }),
+  };
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
@@ -107,8 +115,6 @@ const styles = StyleSheet.create({
   },
   card: {
     position: 'absolute',
-    left: 16,
-    right: 16,
     backgroundColor: colors.surface,
     borderRadius: 18,
     borderWidth: 1,

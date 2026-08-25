@@ -30,10 +30,14 @@ export default function KassaScreen({ navigation, route }) {
   const productGridRef = useRef(null);
   const cartRef = useRef(null);
   const payBtnRef = useRef(null);
+  const clientRowRef = useRef(null);
+  const discountRowRef = useRef(null);
   const tourSteps = [
     { ref: catRailRef, title: 'Категории', text: 'Слева — категории товаров. Нажмите, чтобы переключиться между ними, не листая весь список.' },
     { ref: productGridRef, title: 'Выбор товаров', text: 'Нажимайте на товары здесь, чтобы добавить их в текущий заказ.' },
     { ref: cartRef, title: 'Корзина', text: 'Здесь собирается заказ — можно менять количество, добавлять заметку или удалять позицию свайпом.' },
+    { ref: clientRowRef, title: 'Клиент', text: 'Привяжите заказ к клиенту — если у него есть личная скидка или баллы лояльности, они применятся автоматически.' },
+    { ref: discountRowRef, title: 'Скидка', text: 'Здесь можно вручную применить скидку на весь заказ, если она не пришла автоматически вместе с клиентом.' },
     { ref: payBtnRef, title: 'Оплата', text: 'Когда всё добавлено — нажмите здесь, чтобы выбрать способ оплаты и завершить заказ.' },
   ];
   const [loading, setLoading] = useState(true);
@@ -924,7 +928,7 @@ export default function KassaScreen({ navigation, route }) {
           <View style={styles.v2Footer}>
 
             {/* Клиент */}
-            <View style={styles.v2Client}>
+            <View style={styles.v2Client} ref={clientRowRef}>
               {forClient ? (
                 <>
                   <Pressable
@@ -963,7 +967,7 @@ export default function KassaScreen({ navigation, route }) {
             {/* Ручной выбор скидки — недоступен, если скидка уже применяется автоматически (личная/по лояльности) */}
             {loyaltyModel !== 'discount' && can('apply_discounts') && !(forClient?.discount_pct > 0) && (
               appliedDiscount ? (
-                <View style={styles.v2Client}>
+                <View style={styles.v2Client} ref={discountRowRef}>
                   <Pressable style={{ flex: 1 }} onPress={() => setDiscountDropOpen(true)}>
                     <Text style={styles.v2DiscountApplied}>🏷 {appliedDiscount.name}</Text>
                   </Pressable>
@@ -972,7 +976,7 @@ export default function KassaScreen({ navigation, route }) {
                   </Pressable>
                 </View>
               ) : (
-                <View style={styles.v2Client}>
+                <View style={styles.v2Client} ref={discountRowRef}>
                   <Pressable style={{ flex: 1 }} onPress={() => setDiscountDropOpen(true)}>
                     <Text style={styles.v2ClientAdd}>🏷 Добавить скидку</Text>
                   </Pressable>
