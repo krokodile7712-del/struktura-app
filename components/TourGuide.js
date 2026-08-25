@@ -1,60 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Pressable, Modal, useWindowDimensions, StyleSheet } from 'react-native';
 import { colors, fonts } from '../constants/theme';
+import { useTourRect } from './TourRegistry';
 
 // Интерактивный пошаговый тур по разделу. Затемняет весь экран, кроме
-// одного подсвеченного элемента за раз (через measureInWindow на ref
-// нужного элемента), рядом показывает карточку с объяснением и кнопками
-// Далее/Пропустить.
+// одного подсвеченного элемента за раз, рядом показывает карточку с
+// объяснением и кнопками Далее/Пропустить.
+//
+// Координаты подсвечиваемого элемента берутся из общего реестра
+// (TourRegistry) — сам элемент сообщает о себе через onLayout, когда его
+// раскладка действительно готова (и повторно, если она позже сдвинется).
+// Это надёжнее измерения снаружи по таймеру, которое приходится гадать.
 //
 // Использование:
-//   const btnRef = useRef(null);
-//   <Pressable ref={btnRef}>...</Pressable>
+//   const client = useTourTarget('kassa.client');
+//   <View ref={client.ref} onLayout={client.onLayout}>...</View>
 //   <TourGuide
 //     visible={tourOpen}
 //     onClose={() => setTourOpen(false)}
 //     steps={[
-//       { ref: btnRef, title: 'Заголовок', text: 'Что делает эта кнопка' },
+//       { key: 'kassa.client', title: 'Заголовок', text: 'Что это' },
 //     ]}
 //   />
 export default function TourGuide({ visible, onClose, steps = [] }) {
   const [stepIndex, setStepIndex] = useState(0);
-  const [rect, setRect] = useState(null);
 
   useEffect(() => {
     if (visible) setStepIndex(0);
   }, [visible]);
 
-  useEffect(() => {
-    if (!visible || !steps[stepIndex]) { setRect(null); return; }
-    const node = steps[stepIndex].ref?.current;
-    let cancelled = false;
-    if (node?.measureInWindow) {
-      const measure = (attempt = 0, isConfirm = false) => {
-        node.measureInWindow((x, y, width, height) => {
-          if (cancelled) return;
-          if ((width === 0 || height === 0) && attempt < 4) {
-            // Разметка ещё не устоялась — пробуем ещё раз чуть позже
-            setTimeout(() => measure(attempt + 1), 150);
-          } else {
-            setRect({ x, y, width, height });
-            if (!isConfirm) {
-              // Контрольное повторное измерение чуть позже — на случай, если
-              // позиция ещё сдвинется уже после первого успешного замера
-              // (например, соседний элемент выше ещё не устоялся).
-              setTimeout(() => measure(attempt, true), 400);
-            }
-          }
-        });
-      };
-      const t = setTimeout(() => measure(), 200);
-      return () => { cancelled = true; clearTimeout(t); };
-    } else {
-      setRect(null);
-    }
-  }, [visible, stepIndex, steps]);
-
   const { width: screenW, height: screenH } = useWindowDimensions();
+  const rect = useTourRect(visible ? steps[stepIndex]?.key : null);
 
   if (!visible || steps.length === 0) return null;
 

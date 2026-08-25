@@ -17,6 +17,7 @@ import {
 
 import AppBackground from './components/AppBackground';
 import { ToastProvider } from './components/Toast';
+import { TourRegistryProvider } from './components/TourRegistry';
 import OnboardingScreen from './screens/OnboardingScreen';
 import { getSetting } from './db/queries';
 import { initDatabase } from './db/database';
@@ -124,6 +125,7 @@ export default function App() {
     <SafeAreaProvider>
       <StatusBar style="light" backgroundColor={colors.bg} />
       <ToastProvider>
+      <TourRegistryProvider>
       <NavigationContainer
         theme={navTheme}
         ref={navigationRef}
@@ -181,6 +183,7 @@ export default function App() {
           </View>
         </AppBackground>
       </NavigationContainer>
+      </TourRegistryProvider>
       </ToastProvider>
     </SafeAreaProvider>
   );
