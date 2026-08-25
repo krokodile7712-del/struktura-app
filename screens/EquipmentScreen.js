@@ -119,18 +119,15 @@ export default function EquipmentScreen({ navigation }) {
         onBack={() => goBackSmart(navigation)}
         navigation={navigation}
         activeScreen="Equipment"
-        rightElement={
-          <Pressable style={styles.addBtn} onPress={openNew}>
-            <Text style={styles.addBtnTxt}>+ Добавить</Text>
-          </Pressable>
-        }
       />
 
       <View style={[styles.layout, !isLandscape && { flexDirection: 'column' }]}>
 
         {/* Левая панель */}
-        {/* Левая панель */}
         <View style={[styles.left, !isLandscape && { width: undefined, flex: 1, borderRightWidth: 0 }]}>
+          <Pressable style={styles.addBtnBig} onPress={openNew}>
+            <Text style={styles.addBtnBigTxt}>+ Добавить оборудование</Text>
+          </Pressable>
           <Text style={styles.listHint}>Оборудование и его износ</Text>
           <ScrollView showsVerticalScrollIndicator={false}>
             {items.length === 0 ? (
@@ -517,5 +514,7 @@ const styles = StyleSheet.create({
   amortHintTitle:{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.indigo, marginBottom: 6 },
   amortHintText: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.textDim, lineHeight: 18 },
   addBtn:     { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, backgroundColor: 'rgba(240,160,80,0.12)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)' },
+  addBtnBig:  { paddingVertical: 12, borderRadius: 12, backgroundColor: colors.orange, alignItems: 'center', margin: 16, marginBottom: 8 },
+  addBtnBigTxt: { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: '#fff' },
   addBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
 });
