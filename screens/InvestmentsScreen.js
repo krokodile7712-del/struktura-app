@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, Animat
 import TopBar from '../components/TopBar';
 import { useResponsive } from '../hooks/useResponsive';
 import InfoTip from '../components/InfoTip';
+import Sheet from '../components/Sheet';
 import DatePicker from '../components/DatePicker';
 import { useFocusEffect } from '@react-navigation/native';
 import { getInvestments, addInvestment, updateInvestment, deleteInvestment, getInvestmentSummary, getPnL } from '../db/queries';
@@ -22,6 +23,7 @@ const fmt = n => Math.round(n||0).toLocaleString('ru-RU');
 const fmtDate = s => s ? s.split('-').reverse().join('.') : '—';
 
 export default function InvestmentsScreen({ navigation }) {
+  const { isLandscape } = useResponsive();
   const [items, setItems]       = useState([]);
   const [summary, setSummary]   = useState(null);
   const [avgProfit, setAvgProfit] = useState(0);
@@ -109,10 +111,10 @@ export default function InvestmentsScreen({ navigation }) {
         }
       />
 
-      <View style={styles.layout}>
+      <View style={[styles.layout, !isLandscape && { flexDirection: 'column' }]}>
 
         {/* Левая панель */}
-        <View style={styles.left}>
+        <View style={[styles.left, !isLandscape && { width: undefined, flex: 1, borderRightWidth: 0 }]}>
           {/* Сводка */}
           {summary && (
             <View style={styles.summaryCard}>
@@ -172,7 +174,8 @@ export default function InvestmentsScreen({ navigation }) {
           </ScrollView>
         </View>
 
-        {/* Правая панель */}
+
+        {isLandscape ? (
         <View style={styles.right}>
           {draft ? (
             <Animated.ScrollView
@@ -255,6 +258,80 @@ export default function InvestmentsScreen({ navigation }) {
             </View>
           )}
         </View>
+        ) : (
+          <Sheet visible={!!draft} onClose={() => setDraft(null)} title={isNew ? 'Новая инвестиция' : (draft?.name || 'Инвестиция')}>
+            {draft && (
+              <ScrollView contentContainerStyle={styles.editorContent} keyboardShouldPersistTaps="handled">
+
+              <View style={styles.infoCard}>
+                <Text style={styles.infoTxt}>
+                  Инвестиции — это начальные вложения в бизнес. Они не списываются сразу, а постепенно распределяются на срок окупаемости. Это помогает видеть реальную прибыль с учётом возврата вложений.
+                </Text>
+              </View>
+
+              <View style={styles.divider} />
+
+              {/* Название */}
+              <Text style={styles.fieldLabel}>Название <Text style={{ color: colors.orange }}>*</Text></Text>
+              <TextInput style={styles.input} color={colors.text} value={draft.name} onChangeText={v => setDraft(d => ({ ...d, name: v }))} placeholder="Оборудование, ремонт, вывеска..." placeholderTextColor={colors.muted} autoFocus={isNew} />
+
+              {/* Сумма */}
+              <View style={styles.labelRow}>
+                <Text style={styles.fieldLabel}>Сумма <Text style={{ color: colors.orange }}>*</Text></Text>
+                <InfoTip title="Сумма инвестиции" text="Полная стоимость вложения. Например, стоимость оборудования или ремонта." />
+              </View>
+              <View style={styles.inputRow}>
+                <TextInput style={[styles.input, { flex: 1 }]} color={colors.text} value={draft.amount} onChangeText={v => setDraft(d => ({ ...d, amount: v }))} keyboardType="numeric" placeholder="0" placeholderTextColor={colors.muted} />
+                <Text style={styles.unitTxt}>₽</Text>
+              </View>
+
+              {/* Дата */}
+              <Text style={styles.fieldLabel}>Дата вложения</Text>
+              <Pressable style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]} onPress={() => setShowDatePicker(true)}>
+                <Text style={{ fontFamily: fonts.familyRegular, fontSize: 14, color: draft.invest_date ? colors.text : colors.muted }}>
+                  {draft.invest_date ? fmtDate(draft.invest_date) : 'Выбрать дату...'}
+                </Text>
+                <Text style={{ fontSize: 16, color: colors.muted }}>📅</Text>
+              </Pressable>
+
+              {/* Категория */}
+              <Text style={styles.fieldLabel}>Категория</Text>
+              <View style={styles.chips}>
+                {CATEGORIES.map(cat => (
+                  <Pressable key={cat.key} style={[styles.chip, draft.category === cat.key && styles.chipActive]} onPress={() => setDraft(d => ({ ...d, category: cat.key, returnable: cat.returnable || false }))}>
+                    <Text style={[styles.chipTxt, draft.category === cat.key && styles.chipTxtActive]}>{cat.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              {/* Срок окупаемости */}
+              <View style={styles.labelRow}>
+                <Text style={styles.fieldLabel}>Срок окупаемости, мес.</Text>
+                <InfoTip title="Срок окупаемости" text="За сколько месяцев планируете вернуть вложение. Используется для расчёта ежемесячной нагрузки на P&L." />
+              </View>
+              <View style={styles.inputRow}>
+                <TextInput style={[styles.input, { flex: 1 }]} color={colors.text} value={draft.amort_months} onChangeText={v => setDraft(d => ({ ...d, amort_months: v }))} keyboardType="numeric" placeholder="24" placeholderTextColor={colors.muted} />
+                <Text style={styles.unitTxt}>мес</Text>
+              </View>
+              {draft.amount && draft.amort_months ? (
+                <Text style={styles.calcHint}>≈ {fmt(Math.round(parseFloat(draft.amount) / parseInt(draft.amort_months)))} ₽/мес нагрузки на прибыль</Text>
+              ) : null}
+
+              {/* Кнопки */}
+              <Pressable style={styles.saveBtn} onPress={handleSave}>
+                <Text style={styles.saveBtnTxt}>{isNew ? 'Добавить инвестицию' : 'Сохранить'}</Text>
+              </Pressable>
+
+              {!isNew && (
+                <Pressable style={styles.deleteBtn} onPress={handleDelete}>
+                  <Text style={styles.deleteBtnTxt}>Удалить</Text>
+                </Pressable>
+              )}
+
+              </ScrollView>
+            )}
+          </Sheet>
+        )}
 
       </View>
 

@@ -25,10 +25,12 @@ const MODEL_INFO = {
 };
 
 export default function LoyaltyScreen({ navigation }) {
+  const { isLandscape } = useResponsive();
   const [terms, setTerms]           = useState({ client: 'Клиент', order: 'Заказ' });
   const [loyaltyModel, setLoyaltyModel] = useState('points');
   const [clients, setClients]       = useState([]);
   const [query, setQuery]           = useState('');
+  const [summaryExpanded, setSummaryExpanded] = useState(false);
 
   const load = useCallback(() => {
     try {
@@ -84,9 +86,10 @@ export default function LoyaltyScreen({ navigation }) {
     <View style={styles.root}>
       <TopBar title={pluralizeRu(terms.client)} navigation={navigation} activeScreen="Loyalty" />
 
-      <View style={styles.layout}>
+      <View style={[styles.layout, !isLandscape && { flexDirection: 'column' }]}>
 
-        {/* Левая колонка — информация */}
+        {isLandscape ? (
+        /* Левая колонка — информация (альбомная) */
         <View style={styles.left}>
           <Animated.View style={[styles.modelCard, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
             <Text style={styles.modelLabel}>Модель лояльности</Text>
@@ -126,6 +129,40 @@ export default function LoyaltyScreen({ navigation }) {
           </Pressable>
           </Animated.View>
         </View>
+        ) : (
+        /* Сводка — сворачиваемая полоска сверху (портрет) */
+        <View style={styles.stripWrap}>
+          <Pressable onPress={() => setSummaryExpanded(v => !v)} style={styles.stripRow}>
+            <View>
+              <Text style={styles.stripLabel}>{info.label}</Text>
+              <Text style={styles.stripVal}>{clients.length} клиентов</Text>
+            </View>
+            <Text style={styles.stripChevron}>{summaryExpanded ? '▲' : '▼'}</Text>
+          </Pressable>
+          {summaryExpanded && (
+            <View style={styles.stripBody}>
+              <Text style={styles.modelDesc}>{info.desc}</Text>
+              <View style={styles.statRow}>
+                <View style={styles.statBox}>
+                  <Text style={styles.statVal}>{clients.reduce((s, c) => s + (c.visits || 0), 0)}</Text>
+                  <Text style={styles.statLbl}>Визитов</Text>
+                </View>
+                <View style={styles.statBox}>
+                  <Text style={styles.statVal}>{Math.round(clients.reduce((s, c) => s + (c.balance || 0), 0))}</Text>
+                  <Text style={styles.statLbl}>{loyaltyModel === 'subscription' ? 'Визитов выдано' : 'Баллов выдано'}</Text>
+                </View>
+              </View>
+            </View>
+          )}
+          <Pressable
+            style={({ pressed }) => [styles.regBtn, { marginHorizontal: 16, marginBottom: 12 }, pressed && { opacity: 0.85 }]}
+            onPress={() => navigation.navigate('Reg')}
+          >
+            <Text style={styles.regBtnTxt}>Зарегистрировать клиента</Text>
+            <Text style={styles.regBtnSub}>Новая карта лояльности</Text>
+          </Pressable>
+        </View>
+        )}
 
         {/* Правая колонка — список клиентов */}
         <View style={styles.right}>
@@ -203,6 +240,14 @@ const styles = StyleSheet.create({
 
   // Левая колонка
   left:       { width: 300, padding: 20, borderRightWidth: 1, borderRightColor: colors.border, gap: 16 },
+
+  // ── Сворачиваемая полоска сверху (портрет) ──
+  stripWrap:  { borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
+  stripRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
+  stripLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
+  stripVal:   { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.text, marginTop: 2 },
+  stripChevron: { fontSize: 11, color: colors.muted, opacity: 0.6 },
+  stripBody:  { paddingHorizontal: 16, paddingBottom: 8, gap: 10 },
 
   modelCard:  { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 18 },
   modelLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 6 },

@@ -4,6 +4,7 @@ import TopBar from '../components/TopBar';
 import { useResponsive } from '../hooks/useResponsive';
 import EmptyState from '../components/EmptyState';
 import InfoTip from '../components/InfoTip';
+import Sheet from '../components/Sheet';
 import { useFocusEffect } from '@react-navigation/native';
 import { getOverheadItems, addOverheadItem, updateOverheadItem, deleteOverheadItem } from '../db/queries';
 import { getHomeRoute, goBackSmart } from '../db/session';
@@ -30,6 +31,7 @@ function monthlyAmt(item) {
 }
 
 export default function OverheadsScreen({ navigation }) {
+  const { isLandscape } = useResponsive();
   const [items, setItems]       = useState([]);
   const [selected, setSelected] = useState(null);
   const [draft, setDraft]       = useState(null);
@@ -104,10 +106,12 @@ export default function OverheadsScreen({ navigation }) {
         }
       />
 
-      <View style={styles.layout}>
+      <View style={[styles.layout, !isLandscape && { flexDirection: 'column' }]}>
 
         {/* Левая панель */}
-        <View style={styles.left}>
+
+        {/* Левая панель */}
+        <View style={[styles.left, !isLandscape && { width: undefined, flex: 1, borderRightWidth: 0 }]}>
           {totalMonthly > 0 && (
             <View style={styles.totalCard}>
               <Text style={styles.totalLabel}>Итого в месяц</Text>
@@ -157,7 +161,8 @@ export default function OverheadsScreen({ navigation }) {
           </ScrollView>
         </View>
 
-        {/* Правая панель */}
+
+        {isLandscape ? (
         <View style={styles.right}>
           {draft ? (
             <Animated.ScrollView
@@ -245,7 +250,6 @@ export default function OverheadsScreen({ navigation }) {
                   <Text style={styles.deleteBtnTxt}>Удалить</Text>
                 </Pressable>
               )}
-
             </Animated.ScrollView>
           ) : (
             <View style={styles.emptyRight}>
@@ -254,8 +258,97 @@ export default function OverheadsScreen({ navigation }) {
             </View>
           )}
         </View>
+        ) : (
+          <Sheet visible={!!draft} onClose={() => setDraft(null)} title={isNew ? 'Новый расход' : (draft?.name || 'Накладной расход')}>
+            {draft && (
+              <ScrollView contentContainerStyle={styles.editorContent} keyboardShouldPersistTaps="handled">
+              <Text style={styles.editorTitle}>{isNew ? 'Новый расход' : draft.name}</Text>
+
+              <View style={styles.infoCard}>
+                <Text style={styles.infoTxt}>
+                  Накладные расходы — постоянные затраты бизнеса, не зависящие от объёма продаж. Они учитываются в полном P&L и влияют на расчёт себестоимости каждого заказа.
+                </Text>
+              </View>
+
+              <View style={styles.divider} />
+
+              {/* Название */}
+              <Text style={styles.fieldLabel}>Название <Text style={{ color: colors.orange }}>*</Text></Text>
+              <TextInput style={styles.input} color={colors.text} value={draft.name} onChangeText={v => setDraft(d => ({ ...d, name: v }))} placeholder="Аренда, коммуналка, интернет..." placeholderTextColor={colors.muted} autoFocus={isNew} />
+
+              {/* Сумма и период */}
+              <View style={styles.labelRow}>
+                <Text style={styles.fieldLabel}>Сумма <Text style={{ color: colors.orange }}>*</Text></Text>
+              </View>
+              <View style={styles.inputRow}>
+                <TextInput style={[styles.input, { flex: 1 }]} color={colors.text} value={draft.amount} onChangeText={v => setDraft(d => ({ ...d, amount: v }))} keyboardType="numeric" placeholder="0" placeholderTextColor={colors.muted} />
+                <Text style={styles.unitTxt}>₽</Text>
+              </View>
+
+              <Text style={styles.fieldLabel}>Периодичность</Text>
+              <View style={styles.chips}>
+                {PERIODS.map(p => (
+                  <Pressable key={p.key} style={[styles.chip, draft.period === p.key && styles.chipActive]} onPress={() => setDraft(d => ({ ...d, period: p.key }))}>
+                    <Text style={[styles.chipTxt, draft.period === p.key && styles.chipTxtActive]}>{p.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              {draft.amount && draft.period !== 'month' && (
+                <Text style={styles.calcHint}>≈ {fmt(monthlyAmt({ amount: parseFloat(draft.amount)||0, period: draft.period }))} ₽/мес</Text>
+              )}
+
+              {/* База распределения */}
+              <View style={styles.labelRow}>
+                <Text style={styles.fieldLabel}>База распределения</Text>
+                <InfoTip title="База распределения" text="Как этот расход распределяется на единицу продукции — на заказ, час работы или процент от выручки." />
+              </View>
+              <View style={styles.chips}>
+                {BASES.map(b => (
+                  <Pressable key={b.key} style={[styles.chip, draft.basis === b.key && styles.chipActive]} onPress={() => setDraft(d => ({ ...d, basis: b.key }))}>
+                    <Text style={[styles.chipTxt, draft.basis === b.key && styles.chipTxtActive]}>{b.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={styles.hintTxt}>{BASES.find(b => b.key === draft.basis)?.hint}</Text>
+
+              {/* Значение базы */}
+              {draft.basis === 'hour' && (
+                <>
+                  <Text style={styles.fieldLabel}>Рабочих часов в месяц</Text>
+                  <View style={styles.inputRow}>
+                    <TextInput style={[styles.input, { flex: 1 }]} color={colors.text} value={draft.basis_value} onChangeText={v => setDraft(d => ({ ...d, basis_value: v }))} keyboardType="numeric" placeholder="160" placeholderTextColor={colors.muted} />
+                    <Text style={styles.unitTxt}>ч</Text>
+                  </View>
+                  {draft.amount && draft.basis_value ? (
+                    <Text style={styles.calcHint}>≈ {fmt(monthlyAmt({ amount: parseFloat(draft.amount)||0, period: draft.period }) / (parseFloat(draft.basis_value)||1))} ₽/час</Text>
+                  ) : null}
+                </>
+              )}
+              {draft.basis === 'revenue_pct' && (
+                <>
+                  <Text style={styles.fieldLabel}>Процент от выручки</Text>
+                  <View style={styles.inputRow}>
+                    <TextInput style={[styles.input, { flex: 1 }]} color={colors.text} value={draft.basis_value} onChangeText={v => setDraft(d => ({ ...d, basis_value: v }))} keyboardType="numeric" placeholder="2" placeholderTextColor={colors.muted} />
+                    <Text style={styles.unitTxt}>%</Text>
+                  </View>
+                </>
+              )}
+
+              <Pressable style={styles.saveBtn} onPress={handleSave}>
+                <Text style={styles.saveBtnTxt}>{isNew ? 'Добавить' : 'Сохранить'}</Text>
+              </Pressable>
+              {!isNew && (
+                <Pressable style={styles.deleteBtn} onPress={handleDelete}>
+                  <Text style={styles.deleteBtnTxt}>Удалить</Text>
+                </Pressable>
+              )}
+              </ScrollView>
+            )}
+          </Sheet>
+        )}
 
       </View>
+
     </View>
   );
 }

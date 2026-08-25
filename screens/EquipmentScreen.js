@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, Animat
 import TopBar from '../components/TopBar';
 import { useResponsive } from '../hooks/useResponsive';
 import InfoTip from '../components/InfoTip';
+import Sheet from '../components/Sheet';
 import Toggle from '../components/Toggle';
 import { useFocusEffect } from '@react-navigation/native';
 import DatePicker from '../components/DatePicker';
@@ -48,6 +49,7 @@ function wearPct(eq) {
 }
 
 export default function EquipmentScreen({ navigation }) {
+  const { isLandscape } = useResponsive();
   const [items, setItems]       = useState([]);
   const [products, setProducts] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -124,10 +126,11 @@ export default function EquipmentScreen({ navigation }) {
         }
       />
 
-      <View style={styles.layout}>
+      <View style={[styles.layout, !isLandscape && { flexDirection: 'column' }]}>
 
         {/* Левая панель */}
-        <View style={styles.left}>
+        {/* Левая панель */}
+        <View style={[styles.left, !isLandscape && { width: undefined, flex: 1, borderRightWidth: 0 }]}>
           <Text style={styles.listHint}>Оборудование и его износ</Text>
           <ScrollView showsVerticalScrollIndicator={false}>
             {items.length === 0 ? (
@@ -171,7 +174,8 @@ export default function EquipmentScreen({ navigation }) {
           </ScrollView>
         </View>
 
-        {/* Правая панель */}
+
+        {isLandscape ? (
         <View style={styles.right}>
           {draft ? (
             <Animated.ScrollView
@@ -309,8 +313,139 @@ export default function EquipmentScreen({ navigation }) {
             </View>
           )}
         </View>
+        ) : (
+          <Sheet visible={!!draft} onClose={() => setDraft(null)} title={isNew ? 'Новое оборудование' : (draft?.name || 'Оборудование')}>
+            {draft && (
+              <ScrollView contentContainerStyle={styles.editorContent} keyboardShouldPersistTaps="handled">
+              <Text style={styles.editorTitle}>{isNew ? 'Новое оборудование' : draft.name}</Text>
+              <Text style={styles.editorSub}>{isNew ? 'Заполните данные и нажмите Сохранить' : 'Редактирование'}</Text>
+
+              <View style={styles.divider} />
+
+              {/* Подсказка об амортизации */}
+              <View style={styles.amortHint}>
+                <Text style={styles.amortHintTitle}>Что такое амортизация?</Text>
+                <Text style={styles.amortHintText}>
+                  Амортизация — это постепенное списание стоимости оборудования. Например, станок за 150 000 ₽ со сроком 36 месяцев будет «стоить» 4 167 ₽ каждый месяц — эта сумма учитывается в себестоимости продукции.
+                </Text>
+              </View>
+
+              {/* Название */}
+              <Text style={styles.fieldLabel}>Название <Text style={{ color: colors.orange }}>*</Text></Text>
+              <TextInput style={styles.input} color={colors.text} value={draft.name} onChangeText={v => setDraft(d => ({ ...d, name: v }))} placeholder="Станок, холодильник, инструмент..." placeholderTextColor={colors.muted} autoFocus={isNew} />
+
+              {/* Стоимость */}
+              <View style={styles.labelRow}>
+                <Text style={styles.fieldLabel}>Стоимость покупки</Text>
+                <InfoTip title="Стоимость" text="Начальная цена оборудования. Используется для расчёта ежемесячной амортизации." />
+              </View>
+              <View style={styles.inputRow}>
+                <TextInput style={[styles.input, { flex: 1 }]} color={colors.text} value={draft.cost} onChangeText={v => setDraft(d => ({ ...d, cost: v }))} keyboardType="numeric" placeholder="0" placeholderTextColor={colors.muted} />
+                <Text style={styles.unitTxt}>₽</Text>
+              </View>
+
+              {/* Дата покупки */}
+              <Text style={styles.fieldLabel}>Дата покупки</Text>
+              <Pressable style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]} onPress={() => setShowDatePicker(true)}>
+                <Text style={{ fontFamily: fonts.familyRegular, fontSize: 14, color: draft.purchase_date ? colors.text : colors.muted }}>
+                  {draft.purchase_date ? draft.purchase_date.split('-').reverse().join('.') : 'Выбрать дату...'}
+                </Text>
+                <Text style={{ fontSize: 16, color: colors.muted }}>📅</Text>
+              </Pressable>
+
+              {/* Тип амортизации */}
+              <View style={styles.labelRow}>
+                <Text style={styles.fieldLabel}>Тип амортизации</Text>
+                <InfoTip title="Амортизация" text="Способ списания стоимости оборудования. Линейная — равномерно по месяцам. По циклам — по количеству использований." />
+              </View>
+              <View style={styles.chips}>
+                {AMORT_TYPES.map(t => (
+                  <Pressable key={t.key} style={[styles.chip, draft.amort_type === t.key && styles.chipActive]} onPress={() => setDraft(d => ({ ...d, amort_type: t.key }))}>
+                    <Text style={[styles.chipTxt, draft.amort_type === t.key && styles.chipTxtActive]}>{t.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={styles.hintTxt}>{AMORT_TYPES.find(t => t.key === draft.amort_type)?.hint}</Text>
+
+              {/* Срок (для линейной и смешанной) */}
+              {(draft.amort_type === 'linear' || draft.amort_type === 'mixed') && (
+                <>
+                  <Text style={styles.fieldLabel}>Срок амортизации, мес.</Text>
+                  <View style={styles.inputRow}>
+                    <TextInput style={[styles.input, { flex: 1 }]} color={colors.text} value={draft.amort_period} onChangeText={v => setDraft(d => ({ ...d, amort_period: v }))} keyboardType="numeric" placeholder="36" placeholderTextColor={colors.muted} />
+                    <Text style={styles.unitTxt}>мес</Text>
+                  </View>
+                  {draft.cost && draft.amort_period ? (
+                    <Text style={styles.calcHint}>≈ {fmt(Math.round(parseFloat(draft.cost) / parseInt(draft.amort_period)))} ₽/мес</Text>
+                  ) : null}
+                </>
+              )}
+
+              {/* Ресурс циклов (для production и mixed) */}
+              {(draft.amort_type === 'production' || draft.amort_type === 'mixed') && (
+                <>
+                  <Text style={styles.fieldLabel}>Ресурс, циклов</Text>
+                  <View style={styles.inputRow}>
+                    <TextInput style={[styles.input, { flex: 1 }]} color={colors.text} value={draft.amort_cycles} onChangeText={v => setDraft(d => ({ ...d, amort_cycles: v }))} keyboardType="numeric" placeholder="10000" placeholderTextColor={colors.muted} />
+                    <Text style={styles.unitTxt}>цикл</Text>
+                  </View>
+                </>
+              )}
+
+              {/* Тип счётчика */}
+              <View style={styles.labelRow}>
+                <Text style={styles.fieldLabel}>Счётчик циклов</Text>
+                <InfoTip title="Счётчик" text="Как считать использования оборудования. Влияет на расчёт износа по циклам." />
+              </View>
+              <View style={styles.chips}>
+                {COUNTER_TYPES.map(t => (
+                  <Pressable key={t.key} style={[styles.chip, draft.counter_type === t.key && styles.chipActive]} onPress={() => setDraft(d => ({ ...d, counter_type: t.key }))}>
+                    <Text style={[styles.chipTxt, draft.counter_type === t.key && styles.chipTxtActive]}>{t.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={styles.hintTxt}>{COUNTER_TYPES.find(t => t.key === draft.counter_type)?.hint}</Text>
+
+              {/* Конкретный товар для counter_type=product */}
+              {draft.counter_type === 'product' && (
+                <>
+                  <Text style={styles.fieldLabel}>Товар</Text>
+                  <View style={styles.prodList}>
+                    {products.map(p => (
+                      <Pressable key={p.id} style={[styles.prodRow, draft.counter_product_id === p.id && styles.prodRowActive]} onPress={() => setDraft(d => ({ ...d, counter_product_id: p.id }))}>
+                        <Text style={[styles.prodName, draft.counter_product_id === p.id && { color: colors.orange }]}>{p.name}</Text>
+                        {draft.counter_product_id === p.id && <Text style={{ color: colors.orange, fontSize: 14 }}>✓</Text>}
+                      </Pressable>
+                    ))}
+                  </View>
+                </>
+              )}
+
+              {/* Циклов за использование */}
+              <View style={styles.labelRow}>
+                <Text style={styles.fieldLabel}>Циклов за 1 использование</Text>
+                <InfoTip title="Циклов за раз" text="Сколько циклов ресурса расходуется при одном использовании. Обычно 1." />
+              </View>
+              <TextInput style={styles.input} color={colors.text} value={draft.cycles_per_use} onChangeText={v => setDraft(d => ({ ...d, cycles_per_use: v }))} keyboardType="numeric" placeholder="1" placeholderTextColor={colors.muted} />
+
+              {/* Кнопки */}
+              <Pressable style={styles.saveBtn} onPress={handleSave}>
+                <Text style={styles.saveBtnTxt}>{isNew ? 'Добавить оборудование' : 'Сохранить'}</Text>
+              </Pressable>
+
+              {!isNew && (
+                <Pressable style={styles.deleteBtn} onPress={handleDelete}>
+                  <Text style={styles.deleteBtnTxt}>Удалить оборудование</Text>
+                </Pressable>
+              )}
+
+              </ScrollView>
+            )}
+          </Sheet>
+        )}
 
       </View>
+
 
       <DatePicker
         visible={showDatePicker}
