@@ -28,19 +28,27 @@ export default function TourGuide({ visible, onClose, steps = [] }) {
   useEffect(() => {
     if (!visible || !steps[stepIndex]) { setRect(null); return; }
     const node = steps[stepIndex].ref?.current;
+    let cancelled = false;
     if (node?.measureInWindow) {
-      const measure = (attempt = 0) => {
+      const measure = (attempt = 0, isConfirm = false) => {
         node.measureInWindow((x, y, width, height) => {
+          if (cancelled) return;
           if ((width === 0 || height === 0) && attempt < 4) {
             // Разметка ещё не устоялась — пробуем ещё раз чуть позже
             setTimeout(() => measure(attempt + 1), 150);
           } else {
             setRect({ x, y, width, height });
+            if (!isConfirm) {
+              // Контрольное повторное измерение чуть позже — на случай, если
+              // позиция ещё сдвинется уже после первого успешного замера
+              // (например, соседний элемент выше ещё не устоялся).
+              setTimeout(() => measure(attempt, true), 400);
+            }
           }
         });
       };
       const t = setTimeout(() => measure(), 200);
-      return () => clearTimeout(t);
+      return () => { cancelled = true; clearTimeout(t); };
     } else {
       setRect(null);
     }
