@@ -34,6 +34,7 @@ function fmtDate(str) {
 }
 
 export default function BookingsScreen({ navigation }) {
+  const { isLandscape } = useResponsive();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [expanded, setExpanded] = useState(null);
@@ -101,40 +102,58 @@ export default function BookingsScreen({ navigation }) {
         }
       />
 
-      <View style={styles.layout} onLayout={e => setContainerWidth(e.nativeEvent.layout.width)}>
+      <View style={[styles.layout, !isLandscape && { flexDirection: 'column' }]} onLayout={e => setContainerWidth(e.nativeEvent.layout.width)}>
 
-        {/* Левая панель */}
-        <View style={[styles.left, containerWidth > 0 && { width: Math.min(380, Math.max(260, containerWidth * 0.3)) }]}>
-          <Text style={styles.sectionLabel}>Фильтр</Text>
-          {FILTERS.map(f => {
-            const count = f.key === 'all' ? bookings.length : (counts[f.key] || 0);
-            return (
-              <Pressable
-                key={f.key}
-                style={[styles.filterBtn, filter === f.key && styles.filterBtnActive]}
-                onPress={() => setFilter(f.key)}
-              >
-                {filter === f.key && <View style={styles.filterBar} />}
-                <Text style={[styles.filterTxt, filter === f.key && styles.filterTxtActive]}>{f.label}</Text>
-                {count > 0 && (
-                  <View style={[styles.countBadge, f.key === 'pending' && count > 0 && styles.countBadgeNew]}>
-                    <Text style={[styles.countTxt, f.key === 'pending' && count > 0 && styles.countTxtNew]}>{count}</Text>
-                  </View>
-                )}
-              </Pressable>
-            );
-          })}
+        {isLandscape ? (
+          <View style={[styles.left, containerWidth > 0 && { width: Math.min(380, Math.max(260, containerWidth * 0.3)) }]}>
+            <Text style={styles.sectionLabel}>Фильтр</Text>
+            {FILTERS.map(f => {
+              const count = f.key === 'all' ? bookings.length : (counts[f.key] || 0);
+              return (
+                <Pressable
+                  key={f.key}
+                  style={[styles.filterBtn, filter === f.key && styles.filterBtnActive]}
+                  onPress={() => setFilter(f.key)}
+                >
+                  {filter === f.key && <View style={styles.filterBar} />}
+                  <Text style={[styles.filterTxt, filter === f.key && styles.filterTxtActive]}>{f.label}</Text>
+                  {count > 0 && (
+                    <View style={[styles.countBadge, f.key === 'pending' && count > 0 && styles.countBadgeNew]}>
+                      <Text style={[styles.countTxt, f.key === 'pending' && count > 0 && styles.countTxtNew]}>{count}</Text>
+                    </View>
+                  )}
+                </Pressable>
+              );
+            })}
 
-          <View style={styles.divider} />
+            <View style={styles.divider} />
 
-          {/* Подсказка */}
-          <View style={styles.hintCard}>
-            <Text style={styles.hintTitle}>Онлайн запись</Text>
-            <Text style={styles.hintTxt}>
-              Клиенты записываются через форму по QR-коду. Новые записи появляются здесь автоматически.
-            </Text>
+            {/* Подсказка */}
+            <View style={styles.hintCard}>
+              <Text style={styles.hintTitle}>Онлайн запись</Text>
+              <Text style={styles.hintTxt}>
+                Клиенты записываются через форму по QR-коду. Новые записи появляются здесь автоматически.
+              </Text>
+            </View>
           </View>
-        </View>
+        ) : (
+          <View style={styles.filterRowOuter}>
+            {FILTERS.map(f => {
+              const count = f.key === 'all' ? bookings.length : (counts[f.key] || 0);
+              return (
+                <Pressable
+                  key={f.key}
+                  style={[styles.filterChip, filter === f.key && styles.filterChipActive]}
+                  onPress={() => setFilter(f.key)}
+                >
+                  <Text style={[styles.filterChipTxt, filter === f.key && styles.filterChipTxtActive]}>
+                    {f.label}{count > 0 ? ` · ${count}` : ''}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
 
         {/* Правая панель */}
         <View style={styles.right}>
@@ -241,6 +260,11 @@ const styles = StyleSheet.create({
 
   // Левая панель
   left:   { width: 200, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface, padding: 14 },
+  filterRowOuter: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
+  filterChip: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 18, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
+  filterChipActive: { backgroundColor: 'rgba(240,160,80,0.14)', borderColor: colors.orange },
+  filterChipTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  filterChipTxtActive: { color: colors.orange },
   sectionLabel: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8 },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 12 },
 
