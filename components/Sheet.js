@@ -11,10 +11,17 @@ import { colors, fonts } from '../constants/theme';
 // анимацией выезда самой карточки. Снизу на узком/среднем экране, сбоку на
 // широком — решает useResponsive.
 export default function Sheet({ visible, onClose, onBack, title, children, sideWidth = 480 }) {
-  const { sheetPosition, width: screenWidth } = useResponsive();
+  const { sheetPosition, width: screenWidth, height: screenHeight } = useResponsive();
   const insets = useSafeAreaInsets();
   const isBottom = sheetPosition === 'bottom';
   const [shouldRender, setShouldRender] = useState(visible);
+  const [contentHeight, setContentHeight] = useState(null);
+
+  // Сбрасываем измерение при каждом новом открытии — иначе может
+  // ненадолго мелькнуть высота от предыдущего содержимого этого Sheet.
+  useEffect(() => {
+    if (visible) setContentHeight(null);
+  }, [visible]);
 
   const offscreen = isBottom ? 1200 : 600; // с запасом — реальный сдвиг всегда больше высоты/ширины самой карточки
   const translateAnim = useRef(new Animated.Value(offscreen)).current;
@@ -62,16 +69,23 @@ export default function Sheet({ visible, onClose, onBack, title, children, sideW
     ? { transform: [{ translateY: translateAnim }] }
     : { transform: [{ translateX: translateAnim }] };
 
+  // Пока высота ещё не измерена — используем прежний максимум как безопасный
+  // дефолт (и для расчёта зазора сверху, и как временный ориентир). Как
+  // только реальная высота содержимого измерена — используем именно её.
+  const bottomSheetHeight = contentHeight != null
+    ? Math.min(Math.max(contentHeight, 220), screenHeight * 0.9)
+    : screenHeight * 0.9;
+
   return (
     <RNModal transparent visible={shouldRender} animationType="none" onRequestClose={onClose} statusBarTranslucent={!isBottom}>
       <View style={[styles.overlay, isBottom ? { justifyContent: 'flex-end' } : { alignItems: 'flex-end' }]}>
         <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
         {/* Отдельная, независимая от общего фона зона закрытия — точно
-            повторяет размер реального зазора (10% сверху для нижней
-            карточки, полоса слева от боковой), не приблизительная. */}
+            повторяет размер реального зазора (столько же, сколько его
+            оставляет сама карточка сверху/слева — один и тот же расчёт). */}
         {isBottom ? (
           <Pressable
-            style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '10%' }}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, height: screenHeight - bottomSheetHeight }}
             onPress={onClose}
           />
         ) : (
@@ -85,27 +99,35 @@ export default function Sheet({ visible, onClose, onBack, title, children, sideW
           style={[
             isBottom ? styles.sheetBottom : styles.sheetSide,
             isBottom
-              ? { height: '90%', paddingBottom: Math.max(insets.bottom, 16) }
+              ? {
+                  ...(contentHeight != null ? { height: bottomSheetHeight } : {}),
+                  paddingBottom: Math.max(insets.bottom, 16),
+                }
               : { width: Math.min(sideWidth, screenWidth * 0.92), height: '100%', paddingTop: Math.max(insets.top, 20) },
             transformStyle,
           ]}
         >
-          <View {...pan.panHandlers}>
-            {isBottom && <View style={styles.grabber} />}
-            <View style={styles.header}>
-              {onBack && (
-                <Pressable onPress={onBack} hitSlop={12} style={styles.backBtn}>
-                  <Text style={styles.backTxt}>‹</Text>
+          <View
+            style={(!isBottom || contentHeight != null) ? { flex: 1 } : undefined}
+            onLayout={isBottom && contentHeight == null ? (e => setContentHeight(e.nativeEvent.layout.height)) : undefined}
+          >
+            <View {...pan.panHandlers}>
+              {isBottom && <View style={styles.grabber} />}
+              <View style={styles.header}>
+                {onBack && (
+                  <Pressable onPress={onBack} hitSlop={12} style={styles.backBtn}>
+                    <Text style={styles.backTxt}>‹</Text>
+                  </Pressable>
+                )}
+                {title ? <Text style={styles.title} numberOfLines={1}>{title}</Text> : <View style={{ flex: 1 }} />}
+                <Pressable onPress={onClose} hitSlop={12} style={styles.closeBtn}>
+                  <Text style={styles.closeTxt}>✕</Text>
                 </Pressable>
-              )}
-              {title ? <Text style={styles.title} numberOfLines={1}>{title}</Text> : <View style={{ flex: 1 }} />}
-              <Pressable onPress={onClose} hitSlop={12} style={styles.closeBtn}>
-                <Text style={styles.closeTxt}>✕</Text>
-              </Pressable>
+              </View>
             </View>
-          </View>
-          <View style={{ flex: 1 }}>
-            {children}
+            <View style={isBottom && contentHeight != null ? { flex: 1 } : (isBottom ? { opacity: 0 } : { flex: 1 })}>
+              {children}
+            </View>
           </View>
         </Animated.View>
       </View>
