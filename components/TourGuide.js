@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Pressable, Modal, Dimensions, StyleSheet } from 'react-native';
+import { View, Text, Pressable, Modal, useWindowDimensions, StyleSheet } from 'react-native';
 import { colors, fonts } from '../constants/theme';
 
 // Интерактивный пошаговый тур по разделу. Затемняет весь экран, кроме
@@ -53,8 +53,9 @@ export default function TourGuide({ visible, onClose, steps = [] }) {
 
   const step = steps[stepIndex];
   const isLast = stepIndex === steps.length - 1;
-  const { width: screenW, height: screenH } = Dimensions.get('window');
+  const { width: screenW, height: screenH } = useWindowDimensions();
   const pad = 8;
+  const overshoot = 60; // запас за пределы вычисленных границ экрана
 
   const r = rect ? {
     x: Math.max(0, rect.x - pad),
@@ -99,14 +100,18 @@ export default function TourGuide({ visible, onClose, steps = [] }) {
       <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
         {r ? (
           <>
-            <View style={[styles.dim, { top: 0, left: 0, right: 0, height: r.y }]} />
-            <View style={[styles.dim, { top: r.y + r.height, left: 0, right: 0, bottom: 0 }]} />
-            <View style={[styles.dim, { top: r.y, left: 0, width: r.x, height: r.height }]} />
-            <View style={[styles.dim, { top: r.y, left: r.x + r.width, right: 0, height: r.height }]} />
+            {/* Каждый прямоугольник затемнения выходит за пределы вычисленных
+                границ экрана на overshoot px — подстраховка на случай, если
+                реальная область отрисовки Modal чуть больше, чем сообщают
+                размеры окна (частый случай на Android с жестовой навигацией). */}
+            <View style={[styles.dim, { top: -overshoot, left: -overshoot, right: -overshoot, height: r.y + overshoot }]} />
+            <View style={[styles.dim, { top: r.y + r.height, left: -overshoot, right: -overshoot, height: screenH - (r.y + r.height) + overshoot }]} />
+            <View style={[styles.dim, { top: r.y, left: -overshoot, width: r.x + overshoot, height: r.height }]} />
+            <View style={[styles.dim, { top: r.y, left: r.x + r.width, width: screenW - (r.x + r.width) + overshoot, height: r.height }]} />
             <View pointerEvents="none" style={[styles.spotlightBorder, { top: r.y, left: r.x, width: r.width, height: r.height }]} />
           </>
         ) : (
-          <View style={[styles.dim, StyleSheet.absoluteFillObject]} />
+          <View style={[styles.dim, { top: -overshoot, left: -overshoot, right: -overshoot, bottom: -overshoot }]} />
         )}
 
         <View style={[styles.card, cardStyle]}>
