@@ -66,6 +66,12 @@ export default function Sheet({ visible, onClose, onBack, title, children, sideW
     <RNModal transparent visible={shouldRender} animationType="none" onRequestClose={onClose} statusBarTranslucent={!isBottom}>
       <View style={[styles.overlay, isBottom ? { justifyContent: 'flex-end' } : { alignItems: 'flex-end' }]}>
         <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+        {isBottom && (
+          <Pressable
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, height: Math.max(insets.top, 24) + 40 }}
+            onPress={onClose}
+          />
+        )}
 
         <Animated.View
           style={[
