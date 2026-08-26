@@ -34,9 +34,16 @@ export function useTourAnyActive() {
 }
 
 // Для подсвечиваемого участка экрана. Возвращает готовый набор стилей:
-// когда именно этот участок активен — яркая рамка; когда активен другой
-// участок (тур идёт, но не по этому месту) — лёгкое притухание; когда тур
-// не идёт вообще — ничего не меняется.
+// когда именно этот участок активен — яркая рамка со свечением; когда
+// активен другой участок (тур идёт, но не по этому месту) — лёгкое
+// притухание; когда тур не идёт вообще — ничего не меняется.
+//
+// Проверка родства — в ОБЕ стороны по иерархии ключа:
+//  - я потомок активного (например, я 'kassa.cart.client', активен
+//    'kassa.cart') — не тушусь, я внутри подсвеченного родителя;
+//  - я родитель активного (например, я 'kassa.cart', активен
+//    'kassa.cart.client') — тоже не тушусь, иначе моя прозрачность
+//    накрыла бы собой и потомка, который как раз должен быть ярким.
 //
 // Использование:
 //   const highlight = useTourHighlight('kassa.clientRow');
@@ -44,19 +51,28 @@ export function useTourAnyActive() {
 export function useTourHighlight(key) {
   const { activeKey } = useContext(TourActiveContext);
   const isActive = !!key && activeKey === key;
-  // Не притухаем, если активен сам этот элемент, ИЛИ активен один из его
-  // "потомков" по иерархии ключа (например, 'kassa.cart.client' — потомок
-  // 'kassa.cart') — иначе родитель притух бы вместе с собой и накрыл своей
-  // прозрачностью то, что внутри него как раз должно оставаться ярким.
-  const isDimmed = !!activeKey && activeKey !== key && !activeKey.startsWith(key + '.');
+  const isRelated = !!activeKey && !!key && (
+    activeKey === key ||
+    key.startsWith(activeKey + '.') ||
+    activeKey.startsWith(key + '.')
+  );
+  const isDimmed = !!activeKey && !isRelated;
   return {
     isActive,
     isDimmed,
-    // Скругление не переопределяем — у каждого элемента остаётся своё
-    // собственное (или его отсутствие), иначе цельная колонка во весь
-    // экран получает скруглённые углы там, где их быть не должно.
     style: isActive
-      ? { borderWidth: 2, borderColor: colors.orange, opacity: 1 }
+      ? {
+          borderWidth: 2,
+          borderColor: colors.orange,
+          borderRadius: 12,
+          opacity: 1,
+          // Небольшое свечение вокруг активной рамки
+          shadowColor: colors.orange,
+          shadowOpacity: 0.6,
+          shadowRadius: 10,
+          shadowOffset: { width: 0, height: 0 },
+          elevation: 8,
+        }
       : isDimmed
         ? { opacity: 0.25 }
         : null,
