@@ -2088,8 +2088,8 @@ const styles = StyleSheet.create({
   cartExpandedHandleTxt: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, marginTop: 2 },
 
   // ── Портрет: горизонтальные чипы категорий ──
-  catChipsRow: { borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
-  catChipsRowInner: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingVertical: 10 },
+  catChipsRow: { height: 60, flexGrow: 0, flexShrink: 0, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
+  catChipsRowInner: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10 },
   catChip: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 18, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
   catChipActive: { backgroundColor: 'rgba(240,160,80,0.14)', borderColor: colors.orange },
   catChipTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
