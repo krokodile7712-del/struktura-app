@@ -24,6 +24,8 @@ import { colors, fonts, spacing, anim } from '../constants/theme';
 export default function KassaScreen({ navigation, route }) {
   const loading2 = false; // placeholder
   const toast = useToast();
+  const { isLandscape } = useResponsive();
+  const [cartExpanded, setCartExpanded] = useState(false);
 
   // ── Интерактивный тур по разделу ──
   const [tourOpen, setTourOpen] = useState(false);
@@ -767,89 +769,12 @@ export default function KassaScreen({ navigation, route }) {
     );
   }
 
-  return (
-    <View style={{ flex: 1 }}>
-      <TopBar
-        title="Касса"
-        onBack={() => goBackSmart(navigation)}
-        navigation={navigation}
-        activeScreen="Kassa"
-        rightElement={
-          <Pressable onPress={() => setTourOpen(true)} hitSlop={10} style={styles.tourBtn}>
-            <Text style={styles.tourBtnTxt}>?</Text>
-          </Pressable>
-        }
-      />
+  // Полное содержимое панели корзины — переиспользуется и в альбомной
+  // (постоянная боковая колонка), и в портретной (полноэкранный разворот
+  // по тапу на свёрнутую полоску снизу).
+  const renderCartContent = () => (
+    <>
 
-      {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift', { returnTo: 'Kassa' })} />}
-      <Animated.View style={[styles.layout, { opacity: fadeAnim }]}>
-        {/* ── Вертикальная колонка категорий ── */}
-        <View style={[styles.catRail, catRailHighlight.style]}>
-          {groups.map(group => {
-            const isActive = activeCat === group && !searchQuery;
-            return (
-              <Pressable
-                key={group}
-                style={[styles.catRailItem, isActive && styles.catRailItemActive]}
-                onPress={() => switchCategory(group)}
-              >
-                <Text style={[styles.catRailLabel, isActive && styles.catRailLabelActive]} numberOfLines={3}>
-                  {group}
-                </Text>
-                {isActive ? <View style={styles.catRailBar} /> : null}
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {/* ── Центр: поиск + сетка товаров ── */}
-        <View style={[styles.left, productGridHighlight.style]}>
-          <View style={styles.searchWrap}>
-            <TextInput
-              style={styles.searchInput}
-              value={searchQuery}
-              onChangeText={v => { setSearchQuery(v); }}
-              placeholder="Поиск..."
-              placeholderTextColor={colors.muted}
-              clearButtonMode="while-editing"
-            />
-          </View>
-          <Animated.ScrollView contentContainerStyle={styles.menuGrid} style={{ opacity: gridFadeAnim }}>
-            {filteredProducts.map((item) => {
-              const { price, hasRange } = displayPrice(item);
-              const cartQty = cartQtyByProduct[item.id] || 0;
-              return (
-                <Pressable
-                  key={item.id}
-                  style={({ pressed }) => [
-                    styles.menuItem,
-                    pressed && styles.menuItemPressed,
-                    cartQty > 0 && styles.menuItemInCart,
-                  ]}
-                  onPress={() => openModal(item)}
-                >
-                  {cartQty > 0 && (
-                    <View style={styles.cartBadge}>
-                      <Text style={styles.cartBadgeText}>{cartQty}</Text>
-                    </View>
-                  )}
-                  <Text style={styles.menuItemName}>{item.name}</Text>
-                  {price > 0
-                    ? <Text style={styles.menuItemPrice}>{hasRange ? `от ${price}` : price} ₽</Text>
-                    : <Text style={styles.menuItemPriceNone}>нет цены</Text>
-                  }
-                </Pressable>
-              );
-            })}
-            {filteredProducts.length === 0 && (
-              <View style={{ padding: 32, alignItems: 'center' }}>
-                <Text style={{ color: colors.muted, fontFamily: fonts.familyRegular, fontSize: 14 }}>Ничего не найдено</Text>
-              </View>
-            )}
-          </Animated.ScrollView>
-        </View>
-
-        <View style={[styles.orderPanel, cartHighlight.style]}>
 
           {/* Слоты — только если 2+ отложенных */}
           {slots.length > 1 && (
@@ -1085,7 +1010,152 @@ export default function KassaScreen({ navigation, route }) {
             </Pressable>
 
           </View>
+        
+    </>
+  );
+
+  return (
+    <View style={{ flex: 1 }}>
+      <TopBar
+        title="Касса"
+        onBack={() => goBackSmart(navigation)}
+        navigation={navigation}
+        activeScreen="Kassa"
+        rightElement={
+          <Pressable onPress={() => setTourOpen(true)} hitSlop={10} style={styles.tourBtn}>
+            <Text style={styles.tourBtnTxt}>?</Text>
+          </Pressable>
+        }
+      />
+
+      {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift', { returnTo: 'Kassa' })} />}
+      <Animated.View style={[styles.layout, !isLandscape && { flexDirection: 'column' }, { opacity: fadeAnim }]}>
+        {isLandscape ? (
+          /* ── Вертикальная колонка категорий (альбомная) ── */
+          <View style={[styles.catRail, catRailHighlight.style]}>
+            {groups.map(group => {
+              const isActive = activeCat === group && !searchQuery;
+              return (
+                <Pressable
+                  key={group}
+                  style={[styles.catRailItem, isActive && styles.catRailItemActive]}
+                  onPress={() => switchCategory(group)}
+                >
+                  <Text style={[styles.catRailLabel, isActive && styles.catRailLabelActive]} numberOfLines={3}>
+                    {group}
+                  </Text>
+                  {isActive ? <View style={styles.catRailBar} /> : null}
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : (
+          /* ── Горизонтальные чипы категорий (портрет) ── */
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={[styles.catChipsRow, catRailHighlight.style]}
+            contentContainerStyle={styles.catChipsRowInner}
+          >
+            {groups.map(group => {
+              const isActive = activeCat === group && !searchQuery;
+              return (
+                <Pressable
+                  key={group}
+                  style={[styles.catChip, isActive && styles.catChipActive]}
+                  onPress={() => switchCategory(group)}
+                >
+                  <Text style={[styles.catChipTxt, isActive && styles.catChipTxtActive]}>{group}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        )}
+
+        {/* ── Центр: поиск + сетка товаров ── */}
+        <View style={[styles.left, productGridHighlight.style]}>
+          <View style={styles.searchWrap}>
+            <TextInput
+              style={styles.searchInput}
+              value={searchQuery}
+              onChangeText={v => { setSearchQuery(v); }}
+              placeholder="Поиск..."
+              placeholderTextColor={colors.muted}
+              clearButtonMode="while-editing"
+            />
+          </View>
+          <Animated.ScrollView contentContainerStyle={styles.menuGrid} style={{ opacity: gridFadeAnim }}>
+            {filteredProducts.map((item) => {
+              const { price, hasRange } = displayPrice(item);
+              const cartQty = cartQtyByProduct[item.id] || 0;
+              return (
+                <Pressable
+                  key={item.id}
+                  style={({ pressed }) => [
+                    styles.menuItem,
+                    pressed && styles.menuItemPressed,
+                    cartQty > 0 && styles.menuItemInCart,
+                  ]}
+                  onPress={() => openModal(item)}
+                >
+                  {cartQty > 0 && (
+                    <View style={styles.cartBadge}>
+                      <Text style={styles.cartBadgeText}>{cartQty}</Text>
+                    </View>
+                  )}
+                  <Text style={styles.menuItemName}>{item.name}</Text>
+                  {price > 0
+                    ? <Text style={styles.menuItemPrice}>{hasRange ? `от ${price}` : price} ₽</Text>
+                    : <Text style={styles.menuItemPriceNone}>нет цены</Text>
+                  }
+                </Pressable>
+              );
+            })}
+            {filteredProducts.length === 0 && (
+              <View style={{ padding: 32, alignItems: 'center' }}>
+                <Text style={{ color: colors.muted, fontFamily: fonts.familyRegular, fontSize: 14 }}>Ничего не найдено</Text>
+              </View>
+            )}
+          </Animated.ScrollView>
         </View>
+
+        {isLandscape ? (
+          <View style={[styles.orderPanel, cartHighlight.style]}>
+            {renderCartContent()}
+          </View>
+        ) : (
+          <>
+            {!cartExpanded ? (
+              /* Свёрнутая полоска снизу — итог всегда виден, оплата доступна
+                 сразу, без разворота */
+              <Pressable style={styles.cartStripCollapsed} onPress={() => setCartExpanded(true)}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.cartStripCount}>
+                    {order.reduce((s,i)=>s+(i.quantity||1),0)} поз.
+                  </Text>
+                  <Text style={styles.cartStripTotal}>{total} ₽</Text>
+                </View>
+                <Text style={styles.cartStripHint}>Корзина ▲</Text>
+                <Pressable
+                  style={[styles.cartStripPayBtn, order.length===0 && styles.v2PayOff]}
+                  onPress={(e) => { e.stopPropagation?.(); order.length>0 && openPrePay(); }}
+                  disabled={order.length===0}
+                >
+                  <Text style={styles.cartStripPayTxt}>К оплате</Text>
+                </Pressable>
+              </Pressable>
+            ) : (
+              /* Полноэкранный разворот корзины */
+              <View style={styles.cartExpandedRoot}>
+                <Pressable style={styles.cartExpandedHandleRow} onPress={() => setCartExpanded(false)}>
+                  <View style={styles.cartExpandedHandle} />
+                  <Text style={styles.cartExpandedHandleTxt}>Свернуть ▼</Text>
+                </Pressable>
+                {renderCartContent()}
+              </View>
+            )}
+          </>
+        )}
       </Animated.View>
 
       {/* Расход по факту — база + количество каждого материала вводится на месте */}
@@ -1998,6 +2068,32 @@ const styles = StyleSheet.create({
   v2Pay:        { paddingVertical: 16, borderRadius: 16, backgroundColor: colors.orange, alignItems: 'center' },
   v2PayOff:     { backgroundColor: 'rgba(64,60,55,0.2)' },
   v2PayTxt:     { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: '#fff', letterSpacing: 0.3 },
+
+  // ── Портрет: свёрнутая полоска корзины снизу ──
+  cartStripCollapsed: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 12, paddingHorizontal: 16,
+    backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border,
+  },
+  cartStripCount: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
+  cartStripTotal: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, marginTop: 1 },
+  cartStripHint:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
+  cartStripPayBtn: { paddingVertical: 12, paddingHorizontal: 20, borderRadius: 12, backgroundColor: colors.orange },
+  cartStripPayTxt: { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: '#fff' },
+
+  // ── Портрет: полноэкранный разворот корзины ──
+  cartExpandedRoot: { flex: 1, backgroundColor: colors.bg },
+  cartExpandedHandleRow: { alignItems: 'center', paddingVertical: 10, gap: 4 },
+  cartExpandedHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border },
+  cartExpandedHandleTxt: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, marginTop: 2 },
+
+  // ── Портрет: горизонтальные чипы категорий ──
+  catChipsRow: { borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
+  catChipsRowInner: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingVertical: 10 },
+  catChip: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 18, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
+  catChipActive: { backgroundColor: 'rgba(240,160,80,0.14)', borderColor: colors.orange },
+  catChipTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  catChipTxtActive: { color: colors.orange },
 
   orderPanel: { width: '33%', minWidth: 240, borderLeftWidth: 1, borderLeftColor: colors.border, backgroundColor: colors.surface },
   orderHeader: { paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
