@@ -10,7 +10,7 @@ import { colors, fonts } from '../constants/theme';
 // без отдельного анимированного слоя затемнения) — только с добавленной
 // анимацией выезда самой карточки. Снизу на узком/среднем экране, сбоку на
 // широком — решает useResponsive.
-export default function Sheet({ visible, onClose, onBack, title, children, sideWidth = 480 }) {
+export default function Sheet({ visible, onClose, onBack, title, children, sideWidth = 480, fullHeight = false }) {
   const { sheetPosition, width: screenWidth, height: screenHeight } = useResponsive();
   const insets = useSafeAreaInsets();
   const isBottom = sheetPosition === 'bottom';
@@ -72,9 +72,14 @@ export default function Sheet({ visible, onClose, onBack, title, children, sideW
   // Пока высота ещё не измерена — используем прежний максимум как безопасный
   // дефолт (и для расчёта зазора сверху, и как временный ориентир). Как
   // только реальная высота содержимого измерена — используем именно её.
-  const bottomSheetHeight = contentHeight != null
-    ? Math.min(Math.max(contentHeight, 220), screenHeight * 0.9)
-    : screenHeight * 0.9;
+  // fullHeight (например, список с flex:1 внутри) — минуем измерение совсем,
+  // оно бы посчитало flex:1-содержимое пустым (нет доступного места на
+  // момент замера) и заперло карточку на нулевой высоте списка.
+  const bottomSheetHeight = fullHeight
+    ? screenHeight * 0.9
+    : contentHeight != null
+      ? Math.min(Math.max(contentHeight, 220), screenHeight * 0.9)
+      : screenHeight * 0.9;
 
   return (
     <RNModal transparent visible={shouldRender} animationType="none" onRequestClose={onClose} statusBarTranslucent={!isBottom}>
@@ -100,7 +105,7 @@ export default function Sheet({ visible, onClose, onBack, title, children, sideW
             isBottom ? styles.sheetBottom : styles.sheetSide,
             isBottom
               ? {
-                  ...(contentHeight != null ? { height: bottomSheetHeight } : {}),
+                  ...(fullHeight || contentHeight != null ? { height: bottomSheetHeight } : {}),
                   paddingBottom: Math.max(insets.bottom, 16),
                 }
               : { width: Math.min(sideWidth, screenWidth * 0.92), height: '100%', paddingTop: Math.max(insets.top, 20) },
@@ -108,8 +113,8 @@ export default function Sheet({ visible, onClose, onBack, title, children, sideW
           ]}
         >
           <View
-            style={(!isBottom || contentHeight != null) ? { flex: 1 } : undefined}
-            onLayout={isBottom && contentHeight == null ? (e => setContentHeight(e.nativeEvent.layout.height)) : undefined}
+            style={(!isBottom || fullHeight || contentHeight != null) ? { flex: 1 } : undefined}
+            onLayout={isBottom && !fullHeight && contentHeight == null ? (e => setContentHeight(e.nativeEvent.layout.height)) : undefined}
           >
             <View {...pan.panHandlers}>
               {isBottom && <View style={styles.grabber} />}
@@ -125,7 +130,7 @@ export default function Sheet({ visible, onClose, onBack, title, children, sideW
                 </Pressable>
               </View>
             </View>
-            <View style={isBottom && contentHeight != null ? { flex: 1 } : (isBottom ? { opacity: 0 } : { flex: 1 })}>
+            <View style={(isBottom && (fullHeight || contentHeight != null)) ? { flex: 1 } : (isBottom ? { opacity: 0 } : { flex: 1 })}>
               {children}
             </View>
           </View>
