@@ -215,6 +215,11 @@ export default function SalesScreen({ navigation }) {
               <Text style={styles.filtersBtnTxt}>⚙ Фильтры</Text>
               {(period !== 'today' || payFilter !== 'all') && <View style={styles.filtersBtnDot} />}
             </Pressable>
+            {(period !== 'today' || payFilter !== 'all') && (
+              <Pressable style={styles.filtersClearBtn} onPress={() => { setPeriod('today'); setPayFilter('all'); }} hitSlop={8}>
+                <Text style={styles.filtersClearBtnTxt}>✕</Text>
+              </Pressable>
+            )}
           </View>
 
           {/* Список заказов */}
@@ -507,6 +512,8 @@ const styles = StyleSheet.create({
   filtersBtn:  { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 9, paddingHorizontal: 12, borderRadius: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
   filtersBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
   filtersBtnDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.orange },
+  filtersClearBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  filtersClearBtnTxt: { fontSize: 13, color: colors.muted, fontWeight: '600' },
   filtersSheetLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },
   filtersSheetRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 13, paddingHorizontal: 4, borderRadius: 10 },
   filtersSheetRowActive: { backgroundColor: 'rgba(240,160,80,0.08)' },
