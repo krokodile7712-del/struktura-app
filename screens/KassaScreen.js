@@ -110,6 +110,7 @@ export default function KassaScreen({ navigation, route }) {
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   // Редактирование позиции корзины
   const [editingCartItemId, setEditingCartItemId] = useState(null);
+  const [editingVariableItemId, setEditingVariableItemId] = useState(null);
   // Развёрнутая позиция (модификаторы)
   const [expandedCartId, setExpandedCartId] = useState(null);
   // Заметка к позиции корзины
@@ -340,10 +341,13 @@ export default function KassaScreen({ navigation, route }) {
     setOpenGroups({});
   };
 
-  // Объединяет дубли (одинаковый товар + вариант + модификаторы) вместо новой строки
+  // Объединяет дубли (одинаковый товар + вариант + модификаторы) вместо новой
+  // строки — кроме позиций с переменным расходом (расход по факту): у них
+  // каждое добавление может иметь разные введённые количества ингредиентов,
+  // объединять такие позиции в одну строку нельзя.
   const addToCart = (newItem) => {
     setOrder(prev => {
-      const dupIdx = prev.findIndex(it =>
+      const dupIdx = newItem.variableDeductions ? -1 : prev.findIndex(it =>
         it.product_id === newItem.product_id &&
         it.variant_id === newItem.variant_id &&
         JSON.stringify(it.modifiers) === JSON.stringify(newItem.modifiers)
@@ -374,6 +378,15 @@ export default function KassaScreen({ navigation, route }) {
   const editCartItemMods = (item) => {
     const product = allProducts.find(p => p.id === item.product_id);
     if (!product) return;
+
+    // Позиция с переменным расходом (расход по факту) — открываем то же
+    // окно, что и при добавлении, с уже введёнными значениями, а не
+    // обычное редактирование модификаторов.
+    if (item.variableDeductions) {
+      const variants = getProductVariants(product.id).filter(v => v.active);
+      const variant = variants.find(v => v.id === item.variant_id);
+      if (variant) { openVariableDeductSheet(product, variant, item); return; }
+    }
 
     const variants = getProductVariants(product.id).filter(v => v.active);
     const groups   = getProductModifierGroups(product.id);
@@ -458,8 +471,10 @@ export default function KassaScreen({ navigation, route }) {
 
   // Расход по факту — открывает окно ввода количества для товара/услуги,
   // у которой заранее не задан фиксированный расход (база + сколько
-  // материала ушло именно на этот заказ — расход у каждого клиента разный)
-  const openVariableDeductSheet = (product, variant) => {
+  // материала ушло именно на этот заказ — расход у каждого клиента разный).
+  // Если передан existingItem — это редактирование уже добавленной в
+  // корзину позиции, поля предзаполняются её сохранёнными значениями.
+  const openVariableDeductSheet = (product, variant, existingItem) => {
     let ingNames = [];
     try {
       const card = getCostCardForVariant(variant.id);
@@ -467,13 +482,15 @@ export default function KassaScreen({ navigation, route }) {
     } catch (_) {}
     let stock = [];
     try { stock = getAllStock(); } catch (_) {}
+    const existingByName = {};
+    (existingItem?.variableDeductions || []).forEach(d => { existingByName[d.name] = d.amount; });
     const ings = ingNames.map(name => {
       const stockRow = stock.find(s => (s.name || '').toLowerCase() === name.toLowerCase());
       return {
         name,
         unit: stockRow?.unit || '',
         sellPrice: parseFloat(stockRow?.sell_price) || 0,
-        qty: '',
+        qty: existingByName[name] != null ? String(existingByName[name]) : '',
       };
     });
     setVariableItem({
@@ -481,6 +498,7 @@ export default function KassaScreen({ navigation, route }) {
       basePrice: String(variant.price || 0),
       ings,
     });
+    setEditingVariableItemId(existingItem?.id || null);
   };
 
   const variableTotal = () => {
@@ -496,17 +514,27 @@ export default function KassaScreen({ navigation, route }) {
     const variableDeductions = ings
       .filter(i => parseFloat(i.qty) > 0)
       .map(i => ({ name: i.name, amount: parseFloat(i.qty) }));
-    addToCart({
-      id: Date.now() + Math.random(),
-      product_id: product.id,
-      variant_id: variant.id,
-      name: product.name,
-      size: variant.label || '',
-      price: variableTotal(),
-      modifiers: [],
-      variableDeductions,
-    });
+
+    if (editingVariableItemId) {
+      // Редактирование уже добавленной позиции — обновляем на месте
+      setOrder(prev => prev.map(it => it.id === editingVariableItemId
+        ? { ...it, price: variableTotal(), variableDeductions }
+        : it
+      ));
+    } else {
+      addToCart({
+        id: Date.now() + Math.random(),
+        product_id: product.id,
+        variant_id: variant.id,
+        name: product.name,
+        size: variant.label || '',
+        price: variableTotal(),
+        modifiers: [],
+        variableDeductions,
+      });
+    }
     setVariableItem(null);
+    setEditingVariableItemId(null);
   };
 
   const addDirectToOrder = (product, variant) => {
@@ -1043,7 +1071,7 @@ export default function KassaScreen({ navigation, route }) {
       {/* Расход по факту — база + количество каждого материала вводится на месте */}
       <Sheet
         visible={!!variableItem}
-        onClose={() => setVariableItem(null)}
+        onClose={() => { setVariableItem(null); setEditingVariableItemId(null); }}
         title={variableItem?.product?.name}
       >
         {variableItem && (
