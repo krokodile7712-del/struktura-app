@@ -212,35 +212,40 @@ export default function SalesScreen({ navigation }) {
             />
           </View>
 
-          {/* Чипы периода и оплаты — видны сразу, без захода в фильтры */}
-          <View style={styles.periodRowOuter}>
-            {PERIODS.map(p => (
-              <Pressable
-                key={p.key}
-                style={[styles.periodChip, period === p.key && styles.periodChipActive]}
-                onPress={() => p.key === 'custom' ? setPicker('range') : setPeriod(p.key)}
-              >
-                <Text style={[styles.periodChipTxt, period === p.key && styles.periodChipTxtActive]}>
-                  {p.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-          <View style={styles.periodRowOuter}>
-            {['all','cash','card','returns'].map(key => {
-              const labels = { all: 'Все', cash: 'Наличные', card: 'Карта', returns: 'Возвраты' };
-              return (
+          {/* Чипы периода и оплаты — единая панель фильтров, видны сразу,
+              без захода в отдельные настройки */}
+          <View style={styles.filtersPanel}>
+            <Text style={styles.filtersPanelLabel}>Период</Text>
+            <View style={styles.periodRowOuter}>
+              {PERIODS.map(p => (
                 <Pressable
-                  key={key}
-                  style={[styles.periodChip, payFilter === key && styles.periodChipActive]}
-                  onPress={() => setPayFilter(key)}
+                  key={p.key}
+                  style={[styles.periodChip, period === p.key && styles.periodChipActive]}
+                  onPress={() => p.key === 'custom' ? setPicker('range') : setPeriod(p.key)}
                 >
-                  <Text style={[styles.periodChipTxt, payFilter === key && styles.periodChipTxtActive]}>
-                    {labels[key]}
+                  <Text style={[styles.periodChipTxt, period === p.key && styles.periodChipTxtActive]}>
+                    {p.label}
                   </Text>
                 </Pressable>
-              );
-            })}
+              ))}
+            </View>
+            <Text style={styles.filtersPanelLabel}>Оплата</Text>
+            <View style={styles.periodRowOuter}>
+              {['all','cash','card','returns'].map(key => {
+                const labels = { all: 'Все', cash: 'Наличные', card: 'Карта', returns: 'Возвраты' };
+                return (
+                  <Pressable
+                    key={key}
+                    style={[styles.periodChip, payFilter === key && styles.periodChipActive]}
+                    onPress={() => setPayFilter(key)}
+                  >
+                    <Text style={[styles.periodChipTxt, payFilter === key && styles.periodChipTxtActive]}>
+                      {labels[key]}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
           </View>
 
           {/* Список заказов */}
@@ -493,7 +498,9 @@ const styles = StyleSheet.create({
 
   // Правая панель
   searchWrap:  { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, paddingBottom: 6 },
-  periodRowOuter: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingVertical: 6 },
+  filtersPanel: { backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 6 },
+  filtersPanelLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, paddingHorizontal: 12, marginTop: 8, marginBottom: 2 },
+  periodRowOuter: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingVertical: 4 },
 
   // ── Сводка — общие строки (переиспользуются в боковой панели и полоске) ──
   catRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 9 },
