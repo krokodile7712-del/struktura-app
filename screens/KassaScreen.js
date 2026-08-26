@@ -983,29 +983,27 @@ export default function KassaScreen({ navigation, route }) {
           <View style={styles.v2Footer}>
 
             {/* Клиент */}
-            <View style={[styles.v2Client, clientRowHighlight.style]}>
-              {forClient ? (
-                <>
-                  <Pressable
-                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}
-                    onPress={() => navigation.navigate('ClientCard', { clientId: forClient.id })}
-                  >
-                    <View style={styles.v2ClientDot} />
-                    <Text style={styles.v2ClientName} numberOfLines={1}>{forClient.fio}</Text>
-                    {loyaltyModel === 'points' && (
-                      <Text style={styles.v2ClientBal}>★ {forClient.balance||0}</Text>
-                    )}
-                  </Pressable>
-                  <Pressable onPress={() => updateSlot({ forClient: null })} hitSlop={10}>
-                    <Text style={styles.v2ClientX}>✕</Text>
-                  </Pressable>
-                </>
-              ) : (
-                <Pressable style={{ flex: 1, alignSelf: 'stretch', justifyContent: 'center' }} onPress={() => setClientPickerOpen(true)}>
-                  <Text style={styles.v2ClientAdd}>👤 Добавить клиента</Text>
+            {forClient ? (
+              <View style={[styles.v2Client, clientRowHighlight.style]}>
+                <Pressable
+                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+                  onPress={() => navigation.navigate('ClientCard', { clientId: forClient.id })}
+                >
+                  <View style={styles.v2ClientDot} />
+                  <Text style={styles.v2ClientName} numberOfLines={1}>{forClient.fio}</Text>
+                  {loyaltyModel === 'points' && (
+                    <Text style={styles.v2ClientBal}>★ {forClient.balance||0}</Text>
+                  )}
                 </Pressable>
-              )}
-            </View>
+                <Pressable onPress={() => updateSlot({ forClient: null })} hitSlop={10}>
+                  <Text style={styles.v2ClientX}>✕</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable style={[styles.v2Client, clientRowHighlight.style]} onPress={() => setClientPickerOpen(true)}>
+                <Text style={styles.v2ClientAdd}>👤 Добавить клиента</Text>
+              </Pressable>
+            )}
 
             {/* Скидки если есть (авто: личная/лояльность/баллы) */}
             {(discountAmount > 0 || pointsDiscount > 0) && (
@@ -1031,11 +1029,9 @@ export default function KassaScreen({ navigation, route }) {
                   </Pressable>
                 </View>
               ) : (
-                <View style={[styles.v2Client, discountRowHighlight.style]}>
-                  <Pressable style={{ flex: 1, alignSelf: 'stretch', justifyContent: 'center' }} onPress={() => setDiscountDropOpen(true)}>
-                    <Text style={styles.v2ClientAdd}>🏷 Добавить скидку</Text>
-                  </Pressable>
-                </View>
+                <Pressable style={[styles.v2Client, discountRowHighlight.style]} onPress={() => setDiscountDropOpen(true)}>
+                  <Text style={styles.v2ClientAdd}>🏷 Добавить скидку</Text>
+                </Pressable>
               )
             )}
 
