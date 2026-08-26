@@ -246,6 +246,17 @@ export default function SettingsScreen({ navigation, route }) {
   };
 
   // ── Скидки ──
+  const [productDiscountPct, setProductDiscountPct] = useState('');
+  useEffect(() => {
+    if (profile?.product_discount_pct != null) setProductDiscountPct(String(profile.product_discount_pct || ''));
+  }, [profile?.product_discount_pct]);
+  const saveProductDiscountPct = () => {
+    try {
+      const db = getDb();
+      const row = db.getFirstSync('SELECT id FROM business_profile ORDER BY id LIMIT 1');
+      if (row) db.runSync('UPDATE business_profile SET product_discount_pct = ? WHERE id = ?', [parseFloat(productDiscountPct) || 0, row.id]);
+    } catch (e) { console.error('[Скидка на товары]', e); }
+  };
   const saveDiscounts = (list) => {
     try { setSetting('discounts', JSON.stringify(list)); setDiscounts(list); toast.show('Скидки сохранены ✓', 'info'); } catch (e) { console.error(e); toast.show('Ошибка', 'warn'); }
   };
@@ -853,6 +864,32 @@ export default function SettingsScreen({ navigation, route }) {
             ))}
           </View>
         )}
+
+        {/* ── Скидка на товары ── */}
+        <View style={[styles.menuTopBarSticky, { marginTop: 24 }]}>
+          <Text style={styles.menuTopTitle}>Скидка на товары</Text>
+        </View>
+        <Text style={[styles.menuItemSub, { marginBottom: 10 }]}>
+          Общий процент — применяется автоматически к товарам с включённым переключателем «Скидка на товар» в их карточке, независимо от скидки на заказ
+        </Text>
+        <View style={styles.menuCard}>
+          <View style={[styles.menuRow, { paddingVertical: 4 }]}>
+            <Text style={styles.menuItemName}>Процент скидки</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <TextInput
+                color={colors.text}
+                style={[styles.input, { width: 70, textAlign: 'right', paddingVertical: 8 }]}
+                value={productDiscountPct}
+                onChangeText={setProductDiscountPct}
+                onEndEditing={saveProductDiscountPct}
+                keyboardType="numeric"
+                placeholder="0"
+                placeholderTextColor={colors.muted}
+              />
+              <Text style={styles.menuItemName}>%</Text>
+            </View>
+          </View>
+        </View>
 
         {/* Зоны (если включены) */}
         {modules.zones === true && zones.length > 0 && (

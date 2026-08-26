@@ -264,6 +264,7 @@ export function initDatabase() {
     `ALTER TABLE products       ADD COLUMN sku        TEXT    DEFAULT ''`,
     `ALTER TABLE products       ADD COLUMN photo_uri  TEXT    DEFAULT ''`,
     `ALTER TABLE products       ADD COLUMN price      REAL    DEFAULT 0`,
+    `ALTER TABLE products       ADD COLUMN discount_eligible INTEGER DEFAULT 0`,
     `ALTER TABLE orders         ADD COLUMN synced     INTEGER DEFAULT 0`,
     `ALTER TABLE expenses       ADD COLUMN synced     INTEGER DEFAULT 0`,
     `ALTER TABLE clients        ADD COLUMN synced     INTEGER DEFAULT 0`,
@@ -296,6 +297,7 @@ export function initDatabase() {
     // Лого бизнеса в base64
     `ALTER TABLE business_profile ADD COLUMN logo_base64 TEXT DEFAULT ''`,
     `ALTER TABLE business_profile ADD COLUMN tours_seen TEXT DEFAULT '{}'`,
+    `ALTER TABLE business_profile ADD COLUMN product_discount_pct REAL DEFAULT 0`,
     // Исторический максимум остатка для шкалы склада
     `ALTER TABLE stock ADD COLUMN max_ostatok REAL DEFAULT 0`,
     // Себестоимость и цена продажи складской позиции

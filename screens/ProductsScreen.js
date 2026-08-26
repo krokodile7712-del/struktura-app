@@ -49,6 +49,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
   const [name, setName]           = useState(product?.name || '');
   const [category, setCategory]   = useState(product?.category || ((categories || [])[0] || ''));
   const [active, setActive]       = useState(product?.active !== 0);
+  const [discountEligible, setDiscountEligible] = useState(!!product?.discount_eligible);
   const [vars, setVars]           = useState(() => {
     try {
       const v = isNew ? [] : getProductVariants(product.id);
@@ -82,7 +83,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
 
   const handleSave = () => {
     if (!name.trim()) { Alert.alert('Введите название товара'); return; }
-    onSave({ name: name.trim(), category, active, vars, selGroups });
+    onSave({ name: name.trim(), category, active, vars, selGroups, discountEligible });
   };
 
   const totalCost = (v) => { const ings = Array.isArray(v?.ings) ? v.ings : []; return ings.reduce((s, ing) => s + (parseFloat(ing?.amount)||0) * (parseFloat(ing?.price_per_unit)||0), 0); };
@@ -140,6 +141,15 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
           placeholder={categories.length > 0 ? 'Или впишите новую категорию' : 'Название категории (например, Напитки)'}
           placeholderTextColor={colors.muted}
         />
+
+        {/* Скидка на товар */}
+        <View style={styles.deductQuestionRow}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+            <Text style={styles.deductQuestionTxt}>Скидка на товар</Text>
+            <InfoTip title="Скидка на товар" text="Общий процент скидки (настраивается один раз для всех товаров в Настройках → Скидки) будет применяться к этому товару автоматически при каждой продаже — независимо от скидки на весь заказ." />
+          </View>
+          <Toggle value={discountEligible} onValueChange={setDiscountEligible} size="sm" />
+        </View>
 
         {/* Варианты и цены */}
         <View style={styles.labelRow}>
@@ -522,9 +532,11 @@ export default function ProductsScreen({ navigation, route }) {
       let pid = selected?.id;
       if (!pid) {
         pid = insertProduct({ name: data.name, category: data.category, price: parseFloat(data.vars[0]?.price)||0, active: 1 });
+        const db0 = getDb();
+        db0.runSync(`UPDATE products SET discount_eligible=? WHERE id=?`, [data.discountEligible ? 1 : 0, pid]);
       } else {
         const db = getDb();
-        db.runSync(`UPDATE products SET name=?, category=?, active=?, price=? WHERE id=?`, [data.name, data.category, data.active ? 1 : 0, parseFloat(data.vars[0]?.price)||0, pid]);
+        db.runSync(`UPDATE products SET name=?, category=?, active=?, price=?, discount_eligible=? WHERE id=?`, [data.name, data.category, data.active ? 1 : 0, parseFloat(data.vars[0]?.price)||0, data.discountEligible ? 1 : 0, pid]);
       }
       upsertProductVariants(pid, data.vars.map(v => ({ id: v.id, label: v.label, size: v.label, price: parseFloat(v.price)||0, deduction_mode: v.deduction_mode === 'variable' ? 'variable' : 'fixed', unit: v.unit || 'шт' })));
       // Техкарты
@@ -1229,6 +1241,7 @@ const styles = StyleSheet.create({
   chevron:    { fontSize: 16, color: colors.muted, transform: [{ rotate: '90deg' }] },
   chevronOpen:{ transform: [{ rotate: '-90deg' }] },
   deductQuestion: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 12, borderTopWidth: 1, borderTopColor: colors.border },
+  deductQuestionRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, marginTop: 4 },
   deductQuestionTxt: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, flex: 1 },
 
   techBody:   { padding: 12, borderTopWidth: 1, borderTopColor: colors.border },

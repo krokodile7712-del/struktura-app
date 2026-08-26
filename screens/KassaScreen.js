@@ -63,6 +63,7 @@ export default function KassaScreen({ navigation, route }) {
   const [shiftsEnabled, setShiftsEnabled] = useState(true);
   const [terms, setTerms] = useState({ item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' });
   const [loyaltyModel, setLoyaltyModel] = useState('points');
+  const [productDiscountPct, setProductDiscountPct] = useState(0);
   const [loyaltyConfig, setLoyaltyConfig] = useState({});
   const [payMethods, setPayMethods] = useState([]);
   // Поиск
@@ -228,6 +229,7 @@ export default function KassaScreen({ navigation, route }) {
       const lc = getLoyaltyConfig();
       setLoyaltyModel(lc.model);
       setLoyaltyConfig(lc.config);
+      setProductDiscountPct(parseFloat(profile?.product_discount_pct) || 0);
     } catch (e) { console.error(e); }
   }, []));
 
@@ -539,18 +541,34 @@ export default function KassaScreen({ navigation, route }) {
     setEditingVariableItemId(null);
   };
 
+  // Скидка на товар — если у товара включён переключатель "Скидка на товар"
+  // и в Настройках задан общий процент, применяем её автоматически.
+  // Возвращает цену со скидкой и сам процент (для явного показа в строке).
+  const applyProductDiscount = (product, basePrice) => {
+    if (product?.discount_eligible && productDiscountPct > 0) {
+      return {
+        price: Math.round(basePrice * (1 - productDiscountPct / 100)),
+        discountPct: productDiscountPct,
+      };
+    }
+    return { price: basePrice, discountPct: 0 };
+  };
+
   const addDirectToOrder = (product, variant) => {
     if (variant?.deduction_mode === 'variable') {
       openVariableDeductSheet(product, variant);
       return;
     }
+    const basePrice = variant ? variant.price : (product.price || 0);
+    const { price, discountPct } = applyProductDiscount(product, basePrice);
     addToCart({
       id: Date.now() + Math.random(),
       product_id: product.id,
       variant_id: variant?.id || null,
       name: product.name,
       size: variant?.label || '',
-      price: variant ? variant.price : (product.price || 0),
+      price,
+      discountPct,
       modifiers: [],
     });
   };
@@ -566,6 +584,7 @@ export default function KassaScreen({ navigation, route }) {
     }
     const mods = buildSelectedModifiers(modalGroups, selModifiers);
     const unitPrice = modalPrice();
+    const { price: discountedPrice, discountPct } = applyProductDiscount(modalItem, unitPrice);
 
     if (!editingCartItemId && variant?.deduction_mode === 'variable') {
       closeModal();
@@ -576,7 +595,7 @@ export default function KassaScreen({ navigation, route }) {
     if (editingCartItemId) {
       setOrder(prev => prev.map(item =>
         item.id === editingCartItemId
-          ? { ...item, variant_id: variant?.id || null, size: variant?.label || '', price: unitPrice, modifiers: mods }
+          ? { ...item, variant_id: variant?.id || null, size: variant?.label || '', price: discountedPrice, discountPct, modifiers: mods }
           : item
       ));
       setEditingCartItemId(null);
@@ -587,7 +606,8 @@ export default function KassaScreen({ navigation, route }) {
         variant_id: variant?.id || null,
         name: modalItem.name,
         size: variant?.label || '',
-        price: unitPrice,
+        price: discountedPrice,
+        discountPct,
         modifiers: mods,
         quantity: modalQty,
       });
@@ -914,9 +934,14 @@ export default function KassaScreen({ navigation, route }) {
                   >
                     {/* Строка: название · − qty + · цена */}
                     <View style={styles.v2ItemRow}>
-                      <Text style={styles.v2ItemName} numberOfLines={2}>
-                        {item.name}{item.size ? ` ${item.size}` : ''}
-                      </Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.v2ItemName} numberOfLines={2}>
+                          {item.name}{item.size ? ` ${item.size}` : ''}
+                        </Text>
+                        {item.discountPct > 0 && (
+                          <Text style={styles.v2ItemDiscount}>🏷 −{item.discountPct}%</Text>
+                        )}
+                      </View>
                       <View style={styles.v2Qty}>
                         <Pressable
                           style={styles.v2QtyBtn}
@@ -1946,6 +1971,7 @@ const styles = StyleSheet.create({
   v2Item:       { paddingVertical: 12, paddingHorizontal: 14, backgroundColor: colors.surface2, borderRadius: 12 },
   v2ItemRow:    { flexDirection: 'row', alignItems: 'center', gap: 8 },
   v2ItemName:   { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, flex: 1, lineHeight: 17 },
+  v2ItemDiscount: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.orange, marginTop: 2 },
   v2Qty:        { flexDirection: 'row', alignItems: 'center', gap: 6 },
   v2QtyBtn:     { width: 26, height: 26, borderRadius: 8, backgroundColor: 'rgba(64,60,55,0.22)', alignItems: 'center', justifyContent: 'center' },
   v2QtyBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text, lineHeight: 19 },
