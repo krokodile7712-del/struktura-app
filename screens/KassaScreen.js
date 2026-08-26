@@ -1124,36 +1124,31 @@ export default function KassaScreen({ navigation, route }) {
           </View>
         ) : (
           <>
-            {!cartExpanded ? (
-              /* Свёрнутая полоска снизу — итог всегда виден, оплата доступна
-                 сразу, без разворота. Строки с товарами — только в
-                 развёрнутом виде, не здесь */
-              <Pressable style={styles.cartStripCollapsed} onPress={() => setCartExpanded(true)}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.cartStripCount}>
-                    {order.reduce((s,i)=>s+(i.quantity||1),0)} поз.
-                  </Text>
-                  <Text style={styles.cartStripTotal}>{total} ₽</Text>
-                </View>
-                <Text style={styles.cartStripHint}>Корзина ▲</Text>
-                <Pressable
-                  style={[styles.cartStripPayBtn, order.length===0 && styles.v2PayOff]}
-                  onPress={(e) => { e.stopPropagation?.(); order.length>0 && openPrePay(); }}
-                  disabled={order.length===0}
-                >
-                  <Text style={styles.cartStripPayTxt}>К оплате</Text>
-                </Pressable>
-              </Pressable>
-            ) : (
-              /* Полноэкранный разворот корзины */
-              <View style={styles.cartExpandedRoot}>
-                <Pressable style={styles.cartExpandedHandleRow} onPress={() => setCartExpanded(false)}>
-                  <View style={styles.cartExpandedHandle} />
-                  <Text style={styles.cartExpandedHandleTxt}>Свернуть ▼</Text>
-                </Pressable>
-                {renderCartContent()}
+            {/* Свёрнутая полоска снизу — всегда видна, независимо от того,
+                развёрнута ли корзина. Итог всегда на виду, оплата доступна
+                сразу, без разворота */}
+            <Pressable style={styles.cartStripCollapsed} onPress={() => setCartExpanded(true)}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cartStripCount}>
+                  {order.reduce((s,i)=>s+(i.quantity||1),0)} поз.
+                </Text>
+                <Text style={styles.cartStripTotal}>{total} ₽</Text>
               </View>
-            )}
+              <Text style={styles.cartStripHint}>Корзина ▲</Text>
+              <Pressable
+                style={[styles.cartStripPayBtn, order.length===0 && styles.v2PayOff]}
+                onPress={(e) => { e.stopPropagation?.(); order.length>0 && openPrePay(); }}
+                disabled={order.length===0}
+              >
+                <Text style={styles.cartStripPayTxt}>К оплате</Text>
+              </Pressable>
+            </Pressable>
+
+            {/* Разворот корзины — Sheet сам затемняет фон и закрывается
+                тапом вне окна, ничего своего изобретать не нужно */}
+            <Sheet visible={cartExpanded} onClose={() => setCartExpanded(false)} title="Корзина">
+              {renderCartContent()}
+            </Sheet>
           </>
         )}
       </Animated.View>
@@ -2086,10 +2081,8 @@ const styles = StyleSheet.create({
   cartStripPayTxt: { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: '#fff' },
 
   // ── Портрет: полноэкранный разворот корзины ──
-  cartExpandedRoot: { flex: 1, backgroundColor: colors.bg },
-  cartExpandedHandleRow: { alignItems: 'center', paddingVertical: 10, gap: 4, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border, borderBottomWidth: 1, borderBottomColor: colors.border },
-  cartExpandedHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border },
-  cartExpandedHandleTxt: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, marginTop: 2 },
+  // ── Портрет: разворот корзины теперь через Sheet (см. components/Sheet.js) ──
+
 
   // ── Портрет: горизонтальные чипы категорий ──
   catChipsRow: { height: 60, flexGrow: 0, flexShrink: 0, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
