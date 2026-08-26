@@ -50,6 +50,7 @@ export default function KassaScreen({ navigation, route }) {
   const [activeCat, setActiveCat] = useState(null);
   // appliedDiscount теперь в слоте
   const [modalItem, setModalItem] = useState(null);
+  const [modalQty, setModalQty] = useState(1);
   const [variableItem, setVariableItem] = useState(null); // {product, variant, basePrice, ings: [{name, unit, sellPrice, qty}]}
   const [modalVariants, setModalVariants] = useState([]);
   const [modalGroups, setModalGroups] = useState([]);
@@ -346,6 +347,7 @@ export default function KassaScreen({ navigation, route }) {
   // каждое добавление может иметь разные введённые количества ингредиентов,
   // объединять такие позиции в одну строку нельзя.
   const addToCart = (newItem) => {
+    const addQty = newItem.quantity || 1;
     setOrder(prev => {
       const dupIdx = newItem.variableDeductions ? -1 : prev.findIndex(it =>
         it.product_id === newItem.product_id &&
@@ -353,9 +355,9 @@ export default function KassaScreen({ navigation, route }) {
         JSON.stringify(it.modifiers) === JSON.stringify(newItem.modifiers)
       );
       if (dupIdx !== -1) {
-        return prev.map((it, i) => i === dupIdx ? { ...it, quantity: (it.quantity || 1) + 1 } : it);
+        return prev.map((it, i) => i === dupIdx ? { ...it, quantity: (it.quantity || 1) + addQty } : it);
       }
-      return [...prev, { ...newItem, id: Date.now() + Math.random(), quantity: 1 }];
+      return [...prev, { ...newItem, id: Date.now() + Math.random(), quantity: addQty }];
     });
   };
 
@@ -424,7 +426,7 @@ export default function KassaScreen({ navigation, route }) {
 
     setSelModifiers(preselectedMods);
   };
-  const closeModal = () => setModalItem(null);
+  const closeModal = () => { setModalItem(null); setModalQty(1); setEditingCartItemId(null); };
 
   const buildSelectedModifiers = (groups, selMods) => {
     const result = [];
@@ -587,6 +589,7 @@ export default function KassaScreen({ navigation, route }) {
         size: variant?.label || '',
         price: unitPrice,
         modifiers: mods,
+        quantity: modalQty,
       });
     }
     closeModal();
@@ -1645,13 +1648,38 @@ export default function KassaScreen({ navigation, route }) {
                 )}
               </ScrollView>
 
+              {/* Счётчик количества — не появляется при редактировании уже
+                  добавленной позиции, там количество меняется в самой корзине */}
+              {!editingCartItemId && (
+                <View style={styles.qtyStepperRow}>
+                  <Text style={styles.qtyStepperLabel}>Количество</Text>
+                  <View style={styles.qtyStepper}>
+                    <Pressable
+                      style={styles.qtyStepperBtn}
+                      onPress={() => setModalQty(q => Math.max(1, q - 1))}
+                      hitSlop={10}
+                    >
+                      <Text style={styles.qtyStepperBtnTxt}>−</Text>
+                    </Pressable>
+                    <Text style={styles.qtyStepperVal}>{modalQty}</Text>
+                    <Pressable
+                      style={styles.qtyStepperBtn}
+                      onPress={() => setModalQty(q => q + 1)}
+                      hitSlop={10}
+                    >
+                      <Text style={styles.qtyStepperBtnTxt}>+</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              )}
+
               {/* Кнопка добавить с ценой */}
               <Pressable
                 style={({ pressed }) => [styles.itemModalAddBtn, pressed && { opacity: 0.88 }]}
                 onPress={confirmAdd}
               >
                 <Text style={styles.itemModalAddText}>Добавить в заказ</Text>
-                <Text style={styles.itemModalAddPrice}>{modalPrice()} ₽</Text>
+                <Text style={styles.itemModalAddPrice}>{modalPrice() * (editingCartItemId ? 1 : modalQty)} ₽</Text>
               </Pressable>
             </View>
           )}
@@ -1767,6 +1795,12 @@ const styles = StyleSheet.create({
   itemModalRowTextActive: { color: colors.orange },
   itemModalRowPrice: { fontFamily: fonts.family, fontSize: 13, color: colors.muted, marginRight: 6 },
   itemModalRowCheck: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
+  qtyStepperRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, paddingHorizontal: 4 },
+  qtyStepperLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  qtyStepper: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  qtyStepperBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  qtyStepperBtnTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text },
+  qtyStepperVal: { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text, minWidth: 24, textAlign: 'center' },
   itemModalAddBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, paddingVertical: 16, paddingHorizontal: 20, borderRadius: 16, backgroundColor: colors.orange },
   itemModalAddText: { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff' },
   itemModalAddPrice: { fontFamily: fonts.familySemibold, fontSize: 15, color: 'rgba(255,255,255,0.85)' },
