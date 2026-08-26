@@ -62,8 +62,20 @@ export function useTourHighlight(key) {
     isDimmed,
     style: isActive
       ? {
-          borderWidth: 2,
-          borderColor: colors.orange,
+          // Переопределяем ВСЕ четыре стороны явно, не общим borderWidth —
+          // если у базового стиля элемента уже есть направленный бордер
+          // (borderRightWidth/borderLeftWidth, обычная серая линия-разделитель
+          // между колонками), он побеждает общий borderWidth на своей стороне
+          // независимо от порядка в массиве стилей. Именно из-за этого не
+          // подсвечивалась ровно та грань, где заранее был свой бордер.
+          borderTopWidth: 2,
+          borderRightWidth: 2,
+          borderBottomWidth: 2,
+          borderLeftWidth: 2,
+          borderTopColor: colors.orange,
+          borderRightColor: colors.orange,
+          borderBottomColor: colors.orange,
+          borderLeftColor: colors.orange,
           borderRadius: 12,
           opacity: 1,
           // Активный элемент должен побеждать соседей за общую границу —
