@@ -2087,7 +2087,7 @@ const styles = StyleSheet.create({
 
   // ── Портрет: полноэкранный разворот корзины ──
   cartExpandedRoot: { flex: 1, backgroundColor: colors.bg },
-  cartExpandedHandleRow: { alignItems: 'center', paddingVertical: 10, gap: 4 },
+  cartExpandedHandleRow: { alignItems: 'center', paddingVertical: 10, gap: 4, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border, borderBottomWidth: 1, borderBottomColor: colors.border },
   cartExpandedHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border },
   cartExpandedHandleTxt: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, marginTop: 2 },
 
