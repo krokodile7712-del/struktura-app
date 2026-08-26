@@ -1001,7 +1001,7 @@ export default function KassaScreen({ navigation, route }) {
                   </Pressable>
                 </>
               ) : (
-                <Pressable style={{ flex: 1 }} onPress={() => setClientPickerOpen(true)}>
+                <Pressable style={{ flex: 1, alignSelf: 'stretch', justifyContent: 'center' }} onPress={() => setClientPickerOpen(true)}>
                   <Text style={styles.v2ClientAdd}>👤 Добавить клиента</Text>
                 </Pressable>
               )}
@@ -1023,7 +1023,7 @@ export default function KassaScreen({ navigation, route }) {
             {loyaltyModel !== 'discount' && can('apply_discounts') && !(forClient?.discount_pct > 0) && (
               appliedDiscount ? (
                 <View style={[styles.v2Client, discountRowHighlight.style]}>
-                  <Pressable style={{ flex: 1 }} onPress={() => setDiscountDropOpen(true)}>
+                  <Pressable style={{ flex: 1, alignSelf: 'stretch', justifyContent: 'center' }} onPress={() => setDiscountDropOpen(true)}>
                     <Text style={styles.v2DiscountApplied}>🏷 {appliedDiscount.name}</Text>
                   </Pressable>
                   <Pressable onPress={() => setAppliedDiscount(null)} hitSlop={10}>
@@ -1032,7 +1032,7 @@ export default function KassaScreen({ navigation, route }) {
                 </View>
               ) : (
                 <View style={[styles.v2Client, discountRowHighlight.style]}>
-                  <Pressable style={{ flex: 1 }} onPress={() => setDiscountDropOpen(true)}>
+                  <Pressable style={{ flex: 1, alignSelf: 'stretch', justifyContent: 'center' }} onPress={() => setDiscountDropOpen(true)}>
                     <Text style={styles.v2ClientAdd}>🏷 Добавить скидку</Text>
                   </Pressable>
                 </View>
