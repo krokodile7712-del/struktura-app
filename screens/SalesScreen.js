@@ -212,11 +212,10 @@ export default function SalesScreen({ navigation }) {
             />
           </View>
 
-          {/* Чипы периода и оплаты — единая панель фильтров, видны сразу,
-              без захода в отдельные настройки */}
+          {/* Чипы периода и оплаты — единая компактная панель фильтров */}
           <View style={styles.filtersPanel}>
-            <Text style={styles.filtersPanelLabel}>Период</Text>
-            <View style={styles.periodRowOuter}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.periodRowOuter}>
+              <Text style={styles.filtersInlineLabel}>Период</Text>
               {PERIODS.map(p => (
                 <Pressable
                   key={p.key}
@@ -228,9 +227,9 @@ export default function SalesScreen({ navigation }) {
                   </Text>
                 </Pressable>
               ))}
-            </View>
-            <Text style={styles.filtersPanelLabel}>Оплата</Text>
-            <View style={styles.periodRowOuter}>
+            </ScrollView>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.periodRowOuter}>
+              <Text style={styles.filtersInlineLabel}>Оплата</Text>
               {['all','cash','card','returns'].map(key => {
                 const labels = { all: 'Все', cash: 'Наличные', card: 'Карта', returns: 'Возвраты' };
                 return (
@@ -245,7 +244,7 @@ export default function SalesScreen({ navigation }) {
                   </Pressable>
                 );
               })}
-            </View>
+            </ScrollView>
           </View>
 
           {/* Список заказов */}
@@ -498,9 +497,9 @@ const styles = StyleSheet.create({
 
   // Правая панель
   searchWrap:  { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, paddingBottom: 6 },
-  filtersPanel: { backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 6 },
-  filtersPanelLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, paddingHorizontal: 12, marginTop: 8, marginBottom: 2 },
-  periodRowOuter: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingVertical: 4 },
+  filtersPanel: { backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
+  filtersInlineLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, marginRight: 2, alignSelf: 'center' },
+  periodRowOuter: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 5 },
 
   // ── Сводка — общие строки (переиспользуются в боковой панели и полоске) ──
   catRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 9 },
@@ -521,7 +520,7 @@ const styles = StyleSheet.create({
   sideVal:    { fontFamily: fonts.family, fontSize: 34, fontWeight: '800', color: colors.orange, marginTop: 6 },
   sideSub:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
   sideDivider:{ height: 1, backgroundColor: colors.border, marginVertical: 16 },
-  periodChip: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 18, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
+  periodChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
   periodChipActive: { backgroundColor: 'rgba(240,160,80,0.14)', borderColor: colors.orange },
   periodChipTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
   periodChipTxtActive: { color: colors.orange },
