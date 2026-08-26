@@ -66,12 +66,12 @@ export function useTourHighlight(key) {
           borderColor: colors.orange,
           borderRadius: 12,
           opacity: 1,
-          // Небольшое свечение вокруг активной рамки
-          shadowColor: colors.orange,
-          shadowOpacity: 0.6,
-          shadowRadius: 10,
-          shadowOffset: { width: 0, height: 0 },
-          elevation: 8,
+          // Активный элемент должен побеждать соседей за общую границу —
+          // без этого сосед (стоящий позже в разметке) перекрывает именно
+          // ту грань рамки, что касается его самого. Только zIndex, без
+          // elevation — elevation на Android сама по себе рисует тень,
+          // это и было причиной непонятного пятна вокруг рамки раньше.
+          zIndex: 10,
         }
       : isDimmed
         ? { opacity: 0.25 }
