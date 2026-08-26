@@ -1127,7 +1127,8 @@ export default function KassaScreen({ navigation, route }) {
           <>
             {!cartExpanded ? (
               /* Свёрнутая полоска снизу — итог всегда виден, оплата доступна
-                 сразу, без разворота */
+                 сразу, без разворота. Строки с товарами — только в
+                 развёрнутом виде, не здесь */
               <Pressable style={styles.cartStripCollapsed} onPress={() => setCartExpanded(true)}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.cartStripCount}>
