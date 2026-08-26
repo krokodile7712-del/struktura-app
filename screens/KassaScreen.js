@@ -907,28 +907,52 @@ export default function KassaScreen({ navigation, route }) {
           {/* ═══ ФУТЕР ═══ */}
           <View style={styles.v2Footer}>
 
-            {/* Клиент */}
-            {forClient ? (
-              <View style={[styles.v2Client, clientRowHighlight.style]}>
-                <Pressable
-                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}
-                  onPress={() => navigation.navigate('ClientCard', { clientId: forClient.id })}
-                >
-                  <View style={styles.v2ClientDot} />
-                  <Text style={styles.v2ClientName} numberOfLines={1}>{forClient.fio}</Text>
-                  {loyaltyModel === 'points' && (
-                    <Text style={styles.v2ClientBal}>★ {forClient.balance||0}</Text>
-                  )}
-                </Pressable>
-                <Pressable onPress={() => updateSlot({ forClient: null })} hitSlop={10}>
-                  <Text style={styles.v2ClientX}>✕</Text>
-                </Pressable>
+            {/* Клиент + Скидка — две колонки в одном ряду */}
+            <View style={styles.v2ClientDiscountRow}>
+              {/* Клиент */}
+              <View style={{ flex: 1 }}>
+                {forClient ? (
+                  <View style={[styles.v2Client, styles.v2ClientFilled, clientRowHighlight.style]}>
+                    <Pressable
+                      style={{ flex: 1 }}
+                      onPress={() => navigation.navigate('ClientCard', { clientId: forClient.id })}
+                    >
+                      <Text style={styles.v2ClientFilledName} numberOfLines={1}>{forClient.fio}</Text>
+                      {loyaltyModel === 'points' && (
+                        <Text style={styles.v2ClientBal}>★ {forClient.balance||0}</Text>
+                      )}
+                    </Pressable>
+                    <Pressable onPress={() => updateSlot({ forClient: null })} hitSlop={10}>
+                      <Text style={styles.v2ClientX}>✕</Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Pressable style={[styles.v2Client, clientRowHighlight.style]} onPress={() => setClientPickerOpen(true)}>
+                    <Text style={styles.v2ClientAdd} numberOfLines={1}>👤 Клиент</Text>
+                  </Pressable>
+                )}
               </View>
-            ) : (
-              <Pressable style={[styles.v2Client, clientRowHighlight.style]} onPress={() => setClientPickerOpen(true)}>
-                <Text style={styles.v2ClientAdd}>👤 Добавить клиента</Text>
-              </Pressable>
-            )}
+
+              {/* Ручной выбор скидки — недоступен, если скидка уже применяется автоматически (личная/по лояльности) */}
+              {loyaltyModel !== 'discount' && can('apply_discounts') && !(forClient?.discount_pct > 0) && (
+                <View style={{ flex: 1 }}>
+                  {appliedDiscount ? (
+                    <View style={[styles.v2Client, styles.v2ClientFilled, discountRowHighlight.style]}>
+                      <Pressable style={{ flex: 1 }} onPress={() => setDiscountDropOpen(true)}>
+                        <Text style={styles.v2ClientFilledName} numberOfLines={1}>🏷 {appliedDiscount.name}</Text>
+                      </Pressable>
+                      <Pressable onPress={() => setAppliedDiscount(null)} hitSlop={10}>
+                        <Text style={styles.v2ClientX}>✕</Text>
+                      </Pressable>
+                    </View>
+                  ) : (
+                    <Pressable style={[styles.v2Client, discountRowHighlight.style]} onPress={() => setDiscountDropOpen(true)}>
+                      <Text style={styles.v2ClientAdd} numberOfLines={1}>🏷 Скидка</Text>
+                    </Pressable>
+                  )}
+                </View>
+              )}
+            </View>
 
             {/* Скидки если есть (авто: личная/лояльность/баллы) */}
             {(discountAmount > 0 || pointsDiscount > 0) && (
@@ -940,24 +964,6 @@ export default function KassaScreen({ navigation, route }) {
                   <Text style={styles.v2DiscountTxt}>★ Баллы  −{pointsDiscount} ₽</Text>
                 )}
               </View>
-            )}
-
-            {/* Ручной выбор скидки — недоступен, если скидка уже применяется автоматически (личная/по лояльности) */}
-            {loyaltyModel !== 'discount' && can('apply_discounts') && !(forClient?.discount_pct > 0) && (
-              appliedDiscount ? (
-                <View style={[styles.v2Client, discountRowHighlight.style]}>
-                  <Pressable style={{ flex: 1, alignSelf: 'stretch', justifyContent: 'center' }} onPress={() => setDiscountDropOpen(true)}>
-                    <Text style={styles.v2DiscountApplied}>🏷 {appliedDiscount.name}</Text>
-                  </Pressable>
-                  <Pressable onPress={() => setAppliedDiscount(null)} hitSlop={10}>
-                    <Text style={styles.v2ClientX}>✕</Text>
-                  </Pressable>
-                </View>
-              ) : (
-                <Pressable style={[styles.v2Client, discountRowHighlight.style]} onPress={() => setDiscountDropOpen(true)}>
-                  <Text style={styles.v2ClientAdd}>🏷 Добавить скидку</Text>
-                </Pressable>
-              )
             )}
 
             {/* Итого */}
@@ -2050,12 +2056,15 @@ const styles = StyleSheet.create({
   v2Mod:        { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
   v2Note:       { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.green, marginTop: 3 },
   v2Footer:     { borderTopWidth: 1, borderTopColor: 'rgba(64,60,55,0.2)', paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14, gap: 10 },
-  v2Client:     { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, paddingVertical: 12, paddingHorizontal: 14 },
+  v2ClientDiscountRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  v2Client:     { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, paddingVertical: 12, paddingHorizontal: 12 },
+  v2ClientFilled: { backgroundColor: 'rgba(240,160,80,0.1)', borderColor: colors.orange },
+  v2ClientFilledName: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
   v2ClientDot:  { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.green },
   v2ClientName: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.green, flex: 1 },
-  v2ClientBal:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+  v2ClientBal:  { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 1 },
   v2ClientX:    { fontSize: 15, color: colors.muted, paddingHorizontal: 4 },
-  v2ClientAdd:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
+  v2ClientAdd:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.textDim, textAlign: 'center', flex: 1 },
   v2Discount:   { gap: 3, marginTop: 8 },
   v2DiscountApplied: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
   v2DiscountTxt:{ fontFamily: fonts.familyRegular, fontSize: 12, color: colors.green },
