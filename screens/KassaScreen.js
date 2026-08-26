@@ -363,11 +363,6 @@ export default function KassaScreen({ navigation, route }) {
     });
   };
 
-  // + в корзине — новая строка с тем же товаром (для выбора другого размера)
-  const duplicateCartItem = (item) => {
-    setOrder(prev => [...prev, { ...item, id: Date.now() + Math.random(), quantity: 1, note: '' }]);
-  };
-
   // Изменяет количество позиции в корзине (удаляет если <= 0)
   const setItemQty = (id, qty) => {
     if (qty <= 0) {
@@ -833,6 +828,11 @@ export default function KassaScreen({ navigation, route }) {
                   ]}
                   onPress={() => openModal(item)}
                 >
+                  {cartQty > 0 && (
+                    <View style={styles.cartBadge}>
+                      <Text style={styles.cartBadgeText}>{cartQty}</Text>
+                    </View>
+                  )}
                   <Text style={styles.menuItemName}>{item.name}</Text>
                   {price > 0
                     ? <Text style={styles.menuItemPrice}>{hasRange ? `от ${price}` : price} ₽</Text>
@@ -953,7 +953,7 @@ export default function KassaScreen({ navigation, route }) {
                         <Text style={styles.v2QtyVal}>{item.quantity || 1}</Text>
                         <Pressable
                           style={styles.v2QtyBtn}
-                          onPress={(e) => { e.stopPropagation?.(); duplicateCartItem(item); }}
+                          onPress={(e) => { e.stopPropagation?.(); setItemQty(item.id, (item.quantity||1)+1); }}
                           hitSlop={6}
                         >
                           <Text style={styles.v2QtyBtnTxt}>+</Text>
