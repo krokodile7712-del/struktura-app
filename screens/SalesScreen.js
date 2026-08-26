@@ -65,6 +65,7 @@ export default function SalesScreen({ navigation }) {
   const [search, setSearch]         = useState('');
   const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [payFilter, setPayFilter]   = useState('all');
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [picker, setPicker]         = useState(null);
 
   const [orders, setOrders]         = useState([]);
@@ -210,41 +211,10 @@ export default function SalesScreen({ navigation }) {
               placeholder="Поиск по товару, сумме или способу оплаты..."
               placeholderTextColor={colors.muted}
             />
-          </View>
-
-          {/* Чипы периода и оплаты — единая компактная панель фильтров */}
-          <View style={styles.filtersPanel}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.periodRowOuter}>
-              <Text style={styles.filtersInlineLabel}>Период</Text>
-              {PERIODS.map(p => (
-                <Pressable
-                  key={p.key}
-                  style={[styles.periodChip, period === p.key && styles.periodChipActive]}
-                  onPress={() => p.key === 'custom' ? setPicker('range') : setPeriod(p.key)}
-                >
-                  <Text style={[styles.periodChipTxt, period === p.key && styles.periodChipTxtActive]}>
-                    {p.label}
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.periodRowOuter}>
-              <Text style={styles.filtersInlineLabel}>Оплата</Text>
-              {['all','cash','card','returns'].map(key => {
-                const labels = { all: 'Все', cash: 'Наличные', card: 'Карта', returns: 'Возвраты' };
-                return (
-                  <Pressable
-                    key={key}
-                    style={[styles.periodChip, payFilter === key && styles.periodChipActive]}
-                    onPress={() => setPayFilter(key)}
-                  >
-                    <Text style={[styles.periodChipTxt, payFilter === key && styles.periodChipTxtActive]}>
-                      {labels[key]}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
+            <Pressable style={styles.filtersBtn} onPress={() => setFiltersOpen(true)}>
+              <Text style={styles.filtersBtnTxt}>⚙ Фильтры</Text>
+              {(period !== 'today' || payFilter !== 'all') && <View style={styles.filtersBtnDot} />}
+            </Pressable>
           </View>
 
           {/* Список заказов */}
@@ -395,6 +365,43 @@ export default function SalesScreen({ navigation }) {
       />
 
       {/* Модалка редактирования */}
+      <Sheet visible={filtersOpen} onClose={() => setFiltersOpen(false)} title="Фильтры">
+        <ScrollView contentContainerStyle={{ padding: 20 }}>
+          <Text style={styles.filtersSheetLabel}>Период</Text>
+          {PERIODS.map(p => (
+            <Pressable
+              key={p.key}
+              style={[styles.filtersSheetRow, period === p.key && styles.filtersSheetRowActive]}
+              onPress={() => { if (p.key === 'custom') setPicker('range'); else setPeriod(p.key); }}
+            >
+              <Text style={[styles.filtersSheetRowTxt, period === p.key && styles.filtersSheetRowTxtActive]}>
+                {p.label}
+              </Text>
+              {period === p.key && <Text style={styles.filtersSheetCheck}>✓</Text>}
+            </Pressable>
+          ))}
+
+          <View style={styles.divider} />
+
+          <Text style={styles.filtersSheetLabel}>Оплата</Text>
+          {['all','cash','card','returns'].map(key => {
+            const labels = { all: 'Все', cash: 'Наличные', card: 'Карта', returns: 'Возвраты' };
+            return (
+              <Pressable
+                key={key}
+                style={[styles.filtersSheetRow, payFilter === key && styles.filtersSheetRowActive]}
+                onPress={() => setPayFilter(key)}
+              >
+                <Text style={[styles.filtersSheetRowTxt, payFilter === key && styles.filtersSheetRowTxtActive]}>
+                  {labels[key]}
+                </Text>
+                {payFilter === key && <Text style={styles.filtersSheetCheck}>✓</Text>}
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </Sheet>
+
       <Sheet visible={!!editOrder} onClose={() => setEditOrder(null)} title="Изменить заказ">
           <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
             <Text style={styles.fieldLabel}>Сумма</Text>
@@ -497,9 +504,15 @@ const styles = StyleSheet.create({
 
   // Правая панель
   searchWrap:  { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, paddingBottom: 6 },
-  filtersPanel: { backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
-  filtersInlineLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, marginRight: 2, alignSelf: 'center' },
-  periodRowOuter: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 5 },
+  filtersBtn:  { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 9, paddingHorizontal: 12, borderRadius: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
+  filtersBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
+  filtersBtnDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.orange },
+  filtersSheetLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },
+  filtersSheetRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 13, paddingHorizontal: 4, borderRadius: 10 },
+  filtersSheetRowActive: { backgroundColor: 'rgba(240,160,80,0.08)' },
+  filtersSheetRowTxt: { fontFamily: fonts.familyRegular, fontSize: 15, color: colors.text },
+  filtersSheetRowTxtActive: { fontFamily: fonts.familySemibold, color: colors.orange },
+  filtersSheetCheck: { fontSize: 15, color: colors.orange, fontWeight: '800' },
 
   // ── Сводка — общие строки (переиспользуются в боковой панели и полоске) ──
   catRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 9 },
@@ -520,10 +533,6 @@ const styles = StyleSheet.create({
   sideVal:    { fontFamily: fonts.family, fontSize: 34, fontWeight: '800', color: colors.orange, marginTop: 6 },
   sideSub:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
   sideDivider:{ height: 1, backgroundColor: colors.border, marginVertical: 16 },
-  periodChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
-  periodChipActive: { backgroundColor: 'rgba(240,160,80,0.14)', borderColor: colors.orange },
-  periodChipTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
-  periodChipTxtActive: { color: colors.orange },
   filtersBtn:  { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
   filtersBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
   searchInput: { backgroundColor: colors.surface, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14, fontFamily: fonts.familyRegular, fontSize: 16, color: colors.text },
