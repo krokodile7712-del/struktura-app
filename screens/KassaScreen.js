@@ -33,6 +33,8 @@ export default function KassaScreen({ navigation, route }) {
   const payBtnHighlight = useTourHighlight('kassa.cart.pay');
   const clientRowHighlight = useTourHighlight('kassa.cart.client');
   const discountRowHighlight = useTourHighlight('kassa.cart.discount');
+  const cartListHighlight = useTourHighlight('kassa.cart.list');
+  const cartActionsHighlight = useTourHighlight('kassa.cart.actions');
   const tourSteps = [
     { key: 'kassa.catRail', title: 'Категории', text: 'Слева — категории товаров. Нажмите, чтобы переключиться между ними, не листая весь список.' },
     { key: 'kassa.productGrid', title: 'Выбор товаров', text: 'Нажимайте на товары здесь, чтобы добавить их в текущий заказ.' },
@@ -857,7 +859,7 @@ export default function KassaScreen({ navigation, route }) {
           {/* Нижнее нажатие на имя клиента → карточка клиента */}
           {/* ═══ СПИСОК ПОЗИЦИЙ ═══ */}
           <ScrollView
-            style={{ flex: 1 }}
+            style={[{ flex: 1 }, cartListHighlight.style]}
             contentContainerStyle={order.length === 0 ? styles.v2EmptyWrap : styles.v2ListWrap}
           >
             {order.length === 0 ? (
@@ -986,7 +988,7 @@ export default function KassaScreen({ navigation, route }) {
             )}
 
             {/* Итого */}
-            <View style={styles.v2Total}>
+            <View style={[styles.v2Total, cartActionsHighlight.style]}>
               <Text style={styles.v2TotalLabel}>
                 {`${order.reduce((s,i)=>s+(i.quantity||1),0)} поз.`}
               </Text>
@@ -994,7 +996,7 @@ export default function KassaScreen({ navigation, route }) {
             </View>
 
             {/* Иконки-действия */}
-            <View style={styles.v2Acts}>
+            <View style={[styles.v2Acts, cartActionsHighlight.style]}>
               <Pressable style={styles.v2Act} onPress={() => setNoteModalOpen(true)}>
                 <Text style={styles.v2ActIco}>{orderNote ? '📝' : '✏️'}</Text>
                 <Text style={styles.v2ActLbl}>Заметка</Text>
