@@ -932,6 +932,7 @@ export default function KassaScreen({ navigation, route }) {
                     onLongPress={() => setItemNoteModal({ id: item.id, note: item.note || '' })}
                     delayLongPress={280}
                   >
+                    <View style={styles.v2ItemAccentBar} />
                     {/* Строка: название · − qty + · цена */}
                     <View style={styles.v2ItemRow}>
                       <View style={{ flex: 1 }}>
@@ -1968,15 +1969,16 @@ const styles = StyleSheet.create({
   v2EmptyIcon:  { fontSize: 40 },
   v2EmptyText:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   v2ListWrap:   { paddingTop: 6, paddingBottom: 8 },
-  v2Item:       { paddingVertical: 12, paddingHorizontal: 14, backgroundColor: colors.surface2, borderRadius: 12 },
+  v2Item:       { paddingVertical: 12, paddingHorizontal: 14, paddingLeft: 17, backgroundColor: colors.surface2, borderRadius: 12, position: 'relative', overflow: 'hidden' },
+  v2ItemAccentBar: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: colors.orange },
   v2ItemRow:    { flexDirection: 'row', alignItems: 'center', gap: 8 },
   v2ItemName:   { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, flex: 1, lineHeight: 17 },
   v2ItemDiscount: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.orange, marginTop: 2 },
   v2Qty:        { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  v2QtyBtn:     { width: 26, height: 26, borderRadius: 8, backgroundColor: 'rgba(64,60,55,0.22)', alignItems: 'center', justifyContent: 'center' },
-  v2QtyBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text, lineHeight: 19 },
-  v2QtyVal:     { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, minWidth: 18, textAlign: 'center' },
-  v2ItemPrice:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, minWidth: 52, textAlign: 'right' },
+  v2QtyBtn:     { width: 26, height: 26, borderRadius: 8, backgroundColor: 'rgba(240,160,80,0.12)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.3)', alignItems: 'center', justifyContent: 'center' },
+  v2QtyBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.orange, lineHeight: 19 },
+  v2QtyVal:     { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: colors.text, minWidth: 18, textAlign: 'center' },
+  v2ItemPrice:  { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.orange, minWidth: 58, textAlign: 'right' },
   v2Mods:       { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 5, marginLeft: 0 },
   v2Mod:        { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
   v2Note:       { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.green, marginTop: 3 },
