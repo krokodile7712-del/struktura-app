@@ -1661,7 +1661,7 @@ const styles = StyleSheet.create({
   catRailLabel:     { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textAlign: 'center', lineHeight: 15 },
   catRailLabelActive:{ color: colors.orange },
   catRailBar:       { position: 'absolute', left: 0, top: '22%', bottom: '22%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
-  left: { flex: 1, backgroundColor: colors.bg },
+  left: { flex: 1, backgroundColor: colors.bg, marginHorizontal: 2 },
   catList: { paddingHorizontal: 10, paddingVertical: 6 },
   catBtn: { height: 34, paddingHorizontal: 14, borderRadius: 17, borderWidth: 1, borderColor: 'rgba(64,60,55,0.3)', backgroundColor: 'transparent', flexDirection: 'row', alignItems: 'center', gap: 5, marginRight: 6 },
   catBtnActive: { borderColor: 'rgba(240,160,80,0.7)', backgroundColor: 'rgba(240,160,80,0.12)' },
