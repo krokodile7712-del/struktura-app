@@ -907,27 +907,29 @@ export default function KassaScreen({ navigation, route }) {
           {/* ═══ ФУТЕР ═══ */}
           <View style={styles.v2Footer}>
 
-            {/* Клиент + Скидка — две колонки в одном ряду */}
+            {/* Клиент + Скидка — две колонки в одном ряду, фиксированная высота */}
             <View style={styles.v2ClientDiscountRow}>
               {/* Клиент */}
               <View style={{ flex: 1 }}>
                 {forClient ? (
-                  <View style={[styles.v2Client, styles.v2ClientFilled, clientRowHighlight.style]}>
+                  <View style={[styles.v2Client, styles.v2ClientFilled, styles.v2ClientDiscountBtn, clientRowHighlight.style]}>
                     <Pressable
-                      style={{ flex: 1 }}
+                      style={{ flex: 1, justifyContent: 'center' }}
                       onPress={() => navigation.navigate('ClientCard', { clientId: forClient.id })}
                     >
                       <Text style={styles.v2ClientFilledName} numberOfLines={1}>{forClient.fio}</Text>
-                      {loyaltyModel === 'points' && (
+                      {loyaltyModel === 'points' ? (
                         <Text style={styles.v2ClientBal}>★ {forClient.balance||0}</Text>
-                      )}
+                      ) : discountAmount > 0 ? (
+                        <Text style={styles.v2ClientBal}>🏷 −{discountAmount} ₽</Text>
+                      ) : null}
                     </Pressable>
                     <Pressable onPress={() => updateSlot({ forClient: null })} hitSlop={10}>
                       <Text style={styles.v2ClientX}>✕</Text>
                     </Pressable>
                   </View>
                 ) : (
-                  <Pressable style={[styles.v2Client, clientRowHighlight.style]} onPress={() => setClientPickerOpen(true)}>
+                  <Pressable style={[styles.v2Client, styles.v2ClientDiscountBtn, clientRowHighlight.style]} onPress={() => setClientPickerOpen(true)}>
                     <Text style={styles.v2ClientAdd} numberOfLines={1}>👤 Клиент</Text>
                   </Pressable>
                 )}
@@ -937,34 +939,25 @@ export default function KassaScreen({ navigation, route }) {
               {loyaltyModel !== 'discount' && can('apply_discounts') && !(forClient?.discount_pct > 0) && (
                 <View style={{ flex: 1 }}>
                   {appliedDiscount ? (
-                    <View style={[styles.v2Client, styles.v2ClientFilled, discountRowHighlight.style]}>
-                      <Pressable style={{ flex: 1 }} onPress={() => setDiscountDropOpen(true)}>
+                    <View style={[styles.v2Client, styles.v2ClientFilled, styles.v2ClientDiscountBtn, discountRowHighlight.style]}>
+                      <Pressable style={{ flex: 1, justifyContent: 'center' }} onPress={() => setDiscountDropOpen(true)}>
                         <Text style={styles.v2ClientFilledName} numberOfLines={1}>🏷 {appliedDiscount.name}</Text>
+                        {discountAmount > 0 && (
+                          <Text style={styles.v2ClientBal}>−{discountAmount} ₽</Text>
+                        )}
                       </Pressable>
                       <Pressable onPress={() => setAppliedDiscount(null)} hitSlop={10}>
                         <Text style={styles.v2ClientX}>✕</Text>
                       </Pressable>
                     </View>
                   ) : (
-                    <Pressable style={[styles.v2Client, discountRowHighlight.style]} onPress={() => setDiscountDropOpen(true)}>
+                    <Pressable style={[styles.v2Client, styles.v2ClientDiscountBtn, discountRowHighlight.style]} onPress={() => setDiscountDropOpen(true)}>
                       <Text style={styles.v2ClientAdd} numberOfLines={1}>🏷 Скидка</Text>
                     </Pressable>
                   )}
                 </View>
               )}
             </View>
-
-            {/* Скидки если есть (авто: личная/лояльность/баллы) */}
-            {(discountAmount > 0 || pointsDiscount > 0) && (
-              <View style={styles.v2Discount}>
-                {effectiveDiscount && discountAmount > 0 && (
-                  <Text style={styles.v2DiscountTxt}>🏷 {effectiveDiscount.name}  −{discountAmount} ₽</Text>
-                )}
-                {pointsDiscount > 0 && (
-                  <Text style={styles.v2DiscountTxt}>★ Баллы  −{pointsDiscount} ₽</Text>
-                )}
-              </View>
-            )}
 
             {/* Итого */}
             <View style={[styles.v2Total, cartActionsHighlight.style]}>
@@ -2057,6 +2050,7 @@ const styles = StyleSheet.create({
   v2Note:       { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.green, marginTop: 3 },
   v2Footer:     { borderTopWidth: 1, borderTopColor: 'rgba(64,60,55,0.2)', paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14, gap: 10 },
   v2ClientDiscountRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  v2ClientDiscountBtn: { minHeight: 54 },
   v2Client:     { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, paddingVertical: 12, paddingHorizontal: 12 },
   v2ClientFilled: { backgroundColor: 'rgba(240,160,80,0.1)', borderColor: colors.orange },
   v2ClientFilledName: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
