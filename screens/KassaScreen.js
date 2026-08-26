@@ -813,11 +813,6 @@ export default function KassaScreen({ navigation, route }) {
                   ]}
                   onPress={() => openModal(item)}
                 >
-                  {cartQty > 0 && (
-                    <View style={styles.cartBadge}>
-                      <Text style={styles.cartBadgeText}>{cartQty}</Text>
-                    </View>
-                  )}
                   <Text style={styles.menuItemName}>{item.name}</Text>
                   {price > 0
                     ? <Text style={styles.menuItemPrice}>{hasRange ? `от ${price}` : price} ₽</Text>
