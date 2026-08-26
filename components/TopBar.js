@@ -4,16 +4,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts } from '../constants/theme';
 import { getSession } from '../db/session';
 import { useNextStepsProgress } from './NextStepsCard';
+import { useTourAnyActive } from './TourRegistry';
 
 export default function TopBar({ title, onBack, rightElement, syncPending, navigation, activeScreen }) {
   const insets = useSafeAreaInsets();
   const isAdmin = getSession()?.role === 'admin';
   const { doneCount, visible: stepsVisible } = useNextStepsProgress();
   const showBanner = isAdmin && stepsVisible && navigation;
+  const tourActive = useTourAnyActive();
 
   return (
     <>
-      <View style={[styles.bar, { paddingTop: insets.top, height: 52 + insets.top }]}>
+      <View style={[styles.bar, { paddingTop: insets.top, height: 52 + insets.top }, tourActive && { opacity: 0.25 }]}>
         <View style={styles.side}>
           {onBack && (
             <Pressable onPress={onBack} style={styles.backBtn} hitSlop={12} accessibilityLabel="Назад" accessibilityRole="button">

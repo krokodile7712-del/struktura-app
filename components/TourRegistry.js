@@ -25,6 +25,14 @@ export function useTourActiveSetter() {
   return useContext(TourActiveContext).setActiveKey;
 }
 
+// true, если тур сейчас идёт вообще (любой шаг) — для элементов вроде
+// шапки и панели навигации, которые сами никогда не бывают целью тура,
+// но должны притухать вместе с остальным фоном, пока тур идёт.
+export function useTourAnyActive() {
+  const { activeKey } = useContext(TourActiveContext);
+  return !!activeKey;
+}
+
 // Для подсвечиваемого участка экрана. Возвращает готовый набор стилей:
 // когда именно этот участок активен — яркая рамка; когда активен другой
 // участок (тур идёт, но не по этому месту) — лёгкое притухание; когда тур
@@ -44,8 +52,11 @@ export function useTourHighlight(key) {
   return {
     isActive,
     isDimmed,
+    // Скругление не переопределяем — у каждого элемента остаётся своё
+    // собственное (или его отсутствие), иначе цельная колонка во весь
+    // экран получает скруглённые углы там, где их быть не должно.
     style: isActive
-      ? { borderWidth: 2, borderColor: colors.orange, borderRadius: 12, opacity: 1 }
+      ? { borderWidth: 2, borderColor: colors.orange, opacity: 1 }
       : isDimmed
         ? { opacity: 0.25 }
         : null,

@@ -7,6 +7,7 @@ import { colors, fonts } from '../constants/theme';
 import { getSession, can } from '../db/session';
 import { getBusinessProfile, getTerms } from '../db/queries';
 import Drawer from './Drawer';
+import { useTourAnyActive } from './TourRegistry';
 
 // Полный список разделов для широкой панели (администратор).
 const ADMIN_SECTIONS = [
@@ -55,6 +56,7 @@ export default function AppNav({ navigation, activeScreen }) {
   const home = isAdmin ? 'Admin' : 'Dashboard';
   const profile = getBusinessProfile();
   const modules = profile?.modules || {};
+  const tourActive = useTourAnyActive();
   const terms = getTerms();
   const bookingActive = !!(profile?.booking_slug);
 
@@ -108,7 +110,7 @@ export default function AppNav({ navigation, activeScreen }) {
 
     return (
       <>
-        <Animated.View style={[styles.landscapeNav, { width: widthAnim, paddingTop: insets.top }]}>
+        <Animated.View style={[styles.landscapeNav, { width: widthAnim, paddingTop: insets.top }, tourActive && { opacity: 0.25 }]}>
           <Animated.View style={{ flex: 1, opacity: contentFade }}>
             {renderWide ? (
               <>
@@ -200,7 +202,7 @@ export default function AppNav({ navigation, activeScreen }) {
 
   return (
     <>
-      <View style={[styles.nav, { flexDirection: 'row', paddingBottom: Math.max(insets.bottom, 8), borderTopWidth: 1 }]}>
+      <View style={[styles.nav, { flexDirection: 'row', paddingBottom: Math.max(insets.bottom, 8), borderTopWidth: 1 }, tourActive && { opacity: 0.25 }]}>
         {items.map(item => {
           const isActive = activeScreen === item.key;
           return (
