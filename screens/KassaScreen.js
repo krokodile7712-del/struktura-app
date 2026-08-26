@@ -1146,7 +1146,7 @@ export default function KassaScreen({ navigation, route }) {
 
             {/* Разворот корзины — Sheet сам затемняет фон и закрывается
                 тапом вне окна, ничего своего изобретать не нужно */}
-            <Sheet visible={cartExpanded} onClose={() => setCartExpanded(false)} title="Корзина" fullHeight>
+            <Sheet visible={cartExpanded} onClose={() => setCartExpanded(false)} title="Корзина" fixedHeightPct={0.45}>
               {renderCartContent()}
             </Sheet>
           </>
