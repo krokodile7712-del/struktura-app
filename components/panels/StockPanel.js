@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
   TextInput, Modal, Animated,
@@ -45,6 +45,16 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
   const [showLowOnly, setShowLowOnly] = useState(false);
   const [viewMode, setViewMode]     = useState('categories'); // categories | list
   const [selected, setSelected]     = useState(null);
+  const editorFadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Плавное появление карточки при выборе позиции (альбомная) — тот же
+  // приём, что и в Товарах, для единообразия
+  useEffect(() => {
+    if (selected) {
+      editorFadeAnim.setValue(0);
+      Animated.timing(editorFadeAnim, { toValue: 1, duration: 260, useNativeDriver: true }).start();
+    }
+  }, [selected]);
   useEffect(() => { onSelectedChange?.(!!selected); }, [selected]);
   const [mode, setMode]             = useState(null);
   const [qty, setQty]               = useState('');
@@ -539,7 +549,16 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
         /* Альбомная ориентация — карточка товара постоянной панелью справа от списка */
         <View style={styles.landscapeDetail}>
           {selected ? (
-            <>
+            <Animated.View
+              key={selected?.id}
+              style={{
+                flex: 1,
+                opacity: editorFadeAnim,
+                transform: [{
+                  translateY: editorFadeAnim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }),
+                }],
+              }}
+            >
               <View style={styles.landscapeHeader}>
                 <Text style={styles.landscapeHeaderTxt} numberOfLines={1}>
                   {mode ? MODES.find(m => m.key === mode)?.label : selected?.name}
@@ -551,7 +570,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
                 )}
               </View>
               {detailContent}
-            </>
+            </Animated.View>
           ) : (
             <View style={styles.emptyRight}>
               <Text style={{ fontSize: 48 }}>📦</Text>
@@ -909,7 +928,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
 const styles = StyleSheet.create({
   layout: { flex: 1 },
   left:   { flex: 1, backgroundColor: colors.surface },
-  leftLandscape: { flex: 0, width: '38%', maxWidth: 420, borderRightWidth: 1, borderRightColor: colors.border },
+  leftLandscape: { flex: 0, width: '38%', maxWidth: 480, marginLeft: 0, marginTop: 12, marginBottom: 12, marginRight: 0, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   landscapeDetail: { flex: 1, backgroundColor: colors.bg, margin: 12, marginLeft: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   landscapeHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
   landscapeHeaderTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, flex: 1 },
