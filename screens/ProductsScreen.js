@@ -1079,7 +1079,7 @@ export default function ProductsScreen({ navigation, route }) {
               </Text>
               <View style={styles.catMgmtCard}>
                 {allCategoryNames.map((cat, idx) => {
-                  const count = allProducts.filter(p => p.category === cat).length;
+                  const count = products.filter(p => p.category === cat).length;
                   return (
                     <Pressable
                       key={cat}
@@ -1137,7 +1137,7 @@ export default function ProductsScreen({ navigation, route }) {
               </Pressable>
 
               {catModal2 && (() => {
-                const itemsInCat = allProducts.filter(p => p.category === catModal2.oldName);
+                const itemsInCat = products.filter(p => p.category === catModal2.oldName);
                 return (
                   <>
                     <Text style={[styles.catMgmtHint, { marginTop: 20, marginBottom: 8 }]}>Товары в категории ({itemsInCat.length})</Text>
