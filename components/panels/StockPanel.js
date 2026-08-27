@@ -42,7 +42,6 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
   const toast = useToast();
   const [stock, setStock]           = useState([]);
   const [search, setSearch]         = useState('');
-  const [showLowOnly, setShowLowOnly] = useState(false);
   const [viewMode, setViewMode]     = useState('categories'); // categories | list
   const [selected, setSelected]     = useState(null);
   const editorFadeAnim = useRef(new Animated.Value(0)).current;
@@ -200,15 +199,8 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
     } catch (e) { console.error(e); }
   };
 
-  const isLowOrNeg = (i) => {
-    const cur = i['остаток'] ?? 0;
-    const thr = i['порог'] ?? 0;
-    return cur < 0 || (thr > 0 && cur <= thr);
-  };
-
   const filtered = stock.filter(i =>
-    (!search.trim() || i.name?.toLowerCase().includes(search.toLowerCase())) &&
-    (!showLowOnly || isLowOrNeg(i))
+    (!search.trim() || i.name?.toLowerCase().includes(search.toLowerCase()))
   );
   const cats = [...new Set(filtered.map(i => i.category || 'Без категории'))].sort();
 
@@ -252,6 +244,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
         ]}
         onPress={() => can('view_stock') && selectItem(item)}
       >
+        {isActive && <View style={styles.activeBar} />}
         <View style={{ flex: 1 }}>
           <Text style={[styles.itemName, isActive && { color: colors.orange }]} numberOfLines={1}>{item.name}</Text>
           {thr > 0 && (
@@ -262,18 +255,11 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
         <View style={styles.itemRight}>
           <Text style={[
             styles.itemQty,
+            isOk && styles.qtyOk,
             isNeg && styles.qtyNeg,
             isLow && !isNeg && styles.qtyLow,
           ]}>
             {cur} <Text style={styles.itemUnit}>{item.unit}</Text>
-          </Text>
-          <Text style={[
-            styles.itemStatus,
-            isNeg && styles.statusNeg,
-            isLow && !isNeg && styles.statusLow,
-            isOk && styles.statusOk,
-          ]}>
-            {isNeg ? 'минус' : isLow ? 'мало' : 'норма'}
           </Text>
         </View>
 
@@ -493,9 +479,6 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
         </View>
 
         <View style={styles.filterRow}>
-          <Pressable style={[styles.filterChip, showLowOnly && styles.filterChipActive]} onPress={() => setShowLowOnly(v => !v)}>
-            <Text style={[styles.filterChipTxt, showLowOnly && styles.filterChipTxtActive]}>⚠️ Мало</Text>
-          </Pressable>
           <View style={styles.viewSwitch}>
             <Pressable style={[styles.viewSwitchBtn, viewMode === 'categories' && styles.viewSwitchBtnActive]} onPress={() => setViewMode('categories')}>
               <Text style={[styles.viewSwitchTxt, viewMode === 'categories' && styles.viewSwitchTxtActive]}>По категориям</Text>
@@ -515,8 +498,8 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
                 action={hideOwnCreateButton ? undefined : '+ Добавить позицию'}
                 onAction={hideOwnCreateButton ? undefined : () => setNewItemModal({ name: '', unit: 'шт', category: '', threshold: '', initialStock: '' })} />
             ) : (
-              <EmptyState icon="✅" title={showLowOnly ? 'Ничего не заканчивается' : 'Ничего не найдено'}
-                text={showLowOnly ? 'Все остатки в норме' : 'Попробуйте другой поиск'} />
+              <EmptyState icon="✅" title="Ничего не найдено"
+                text="Попробуйте другой поиск" />
             )
           ) : viewMode === 'list' ? (
             <View style={styles.catCard}>
@@ -946,10 +929,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: spacing.lg, paddingBottom: 10, gap: 8,
   },
-  filterChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
-  filterChipActive: { backgroundColor: 'rgba(217,95,95,0.1)', borderColor: 'rgba(217,95,95,0.4)' },
-  filterChipTxt: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
-  filterChipTxtActive: { color: colors.red },
   viewSwitch: { flexDirection: 'row', backgroundColor: colors.surface2, borderRadius: 10, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   viewSwitchBtn: { paddingVertical: 6, paddingHorizontal: 10 },
   viewSwitchBtnActive: { backgroundColor: 'rgba(240,160,80,0.12)' },
@@ -995,7 +974,7 @@ const styles = StyleSheet.create({
   catGroup: { marginTop: 18, paddingHorizontal: 14 },
   lowSheetSectionTitle: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.red, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 },
 
-  catHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  catHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, paddingVertical: 8, paddingHorizontal: 10, backgroundColor: colors.surface2, borderRadius: 10 },
   catName: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, flex: 1 },
   catCount: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginRight: 6 },
   catNameWarn: { color: '#e0906a' },
@@ -1003,10 +982,11 @@ const styles = StyleSheet.create({
 
   catCard: { backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
 
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14 },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 14, position: 'relative' },
   rowDivider: { borderBottomWidth: 1, borderBottomColor: colors.border },
   rowPressed: { backgroundColor: 'rgba(255,255,255,0.03)' },
   rowActive:  { backgroundColor: 'rgba(240,160,80,0.08)' },
+  activeBar:  { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
 
   itemName: { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 3 },
   itemThreshold: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
@@ -1014,11 +994,8 @@ const styles = StyleSheet.create({
   itemRight: { alignItems: 'flex-end', marginRight: 10 },
   itemQty: { fontFamily: fonts.family, fontSize: 17, fontWeight: '700', color: colors.text },
   itemUnit: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, fontWeight: '400' },
-  itemStatus: { fontFamily: fonts.familySemibold, fontSize: 11, marginTop: 2 },
 
-  statusOk:  { color: colors.green },
-  statusLow: { color: colors.red },
-  statusNeg: { color: '#ff3b30' },
+  qtyOk:     { color: colors.green },
   qtyLow:    { color: colors.red },
   qtyNeg:    { color: '#ff3b30' },
 

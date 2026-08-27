@@ -380,6 +380,9 @@ export default function ProductsScreen({ navigation, route }) {
   const [stockSelected, setStockSelected] = useState(false); // есть ли выбранная позиция внутри StockPanel
   const [stockCreateSignal, setStockCreateSignal] = useState(0);
   const [ingCreateForm, setIngCreateForm] = useState(null);
+  const [catModal, setCatModal]           = useState(false);
+  const [catModal2, setCatModal2]         = useState(null); // {oldName, newName}
+  const [catDeletePrompt, setCatDeletePrompt] = useState(null); // {name, count, moveTo}
 
   // Анимация смены вкладки — лёгкое затухание + возврат содержимого
   useEffect(() => {
@@ -657,10 +660,13 @@ export default function ProductsScreen({ navigation, route }) {
           {tab === 'products' && (
             <>
               {/* Поиск */}
-              <View style={styles.searchWrap}>
-                <TextInput style={styles.searchInput} color={colors.text}
+              <View style={[styles.searchWrap, { flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
+                <TextInput style={[styles.searchInput, { flex: 1 }]} color={colors.text}
                   value={search} onChangeText={setSearch}
                   placeholder="Поиск товара..." placeholderTextColor={colors.muted} />
+                <Pressable onPress={() => setCatModal(true)} hitSlop={8} style={styles.catBtn}>
+                  <Text style={styles.catBtnText}>⚙</Text>
+                </Pressable>
               </View>
 
               {/* Список по категориям */}
@@ -703,6 +709,7 @@ export default function ProductsScreen({ navigation, route }) {
                                   </View>
                                   <Text style={styles.productPrice}>{fmt(p.price)} ₽</Text>
                                   {!p.active && <Text style={styles.inactiveDot}>●</Text>}
+                                  <Text style={styles.rowArrow}>›</Text>
                                 </Pressable>
                               );
                             })}
@@ -1054,6 +1061,155 @@ export default function ProductsScreen({ navigation, route }) {
           stock={stock}
         />
       )}
+
+      {/* Категории товаров — список */}
+      <Modal visible={catModal} transparent animationType="fade" onRequestClose={() => setCatModal(false)}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCatModal(false)} />
+          <View style={styles.catModalBox}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Категории товаров</Text>
+              <Pressable onPress={() => setCatModal(false)} hitSlop={14} style={styles.modalClose}>
+                <Text style={styles.modalCloseTxt}>✕</Text>
+              </Pressable>
+            </View>
+            <ScrollView contentContainerStyle={{ padding: 16 }}>
+              <Text style={[styles.catMgmtHint, { marginBottom: 12 }]}>
+                Нажмите на категорию, чтобы переименовать, удалить или посмотреть товары. Новая категория создаётся прямо при заведении товара — впишите название, если нужной ещё нет.
+              </Text>
+              <View style={styles.catMgmtCard}>
+                {allCategoryNames.map((cat, idx) => {
+                  const count = allProducts.filter(p => p.category === cat).length;
+                  return (
+                    <Pressable
+                      key={cat}
+                      style={({ pressed }) => [styles.catMgmtRow, idx < allCategoryNames.length - 1 && styles.catMgmtRowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
+                      onPress={() => setCatModal2({ oldName: cat, newName: cat })}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.catMgmtName}>{cat}</Text>
+                        <Text style={styles.catMgmtCount}>{count} {count === 1 ? 'товар' : count >= 2 && count <= 4 ? 'товара' : 'товаров'}</Text>
+                      </View>
+                      <Text style={styles.catMgmtArrow}>›</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Переименование / удаление категории */}
+      <Modal visible={!!catModal2} transparent animationType="fade" onRequestClose={() => setCatModal2(null)}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCatModal2(null)} />
+          <View style={[styles.catModalBox, { maxHeight: '70%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{catModal2?.oldName}</Text>
+              <Pressable onPress={() => setCatModal2(null)} hitSlop={14} style={styles.modalClose}>
+                <Text style={styles.modalCloseTxt}>✕</Text>
+              </Pressable>
+            </View>
+            <ScrollView contentContainerStyle={{ padding: 16 }}>
+              <Text style={styles.catMgmtHint}>Название категории</Text>
+              <TextInput
+                color={colors.text}
+                style={[styles.input, { marginTop: 6 }]}
+                value={catModal2?.newName || ''}
+                onChangeText={v => setCatModal2(m => ({ ...m, newName: v }))}
+                placeholder="Название категории"
+                placeholderTextColor={colors.muted}
+              />
+              <Pressable
+                style={({ pressed }) => [styles.confirmBtn, { marginTop: 12 }, pressed && { opacity: 0.88 }]}
+                onPress={() => {
+                  if (!catModal2?.newName?.trim()) return;
+                  try {
+                    const db = getDb();
+                    db.runSync(`UPDATE products SET category = ? WHERE category = ?`, [catModal2.newName.trim(), catModal2.oldName]);
+                    load();
+                    setCatModal2(null);
+                  } catch (e) { console.error(e); }
+                }}
+              >
+                <Text style={styles.confirmBtnText}>Сохранить название</Text>
+              </Pressable>
+
+              {catModal2 && (() => {
+                const itemsInCat = allProducts.filter(p => p.category === catModal2.oldName);
+                return (
+                  <>
+                    <Text style={[styles.catMgmtHint, { marginTop: 20, marginBottom: 8 }]}>Товары в категории ({itemsInCat.length})</Text>
+                    {itemsInCat.map(it => (
+                      <View key={it.id} style={styles.catMgmtItemRow}>
+                        <Text style={styles.catMgmtItemName}>{it.name}</Text>
+                        <Text style={styles.catMgmtItemPrice}>{fmt(it.price)} ₽</Text>
+                      </View>
+                    ))}
+                    <Pressable
+                      style={[styles.catMgmtDeleteBtn, { marginTop: 16 }]}
+                      onPress={() => {
+                        if (itemsInCat.length === 0) { setCatModal2(null); return; }
+                        setCatDeletePrompt({ name: catModal2.oldName, count: itemsInCat.length, moveTo: '' });
+                      }}
+                    >
+                      <Text style={styles.catMgmtDeleteTxt}>Удалить категорию</Text>
+                    </Pressable>
+                  </>
+                );
+              })()}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Удаление категории — перенос товаров в другую */}
+      <Modal visible={!!catDeletePrompt} transparent animationType="fade" onRequestClose={() => setCatDeletePrompt(null)}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCatDeletePrompt(null)} />
+          <View style={[styles.catModalBox, { maxHeight: '60%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Куда перенести товары?</Text>
+              <Pressable onPress={() => setCatDeletePrompt(null)} hitSlop={14} style={styles.modalClose}>
+                <Text style={styles.modalCloseTxt}>✕</Text>
+              </Pressable>
+            </View>
+            <ScrollView contentContainerStyle={{ padding: 16 }}>
+              <Text style={styles.catMgmtHint}>
+                В категории «{catDeletePrompt?.name}» — {catDeletePrompt?.count} {catDeletePrompt?.count === 1 ? 'товар' : 'товаров'}. Выберите, куда их перенести, прежде чем удалить категорию.
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+                {allCategoryNames.filter(c => c !== catDeletePrompt?.name).map(c => (
+                  <Pressable
+                    key={c}
+                    style={[styles.catMgmtChip, catDeletePrompt?.moveTo === c && styles.catMgmtChipActive]}
+                    onPress={() => setCatDeletePrompt(p => ({ ...p, moveTo: c }))}
+                  >
+                    <Text style={[styles.catMgmtChipTxt, catDeletePrompt?.moveTo === c && styles.catMgmtChipTxtActive]}>{c}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Pressable
+                style={[styles.catMgmtDeleteBtn, { marginTop: 20 }]}
+                onPress={() => {
+                  if (!catDeletePrompt?.moveTo) { toast.show('Выберите категорию', 'warn'); return; }
+                  try {
+                    const db = getDb();
+                    db.runSync(`UPDATE products SET category = ? WHERE category = ?`, [catDeletePrompt.moveTo, catDeletePrompt.name]);
+                    load();
+                    setCatDeletePrompt(null);
+                    setCatModal2(null);
+                    toast.show('Категория удалена, товары перенесены', 'info');
+                  } catch (e) { console.error(e); }
+                }}
+              >
+                <Text style={styles.catMgmtDeleteTxt}>Перенести и удалить</Text>
+              </Pressable>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1210,6 +1366,8 @@ const styles = StyleSheet.create({
 
   searchWrap: { padding: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
   searchInput:{ backgroundColor: colors.surface2, borderRadius: 10, paddingVertical: 11, paddingHorizontal: 12, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 16 },
+  catBtn: { width: 38, height: 38, borderRadius: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  catBtnText: { fontSize: 16, color: colors.muted },
 
   catGroup:   { marginTop: 18, paddingHorizontal: 14 },
   catHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, paddingVertical: 8, paddingHorizontal: 10, backgroundColor: colors.surface2, borderRadius: 10 },
@@ -1219,7 +1377,7 @@ const styles = StyleSheet.create({
   catChevron: { fontSize: 16, color: colors.muted, transform: [{ rotate: '90deg' }] },
   catChevronOpen: { transform: [{ rotate: '-90deg' }] },
 
-  productRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, position: 'relative' },
+  productRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 14, position: 'relative' },
   productRowDiv: { borderBottomWidth: 1, borderBottomColor: colors.border },
   productRowActive: { backgroundColor: 'rgba(240,160,80,0.08)' },
   activeBar:     { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
@@ -1227,6 +1385,7 @@ const styles = StyleSheet.create({
   productNameActive: { color: colors.orange },
   productPrice:  { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: colors.orange, marginTop: 2, marginRight: 6 },
   inactiveDot:   { fontSize: 8, color: colors.muted, opacity: 0.5 },
+  rowArrow:      { fontFamily: fonts.family, fontSize: 20, color: colors.border, marginLeft: 4 },
 
   modGroupCard:  { backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 14, flexDirection: 'row', alignItems: 'center' },
   modGroupName:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
@@ -1376,6 +1535,28 @@ const styles = StyleSheet.create({
 
   groupModalBox: { width: '55%', maxHeight: '85%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   modalHeader:   { flexDirection: 'row', alignItems: 'center', padding: 18, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface2 },
+  modalClose:    { paddingHorizontal: 6, paddingVertical: 4 },
+
+  catModalBox: { width: '45%', maxWidth: 420, maxHeight: '80%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  catMgmtHint: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, lineHeight: 19 },
+  catMgmtCard: { backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  catMgmtRow:  { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16 },
+  catMgmtRowDiv: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  catMgmtName: { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 2 },
+  catMgmtCount: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+  catMgmtArrow: { fontFamily: fonts.family, fontSize: 20, color: colors.border },
+  catMgmtItemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: colors.border },
+  catMgmtItemName: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.text, flex: 1 },
+  catMgmtItemPrice: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange, marginLeft: 8 },
+  catMgmtDeleteBtn: { paddingVertical: 13, borderRadius: 12, backgroundColor: 'rgba(217,95,95,0.12)', borderWidth: 1, borderColor: 'rgba(217,95,95,0.35)', alignItems: 'center' },
+  catMgmtDeleteTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red },
+  catMgmtChip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 16, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
+  catMgmtChipActive: { backgroundColor: 'rgba(240,160,80,0.14)', borderColor: colors.orange },
+  catMgmtChipTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  catMgmtChipTxtActive: { color: colors.orange },
+
+  confirmBtn: { paddingVertical: 13, borderRadius: 12, backgroundColor: colors.orange, alignItems: 'center' },
+  confirmBtnText: { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: '#fff' },
   modalTitle:    { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.text, flex: 1 },
   closeBtn:      { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   closeTxt:      { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
