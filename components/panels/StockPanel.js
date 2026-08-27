@@ -908,7 +908,7 @@ const styles = StyleSheet.create({
   layout: { flex: 1 },
   left:   { flex: 1, backgroundColor: colors.surface },
   leftLandscape: { flex: 0, width: '38%', maxWidth: 420, borderRightWidth: 1, borderRightColor: colors.border },
-  landscapeDetail: { flex: 1, backgroundColor: colors.bg },
+  landscapeDetail: { flex: 1, backgroundColor: colors.bg, margin: 12, marginLeft: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   landscapeHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
   landscapeHeaderTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, flex: 1 },
   landscapeBackBtn: { paddingHorizontal: 10, paddingVertical: 6 },

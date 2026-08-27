@@ -1257,7 +1257,7 @@ const styles = StyleSheet.create({
   right:      { flex: 1, backgroundColor: colors.bg },
   emptyRight: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
   emptyRightTxt: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', opacity: 0.6 },
-  landscapeEditorPanel: { flex: 1, backgroundColor: colors.bg, borderLeftWidth: 1, borderLeftColor: colors.border },
+  landscapeEditorPanel: { flex: 1, backgroundColor: colors.bg, margin: 12, marginLeft: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   landscapeHeader: { paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
   landscapeHeaderTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text },
 
