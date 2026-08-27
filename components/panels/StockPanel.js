@@ -520,6 +520,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
               <View key={cat} style={styles.catGroup}>
                 <View style={styles.catHeadRow}>
                   <Text style={[styles.catName, hasLow && styles.catNameWarn]}>{cat}</Text>
+                  <Text style={styles.catCount}>{items.length}</Text>
                   {hasLow && <Text style={styles.catWarnDot}>⚠️</Text>}
                 </View>
 
@@ -970,22 +971,23 @@ const styles = StyleSheet.create({
   addStockBtn: { paddingHorizontal: 12, height: 38, borderRadius: 10, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
   addStockBtnText: { fontSize: 13, color: colors.orange, fontFamily: fonts.familySemibold },
 
-  catGroup: { marginTop: 24, paddingHorizontal: spacing.lg },
+  catGroup: { marginTop: 18, paddingHorizontal: 14 },
   lowSheetSectionTitle: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.red, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 },
 
-  catHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  catName: { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.text, letterSpacing: -0.3 },
+  catHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  catName: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, flex: 1 },
+  catCount: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginRight: 6 },
   catNameWarn: { color: '#e0906a' },
   catWarnDot:  { fontSize: 14 },
 
-  catCard: { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  catCard: { backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
 
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16 },
-  rowDivider: { borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.18)' },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14 },
+  rowDivider: { borderBottomWidth: 1, borderBottomColor: colors.border },
   rowPressed: { backgroundColor: 'rgba(255,255,255,0.03)' },
-  rowActive:  { backgroundColor: 'rgba(240,160,80,0.07)' },
+  rowActive:  { backgroundColor: 'rgba(240,160,80,0.08)' },
 
-  itemName: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text, marginBottom: 3 },
+  itemName: { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 3 },
   itemThreshold: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
 
   itemRight: { alignItems: 'flex-end', marginRight: 10 },
