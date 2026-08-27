@@ -365,7 +365,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
 export default function ProductsScreen({ navigation, route }) {
   const toast = useToast();
   const { isLandscape } = useResponsive();
-  const [tab, setTab]               = useState(route?.params?.initialTab || 'products'); // products | stock | modifiers
+  const [tab, setTab]               = useState(route?.params?.initialTab || 'stock'); // products | stock | modifiers
   const [modules, setModules]       = useState({});
   const [products, setProducts]     = useState([]);
   const [stock, setStock]           = useState([]);
