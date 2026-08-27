@@ -28,10 +28,10 @@ function updateStockLocal(itemId, newValue) {
 }
 
 const MODES = [
-  { key: 'purchase', label: 'Закупка',    desc: 'Добавить с фиксацией цены' },
-  { key: 'add',      label: 'Добавить',   desc: 'Пополнить остаток' },
-  { key: 'subtract', label: 'Списать',    desc: 'Уменьшить (брак, расход)' },
-  { key: 'set',      label: 'Установить', desc: 'Задать точное значение' },
+  { key: 'purchase', label: 'Закупка',    desc: 'Добавить с фиксацией цены', icon: '🛒', tint: colors.orange },
+  { key: 'add',      label: 'Добавить',   desc: 'Пополнить остаток', icon: '➕', tint: colors.green },
+  { key: 'subtract', label: 'Списать',    desc: 'Уменьшить (брак, расход)', icon: '➖', tint: colors.red },
+  { key: 'set',      label: 'Установить', desc: 'Задать точное значение', icon: '✏️', tint: '#7a9ce0' },
 ];
 
 // Единая реализация Склада — используется и отдельным экраном (StockScreen),
@@ -396,16 +396,18 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
               </View>
             ) : (
               <View style={styles.modeList}>
-                {MODES.filter(m => m.key !== 'set' || can('edit_thresholds')).map((m, i, arr) => (
+                {MODES.filter(m => m.key !== 'set' || can('edit_thresholds')).map((m) => (
                   <Pressable
                     key={m.key}
                     style={({ pressed }) => [
                       styles.modeRow,
-                      i < arr.length - 1 && styles.modeRowDiv,
-                      pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
+                      pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
                     ]}
                     onPress={() => openMode(m.key)}
                   >
+                    <View style={[styles.modeIconBadge, { backgroundColor: `${m.tint}22`, borderColor: `${m.tint}55` }]}>
+                      <Text style={styles.modeIconTxt}>{m.icon}</Text>
+                    </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.modeLabel}>{m.label}</Text>
                       <Text style={styles.modeDesc}>{m.desc}</Text>
@@ -1033,10 +1035,17 @@ const styles = StyleSheet.create({
   curAvg:    { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.textDim, marginTop: 10 },
   curAvgVal: { fontFamily: fonts.family, fontSize: 14, fontWeight: '700', color: colors.text },
 
-  modeList:   { borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(64,60,55,0.25)' },
-  modeRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, backgroundColor: colors.surface2 },
-  modeRowDiv: { borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.18)' },
-  modeLabel:  { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text, marginBottom: 2 },
+  modeList:   { gap: 10 },
+  modeRow:    {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 13, paddingHorizontal: 14,
+    backgroundColor: colors.surface2, borderRadius: 14,
+    borderWidth: 1, borderColor: colors.border,
+    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 2,
+  },
+  modeIconBadge: { width: 38, height: 38, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  modeIconTxt: { fontSize: 17 },
+  modeLabel:  { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 2 },
   modeDesc:   { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
   modeArrow:  { fontSize: 18, color: colors.muted },
   modeRowActive: { backgroundColor: 'rgba(240,160,80,0.08)' },
