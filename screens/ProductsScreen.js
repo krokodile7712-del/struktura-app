@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
   TextInput, Modal, Alert, Animated,
@@ -375,9 +375,35 @@ export default function ProductsScreen({ navigation, route }) {
   const [modGroups, setModGroups]   = useState([]);
   const [search, setSearch]         = useState('');
   const [selected, setSelected]     = useState(null);      // {id, name, ...} | 'new'
+  const tabFadeAnim = useRef(new Animated.Value(1)).current;
+  const listShiftAnim = useRef(new Animated.Value(0)).current; // 0 = у края, 1 = сдвинут к центру
+  const editorFadeAnim = useRef(new Animated.Value(0)).current;
   const [stockSelected, setStockSelected] = useState(false); // есть ли выбранная позиция внутри StockPanel
   const [stockCreateSignal, setStockCreateSignal] = useState(0);
   const [ingCreateForm, setIngCreateForm] = useState(null);
+
+  // Анимация смены вкладки — лёгкое затухание + возврат содержимого
+  useEffect(() => {
+    tabFadeAnim.setValue(0);
+    Animated.timing(tabFadeAnim, { toValue: 1, duration: 220, useNativeDriver: true }).start();
+  }, [tab]);
+
+  // Сдвиг списка ближе к центру, когда карточка редактора пустая (альбомная)
+  useEffect(() => {
+    Animated.spring(listShiftAnim, {
+      toValue: selected ? 0 : 1,
+      useNativeDriver: true,
+      bounciness: 4,
+    }).start();
+  }, [selected]);
+
+  // Плавное появление карточки редактора при выборе товара (альбомная)
+  useEffect(() => {
+    if (selected) {
+      editorFadeAnim.setValue(0);
+      Animated.timing(editorFadeAnim, { toValue: 1, duration: 260, useNativeDriver: true }).start();
+    }
+  }, [selected]);
   const [expandedCats, setExpandedCats] = useState({});
   const [catMgmtOpen, setCatMgmtOpen] = useState(false);
   const [catList, setCatList]       = useState([]); // [{id, name, productCount}]
@@ -630,7 +656,18 @@ export default function ProductsScreen({ navigation, route }) {
       <View style={[styles.layout, isLandscape && { flexDirection: 'row' }]}>
 
         {/* ── Левая панель ── */}
-        <View style={[styles.left, isLandscape && styles.leftLandscape]}>
+        <Animated.View
+          style={[
+            styles.left,
+            isLandscape && styles.leftLandscape,
+            { opacity: tabFadeAnim },
+            isLandscape && {
+              transform: [{
+                translateX: listShiftAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 130] }),
+              }],
+            },
+          ]}
+        >
 
           {tab === 'products' && (
             <>
@@ -707,7 +744,7 @@ export default function ProductsScreen({ navigation, route }) {
               ))}
             </ScrollView>
           )}
-        </View>
+        </Animated.View>
       {(() => {
         const editorContent = selected && (
           <ProductEditor
@@ -730,12 +767,21 @@ export default function ProductsScreen({ navigation, route }) {
           /* Альбомная ориентация — редактор товара постоянной панелью справа от списка */
           <View style={styles.landscapeEditorPanel}>
             {selected ? (
-              <>
+              <Animated.View
+                key={selected?.id || 'new'}
+                style={{
+                  flex: 1,
+                  opacity: editorFadeAnim,
+                  transform: [{
+                    translateY: editorFadeAnim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }),
+                  }],
+                }}
+              >
                 <View style={styles.landscapeHeader}>
                   <Text style={styles.landscapeHeaderTxt} numberOfLines={1}>{editorTitle}</Text>
                 </View>
                 {editorContent}
-              </>
+              </Animated.View>
             ) : (
               <View style={styles.emptyRight}>
                 <Text style={{ fontSize: 48 }}>🛍</Text>
@@ -1144,7 +1190,7 @@ const styles = StyleSheet.create({
   leftLandscape: { flex: 0, width: '38%', maxWidth: 420, borderRightWidth: 1, borderRightColor: colors.border },
 
   tabBar: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border },
-  tabBarOuter: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
+  tabBarOuter: { flexDirection: 'row', gap: 6, paddingHorizontal: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
 
   fab: {
     position: 'absolute', right: 20, bottom: 92,
@@ -1167,8 +1213,8 @@ const styles = StyleSheet.create({
   combSaveBtn: { backgroundColor: colors.orange, borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginTop: 16 },
   combSaveTxt: { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff' },
 
-  tabBtn: { flex: 1, paddingVertical: 13, alignItems: 'center' },
-  tabBtnActive: { borderBottomWidth: 2, borderBottomColor: colors.orange },
+  tabBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 12 },
+  tabBtnActive: { backgroundColor: 'rgba(240,160,80,0.14)' },
   tabTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
   tabTxtActive: { color: colors.orange },
 
@@ -1186,7 +1232,7 @@ const styles = StyleSheet.create({
   activeBar:     { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
   productName:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
   productNameActive: { color: colors.orange },
-  productPrice:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
+  productPrice:  { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: colors.orange, marginTop: 2 },
   inactiveDot:   { fontSize: 8, color: colors.muted, opacity: 0.5 },
 
   modGroupCard:  { backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 14, flexDirection: 'row', alignItems: 'center' },
