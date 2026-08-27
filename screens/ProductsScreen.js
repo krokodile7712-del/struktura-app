@@ -376,7 +376,6 @@ export default function ProductsScreen({ navigation, route }) {
   const [search, setSearch]         = useState('');
   const [selected, setSelected]     = useState(null);      // {id, name, ...} | 'new'
   const tabFadeAnim = useRef(new Animated.Value(1)).current;
-  const listShiftAnim = useRef(new Animated.Value(0)).current; // 0 = у края, 1 = сдвинут к центру
   const editorFadeAnim = useRef(new Animated.Value(0)).current;
   const [stockSelected, setStockSelected] = useState(false); // есть ли выбранная позиция внутри StockPanel
   const [stockCreateSignal, setStockCreateSignal] = useState(0);
@@ -387,18 +386,6 @@ export default function ProductsScreen({ navigation, route }) {
     tabFadeAnim.setValue(0);
     Animated.timing(tabFadeAnim, { toValue: 1, duration: 220, useNativeDriver: false }).start();
   }, [tab]);
-
-  // Сдвиг списка ближе к центру, когда карточка редактора пустая (альбомная).
-  // marginLeft, не transform — иначе список визуально заезжает в область
-  // редактора (у той её не сдвинутый край), и она перекрывает собой кусок
-  // списка, создавая ощущение, что список сузился, хотя на самом деле нет.
-  useEffect(() => {
-    Animated.spring(listShiftAnim, {
-      toValue: selected ? 0 : 1,
-      useNativeDriver: false,
-      bounciness: 4,
-    }).start();
-  }, [selected]);
 
   // Плавное появление карточки редактора при выборе товара (альбомная)
   useEffect(() => {
@@ -664,9 +651,6 @@ export default function ProductsScreen({ navigation, route }) {
             styles.left,
             isLandscape && styles.leftLandscape,
             { opacity: tabFadeAnim },
-            isLandscape && {
-              marginLeft: listShiftAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 130] }),
-            },
           ]}
         >
 
