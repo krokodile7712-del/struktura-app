@@ -1228,7 +1228,7 @@ const styles = StyleSheet.create({
   searchInput:{ backgroundColor: colors.surface2, borderRadius: 10, paddingVertical: 11, paddingHorizontal: 12, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 16 },
 
   catGroup:   { marginTop: 18, paddingHorizontal: 14 },
-  catHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  catHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, paddingVertical: 8, paddingHorizontal: 10, backgroundColor: colors.surface2, borderRadius: 10 },
   catCard:    { backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   catLabel:   { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, flex: 1 },
   catCount:   { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginRight: 6 },
