@@ -388,11 +388,14 @@ export default function ProductsScreen({ navigation, route }) {
     Animated.timing(tabFadeAnim, { toValue: 1, duration: 220, useNativeDriver: true }).start();
   }, [tab]);
 
-  // Сдвиг списка ближе к центру, когда карточка редактора пустая (альбомная)
+  // Сдвиг списка ближе к центру, когда карточка редактора пустая (альбомная).
+  // marginLeft, не transform — иначе список визуально заезжает в область
+  // редактора (у той её не сдвинутый край), и она перекрывает собой кусок
+  // списка, создавая ощущение, что список сузился, хотя на самом деле нет.
   useEffect(() => {
     Animated.spring(listShiftAnim, {
       toValue: selected ? 0 : 1,
-      useNativeDriver: true,
+      useNativeDriver: false,
       bounciness: 4,
     }).start();
   }, [selected]);
@@ -662,9 +665,7 @@ export default function ProductsScreen({ navigation, route }) {
             isLandscape && styles.leftLandscape,
             { opacity: tabFadeAnim },
             isLandscape && {
-              transform: [{
-                translateX: listShiftAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 130] }),
-              }],
+              marginLeft: listShiftAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 130] }),
             },
           ]}
         >
@@ -1187,7 +1188,7 @@ const styles = StyleSheet.create({
 
   // Левая панель
   left:   { flex: 1, backgroundColor: colors.surface },
-  leftLandscape: { flex: 0, width: '38%', maxWidth: 420, borderRightWidth: 1, borderRightColor: colors.border },
+  leftLandscape: { flex: 0, width: '38%', maxWidth: 420, margin: 12, marginRight: 0, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
 
   tabBar: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border },
   tabBarOuter: { flexDirection: 'row', gap: 6, paddingHorizontal: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
