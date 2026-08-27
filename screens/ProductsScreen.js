@@ -691,34 +691,39 @@ export default function ProductsScreen({ navigation, route }) {
                   catGroups.map(({ cat, items }) => {
                     const isOpen = expandedCats[cat] !== false;
                     return (
-                      <View key={cat}>
-                        <Pressable style={styles.catHeader} onPress={() => setExpandedCats(e => ({ ...e, [cat]: !isOpen }))}>
+                      <View key={cat} style={styles.catGroup}>
+                        <Pressable style={styles.catHeadRow} onPress={() => setExpandedCats(e => ({ ...e, [cat]: !isOpen }))}>
                           <Text style={styles.catLabel}>{cat}</Text>
                           <Text style={styles.catCount}>{items.length}</Text>
                           <Text style={[styles.catChevron, isOpen && styles.catChevronOpen]}>›</Text>
                         </Pressable>
-                        {isOpen && items.map(p => {
-                          const isActive = selected?.id === p.id;
-                          return (
-                            <Pressable
-                              key={p.id}
-                              style={({ pressed }) => [
-                                styles.productRow,
-                                isActive && styles.productRowActive,
-                                !p.active && { opacity: 0.45 },
-                                pressed && { backgroundColor: 'rgba(245,240,232,0.03)' },
-                              ]}
-                              onPress={() => setSelected(p)}
-                            >
-                              {isActive && <View style={styles.activeBar} />}
-                              <View style={{ flex: 1 }}>
-                                <Text style={[styles.productName, isActive && styles.productNameActive]} numberOfLines={1}>{p.name}</Text>
-                                <Text style={styles.productPrice}>{fmt(p.price)} ₽</Text>
-                              </View>
-                              {!p.active && <Text style={styles.inactiveDot}>●</Text>}
-                            </Pressable>
-                          );
-                        })}
+                        {isOpen && (
+                          <View style={styles.catCard}>
+                            {items.map((p, idx) => {
+                              const isActive = selected?.id === p.id;
+                              return (
+                                <Pressable
+                                  key={p.id}
+                                  style={({ pressed }) => [
+                                    styles.productRow,
+                                    idx < items.length - 1 && styles.productRowDiv,
+                                    isActive && styles.productRowActive,
+                                    !p.active && { opacity: 0.45 },
+                                    pressed && { backgroundColor: 'rgba(245,240,232,0.03)' },
+                                  ]}
+                                  onPress={() => setSelected(p)}
+                                >
+                                  {isActive && <View style={styles.activeBar} />}
+                                  <View style={{ flex: 1 }}>
+                                    <Text style={[styles.productName, isActive && styles.productNameActive]} numberOfLines={1}>{p.name}</Text>
+                                    <Text style={styles.productPrice}>{fmt(p.price)} ₽</Text>
+                                  </View>
+                                  {!p.active && <Text style={styles.inactiveDot}>●</Text>}
+                                </Pressable>
+                              );
+                            })}
+                          </View>
+                        )}
                       </View>
                     );
                   })
@@ -1222,16 +1227,19 @@ const styles = StyleSheet.create({
   searchWrap: { padding: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
   searchInput:{ backgroundColor: colors.surface2, borderRadius: 10, paddingVertical: 11, paddingHorizontal: 12, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 16 },
 
-  catHeader:  { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
+  catGroup:   { marginTop: 18, paddingHorizontal: 14 },
+  catHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  catCard:    { backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   catLabel:   { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, flex: 1 },
   catCount:   { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginRight: 6 },
   catChevron: { fontSize: 16, color: colors.muted, transform: [{ rotate: '90deg' }] },
   catChevronOpen: { transform: [{ rotate: '-90deg' }] },
 
-  productRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: colors.borderLo, position: 'relative' },
-  productRowActive: { backgroundColor: 'rgba(240,160,80,0.06)' },
+  productRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, position: 'relative' },
+  productRowDiv: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  productRowActive: { backgroundColor: 'rgba(240,160,80,0.08)' },
   activeBar:     { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
-  productName:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
+  productName:   { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: colors.text },
   productNameActive: { color: colors.orange },
   productPrice:  { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: colors.orange, marginTop: 2 },
   inactiveDot:   { fontSize: 8, color: colors.muted, opacity: 0.5 },
