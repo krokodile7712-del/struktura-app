@@ -1193,7 +1193,7 @@ const styles = StyleSheet.create({
 
   // Левая панель
   left:   { flex: 1, backgroundColor: colors.surface },
-  leftLandscape: { flex: 0, width: '38%', maxWidth: 480, marginLeft: -98, marginTop: 12, marginBottom: 12, marginRight: 0, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  leftLandscape: { flex: 0, width: '38%', maxWidth: 480, marginLeft: 0, marginTop: 12, marginBottom: 12, marginRight: 0, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
 
   tabBar: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border },
   tabBarOuter: { flexDirection: 'row', gap: 6, paddingHorizontal: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
