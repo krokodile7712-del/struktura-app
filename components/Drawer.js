@@ -49,7 +49,7 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
     {
       title: 'Работа',
       items: [
-        { label: 'Товары',    screen: 'Products',    adminOnly: true },
+        { label: 'Управление товарами', screen: 'Products',    adminOnly: true },
         { label: 'Записи',    screen: 'Bookings',    adminOnly: true },
         { label: 'Настройки', screen: 'Settings',    perm: 'access_settings' },
       ],

@@ -644,7 +644,7 @@ export default function ProductsScreen({ navigation, route }) {
 
       {/* Вкладки — всегда видны, независимо от активной */}
       <View style={styles.tabBarOuter}>
-        {[{ key: 'products', label: 'Товары' }, { key: 'stock', label: 'Склад' }]
+        {[{ key: 'stock', label: 'Склад' }, { key: 'products', label: 'Товары' }]
           .filter(t => t.key !== 'stock' || modules.stock !== false)
           .map(t => (
           <Pressable key={t.key} style={[styles.tabBtn, tab === t.key && styles.tabBtnActive]} onPress={() => { setTab(t.key); setSelected(null); }}>

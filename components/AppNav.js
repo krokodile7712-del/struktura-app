@@ -12,7 +12,7 @@ import { useTourAnyActive } from './TourRegistry';
 // Полный список разделов для широкой панели (администратор).
 const ADMIN_SECTIONS = [
   { key: 'Sales',       route: 'Sales',        label: 'Продажи' },
-  { key: 'Products',    route: 'Products',     label: 'Товары' },
+  { key: 'Products',    route: 'Products',     label: 'Управление товарами' },
   { key: 'ClientsList', route: 'ClientsList',  label: 'Клиенты',  module: 'clients' },
   { key: 'Reports',     route: 'Reports',      label: 'Отчётность' },
   { key: 'Expenses',    route: 'Expenses',     label: 'Расходы' },
@@ -31,7 +31,7 @@ const STAFF_SECTIONS = [
   { key: 'Sales',       route: 'Sales',        label: 'Продажи',  perm: 'view_order_history' },
   { key: 'ClientsList', route: 'ClientsList',  label: 'Клиенты',  perm: 'view_clients' },
   { key: 'Expenses',    route: 'Expenses',     label: 'Расходы',  perm: 'add_expenses' },
-  { key: 'Products',    route: 'Products',     label: 'Товары',   perm: 'view_stock', params: { initialTab: 'stock' } },
+  { key: 'Products',    route: 'Products',     label: 'Управление товарами',   perm: 'view_stock', params: { initialTab: 'stock' } },
 ];
 
 // Компактный список для нижней панели (портрет) — 5 пунктов, Касса по центру.
