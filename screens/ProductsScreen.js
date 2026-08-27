@@ -716,8 +716,8 @@ export default function ProductsScreen({ navigation, route }) {
                                   {isActive && <View style={styles.activeBar} />}
                                   <View style={{ flex: 1 }}>
                                     <Text style={[styles.productName, isActive && styles.productNameActive]} numberOfLines={1}>{p.name}</Text>
-                                    <Text style={styles.productPrice}>{fmt(p.price)} ₽</Text>
                                   </View>
+                                  <Text style={styles.productPrice}>{fmt(p.price)} ₽</Text>
                                   {!p.active && <Text style={styles.inactiveDot}>●</Text>}
                                 </Pressable>
                               );
@@ -1193,7 +1193,7 @@ const styles = StyleSheet.create({
 
   // Левая панель
   left:   { flex: 1, backgroundColor: colors.surface },
-  leftLandscape: { flex: 0, width: '38%', maxWidth: 420, margin: 12, marginRight: 0, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  leftLandscape: { flex: 0, width: '38%', maxWidth: 480, marginLeft: -38, marginTop: 12, marginBottom: 12, marginRight: 0, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
 
   tabBar: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border },
   tabBarOuter: { flexDirection: 'row', gap: 6, paddingHorizontal: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
@@ -1241,7 +1241,7 @@ const styles = StyleSheet.create({
   activeBar:     { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
   productName:   { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: colors.text },
   productNameActive: { color: colors.orange },
-  productPrice:  { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: colors.orange, marginTop: 2 },
+  productPrice:  { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: colors.orange, marginTop: 2, marginRight: 6 },
   inactiveDot:   { fontSize: 8, color: colors.muted, opacity: 0.5 },
 
   modGroupCard:  { backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 14, flexDirection: 'row', alignItems: 'center' },
