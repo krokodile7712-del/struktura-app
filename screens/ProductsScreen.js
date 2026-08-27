@@ -385,7 +385,7 @@ export default function ProductsScreen({ navigation, route }) {
   // Анимация смены вкладки — лёгкое затухание + возврат содержимого
   useEffect(() => {
     tabFadeAnim.setValue(0);
-    Animated.timing(tabFadeAnim, { toValue: 1, duration: 220, useNativeDriver: true }).start();
+    Animated.timing(tabFadeAnim, { toValue: 1, duration: 220, useNativeDriver: false }).start();
   }, [tab]);
 
   // Сдвиг списка ближе к центру, когда карточка редактора пустая (альбомная).
