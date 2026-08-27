@@ -12,7 +12,6 @@ import UnitPicker from '../components/UnitPicker';
 import AppNav from '../components/AppNav';
 import Toggle from '../components/Toggle';
 import InfoTip from '../components/InfoTip';
-import CatalogPulseEmpty from '../components/CatalogPulseEmpty';
 import { useToast } from '../components/Toast';
 import { useFocusEffect } from '@react-navigation/native';
 import {
@@ -791,7 +790,8 @@ export default function ProductsScreen({ navigation, route }) {
               </Animated.View>
             ) : (
               <View style={styles.emptyRight}>
-                <CatalogPulseEmpty />
+                <Text style={{ fontSize: 48 }}>🛍</Text>
+                <Text style={styles.emptyRightTxt}>Выберите товар</Text>
               </View>
             )}
           </View>
