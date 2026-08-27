@@ -644,7 +644,7 @@ export default function ProductsScreen({ navigation, route }) {
       </View>
 
       {tab === 'stock' ? (
-        <StockPanel navigation={navigation} openCreateSignal={stockCreateSignal} hideOwnCreateButton onSelectedChange={setStockSelected} />
+        <StockPanel navigation={navigation} openCreateSignal={stockCreateSignal} onSelectedChange={setStockSelected} />
       ) : (
       <View style={[styles.layout, isLandscape && { flexDirection: 'row' }]}>
 
@@ -664,6 +664,9 @@ export default function ProductsScreen({ navigation, route }) {
                 <TextInput style={[styles.searchInput, { flex: 1 }]} color={colors.text}
                   value={search} onChangeText={setSearch}
                   placeholder="Поиск товара..." placeholderTextColor={colors.muted} />
+                <Pressable onPress={() => setSelected('new')} hitSlop={8} style={styles.addStockBtn}>
+                  <Text style={styles.addStockBtnText}>+ Товар</Text>
+                </Pressable>
                 <Pressable onPress={() => setCatModal(true)} hitSlop={8} style={styles.catBtn}>
                   <Text style={styles.catBtnText}>⚙</Text>
                 </Pressable>
@@ -795,12 +798,6 @@ export default function ProductsScreen({ navigation, route }) {
       })()}
 
       </View>
-      )}
-
-      {tab !== 'modifiers' && !(isLandscape && (tab === 'stock' ? stockSelected : selected)) && (
-        <Pressable style={styles.fab} onPress={() => { if (tab === 'stock') { setStockCreateSignal(s => s + 1); } else { setTab('products'); setSelected('new'); } }}>
-          <Text style={styles.fabTxt}>+</Text>
-        </Pressable>
       )}
 
       {/* Пикер ингредиентов — на уровне экрана */}
@@ -1366,6 +1363,8 @@ const styles = StyleSheet.create({
 
   searchWrap: { padding: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
   searchInput:{ backgroundColor: colors.surface2, borderRadius: 10, paddingVertical: 11, paddingHorizontal: 12, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 16 },
+  addStockBtn: { paddingHorizontal: 12, height: 38, borderRadius: 10, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
+  addStockBtnText: { fontSize: 13, color: colors.orange, fontFamily: fonts.familySemibold },
   catBtn: { width: 38, height: 38, borderRadius: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   catBtnText: { fontSize: 16, color: colors.muted },
 
