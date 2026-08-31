@@ -172,6 +172,20 @@ export function initDatabase() {
     );
   `);
 
+  // Шаблоны повторяющихся расходов — аренда, зарплата, подписки и т.п.
+  // day_of_month — какого числа месяца создавать очередной расход.
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS recurring_expenses (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      category     TEXT NOT NULL,
+      amount       REAL NOT NULL,
+      comment      TEXT DEFAULT '',
+      day_of_month INTEGER NOT NULL DEFAULT 1,
+      active       INTEGER DEFAULT 1,
+      created_at   TEXT
+    );
+  `);
+
   db.execSync(`
     CREATE TABLE IF NOT EXISTS cost_cards (
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -298,6 +312,8 @@ export function initDatabase() {
     `ALTER TABLE business_profile ADD COLUMN logo_base64 TEXT DEFAULT ''`,
     `ALTER TABLE business_profile ADD COLUMN tours_seen TEXT DEFAULT '{}'`,
     `ALTER TABLE business_profile ADD COLUMN product_discount_pct REAL DEFAULT 0`,
+    `ALTER TABLE expenses ADD COLUMN photo_uri TEXT DEFAULT ''`,
+    `ALTER TABLE expenses ADD COLUMN recurring_id INTEGER`,
     // Исторический максимум остатка для шкалы склада
     `ALTER TABLE stock ADD COLUMN max_ostatok REAL DEFAULT 0`,
     // Себестоимость и цена продажи складской позиции

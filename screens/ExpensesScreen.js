@@ -8,7 +8,10 @@ import Sheet from '../components/Sheet';
 import SwipeableRow from '../components/SwipeableRow';
 import { useResponsive } from '../hooks/useResponsive';
 import { useFocusEffect } from '@react-navigation/native';
-import { getAllExpenses, insertExpense, deleteExpense } from '../db/queries';
+import {
+  getAllExpenses, insertExpense, deleteExpense, updateExpense,
+  getRecurringExpenses, insertRecurringExpense, deactivateRecurringExpense, ensureRecurringExpenses,
+} from '../db/queries';
 import { goBackSmart, can } from '../db/session';
 import { colors, fonts } from '../constants/theme';
 
@@ -35,6 +38,11 @@ export default function ExpensesScreen({ navigation }) {
   const [period, setPeriod]         = useState('week');
   const [expenses, setExpenses]     = useState([]);
   const [addModal, setAddModal]     = useState(false);
+  const [editingId, setEditingId]   = useState(null); // id редактируемого расхода, null = добавление нового
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurringModal, setRecurringModal] = useState(false);
+  const [recurringList, setRecurringList] = useState([]);
+  const [photoUri, setPhotoUri]     = useState('');
   const [category, setCategory]     = useState(CATEGORIES[0]);
   const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [amount, setAmount]         = useState('');
@@ -54,6 +62,8 @@ export default function ExpensesScreen({ navigation }) {
 
   const load = useCallback(() => {
     try {
+      ensureRecurringExpenses();
+      setRecurringList(getRecurringExpenses());
       const { from, to } = getRange();
       const all = getAllExpenses();
       const filtered = all.filter(e => {
@@ -84,6 +94,12 @@ export default function ExpensesScreen({ navigation }) {
   };
 
   const openModal = () => {
+    setEditingId(null);
+    setCategory(CATEGORIES[0]);
+    setAmount('');
+    setComment('');
+    setIsRecurring(false);
+    setPhotoUri('');
     setAddModal(true);
     modalAnim.setValue(0);
     Animated.spring(modalAnim, { toValue: 1, tension: 60, friction: 12, useNativeDriver: true }).start(
@@ -91,17 +107,50 @@ export default function ExpensesScreen({ navigation }) {
     );
   };
 
+  const openEditModal = (item) => {
+    setEditingId(item.id);
+    setCategory(item.category);
+    setAmount(String(item.amount));
+    setComment(item.comment || '');
+    setIsRecurring(false); // повтор настраивается только при создании нового
+    setPhotoUri(item.photo_uri || '');
+    setAddModal(true);
+    modalAnim.setValue(0);
+    Animated.spring(modalAnim, { toValue: 1, tension: 60, friction: 12, useNativeDriver: true }).start();
+  };
+
   const handleAdd = () => {
     if (!amount || parseFloat(amount) <= 0) return;
     try {
-      insertExpense({
-        category,
-        amount: parseFloat(amount),
-        comment: comment.trim(),
-        date: todayStr(),
-      });
+      if (editingId) {
+        updateExpense(editingId, {
+          category,
+          amount: parseFloat(amount),
+          comment: comment.trim(),
+          photo_uri: photoUri,
+        });
+      } else {
+        insertExpense({
+          category,
+          amount: parseFloat(amount),
+          comment: comment.trim(),
+          date: todayStr(),
+          photo_uri: photoUri,
+        });
+        if (isRecurring) {
+          insertRecurringExpense({
+            category,
+            amount: parseFloat(amount),
+            comment: comment.trim(),
+            day_of_month: new Date().getDate(),
+          });
+        }
+      }
+      setEditingId(null);
       setAmount('');
       setComment('');
+      setPhotoUri('');
+      setIsRecurring(false);
       setAddModal(false);
       load();
     } catch(e) { console.error(e); }
@@ -158,15 +207,19 @@ export default function ExpensesScreen({ navigation }) {
           }}
           label="Удалить"
         >
-          <View style={[styles.expenseRow, index < expenses.length - 1 && styles.expenseRowDiv]}>
+          <Pressable
+            style={({ pressed }) => [styles.expenseRow, index < expenses.length - 1 && styles.expenseRowDiv, pressed && { opacity: 0.7 }]}
+            onPress={() => openEditModal(item)}
+          >
             <View style={{ flex: 1 }}>
               <Text style={styles.expenseCat} numberOfLines={1}>
-                {item.category}{item.comment ? ` · ${item.comment}` : ''}
+                {item.recurring_id ? '🔁 ' : ''}{item.category}{item.comment ? ` · ${item.comment}` : ''}
               </Text>
               <Text style={styles.expenseDate}>{fmtDate(item.date?.slice(0,10) || '')}</Text>
             </View>
+            {item.photo_uri ? <Text style={{ fontSize: 15, marginRight: 8 }}>📎</Text> : null}
             <Text style={styles.expenseAmt}>{fmt(item.amount)} ₽</Text>
-          </View>
+          </Pressable>
         </SwipeableRow>
       )}
     />
@@ -220,7 +273,12 @@ export default function ExpensesScreen({ navigation }) {
 
         <Animated.View style={{ flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
           {periodChips}
-          <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>{addBtn}</View>
+          <View style={{ paddingHorizontal: 16, paddingTop: 12, flexDirection: 'row', gap: 8 }}>
+            <View style={{ flex: 1 }}>{addBtn}</View>
+            <Pressable style={styles.recurringBtn} onPress={() => setRecurringModal(true)}>
+              <Text style={styles.recurringBtnTxt}>🔁</Text>
+            </Pressable>
+          </View>
           <View style={{ flex: 1, paddingHorizontal: 16 }}>{list}</View>
         </Animated.View>
 
@@ -237,7 +295,7 @@ export default function ExpensesScreen({ navigation }) {
       </View>
 
       {/* Модалка добавления */}
-      <Sheet visible={addModal} onClose={() => setAddModal(false)} title="Новый расход">
+      <Sheet visible={addModal} onClose={() => { setAddModal(false); setEditingId(null); }} title={editingId ? 'Изменить расход' : 'Новый расход'}>
         <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
               <Text style={styles.modalHint}>Укажите категорию, сумму и при необходимости комментарий</Text>
 
@@ -285,9 +343,27 @@ export default function ExpensesScreen({ navigation }) {
                 onSubmitEditing={handleAdd}
               />
 
+              {/* Повторять каждый месяц — только при создании нового расхода */}
+              {!editingId && (
+                <Pressable
+                  style={styles.recurringRow}
+                  onPress={() => setIsRecurring(v => !v)}
+                >
+                  <View style={[styles.recurringCheckbox, isRecurring && styles.recurringCheckboxActive]}>
+                    {isRecurring && <Text style={styles.recurringCheckMark}>✓</Text>}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.recurringLabel}>Повторять каждый месяц</Text>
+                    <Text style={styles.recurringHint}>
+                      {new Date().getDate()} числа каждого месяца будет создаваться такой же расход автоматически
+                    </Text>
+                  </View>
+                </Pressable>
+              )}
+
               {/* Кнопки */}
               <View style={styles.modalBtns}>
-                <Pressable style={styles.cancelBtn} onPress={() => setAddModal(false)}>
+                <Pressable style={styles.cancelBtn} onPress={() => { setAddModal(false); setEditingId(null); }}>
                   <Text style={styles.cancelTxt}>Отмена</Text>
                 </Pressable>
                 <Pressable
@@ -297,6 +373,38 @@ export default function ExpensesScreen({ navigation }) {
                   <Text style={styles.saveTxt}>Сохранить</Text>
                 </Pressable>
               </View>
+        </ScrollView>
+      </Sheet>
+
+      {/* Управление повторяющимися расходами */}
+      <Sheet visible={recurringModal} onClose={() => setRecurringModal(false)} title="Повторяющиеся расходы">
+        <ScrollView contentContainerStyle={{ padding: 20 }}>
+          {recurringList.length === 0 ? (
+            <Text style={styles.modalHint}>
+              Пока нет ни одного повторяющегося расхода. Чтобы добавить — при создании нового расхода включите «Повторять каждый месяц».
+            </Text>
+          ) : (
+            recurringList.map(t => (
+              <View key={t.id} style={styles.recurringItemRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.recurringItemCat}>{t.category}{t.comment ? ` · ${t.comment}` : ''}</Text>
+                  <Text style={styles.recurringItemHint}>{t.day_of_month} числа каждого месяца</Text>
+                </View>
+                <Text style={styles.recurringItemAmt}>{fmt(t.amount)} ₽</Text>
+                <Pressable
+                  style={styles.recurringItemDelete}
+                  onPress={() => {
+                    Alert.alert('Отключить повтор?', `${t.category} — новые расходы больше не будут создаваться автоматически. Уже созданные останутся.`, [
+                      { text: 'Отмена', style: 'cancel' },
+                      { text: 'Отключить', style: 'destructive', onPress: () => { deactivateRecurringExpense(t.id); load(); } },
+                    ]);
+                  }}
+                >
+                  <Text style={styles.recurringItemDeleteTxt}>✕</Text>
+                </Pressable>
+              </View>
+            ))
+          )}
         </ScrollView>
       </Sheet>
     </View>
@@ -314,6 +422,8 @@ const styles = StyleSheet.create({
 
   addBtn:     { paddingVertical: 12, borderRadius: 12, backgroundColor: colors.orange, alignItems: 'center', marginBottom: 12 },
   addBtnTxt:  { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: '#fff' },
+  recurringBtn: { width: 46, height: 46, borderRadius: 12, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  recurringBtnTxt: { fontSize: 18 },
 
   // ── Список — тонкие строки, без карточек-рамок ──
   emptyWrap:  { padding: 40, alignItems: 'center' },
@@ -350,6 +460,12 @@ const styles = StyleSheet.create({
 
   // ── Модалка добавления ──
   modalHint:  { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginBottom: 20, lineHeight: 19 },
+  recurringItemRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+  recurringItemCat: { fontFamily: fonts.family, fontSize: 14, fontWeight: '700', color: colors.text },
+  recurringItemHint: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
+  recurringItemAmt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
+  recurringItemDelete: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(217,95,95,0.12)', alignItems: 'center', justifyContent: 'center' },
+  recurringItemDeleteTxt: { fontSize: 13, color: colors.red, fontWeight: '800' },
   fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 16 },
   catChips:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   catChip:    { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface2 },
@@ -362,6 +478,13 @@ const styles = StyleSheet.create({
   amountCurrency: { fontFamily: fonts.familySemibold, fontSize: 20, color: colors.muted },
 
   commentInput: { backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 13, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 14 },
+
+  recurringRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16, padding: 12, backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border },
+  recurringCheckbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  recurringCheckboxActive: { backgroundColor: colors.orange, borderColor: colors.orange },
+  recurringCheckMark: { fontSize: 13, color: '#fff', fontWeight: '800' },
+  recurringLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
+  recurringHint: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
 
   modalBtns:  { flexDirection: 'row', gap: 10, marginTop: 24 },
   cancelBtn:  { flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },

@@ -1017,6 +1017,7 @@ export function openShift(cashOpen = 0, userId = null, employeeName = '') {
     [now, cashOpen, userId || null, employeeName || '']
   ).lastInsertRowId;
   try { ensureDailyDepreciationExpense(); } catch (e) { console.error('[openShift] Ошибка автосчёта расходов:', e); }
+  try { ensureRecurringExpenses(); } catch (e) { console.error('[openShift] Ошибка повторяющихся расходов:', e); }
   return id;
 }
 
@@ -1055,6 +1056,7 @@ export function closeShift(shift_id) {
   } catch (e) { console.error('[closeShift] Ошибка инкремента оборудования:', e); }
 
   try { ensureDailyDepreciationExpense(); } catch (e) { console.error('[closeShift] Ошибка автосчёта расходов:', e); }
+  try { ensureRecurringExpenses(); } catch (e) { console.error('[closeShift] Ошибка повторяющихся расходов:', e); }
 }
 
 export function getOpenShift() {
@@ -1069,17 +1071,73 @@ export function getAllExpenses() {
   return db.getAllSync(`SELECT * FROM expenses ORDER BY date DESC`);
 }
 
-export function insertExpense({ date, category, amount, comment, shift_id }) {
+export function insertExpense({ date, category, amount, comment, shift_id, photo_uri }) {
   const db = getDb();
   db.runSync(
-    `INSERT INTO expenses (date, category, amount, comment, shift_id) VALUES (?, ?, ?, ?, ?)`,
-    [date, category, amount, comment || '', shift_id || null]
+    `INSERT INTO expenses (date, category, amount, comment, shift_id, photo_uri) VALUES (?, ?, ?, ?, ?, ?)`,
+    [date, category, amount, comment || '', shift_id || null, photo_uri || '']
   );
 }
 
 export function deleteExpense(id) {
   const db = getDb();
   db.runSync(`DELETE FROM expenses WHERE id = ?`, [id]);
+}
+
+export function updateExpense(id, { category, amount, comment, photo_uri }) {
+  const db = getDb();
+  db.runSync(
+    `UPDATE expenses SET category = ?, amount = ?, comment = ?, photo_uri = ? WHERE id = ?`,
+    [category, amount, comment || '', photo_uri || '', id]
+  );
+}
+
+// ─── Повторяющиеся расходы (аренда, зарплата, подписки) ────────────────────
+
+export function getRecurringExpenses() {
+  const db = getDb();
+  return db.getAllSync(`SELECT * FROM recurring_expenses WHERE active = 1 ORDER BY day_of_month`);
+}
+
+export function insertRecurringExpense({ category, amount, comment, day_of_month }) {
+  const db = getDb();
+  db.runSync(
+    `INSERT INTO recurring_expenses (category, amount, comment, day_of_month, active, created_at) VALUES (?, ?, ?, ?, 1, ?)`,
+    [category, amount, comment || '', day_of_month, new Date().toISOString()]
+  );
+}
+
+export function deactivateRecurringExpense(id) {
+  const db = getDb();
+  db.runSync(`UPDATE recurring_expenses SET active = 0 WHERE id = ?`, [id]);
+}
+
+// Создаёт очередной расход по каждому активному шаблону, если для текущего
+// месяца ещё не создавался (проверка по recurring_id + месяцу) и число
+// месяца уже наступило. Тот же принцип, что у ensureDailyDepreciationExpense —
+// идемпотентная проверка перед вставкой, безопасно вызывать многократно.
+export function ensureRecurringExpenses() {
+  const db = getDb();
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const monthKey = today.slice(0, 7); // YYYY-MM
+  const dayNum = now.getDate();
+
+  try {
+    const templates = getRecurringExpenses();
+    for (const t of templates) {
+      if (dayNum < t.day_of_month) continue;
+      const already = db.getFirstSync(
+        `SELECT id FROM expenses WHERE recurring_id = ? AND date LIKE ?`,
+        [t.id, `${monthKey}%`]
+      );
+      if (already) continue;
+      db.runSync(
+        `INSERT INTO expenses (date, category, amount, comment, recurring_id) VALUES (?, ?, ?, ?, ?)`,
+        [today, t.category, t.amount, t.comment || '', t.id]
+      );
+    }
+  } catch (e) { console.error('[ensureRecurringExpenses]', e); }
 }
 
 // ─── Склад ────────────────────────────────────────────────────────────────
