@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, FlatList, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, FlatList, Animated, Linking, Alert } from 'react-native';
 import TopBar from '../components/TopBar';
 import { useResponsive } from '../hooks/useResponsive';
 import EmptyState from '../components/EmptyState';
@@ -82,13 +82,15 @@ function ClientCard({ client, onNewOrder, onSaved, loyaltyModel, loyaltyConfig }
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 24, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
 
       {/* Шапка */}
-      <View style={styles.cardHead}>
+      <View style={[styles.cardHead, { flexDirection: 'row', alignItems: 'center' }]}>
         <View style={styles.avatar}>
           <Text style={styles.avatarTxt}>{(client.fio||'?').charAt(0).toUpperCase()}</Text>
         </View>
-        <Text style={styles.cardName}>{client.fio}</Text>
-        <Text style={styles.cardCode}>{client.code}</Text>
-        {isBirthday && <Text style={styles.birthday}>🎂 Сегодня день рождения!</Text>}
+        <View style={{ flex: 1, marginLeft: 14 }}>
+          <Text style={[styles.cardName, { textAlign: 'left' }]} numberOfLines={1}>{client.fio}</Text>
+          <Text style={[styles.cardCode, { textAlign: 'left' }]}>{client.code}</Text>
+          {isBirthday && <Text style={[styles.birthday, { textAlign: 'left', marginTop: 4 }]}>🎂 Сегодня день рождения!</Text>}
+        </View>
       </View>
 
       {/* Баллы / визиты */}
@@ -114,9 +116,10 @@ function ClientCard({ client, onNewOrder, onSaved, loyaltyModel, loyaltyConfig }
         ))}
       </View>
 
-      {/* Последний визит */}
+      {/* Последний визит / телефон / день рождения — общая карточка */}
+      <View style={styles.infoCard}>
       {lastOrder && (
-        <View style={styles.infoRow}>
+        <View style={[styles.infoRow, (client.phone || client.birth_date) && styles.infoRowDiv]}>
           <Text style={styles.infoIcon}>🕐</Text>
           <Text style={styles.infoTxt}>
             Последний визит: {fmtDate(lastOrder.created_at)}
@@ -125,7 +128,15 @@ function ClientCard({ client, onNewOrder, onSaved, loyaltyModel, loyaltyConfig }
         </View>
       )}
       {client.phone ? (
-        <Pressable style={styles.infoRow}>
+        <Pressable
+          style={[styles.infoRow, client.birth_date && styles.infoRowDiv]}
+          onPress={() => {
+            Alert.alert('Позвонить?', client.phone, [
+              { text: 'Отмена', style: 'cancel' },
+              { text: 'Позвонить', onPress: () => Linking.openURL(`tel:${client.phone.replace(/\s+/g, '')}`) },
+            ]);
+          }}
+        >
           <Text style={styles.infoIcon}>📞</Text>
           <Text style={[styles.infoTxt, { color: colors.indigo }]}>{client.phone}</Text>
         </Pressable>
@@ -136,6 +147,7 @@ function ClientCard({ client, onNewOrder, onSaved, loyaltyModel, loyaltyConfig }
           <Text style={styles.infoTxt}>{client.birth_date}</Text>
         </View>
       ) : null}
+      </View>
 
       {/* Заметки */}
       <View style={styles.section}>
@@ -176,16 +188,18 @@ function ClientCard({ client, onNewOrder, onSaved, loyaltyModel, loyaltyConfig }
       </View>
 
       {/* Действия */}
-      <Pressable style={({ pressed }) => [styles.btn, { marginBottom: 8 }, pressed && { opacity: 0.88 }]}
-        onPress={() => onNewOrder(client)}>
-        <Text style={styles.btnTxt}>＋ Новый заказ</Text>
-      </Pressable>
-      {isAdmin && (
-        <Pressable style={({ pressed }) => [styles.btnSec, pressed && { opacity: 0.88 }]}
-          onPress={() => setEditing(e => !e)}>
-          <Text style={styles.btnSecTxt}>{editing ? 'Скрыть' : '✎ Редактировать'}</Text>
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        <Pressable style={({ pressed }) => [styles.btn, { flex: 1 }, pressed && { opacity: 0.88 }]}
+          onPress={() => onNewOrder(client)}>
+          <Text style={styles.btnTxt}>＋ Новый заказ</Text>
         </Pressable>
-      )}
+        {isAdmin && (
+          <Pressable style={({ pressed }) => [styles.btnSec, { flex: 1 }, pressed && { opacity: 0.88 }]}
+            onPress={() => setEditing(e => !e)}>
+            <Text style={styles.btnSecTxt}>{editing ? 'Скрыть' : '✎ Редактировать'}</Text>
+          </Pressable>
+        )}
+      </View>
 
       {/* Редактирование */}
       {editing && (
@@ -259,6 +273,7 @@ function ClientCard({ client, onNewOrder, onSaved, loyaltyModel, loyaltyConfig }
 export default function ClientsListScreen({ navigation, initialClientId }) {
   const { isLandscape } = useResponsive();
   const [query, setQuery]       = useState('');
+  const [sortMode, setSortMode] = useState('name'); // name | added
   const [clients, setClients]   = useState([]);
   const [selected, setSelected] = useState(null);
   const cardAnim = useState(new Animated.Value(0))[0];
@@ -299,7 +314,11 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const filtered = query.length >= 1 ? searchClients(query) : clients;
+  const filteredRaw = query.length >= 1 ? searchClients(query) : clients;
+  const filtered = [...filteredRaw].sort((a, b) => {
+    if (sortMode === 'added') return (b.created_at || '').localeCompare(a.created_at || ''); // новые сверху
+    return (a.fio || '').localeCompare(b.fio || '', 'ru');
+  });
 
   return (
     <View style={{ flex: 1 }}>
@@ -317,7 +336,7 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
 
       <View style={[styles.layout, !isLandscape && { flexDirection: 'column' }]}>
         {/* Левая колонка — список */}
-        <View style={[styles.listCol, !isLandscape && { width: undefined, flex: 1, borderRightWidth: 0 }]}>
+        <View style={[styles.listCol, !isLandscape && { width: undefined, flex: 1, margin: 0, borderRadius: 0, borderWidth: 0, borderRightWidth: 0 }]}>
           <View style={styles.searchWrap}>
             <TextInput
               color={colors.text}
@@ -327,6 +346,15 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
               placeholder="Поиск..."
               placeholderTextColor={colors.muted}
             />
+          </View>
+
+          <View style={styles.sortRow}>
+            <Pressable style={[styles.sortChip, sortMode === 'name' && styles.sortChipActive]} onPress={() => setSortMode('name')}>
+              <Text style={[styles.sortChipTxt, sortMode === 'name' && styles.sortChipTxtActive]}>По алфавиту</Text>
+            </Pressable>
+            <Pressable style={[styles.sortChip, sortMode === 'added' && styles.sortChipActive]} onPress={() => setSortMode('added')}>
+              <Text style={[styles.sortChipTxt, sortMode === 'added' && styles.sortChipTxtActive]}>Сначала новые</Text>
+            </Pressable>
           </View>
 
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 16 }}>
@@ -412,9 +440,14 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
 
 const styles = StyleSheet.create({
   layout:     { flex: 1, flexDirection: 'row' },
-  listCol:    { width: 280, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface },
+  listCol:    { width: '38%', maxWidth: 480, margin: 12, marginRight: 0, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, overflow: 'hidden' },
   cardCol:    { flex: 1, backgroundColor: colors.bg },
   searchWrap: { padding: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.2)' },
+  sortRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.2)' },
+  sortChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
+  sortChipActive: { backgroundColor: 'rgba(240,160,80,0.14)', borderColor: colors.orange },
+  sortChipTxt: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
+  sortChipTxtActive: { color: colors.orange },
   searchInput:{ backgroundColor: colors.surface2, borderRadius: 10, paddingVertical: 11, paddingHorizontal: 12, fontFamily: fonts.familyRegular, fontSize: 16, color: colors.text },
   addBtn:     { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(240,160,80,0.15)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
   addBtnTxt:  { fontSize: 18, color: colors.orange, lineHeight: 24 },
@@ -439,7 +472,7 @@ const styles = StyleSheet.create({
   birthday:    { fontFamily: fonts.familySemibold, fontSize: 13, color: '#f5c842', marginTop: 6 },
 
   balanceBox:  { alignItems: 'center', marginBottom: 20 },
-  balanceNum:  { fontFamily: fonts.family, fontSize: 52, fontWeight: '800', color: colors.text },
+  balanceNum:  { fontFamily: fonts.family, fontSize: 42, fontWeight: '800', color: colors.text },
   balanceLbl:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
   personalDiscount: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.orange, marginTop: 4 },
 
@@ -448,13 +481,15 @@ const styles = StyleSheet.create({
   statVal:     { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text },
   statLbl:     { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, textTransform: 'uppercase', marginTop: 3 },
 
-  infoRow:     { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
+  infoCard:    { backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 14, marginBottom: 16, overflow: 'hidden' },
+  infoRow:     { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
+  infoRowDiv:  { borderBottomWidth: 1, borderBottomColor: colors.border },
   infoIcon:    { fontSize: 15, width: 22, textAlign: 'center' },
   infoTxt:     { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
 
   section:     { marginTop: 16 },
-  sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  sectionTitle:{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
+  sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  sectionTitle:{ fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
   sectionAction:{ fontFamily: fonts.familySemibold, fontSize: 12, color: colors.greenLight },
   noteInput:   { backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 12, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 13, minHeight: 80, textAlignVertical: 'top' },
   noteText:    { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.textDim, lineHeight: 20, backgroundColor: colors.surface2, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.border },
