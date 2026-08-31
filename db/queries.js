@@ -1077,6 +1077,11 @@ export function insertExpense({ date, category, amount, comment, shift_id }) {
   );
 }
 
+export function deleteExpense(id) {
+  const db = getDb();
+  db.runSync(`DELETE FROM expenses WHERE id = ?`, [id]);
+}
+
 // ─── Склад ────────────────────────────────────────────────────────────────
 
 // Создаёт новую позицию склада с нуля. Раньше такой функции не было вообще —

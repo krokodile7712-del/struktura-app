@@ -1,13 +1,14 @@
 import React, { useState, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
-  TextInput, Animated, FlatList,
+  TextInput, Animated, FlatList, Alert,
 } from 'react-native';
 import TopBar from '../components/TopBar';
 import Sheet from '../components/Sheet';
+import SwipeableRow from '../components/SwipeableRow';
 import { useResponsive } from '../hooks/useResponsive';
 import { useFocusEffect } from '@react-navigation/native';
-import { getAllExpenses, insertExpense } from '../db/queries';
+import { getAllExpenses, insertExpense, deleteExpense } from '../db/queries';
 import { goBackSmart, can } from '../db/session';
 import { colors, fonts } from '../constants/theme';
 
@@ -148,15 +149,25 @@ export default function ExpensesScreen({ navigation }) {
         </View>
       }
       renderItem={({ item, index }) => (
-        <View style={[styles.expenseRow, index < expenses.length - 1 && styles.expenseRowDiv]}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.expenseCat} numberOfLines={1}>
-              {item.category}{item.comment ? ` · ${item.comment}` : ''}
-            </Text>
-            <Text style={styles.expenseDate}>{fmtDate(item.date?.slice(0,10) || '')}</Text>
+        <SwipeableRow
+          onAction={() => {
+            Alert.alert('Удалить расход?', `${item.category} · ${fmt(item.amount)} ₽`, [
+              { text: 'Отмена', style: 'cancel' },
+              { text: 'Удалить', style: 'destructive', onPress: () => { deleteExpense(item.id); load(); } },
+            ]);
+          }}
+          label="Удалить"
+        >
+          <View style={[styles.expenseRow, index < expenses.length - 1 && styles.expenseRowDiv]}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.expenseCat} numberOfLines={1}>
+                {item.category}{item.comment ? ` · ${item.comment}` : ''}
+              </Text>
+              <Text style={styles.expenseDate}>{fmtDate(item.date?.slice(0,10) || '')}</Text>
+            </View>
+            <Text style={styles.expenseAmt}>{fmt(item.amount)} ₽</Text>
           </View>
-          <Text style={styles.expenseAmt}>{fmt(item.amount)} ₽</Text>
-        </View>
+        </SwipeableRow>
       )}
     />
   );
