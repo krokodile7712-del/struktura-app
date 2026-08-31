@@ -109,7 +109,7 @@ export default function InvestmentsScreen({ navigation }) {
       <View style={[styles.layout, !isLandscape && { flexDirection: 'column' }]}>
 
         {/* Левая панель */}
-        <View style={[styles.left, !isLandscape && { width: undefined, flex: 1, borderRightWidth: 0 }]}>
+        <View style={[styles.left, !isLandscape && { width: undefined, flex: 1, margin: 0, borderRadius: 0, borderWidth: 0, borderRightWidth: 0 }]}>
           <Pressable style={styles.addBtnBig} onPress={openNew}>
             <Text style={styles.addBtnBigTxt}>+ Добавить инвестицию</Text>
           </Pressable>
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
   root:   { flex: 1, backgroundColor: colors.bg },
   layout: { flex: 1, flexDirection: 'row' },
 
-  left:   { width: 280, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface },
+  left:   { width: '38%', maxWidth: 480, margin: 12, marginRight: 0, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, overflow: 'hidden' },
 
   summaryCard: { margin: 10, backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   summaryRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
   emptyTxt:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   emptyHint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 6, lineHeight: 18, opacity: 0.7 },
 
-  right:   { flex: 1, backgroundColor: colors.bg },
+  right:   { flex: 1, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, margin: 12, marginLeft: 12, overflow: 'hidden' },
   emptyRight: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
   emptyRightTxt: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted, textAlign: 'center' },
   emptyRightSub: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center', marginTop: 8, opacity: 0.6 },
