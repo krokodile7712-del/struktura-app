@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
-  TextInput, Animated, FlatList, Alert,
+  TextInput, Animated, FlatList, Alert, Image,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import TopBar from '../components/TopBar';
 import Sheet from '../components/Sheet';
 import SwipeableRow from '../components/SwipeableRow';
@@ -117,6 +118,35 @@ export default function ExpensesScreen({ navigation }) {
     setAddModal(true);
     modalAnim.setValue(0);
     Animated.spring(modalAnim, { toValue: 1, tension: 60, friction: 12, useNativeDriver: true }).start();
+  };
+
+  const pickPhoto = () => {
+    Alert.alert('Фото чека', 'Откуда взять фото?', [
+      { text: 'Отмена', style: 'cancel' },
+      { text: 'Камера', onPress: () => pickPhotoFrom('camera') },
+      { text: 'Галерея', onPress: () => pickPhotoFrom('library') },
+    ]);
+  };
+
+  const pickPhotoFrom = async (source) => {
+    try {
+      const perm = source === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert('Нет доступа', source === 'camera' ? 'Разрешите доступ к камере в настройках устройства' : 'Разрешите доступ к галерее в настройках устройства');
+        return;
+      }
+      const result = source === 'camera'
+        ? await ImagePicker.launchCameraAsync({ quality: 0.6 })
+        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.6 });
+      if (!result.canceled && result.assets?.[0]?.uri) {
+        setPhotoUri(result.assets[0].uri);
+      }
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Ошибка', 'Не удалось получить фото');
+    }
   };
 
   const handleAdd = () => {
@@ -361,6 +391,21 @@ export default function ExpensesScreen({ navigation }) {
                 </Pressable>
               )}
 
+              {/* Фото чека */}
+              <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Фото чека</Text>
+              {photoUri ? (
+                <View style={styles.photoPreviewWrap}>
+                  <Image source={{ uri: photoUri }} style={styles.photoPreview} />
+                  <Pressable style={styles.photoRemoveBtn} onPress={() => setPhotoUri('')}>
+                    <Text style={styles.photoRemoveTxt}>✕ Убрать</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <Pressable style={styles.photoPickBtn} onPress={pickPhoto}>
+                  <Text style={styles.photoPickTxt}>📷 Прикрепить фото чека</Text>
+                </Pressable>
+              )}
+
               {/* Кнопки */}
               <View style={styles.modalBtns}>
                 <Pressable style={styles.cancelBtn} onPress={() => { setAddModal(false); setEditingId(null); }}>
@@ -485,6 +530,13 @@ const styles = StyleSheet.create({
   recurringCheckMark: { fontSize: 13, color: '#fff', fontWeight: '800' },
   recurringLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
   recurringHint: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
+
+  photoPickBtn: { paddingVertical: 13, borderRadius: 12, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
+  photoPickTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
+  photoPreviewWrap: { position: 'relative' },
+  photoPreview: { width: '100%', height: 160, borderRadius: 12, backgroundColor: colors.surface2 },
+  photoRemoveBtn: { position: 'absolute', top: 8, right: 8, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.6)' },
+  photoRemoveTxt: { fontFamily: fonts.familySemibold, fontSize: 12, color: '#fff' },
 
   modalBtns:  { flexDirection: 'row', gap: 10, marginTop: 24 },
   cancelBtn:  { flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
