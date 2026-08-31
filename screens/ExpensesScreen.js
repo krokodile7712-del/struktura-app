@@ -40,6 +40,7 @@ export default function ExpensesScreen({ navigation }) {
   const [expenses, setExpenses]     = useState([]);
   const [addModal, setAddModal]     = useState(false);
   const [editingId, setEditingId]   = useState(null); // id редактируемого расхода, null = добавление нового
+  const [selectedExpense, setSelectedExpense] = useState(null); // альбомная — null | 'new' | сам расход
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringModal, setRecurringModal] = useState(false);
   const [recurringList, setRecurringList] = useState([]);
@@ -102,11 +103,15 @@ export default function ExpensesScreen({ navigation }) {
     setComment('');
     setIsRecurring(false);
     setPhotoUri('');
-    setAddModal(true);
-    modalAnim.setValue(0);
-    Animated.spring(modalAnim, { toValue: 1, tension: 60, friction: 12, useNativeDriver: true }).start(
-      () => setTimeout(() => amountRef.current?.focus(), 100)
-    );
+    if (isLandscape) {
+      setSelectedExpense('new');
+    } else {
+      setAddModal(true);
+      modalAnim.setValue(0);
+      Animated.spring(modalAnim, { toValue: 1, tension: 60, friction: 12, useNativeDriver: true }).start(
+        () => setTimeout(() => amountRef.current?.focus(), 100)
+      );
+    }
   };
 
   const openEditModal = (item) => {
@@ -116,9 +121,21 @@ export default function ExpensesScreen({ navigation }) {
     setComment(item.comment || '');
     setIsRecurring(false); // повтор настраивается только при создании нового
     setPhotoUri(item.photo_uri || '');
-    setAddModal(true);
-    modalAnim.setValue(0);
-    Animated.spring(modalAnim, { toValue: 1, tension: 60, friction: 12, useNativeDriver: true }).start();
+    if (isLandscape) {
+      setSelectedExpense(item);
+    } else {
+      setAddModal(true);
+      modalAnim.setValue(0);
+      Animated.spring(modalAnim, { toValue: 1, tension: 60, friction: 12, useNativeDriver: true }).start();
+    }
+  };
+
+  // Закрытие формы — в альбомной возвращает правую панель к сводке,
+  // в портрете закрывает всплывающее окно
+  const closeForm = () => {
+    setEditingId(null);
+    setSelectedExpense(null);
+    setAddModal(false);
   };
 
   const pickPhoto = () => {
@@ -178,6 +195,7 @@ export default function ExpensesScreen({ navigation }) {
         }
       }
       setEditingId(null);
+      setSelectedExpense(null);
       setAmount('');
       setComment('');
       setPhotoUri('');
@@ -233,7 +251,11 @@ export default function ExpensesScreen({ navigation }) {
           onAction={() => {
             Alert.alert('Удалить расход?', `${item.category} · ${fmt(item.amount)} ₽`, [
               { text: 'Отмена', style: 'cancel' },
-              { text: 'Удалить', style: 'destructive', onPress: () => { deleteExpense(item.id); load(); } },
+              { text: 'Удалить', style: 'destructive', onPress: () => {
+                deleteExpense(item.id);
+                if (selectedExpense?.id === item.id) closeForm();
+                load();
+              } },
             ]);
           }}
           label="Удалить"
@@ -280,57 +302,8 @@ export default function ExpensesScreen({ navigation }) {
     </>
   );
 
-  return (
-    <View style={styles.root}>
-      <TopBar
-        title="Расходы"
-        onBack={() => goBackSmart(navigation)}
-        navigation={navigation}
-        activeScreen="Expenses"
-      />
-
-      <View style={{ flex: 1, flexDirection: isLandscape ? 'row' : 'column' }}>
-
-        {!isLandscape && (
-          /* Портрет — компактная сводка сверху, по умолчанию свёрнута */
-          <Pressable style={styles.stripWrap} onPress={() => setSummaryExpanded(v => !v)}>
-            <View style={styles.stripRow}>
-              <View>
-                <Text style={styles.stripLabel}>Расходы за период</Text>
-                <Animated.Text style={[styles.stripVal, { opacity: numAnim }]}>{fmt(total)} ₽</Animated.Text>
-              </View>
-              <Text style={styles.stripChevron}>{summaryExpanded ? '▲' : '▼'}</Text>
-            </View>
-            {summaryExpanded && <View style={styles.stripBody}>{summaryBody}</View>}
-          </Pressable>
-        )}
-
-        <Animated.View style={{ flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-          {periodChips}
-          <View style={{ paddingHorizontal: 16, paddingTop: 12, flexDirection: 'row', gap: 8 }}>
-            <View style={{ flex: 1 }}>{addBtn}</View>
-            <Pressable style={styles.recurringBtn} onPress={() => setRecurringModal(true)}>
-              <Text style={styles.recurringBtnTxt}>🔁</Text>
-            </Pressable>
-          </View>
-          <View style={{ flex: 1, paddingHorizontal: 16 }}>{list}</View>
-        </Animated.View>
-
-        {isLandscape && (
-          /* Альбомная — сводка постоянной узкой панелью справа */
-          <View style={styles.sidePanel}>
-            <Text style={styles.sideLabel}>За период</Text>
-            <Animated.Text style={[styles.sideVal, { opacity: numAnim }]}>{fmt(total)} ₽</Animated.Text>
-            <Text style={styles.sideSub}>{expenses.length} расходов</Text>
-            <View style={styles.sideDivider} />
-            <ScrollView showsVerticalScrollIndicator={false}>{summaryBody}</ScrollView>
-          </View>
-        )}
-      </View>
-
-      {/* Модалка добавления */}
-      <Sheet visible={addModal} onClose={() => { setAddModal(false); setEditingId(null); }} title={editingId ? 'Изменить расход' : 'Новый расход'}>
-        <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
+  const formBody = (
+    <>
               <Text style={styles.modalHint}>Укажите категорию, сумму и при необходимости комментарий</Text>
 
               {/* Категории */}
@@ -414,7 +387,7 @@ export default function ExpensesScreen({ navigation }) {
 
               {/* Кнопки */}
               <View style={styles.modalBtns}>
-                <Pressable style={styles.cancelBtn} onPress={() => { setAddModal(false); setEditingId(null); }}>
+                <Pressable style={styles.cancelBtn} onPress={closeForm}>
                   <Text style={styles.cancelTxt}>Отмена</Text>
                 </Pressable>
                 <Pressable
@@ -424,6 +397,84 @@ export default function ExpensesScreen({ navigation }) {
                   <Text style={styles.saveTxt}>Сохранить</Text>
                 </Pressable>
               </View>
+    </>
+  );
+
+  return (
+    <View style={styles.root}>
+      <TopBar
+        title="Расходы"
+        onBack={() => goBackSmart(navigation)}
+        navigation={navigation}
+        activeScreen="Expenses"
+      />
+
+      <View style={{ flex: 1, flexDirection: isLandscape ? 'row' : 'column' }}>
+
+        {!isLandscape && (
+          /* Портрет — компактная сводка сверху, по умолчанию свёрнута */
+          <Pressable style={styles.stripWrap} onPress={() => setSummaryExpanded(v => !v)}>
+            <View style={styles.stripRow}>
+              <View>
+                <Text style={styles.stripLabel}>Расходы за период</Text>
+                <Animated.Text style={[styles.stripVal, { opacity: numAnim }]}>{fmt(total)} ₽</Animated.Text>
+              </View>
+              <Text style={styles.stripChevron}>{summaryExpanded ? '▲' : '▼'}</Text>
+            </View>
+            {summaryExpanded && <View style={styles.stripBody}>{summaryBody}</View>}
+          </Pressable>
+        )}
+
+        <Animated.View
+          style={[
+            { flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+            isLandscape && styles.listColLandscape,
+          ]}
+        >
+          {periodChips}
+          <View style={{ paddingHorizontal: 16, paddingTop: 12, flexDirection: 'row', gap: 8 }}>
+            <View style={{ flex: 1 }}>{addBtn}</View>
+            <Pressable style={styles.recurringBtn} onPress={() => setRecurringModal(true)}>
+              <Text style={styles.recurringBtnTxt}>🔁</Text>
+            </Pressable>
+          </View>
+          <View style={{ flex: 1, paddingHorizontal: 16 }}>{list}</View>
+        </Animated.View>
+
+        {isLandscape && (
+          /* Альбомная — справа: сводка за период, либо форма (выбрана позиция/добавление) */
+          <View style={styles.sidePanel}>
+            {selectedExpense ? (
+              <>
+                <View style={styles.editorHeader}>
+                  <Text style={styles.editorHeaderTxt} numberOfLines={1}>
+                    {editingId ? 'Изменить расход' : 'Новый расход'}
+                  </Text>
+                  <Pressable onPress={closeForm} hitSlop={12} style={styles.editorCloseBtn}>
+                    <Text style={styles.editorCloseTxt}>✕</Text>
+                  </Pressable>
+                </View>
+                <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
+                  {formBody}
+                </ScrollView>
+              </>
+            ) : (
+              <View style={styles.sidePanelPad}>
+                <Text style={styles.sideLabel}>За период</Text>
+                <Animated.Text style={[styles.sideVal, { opacity: numAnim }]}>{fmt(total)} ₽</Animated.Text>
+                <Text style={styles.sideSub}>{expenses.length} расходов</Text>
+                <View style={styles.sideDivider} />
+                <ScrollView showsVerticalScrollIndicator={false}>{summaryBody}</ScrollView>
+              </View>
+            )}
+          </View>
+        )}
+      </View>
+
+      {/* Модалка добавления */}
+      <Sheet visible={addModal} onClose={closeForm} title={editingId ? 'Изменить расход' : 'Новый расход'}>
+        <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
+          {formBody}
         </ScrollView>
       </Sheet>
 
@@ -513,7 +564,13 @@ const styles = StyleSheet.create({
   stripBody:  { marginTop: 10 },
 
   // ── Альбомная — постоянная боковая панель сводки ──
-  sidePanel:  { width: '40%', maxWidth: 340, borderLeftWidth: 1, borderLeftColor: colors.border, backgroundColor: colors.surface, padding: 20 },
+  sidePanel:  { flex: 1, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, margin: 12, marginLeft: 0, overflow: 'hidden' },
+  sidePanelPad: { flex: 1, padding: 20 },
+  listColLandscape: { flex: 0, width: '38%', maxWidth: 480, margin: 12, marginRight: 0, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, overflow: 'hidden' },
+  editorHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface2 },
+  editorHeaderTxt: { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text, flex: 1 },
+  editorCloseBtn: { paddingHorizontal: 6, paddingVertical: 4 },
+  editorCloseTxt: { fontSize: 18, color: colors.muted },
   sideLabel:  { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
   sideVal:    { fontFamily: fonts.family, fontSize: 34, fontWeight: '800', color: colors.red, marginTop: 6 },
   sideSub:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
