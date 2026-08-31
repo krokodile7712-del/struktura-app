@@ -1140,6 +1140,40 @@ export function ensureRecurringExpenses() {
   } catch (e) { console.error('[ensureRecurringExpenses]', e); }
 }
 
+// ─── Записи по телефону (локальные, не синхронизируются с Supabase) ────────
+
+export function getManualBookings() {
+  const db = getDb();
+  return db.getAllSync(`SELECT * FROM manual_bookings ORDER BY date, time_start`);
+}
+
+export function insertManualBooking({ date, time_start, client_name, client_phone, service_name, service_price, comment, status }) {
+  const db = getDb();
+  db.runSync(
+    `INSERT INTO manual_bookings (date, time_start, client_name, client_phone, service_name, service_price, comment, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [date, time_start, client_name, client_phone || '', service_name || '', service_price || 0, comment || '', status || 'confirmed', new Date().toISOString()]
+  );
+}
+
+export function updateManualBooking(id, { date, time_start, client_name, client_phone, service_name, service_price, comment, status }) {
+  const db = getDb();
+  db.runSync(
+    `UPDATE manual_bookings SET date=?, time_start=?, client_name=?, client_phone=?, service_name=?, service_price=?, comment=?, status=? WHERE id=?`,
+    [date, time_start, client_name, client_phone || '', service_name || '', service_price || 0, comment || '', status, id]
+  );
+}
+
+export function updateManualBookingStatus(id, status) {
+  const db = getDb();
+  db.runSync(`UPDATE manual_bookings SET status = ? WHERE id = ?`, [status, id]);
+}
+
+export function deleteManualBooking(id) {
+  const db = getDb();
+  db.runSync(`DELETE FROM manual_bookings WHERE id = ?`, [id]);
+}
+
 // ─── Склад ────────────────────────────────────────────────────────────────
 
 // Создаёт новую позицию склада с нуля. Раньше такой функции не было вообще —

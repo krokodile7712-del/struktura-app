@@ -186,6 +186,24 @@ export function initDatabase() {
     );
   `);
 
+  // Записи, добавленные вручную (например, по телефону) — отдельно от
+  // онлайн-записей, которые живут в Supabase. Локальная таблица, без
+  // синхронизации с внешней базой.
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS manual_bookings (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      date          TEXT NOT NULL,
+      time_start    TEXT NOT NULL,
+      client_name   TEXT NOT NULL,
+      client_phone  TEXT DEFAULT '',
+      service_name  TEXT DEFAULT '',
+      service_price REAL DEFAULT 0,
+      comment       TEXT DEFAULT '',
+      status        TEXT DEFAULT 'confirmed',
+      created_at    TEXT
+    );
+  `);
+
   db.execSync(`
     CREATE TABLE IF NOT EXISTS cost_cards (
       id         INTEGER PRIMARY KEY AUTOINCREMENT,

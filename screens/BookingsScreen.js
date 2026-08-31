@@ -1,11 +1,16 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator, Animated, TextInput } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
+import Sheet from '../components/Sheet';
+import SwipeableRow from '../components/SwipeableRow';
 import { useResponsive } from '../hooks/useResponsive';
 import { getHomeRoute, goBackSmart } from '../db/session';
 import { getBookings, updateBookingStatus } from '../db/supabase';
-import { getBusinessProfile } from '../db/queries';
+import {
+  getBusinessProfile, getManualBookings, insertManualBooking,
+  updateManualBooking, updateManualBookingStatus, deleteManualBooking,
+} from '../db/queries';
 import { colors, fonts } from '../constants/theme';
 
 const STATUS = {
@@ -35,11 +40,24 @@ function fmtDate(str) {
 
 export default function BookingsScreen({ navigation }) {
   const { isLandscape } = useResponsive();
+  const [mainTab, setMainTab] = useState('online'); // online | manual
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [expanded, setExpanded] = useState(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [filter, setFilter]     = useState('all');
+
+  // ── Записи по телефону (локальные) ──
+  const [manualBookings, setManualBookings] = useState([]);
+  const [manualFormOpen, setManualFormOpen] = useState(false);
+  const [manualEditingId, setManualEditingId] = useState(null);
+  const [mfDate, setMfDate]     = useState('');
+  const [mfTime, setMfTime]     = useState('');
+  const [mfName, setMfName]     = useState('');
+  const [mfPhone, setMfPhone]   = useState('');
+  const [mfService, setMfService] = useState('');
+  const [mfPrice, setMfPrice]   = useState('');
+  const [mfComment, setMfComment] = useState('');
 
   const fadeAnim  = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(16))[0];
@@ -62,7 +80,64 @@ export default function BookingsScreen({ navigation }) {
     ]).start();
   }, []);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  const loadManual = useCallback(() => {
+    try { setManualBookings(getManualBookings()); } catch (e) { console.error(e); }
+  }, []);
+
+  useFocusEffect(useCallback(() => { load(); loadManual(); }, [load, loadManual]));
+
+  const todayStr = () => new Date().toISOString().slice(0, 10);
+
+  const openManualForm = () => {
+    setManualEditingId(null);
+    setMfDate(todayStr());
+    setMfTime('');
+    setMfName('');
+    setMfPhone('');
+    setMfService('');
+    setMfPrice('');
+    setMfComment('');
+    setManualFormOpen(true);
+  };
+
+  const openManualEdit = (b) => {
+    setManualEditingId(b.id);
+    setMfDate(b.date);
+    setMfTime(b.time_start);
+    setMfName(b.client_name);
+    setMfPhone(b.client_phone || '');
+    setMfService(b.service_name || '');
+    setMfPrice(b.service_price ? String(b.service_price) : '');
+    setMfComment(b.comment || '');
+    setManualFormOpen(true);
+  };
+
+  const saveManualBooking = () => {
+    if (!mfName.trim() || !mfDate || !mfTime) {
+      Alert.alert('Заполните обязательные поля', 'Имя клиента, дата и время нужны обязательно');
+      return;
+    }
+    try {
+      const payload = {
+        date: mfDate,
+        time_start: mfTime,
+        client_name: mfName.trim(),
+        client_phone: mfPhone.trim(),
+        service_name: mfService.trim(),
+        service_price: parseFloat(mfPrice) || 0,
+        comment: mfComment.trim(),
+        status: 'confirmed',
+      };
+      if (manualEditingId) {
+        updateManualBooking(manualEditingId, payload);
+      } else {
+        insertManualBooking(payload);
+      }
+      setManualFormOpen(false);
+      setManualEditingId(null);
+      loadManual();
+    } catch (e) { console.error(e); Alert.alert('Ошибка', 'Не удалось сохранить запись'); }
+  };
 
   const handleStatus = async (id, status) => {
     try {
@@ -88,7 +163,16 @@ export default function BookingsScreen({ navigation }) {
     return acc;
   }, {});
 
+  // Группировка локальных записей по дате
+  const manualGrouped = manualBookings.reduce((acc, b) => {
+    const key = b.date;
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(b);
+    return acc;
+  }, {});
+
   return (
+    <>
     <View style={styles.root}>
       <TopBar
         title="Записи"
@@ -102,6 +186,17 @@ export default function BookingsScreen({ navigation }) {
         }
       />
 
+      {/* Вкладки — Онлайн / По телефону */}
+      <View style={styles.mainTabBar}>
+        <Pressable style={[styles.mainTabBtn, mainTab === 'online' && styles.mainTabBtnActive]} onPress={() => setMainTab('online')}>
+          <Text style={[styles.mainTabTxt, mainTab === 'online' && styles.mainTabTxtActive]}>Онлайн</Text>
+        </Pressable>
+        <Pressable style={[styles.mainTabBtn, mainTab === 'manual' && styles.mainTabBtnActive]} onPress={() => setMainTab('manual')}>
+          <Text style={[styles.mainTabTxt, mainTab === 'manual' && styles.mainTabTxtActive]}>По телефону</Text>
+        </Pressable>
+      </View>
+
+      {mainTab === 'online' && (
       <View style={[styles.layout, !isLandscape && { flexDirection: 'column' }]} onLayout={e => setContainerWidth(e.nativeEvent.layout.width)}>
 
         {isLandscape ? (
@@ -250,7 +345,105 @@ export default function BookingsScreen({ navigation }) {
         </View>
 
       </View>
+      )}
+
+      {mainTab === 'manual' && (
+        <View style={styles.right}>
+          <Pressable style={styles.addManualBtn} onPress={openManualForm}>
+            <Text style={styles.addManualBtnTxt}>+ Добавить запись</Text>
+          </Pressable>
+
+          {manualBookings.length === 0 ? (
+            <View style={styles.centerWrap}>
+              <Text style={styles.emptyTxt}>Пока нет записей по телефону</Text>
+              <Text style={styles.emptyHint}>Добавляйте сюда клиентов, которые записались, позвонив вам напрямую</Text>
+            </View>
+          ) : (
+            <Animated.ScrollView contentContainerStyle={{ padding: 16 }}>
+              {Object.keys(manualGrouped).sort().map(date => (
+                <View key={date} style={{ marginBottom: 20 }}>
+                  <Text style={styles.groupDate}>{fmtDate(date)}</Text>
+                  <View style={styles.groupCard}>
+                    {manualGrouped[date].map((b, idx) => (
+                      <SwipeableRow
+                        key={b.id}
+                        onAction={() => {
+                          Alert.alert('Удалить запись?', `${b.client_name} · ${b.time_start?.slice(0,5)}`, [
+                            { text: 'Отмена', style: 'cancel' },
+                            { text: 'Удалить', style: 'destructive', onPress: () => { deleteManualBooking(b.id); loadManual(); } },
+                          ]);
+                        }}
+                        label="Удалить"
+                      >
+                        <Pressable
+                          style={[styles.bookingRow, idx < manualGrouped[date].length - 1 && styles.rowDiv]}
+                          onPress={() => openManualEdit(b)}
+                        >
+                          <Text style={styles.bookingTime}>{b.time_start?.slice(0,5) || '—'}</Text>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.bookingName}>{b.client_name}</Text>
+                            <Text style={styles.bookingSub}>
+                              📞 {b.service_name || 'Без услуги'}
+                              {b.client_phone ? ` · ${b.client_phone}` : ''}
+                            </Text>
+                          </View>
+                        </Pressable>
+                      </SwipeableRow>
+                    ))}
+                  </View>
+                </View>
+              ))}
+            </Animated.ScrollView>
+          )}
+        </View>
+      )}
     </View>
+
+    <Sheet
+      visible={manualFormOpen}
+      onClose={() => { setManualFormOpen(false); setManualEditingId(null); }}
+      title={manualEditingId ? 'Изменить запись' : 'Новая запись по телефону'}
+    >
+      <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
+        <Text style={styles.fieldLabel}>Имя клиента <Text style={{ color: colors.orange }}>*</Text></Text>
+        <TextInput style={styles.input} color={colors.text} value={mfName} onChangeText={setMfName}
+          placeholder="Как зовут клиента" placeholderTextColor={colors.muted} />
+
+        <Text style={styles.fieldLabel}>Телефон</Text>
+        <TextInput style={styles.input} color={colors.text} value={mfPhone} onChangeText={setMfPhone}
+          keyboardType="phone-pad" placeholder="Необязательно" placeholderTextColor={colors.muted} />
+
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.fieldLabel}>Дата <Text style={{ color: colors.orange }}>*</Text></Text>
+            <TextInput style={styles.input} color={colors.text} value={mfDate} onChangeText={setMfDate}
+              placeholder="ГГГГ-ММ-ДД" placeholderTextColor={colors.muted} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.fieldLabel}>Время <Text style={{ color: colors.orange }}>*</Text></Text>
+            <TextInput style={styles.input} color={colors.text} value={mfTime} onChangeText={setMfTime}
+              placeholder="ЧЧ:ММ" placeholderTextColor={colors.muted} />
+          </View>
+        </View>
+
+        <Text style={styles.fieldLabel}>Услуга</Text>
+        <TextInput style={styles.input} color={colors.text} value={mfService} onChangeText={setMfService}
+          placeholder="Необязательно" placeholderTextColor={colors.muted} />
+
+        <Text style={styles.fieldLabel}>Стоимость</Text>
+        <TextInput style={styles.input} color={colors.text} value={mfPrice} onChangeText={setMfPrice}
+          keyboardType="numeric" placeholder="0" placeholderTextColor={colors.muted} />
+
+        <Text style={styles.fieldLabel}>Комментарий</Text>
+        <TextInput style={[styles.input, { minHeight: 60 }]} color={colors.text} value={mfComment} onChangeText={setMfComment}
+          placeholder="Необязательно" placeholderTextColor={colors.muted} multiline />
+
+        <Pressable style={styles.saveManualBtn} onPress={saveManualBooking}>
+          <Text style={styles.saveManualBtnTxt}>Сохранить</Text>
+        </Pressable>
+      </ScrollView>
+    </Sheet>
+    </>
   );
 }
 
@@ -284,6 +477,18 @@ const styles = StyleSheet.create({
 
   // Правая панель
   right:      { flex: 1 },
+  mainTabBar: { flexDirection: 'row', gap: 6, paddingHorizontal: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
+  mainTabBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 12 },
+  mainTabBtnActive: { backgroundColor: 'rgba(240,160,80,0.14)' },
+  mainTabTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  mainTabTxtActive: { color: colors.orange },
+  addManualBtn: { margin: 16, marginBottom: 8, paddingVertical: 13, borderRadius: 12, backgroundColor: colors.orange, alignItems: 'center' },
+  addManualBtnTxt: { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: '#fff' },
+
+  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, marginTop: 14, marginBottom: 6 },
+  input: { backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 13, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 14 },
+  saveManualBtn: { marginTop: 24, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.orange, alignItems: 'center' },
+  saveManualBtnTxt: { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: '#fff' },
   centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
   loadingTxt: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 12 },
   emptyTxt:   { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted, textAlign: 'center' },
