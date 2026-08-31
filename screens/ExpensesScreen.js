@@ -564,7 +564,7 @@ const styles = StyleSheet.create({
   stripBody:  { marginTop: 10 },
 
   // ── Альбомная — постоянная боковая панель сводки ──
-  sidePanel:  { flex: 1, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, margin: 12, marginLeft: 0, overflow: 'hidden' },
+  sidePanel:  { flex: 1, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, margin: 12, marginLeft: 12, overflow: 'hidden' },
   sidePanelPad: { flex: 1, padding: 20 },
   listColLandscape: { flex: 0, width: '38%', maxWidth: 480, margin: 12, marginRight: 0, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, overflow: 'hidden' },
   editorHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface2 },
