@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
-  TextInput, Animated, FlatList, Alert, Image,
+  TextInput, Animated, FlatList, Alert, Image, Modal,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import TopBar from '../components/TopBar';
@@ -44,6 +44,7 @@ export default function ExpensesScreen({ navigation }) {
   const [recurringModal, setRecurringModal] = useState(false);
   const [recurringList, setRecurringList] = useState([]);
   const [photoUri, setPhotoUri]     = useState('');
+  const [photoViewUri, setPhotoViewUri] = useState(''); // полноэкранный просмотр — отдельно от формы
   const [category, setCategory]     = useState(CATEGORIES[0]);
   const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [amount, setAmount]         = useState('');
@@ -236,6 +237,9 @@ export default function ExpensesScreen({ navigation }) {
             ]);
           }}
           label="Удалить"
+          onLeftAction={item.photo_uri ? () => setPhotoViewUri(item.photo_uri) : undefined}
+          leftLabel="📎 Фото"
+          leftColor={colors.indigo}
         >
           <Pressable
             style={({ pressed }) => [styles.expenseRow, index < expenses.length - 1 && styles.expenseRowDiv, pressed && { opacity: 0.7 }]}
@@ -395,7 +399,9 @@ export default function ExpensesScreen({ navigation }) {
               <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Фото чека</Text>
               {photoUri ? (
                 <View style={styles.photoPreviewWrap}>
-                  <Image source={{ uri: photoUri }} style={styles.photoPreview} />
+                  <Pressable onPress={() => setPhotoViewUri(photoUri)}>
+                    <Image source={{ uri: photoUri }} style={styles.photoPreview} />
+                  </Pressable>
                   <Pressable style={styles.photoRemoveBtn} onPress={() => setPhotoUri('')}>
                     <Text style={styles.photoRemoveTxt}>✕ Убрать</Text>
                   </Pressable>
@@ -452,6 +458,16 @@ export default function ExpensesScreen({ navigation }) {
           )}
         </ScrollView>
       </Sheet>
+
+      {/* Полноэкранный просмотр фото чека */}
+      <Modal visible={!!photoViewUri} transparent animationType="fade" onRequestClose={() => setPhotoViewUri('')}>
+        <Pressable style={styles.photoViewerOverlay} onPress={() => setPhotoViewUri('')}>
+          <Image source={{ uri: photoViewUri }} style={styles.photoViewerImg} resizeMode="contain" />
+          <Pressable style={styles.photoViewerClose} onPress={() => setPhotoViewUri('')}>
+            <Text style={styles.photoViewerCloseTxt}>✕ Закрыть</Text>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -537,6 +553,11 @@ const styles = StyleSheet.create({
   photoPreview: { width: '100%', height: 160, borderRadius: 12, backgroundColor: colors.surface2 },
   photoRemoveBtn: { position: 'absolute', top: 8, right: 8, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.6)' },
   photoRemoveTxt: { fontFamily: fonts.familySemibold, fontSize: 12, color: '#fff' },
+
+  photoViewerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center' },
+  photoViewerImg: { width: '100%', height: '80%' },
+  photoViewerClose: { position: 'absolute', top: 50, right: 20, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)' },
+  photoViewerCloseTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: '#fff' },
 
   modalBtns:  { flexDirection: 'row', gap: 10, marginTop: 24 },
   cancelBtn:  { flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },

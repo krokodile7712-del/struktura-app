@@ -88,7 +88,10 @@ export default function SwipeableRow({
     },
     onMoveShouldSetPanResponder: (_, g) => {
       if (disabled) return false;
-      if (!hasLeft && g.dx > 0) return false; // без левого действия свайп вправо не перехватываем
+      // Вправо перехватываем, если есть левое действие, ИЛИ строка уже
+      // открыта вправо (иначе закрыть обратным свайпом невозможно —
+      // движение вправо блокировалось бы целиком)
+      if (!hasLeft && openSide.current !== -1 && g.dx > 0) return false;
       return Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5;
     },
     onPanResponderGrant: () => {
