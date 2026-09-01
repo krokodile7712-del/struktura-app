@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TouchableOpacity, Modal, TextInput, Share, Animated, LayoutAnimation, Platform, Alert, BackHandler, useWindowDimensions, Dimensions, Image, Clipboard } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -128,6 +128,14 @@ export default function SettingsScreen({ navigation, route }) {
   const { width: SW } = useWindowDimensions();
   const isPhone = SW < 600;
   const [selectedSection, setSelectedSection] = useState(route?.params?.section || 'employees');
+  const sectionFadeAnim = useRef(new Animated.Value(1)).current;
+
+  // Плавный переход при смене раздела настроек — затухание + лёгкое
+  // смещение содержимого, а не мгновенный рывок
+  useEffect(() => {
+    sectionFadeAnim.setValue(0);
+    Animated.timing(sectionFadeAnim, { toValue: 1, duration: 220, useNativeDriver: true }).start();
+  }, [selectedSection]);
   const [qrModal, setQrModal] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [bookingSlug, setBookingSlug] = useState(() => {
@@ -1730,7 +1738,7 @@ export default function SettingsScreen({ navigation, route }) {
 
         {/* Левая панель навигации */}
         {(!isPhone || !selectedSection) && (
-          <View style={[styles.leftPanel, { width: Math.min(380, Math.max(260, SW * 0.3)) }]}>
+          <View style={[styles.leftPanelBase, isPhone && { width: undefined, flex: 1 }, !isPhone && styles.leftPanelCard]}>
             <ScrollView showsVerticalScrollIndicator={false}>
               {visibleSections.map(s => (
                 <Pressable
@@ -1756,7 +1764,7 @@ export default function SettingsScreen({ navigation, route }) {
 
         {/* Правая панель */}
         {(!isPhone || selectedSection) && (
-          <View style={{ flex: 1 }}>
+          <View style={[styles.rightPanelBase, !isPhone && styles.rightPanelCard]}>
             {isPhone && (
               <Pressable style={styles.phoneback} onPress={() => setSelectedSection(null)}>
                 <Text style={styles.phoneBackText}>
@@ -1764,7 +1772,9 @@ export default function SettingsScreen({ navigation, route }) {
                 </Text>
               </Pressable>
             )}
-            {rightPanel}
+            <Animated.View key={selectedSection} style={{ flex: 1, opacity: sectionFadeAnim }}>
+              {rightPanel}
+            </Animated.View>
           </View>
         )}
 
@@ -2270,7 +2280,10 @@ const styles = StyleSheet.create({
   phoneBackText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
 
   // Двухколоночный layout
-  leftPanel: { width: 220, backgroundColor: colors.surface, borderRightWidth: 1, borderRightColor: colors.border, paddingVertical: 12 },
+  leftPanelBase: { width: '38%', maxWidth: 480, paddingVertical: 12 },
+  leftPanelCard: { margin: 12, marginRight: 0, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, overflow: 'hidden' },
+  rightPanelBase: { flex: 1 },
+  rightPanelCard: { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, margin: 12, marginLeft: 12, overflow: 'hidden' },
   navItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 17, paddingHorizontal: 18, position: 'relative' },
   navItemActive: { backgroundColor: 'rgba(240,160,80,0.06)' },
   navIcon: { fontSize: 17, width: 24, textAlign: 'center' },
