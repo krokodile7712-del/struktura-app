@@ -587,7 +587,7 @@ const styles = StyleSheet.create({
   layout: { flex: 1, flexDirection: 'row' },
 
   // Левая панель
-  left:   { width: 200, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface, padding: 14 },
+  left:   { width: 200, margin: 12, marginRight: 0, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 14, overflow: 'hidden' },
   filterRowOuter: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
   filterChip: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 18, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
   filterChipActive: { backgroundColor: 'rgba(240,160,80,0.14)', borderColor: colors.orange },
@@ -611,7 +611,7 @@ const styles = StyleSheet.create({
   hintTxt:   { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, lineHeight: 17 },
 
   // Правая панель
-  right:      { flex: 1 },
+  right:      { flex: 1, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, margin: 12, marginLeft: 12, overflow: 'hidden' },
 
   manualLeftLandscape: { width: '38%', maxWidth: 480, margin: 12, marginRight: 0, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, overflow: 'hidden' },
   manualLeftPortrait:  { flex: 1, backgroundColor: colors.surface },
