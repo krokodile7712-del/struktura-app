@@ -96,7 +96,7 @@ export default function AdminScreen({ navigation }) {
             ))}
           </View>
 
-          {stats.shift && (
+          {stats.shift ? (
             <>
             <View style={styles.shiftSep} />
             <Pressable
@@ -108,6 +108,20 @@ export default function AdminScreen({ navigation }) {
                 <Text style={styles.shiftCloseSub}>Открыта {stats.shiftDuration || ''} · {(stats.todayTotal||0).toLocaleString('ru-RU')} ₽</Text>
               </View>
               <Text style={{ fontSize: 18, color: colors.muted }}>›</Text>
+            </Pressable>
+            </>
+          ) : (
+            <>
+            <View style={styles.shiftSep} />
+            <Pressable
+              style={({ pressed }) => [styles.shiftOpenBtn, pressed && { opacity: 0.85 }]}
+              onPress={() => navigation.navigate('Shift')}
+            >
+              <View>
+                <Text style={styles.shiftOpenTxt}>Открыть смену</Text>
+                <Text style={styles.shiftOpenSub}>Начните учёт продаж и расходов за сегодня</Text>
+              </View>
+              <Text style={{ fontSize: 18, color: colors.green }}>›</Text>
             </Pressable>
             </>
           )}
@@ -141,4 +155,7 @@ const styles = StyleSheet.create({
   shiftCloseBtn: { backgroundColor: 'rgba(217,95,95,0.07)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(217,95,95,0.3)', padding: 16, marginTop: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   shiftCloseTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red, marginBottom: 3 },
   shiftCloseSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+  shiftOpenBtn: { backgroundColor: 'rgba(123,175,142,0.08)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(123,175,142,0.3)', padding: 16, marginTop: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  shiftOpenTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.green, marginBottom: 3 },
+  shiftOpenSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
 });
