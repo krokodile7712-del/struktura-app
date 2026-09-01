@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator, Animated, TextInput } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
@@ -40,7 +40,27 @@ function fmtDate(str) {
 
 export default function BookingsScreen({ navigation }) {
   const { isLandscape } = useResponsive();
-  const [mainTab, setMainTab] = useState('online'); // online | manual
+  const [mainTab, setMainTab] = useState(() => {
+    try {
+      const profile = getBusinessProfile();
+      return profile?.booking_slug ? 'online' : 'manual';
+    } catch (e) { return 'online'; }
+  }); // online | manual
+
+  // Предупреждение при заходе в раздел, если онлайн-запись не подключена —
+  // один раз за это открытие экрана, не при каждом обновлении
+  useEffect(() => {
+    try {
+      const profile = getBusinessProfile();
+      if (!profile?.booking_slug) {
+        Alert.alert(
+          'Онлайн-запись не подключена',
+          'Клиенты пока не могут записываться через интернет. Настройте это в Настройках, либо продолжайте вносить записи вручную — во вкладке «По телефону».'
+        );
+      }
+    } catch (e) { console.error(e); }
+  }, []);
+
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [expanded, setExpanded] = useState(null);
