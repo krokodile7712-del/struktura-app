@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
   TextInput, Animated, FlatList, Alert, Image, Modal,
@@ -7,11 +7,14 @@ import * as ImagePicker from 'expo-image-picker';
 import TopBar from '../components/TopBar';
 import Sheet from '../components/Sheet';
 import SwipeableRow from '../components/SwipeableRow';
+import TourGuide from '../components/TourGuide';
+import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
 import { useResponsive } from '../hooks/useResponsive';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   getAllExpenses, insertExpense, deleteExpense, updateExpense,
   getRecurringExpenses, insertRecurringExpense, deactivateRecurringExpense, ensureRecurringExpenses,
+  getBusinessProfile, markTourSeen,
 } from '../db/queries';
 import { goBackSmart, can } from '../db/session';
 import { colors, fonts } from '../constants/theme';
@@ -46,6 +49,13 @@ export default function ExpensesScreen({ navigation }) {
   const [recurringList, setRecurringList] = useState([]);
   const [photoUri, setPhotoUri]     = useState('');
   const [photoViewUri, setPhotoViewUri] = useState(''); // полноэкранный просмотр — отдельно от формы
+  const [tourOpen, setTourOpen] = useState(false);
+  const activeTourKey = useTourActiveKey();
+  const listHighlight = useTourHighlight('expenses.list');
+  const recurringBtnHighlight = useTourHighlight('expenses.recurringBtn', 12);
+  const recurringToggleHighlight = useTourHighlight('expenses.recurringToggle', 12);
+  const photoAttachHighlight = useTourHighlight('expenses.photoAttach', 12);
+  const summaryHighlight = useTourHighlight('expenses.summary');
   const [category, setCategory]     = useState(CATEGORIES[0]);
   const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [amount, setAmount]         = useState('');
@@ -137,6 +147,18 @@ export default function ExpensesScreen({ navigation }) {
     setSelectedExpense(null);
     setAddModal(false);
   };
+
+  // Тур: шаги "Повторять каждый месяц" и "Фото чека" находятся внутри
+  // формы добавления, которая обычно закрыта — сама открывает её на этих
+  // двух шагах и закрывает на остальных
+  useEffect(() => {
+    const needsForm = activeTourKey === 'expenses.recurringToggle' || activeTourKey === 'expenses.photoAttach';
+    if (needsForm) {
+      openModal();
+    } else if (tourOpen) {
+      closeForm();
+    }
+  }, [activeTourKey]);
 
   const pickPhoto = () => {
     Alert.alert('Фото чека', 'Откуда взять фото?', [
@@ -235,6 +257,7 @@ export default function ExpensesScreen({ navigation }) {
   );
 
   const list = (
+    <View style={{ flex: 1, ...listHighlight.style }}>
     <FlatList
       style={{ flex: 1 }}
       data={expenses}
@@ -279,6 +302,7 @@ export default function ExpensesScreen({ navigation }) {
         </SwipeableRow>
       )}
     />
+    </View>
   );
 
   // ── Содержимое сводки — общее и для боковой панели (альбомная), и для
@@ -353,7 +377,7 @@ export default function ExpensesScreen({ navigation }) {
               {/* Повторять каждый месяц — только при создании нового расхода */}
               {!editingId && (
                 <Pressable
-                  style={styles.recurringRow}
+                  style={[styles.recurringRow, recurringToggleHighlight.style]}
                   onPress={() => setIsRecurring(v => !v)}
                 >
                   <View style={[styles.recurringCheckbox, isRecurring && styles.recurringCheckboxActive]}>
@@ -369,6 +393,7 @@ export default function ExpensesScreen({ navigation }) {
               )}
 
               {/* Фото чека */}
+              <View style={photoAttachHighlight.style}>
               <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Фото чека</Text>
               {photoUri ? (
                 <View style={styles.photoPreviewWrap}>
@@ -384,6 +409,7 @@ export default function ExpensesScreen({ navigation }) {
                   <Text style={styles.photoPickTxt}>📷 Прикрепить фото чека</Text>
                 </Pressable>
               )}
+              </View>
 
               {/* Кнопки */}
               <View style={styles.modalBtns}>
@@ -400,6 +426,25 @@ export default function ExpensesScreen({ navigation }) {
     </>
   );
 
+  // Автозапуск тура при первом заходе на Расходы
+  useEffect(() => {
+    try {
+      const p = getBusinessProfile();
+      if (!p?.tours_seen?.Expenses) {
+        const t = setTimeout(() => setTourOpen(true), 500);
+        return () => clearTimeout(t);
+      }
+    } catch (_) {}
+  }, []);
+
+  const tourSteps = [
+    { key: 'expenses.list', title: 'Список расходов', text: 'Тап по строке открывает редактирование. Свайп влево — удалить. У расходов с прикреплённым фото свайп влево также открывает само фото.' },
+    { key: 'expenses.recurringBtn', title: 'Повторяющиеся расходы', text: 'Здесь список всех настроенных повторов — аренда, зарплата, подписки. Можно отключить любой, если он больше не нужен.' },
+    { key: 'expenses.recurringToggle', title: 'Повторять каждый месяц', text: 'При создании нового расхода включите этот переключатель — и такой же расход будет создаваться автоматически каждый месяц, без ручного ввода заново.' },
+    { key: 'expenses.photoAttach', title: 'Фото чека', text: 'Прикрепите фото чека прямо к расходу — камерой или из галереи. Позже можно посмотреть его на весь экран.' },
+    { key: 'expenses.summary', title: 'Сводка', text: 'Итог за выбранный период и разбивка по категориям — всегда под рукой.' },
+  ];
+
   return (
     <View style={styles.root}>
       <TopBar
@@ -407,13 +452,18 @@ export default function ExpensesScreen({ navigation }) {
         onBack={() => goBackSmart(navigation)}
         navigation={navigation}
         activeScreen="Expenses"
+        rightElement={
+          <Pressable onPress={() => setTourOpen(true)} hitSlop={10} style={styles.tourBtn}>
+            <Text style={styles.tourBtnTxt}>?</Text>
+          </Pressable>
+        }
       />
 
       <View style={{ flex: 1, flexDirection: isLandscape ? 'row' : 'column' }}>
 
         {!isLandscape && (
           /* Портрет — компактная сводка сверху, по умолчанию свёрнута */
-          <Pressable style={styles.stripWrap} onPress={() => setSummaryExpanded(v => !v)}>
+          <Pressable style={[styles.stripWrap, summaryHighlight.style]} onPress={() => setSummaryExpanded(v => !v)}>
             <View style={styles.stripRow}>
               <View>
                 <Text style={styles.stripLabel}>Расходы за период</Text>
@@ -434,7 +484,7 @@ export default function ExpensesScreen({ navigation }) {
           {periodChips}
           <View style={{ paddingHorizontal: 16, paddingTop: 12, flexDirection: 'row', gap: 8 }}>
             <View style={{ flex: 1 }}>{addBtn}</View>
-            <Pressable style={styles.recurringBtn} onPress={() => setRecurringModal(true)}>
+            <Pressable style={[styles.recurringBtn, recurringBtnHighlight.style]} onPress={() => setRecurringModal(true)}>
               <Text style={styles.recurringBtnTxt}>🔁</Text>
             </Pressable>
           </View>
@@ -459,7 +509,7 @@ export default function ExpensesScreen({ navigation }) {
                 </ScrollView>
               </>
             ) : (
-              <View style={styles.sidePanelPad}>
+              <View style={[styles.sidePanelPad, summaryHighlight.style]}>
                 <Text style={styles.sideLabel}>За период</Text>
                 <Animated.Text style={[styles.sideVal, { opacity: numAnim }]}>{fmt(total)} ₽</Animated.Text>
                 <Text style={styles.sideSub}>{expenses.length} расходов</Text>
@@ -519,12 +569,20 @@ export default function ExpensesScreen({ navigation }) {
           </Pressable>
         </Pressable>
       </Modal>
+
+      <TourGuide
+        visible={tourOpen}
+        onClose={() => { setTourOpen(false); markTourSeen('Expenses'); closeForm(); }}
+        steps={tourSteps}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root:       { flex: 1, backgroundColor: colors.bg },
+  tourBtn:  { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  tourBtnTxt: { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: colors.muted },
 
   periodRow:  { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
   periodBtn:  { paddingVertical: 7, paddingHorizontal: 16, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
