@@ -35,9 +35,9 @@ export function useNextStepsProgress() {
   return { status, doneCount, allDone, dismissed, visible, refresh: load };
 }
 
-export default function NextStepsCard({ navigation }) {
+export default function NextStepsCard({ navigation, forceVisible = false }) {
   const { status, doneCount, visible } = useNextStepsProgress();
-  if (!visible) return null;
+  if (!visible && !forceVisible) return null;
 
   const dismiss = () => { try { setSetting('next_steps_dismissed', '1'); } catch (_) {} };
 

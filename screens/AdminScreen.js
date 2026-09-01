@@ -1,11 +1,13 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
 import NextStepsCard from '../components/NextStepsCard';
 import ShiftBanner from '../components/ShiftBanner';
+import TourGuide from '../components/TourGuide';
+import { useTourHighlight } from '../components/TourRegistry';
 import {
-  getOpenShift, getBusinessProfile, getDashboardStats, getRoleNames,
+  getOpenShift, getBusinessProfile, getDashboardStats, getRoleNames, markTourSeen,
 } from '../db/queries';
 import { getSession } from '../db/session';
 import { colors, fonts } from '../constants/theme';
@@ -28,6 +30,12 @@ export default function AdminScreen({ navigation }) {
   const [roleNames, setRoleNames] = useState({ admin: 'Администратор' });
   const [sessionName, setSessionName] = useState('');
   const [stockOpen, setStockOpen] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
+  const shiftBannerHighlight = useTourHighlight('admin.shiftBanner');
+  const stockBannerHighlight = useTourHighlight('admin.stockBanner');
+  const nextStepsHighlight = useTourHighlight('admin.nextSteps');
+  const statsGridHighlight = useTourHighlight('admin.statsGrid');
+  const shiftActionHighlight = useTourHighlight('admin.shiftAction');
 
   const loadStats = useCallback(() => {
     try {
@@ -43,28 +51,65 @@ export default function AdminScreen({ navigation }) {
 
   useFocusEffect(useCallback(() => { loadStats(); }, [loadStats]));
 
+  // Автозапуск тура при первом заходе на Обзор
+  useEffect(() => {
+    try {
+      const p = getBusinessProfile();
+      if (!p?.tours_seen?.Admin) {
+        const t = setTimeout(() => setTourOpen(true), 500);
+        return () => clearTimeout(t);
+      }
+    } catch (_) {}
+  }, []);
+
+  const tourSteps = [
+    ...(!hasShift ? [{ key: 'admin.shiftBanner', title: 'Смена не открыта', text: 'Напоминание сверху экрана — нажмите, чтобы открыть смену и начать учёт продаж за сегодня.' }] : []),
+    { key: 'admin.stockBanner', title: 'Мало на складе', text: 'Появляется, когда на складе заканчивается что-то важное. Нажмите, чтобы развернуть список и перейти на склад.' },
+    { key: 'admin.nextSteps', title: 'Что дальше', text: 'Чек-лист первоначальной настройки — добавить товары, способы оплаты, сотрудников и так далее. Можно скрыть крестиком, когда не нужен.' },
+    { key: 'admin.statsGrid', title: 'Сводка за сегодня', text: 'Выручка, количество заказов, средний чек и разбивка по способам оплаты — всё за текущий день.' },
+    { key: 'admin.shiftAction', title: 'Смена', text: 'Здесь же — открыть смену, если она ещё не начата, или закрыть, когда рабочий день закончен.' },
+  ];
+
   return (
     <View style={styles.root}>
-      <TopBar title={roleNames.admin || 'Администратор'} navigation={navigation} activeScreen="Admin" />
-      {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift')} />}
+      <TopBar
+        title={roleNames.admin || 'Администратор'}
+        navigation={navigation}
+        activeScreen="Admin"
+        rightElement={
+          <Pressable onPress={() => setTourOpen(true)} hitSlop={10} style={styles.tourBtn}>
+            <Text style={styles.tourBtnTxt}>?</Text>
+          </Pressable>
+        }
+      />
+      {!hasShift && (
+        <View style={shiftBannerHighlight.style}>
+          <ShiftBanner onOpen={() => navigation.navigate('Shift')} />
+        </View>
+      )}
 
       <View style={{ flex: 1 }}>
 
         <ScrollView contentContainerStyle={styles.panelContent} style={{ flex: 1 }}>
-          {stats.lowStockCount > 0 && (
+          {(stats.lowStockCount > 0 || tourOpen) && (() => {
+            const isDemo = !(stats.lowStockCount > 0);
+            const demoCount = isDemo ? 2 : stats.lowStockCount;
+            const demoItems = isDemo ? [{ name: 'Стаканы 250мл', 'остаток': 8, unit: 'шт' }, { name: 'Молоко', 'остаток': 1, unit: 'л' }] : (stats.lowStockItems || []);
+            return (
+            <View style={stockBannerHighlight.style}>
             <Pressable
               style={[styles.stockBanner, stockOpen && styles.stockBannerOpen]}
               onPress={() => setStockOpen(v => !v)}
             >
               <View style={styles.stockBannerRow}>
                 <Text style={styles.stockBannerTxt}>
-                  Мало на складе: {stats.lowStockCount} поз.
+                  Мало на складе: {demoCount} поз.{isDemo ? ' (пример)' : ''}
                 </Text>
                 <Text style={styles.stockBannerChevron}>{stockOpen ? '▲' : '▼'}</Text>
               </View>
               {stockOpen && (
-                <Pressable onPress={() => navigation.navigate('Products', { initialTab: 'stock' })}>
-                  {(stats.lowStockItems || []).map((it, i) => (
+                <Pressable onPress={() => !isDemo && navigation.navigate('Products', { initialTab: 'stock' })}>
+                  {demoItems.map((it, i) => (
                     <Text key={i} style={styles.stockBannerItem}>
                       · {it.name} — {it['остаток']} {it.unit}
                     </Text>
@@ -73,14 +118,18 @@ export default function AdminScreen({ navigation }) {
                 </Pressable>
               )}
             </Pressable>
-          )}
+            </View>
+            );
+          })()}
 
           <Text style={styles.panelGreeting}>{getGreeting()}{sessionName ? `, ${sessionName}` : ''}</Text>
           <Text style={styles.panelSub}>{profile?.business_name || 'Сводка за сегодня'}</Text>
 
-          <NextStepsCard navigation={navigation} />
+          <View style={nextStepsHighlight.style}>
+            <NextStepsCard navigation={navigation} forceVisible={tourOpen} />
+          </View>
 
-          <View style={styles.statsGrid}>
+          <View style={[styles.statsGrid, statsGridHighlight.style]}>
             {[
               { label: 'Выручка', value: `${(stats.todayTotal || 0).toLocaleString('ru-RU')} ₽` },
               { label: 'Заказов', value: stats.todayOrders || 0 },
@@ -96,6 +145,7 @@ export default function AdminScreen({ navigation }) {
             ))}
           </View>
 
+          <View style={shiftActionHighlight.style}>
           {stats.shift ? (
             <>
             <View style={styles.shiftSep} />
@@ -125,8 +175,15 @@ export default function AdminScreen({ navigation }) {
             </Pressable>
             </>
           )}
+          </View>
         </ScrollView>
       </View>
+
+      <TourGuide
+        visible={tourOpen}
+        onClose={() => { setTourOpen(false); markTourSeen('Admin'); }}
+        steps={tourSteps}
+      />
     </View>
   );
 }
@@ -158,4 +215,6 @@ const styles = StyleSheet.create({
   shiftOpenBtn: { backgroundColor: 'rgba(123,175,142,0.08)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(123,175,142,0.3)', padding: 16, marginTop: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   shiftOpenTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.green, marginBottom: 3 },
   shiftOpenSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+  tourBtn:  { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  tourBtnTxt: { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: colors.muted },
 });
