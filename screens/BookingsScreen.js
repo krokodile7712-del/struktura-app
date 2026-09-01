@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator, Animated, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator, Animated, TextInput, Platform } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
 import Sheet from '../components/Sheet';
@@ -82,6 +83,8 @@ export default function BookingsScreen({ navigation }) {
   const [mfService, setMfService] = useState('');
   const [mfPrice, setMfPrice]   = useState('');
   const [mfComment, setMfComment] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   const fadeAnim  = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(16))[0];
@@ -121,6 +124,8 @@ export default function BookingsScreen({ navigation }) {
     setMfService('');
     setMfPrice('');
     setMfComment('');
+    setShowDatePicker(false);
+    setShowTimePicker(false);
     setManualFormOpen(true);
   };
 
@@ -133,6 +138,8 @@ export default function BookingsScreen({ navigation }) {
     setMfService(b.service_name || '');
     setMfPrice(b.service_price ? String(b.service_price) : '');
     setMfComment(b.comment || '');
+    setShowDatePicker(false);
+    setShowTimePicker(false);
     setManualFormOpen(true);
   };
 
@@ -472,7 +479,7 @@ export default function BookingsScreen({ navigation }) {
 
     <Sheet
       visible={manualFormOpen}
-      onClose={() => { setManualFormOpen(false); setManualEditingId(null); }}
+      onClose={() => { setManualFormOpen(false); setManualEditingId(null); setShowDatePicker(false); setShowTimePicker(false); }}
       title={manualEditingId ? 'Изменить запись' : 'Новая запись по телефону'}
     >
       <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
@@ -487,15 +494,72 @@ export default function BookingsScreen({ navigation }) {
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <View style={{ flex: 1 }}>
             <Text style={styles.fieldLabel}>Дата <Text style={{ color: colors.orange }}>*</Text></Text>
-            <TextInput style={styles.input} color={colors.text} value={mfDate} onChangeText={setMfDate}
-              placeholder="ГГГГ-ММ-ДД" placeholderTextColor={colors.muted} />
+            <Pressable style={styles.input} onPress={() => setShowDatePicker(true)}>
+              <Text style={{ color: mfDate ? colors.text : colors.muted, fontFamily: fonts.familyRegular, fontSize: 14 }}>
+                {mfDate ? fmtDate(mfDate) : 'Выбрать дату'}
+              </Text>
+            </Pressable>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.fieldLabel}>Время <Text style={{ color: colors.orange }}>*</Text></Text>
-            <TextInput style={styles.input} color={colors.text} value={mfTime} onChangeText={setMfTime}
-              placeholder="ЧЧ:ММ" placeholderTextColor={colors.muted} />
+            <Pressable style={styles.input} onPress={() => setShowTimePicker(true)}>
+              <Text style={{ color: mfTime ? colors.text : colors.muted, fontFamily: fonts.familyRegular, fontSize: 14 }}>
+                {mfTime || 'Выбрать время'}
+              </Text>
+            </Pressable>
           </View>
         </View>
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={mfDate ? new Date(mfDate + 'T00:00') : new Date()}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
+            onChange={(event, selectedDate) => {
+              setShowDatePicker(Platform.OS === 'ios'); // на iOS остаётся видимым до явного закрытия
+              if (event.type !== 'dismissed' && selectedDate) {
+                const y = selectedDate.getFullYear();
+                const m = String(selectedDate.getMonth() + 1).padStart(2, '0');
+                const d = String(selectedDate.getDate()).padStart(2, '0');
+                setMfDate(`${y}-${m}-${d}`);
+              }
+            }}
+          />
+        )}
+        {Platform.OS === 'ios' && showDatePicker && (
+          <Pressable style={styles.pickerDoneBtn} onPress={() => setShowDatePicker(false)}>
+            <Text style={styles.pickerDoneBtnTxt}>Готово</Text>
+          </Pressable>
+        )}
+
+        {showTimePicker && (
+          <DateTimePicker
+            value={(() => {
+              const d = new Date();
+              if (mfTime) {
+                const [h, mi] = mfTime.split(':').map(Number);
+                d.setHours(h || 0, mi || 0, 0, 0);
+              }
+              return d;
+            })()}
+            mode="time"
+            display="spinner"
+            is24Hour
+            onChange={(event, selectedDate) => {
+              setShowTimePicker(Platform.OS === 'ios');
+              if (event.type !== 'dismissed' && selectedDate) {
+                const h = String(selectedDate.getHours()).padStart(2, '0');
+                const mi = String(selectedDate.getMinutes()).padStart(2, '0');
+                setMfTime(`${h}:${mi}`);
+              }
+            }}
+          />
+        )}
+        {Platform.OS === 'ios' && showTimePicker && (
+          <Pressable style={styles.pickerDoneBtn} onPress={() => setShowTimePicker(false)}>
+            <Text style={styles.pickerDoneBtnTxt}>Готово</Text>
+          </Pressable>
+        )}
 
         <Text style={styles.fieldLabel}>Услуга</Text>
         <TextInput style={styles.input} color={colors.text} value={mfService} onChangeText={setMfService}
@@ -572,6 +636,8 @@ const styles = StyleSheet.create({
   input: { backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 13, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 14 },
   saveManualBtn: { marginTop: 24, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.orange, alignItems: 'center' },
   saveManualBtnTxt: { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: '#fff' },
+  pickerDoneBtn: { marginTop: 8, paddingVertical: 10, borderRadius: 10, backgroundColor: colors.surface2, alignItems: 'center' },
+  pickerDoneBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
   centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
   loadingTxt: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 12 },
   emptyTxt:   { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted, textAlign: 'center' },
