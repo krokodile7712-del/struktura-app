@@ -1,11 +1,11 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
 import NextStepsCard from '../components/NextStepsCard';
 import ShiftBanner from '../components/ShiftBanner';
 import TourGuide from '../components/TourGuide';
-import { useTourHighlight } from '../components/TourRegistry';
+import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
 import {
   getOpenShift, getBusinessProfile, getDashboardStats, getRoleNames, markTourSeen,
 } from '../db/queries';
@@ -36,6 +36,10 @@ export default function AdminScreen({ navigation }) {
   const nextStepsHighlight = useTourHighlight('admin.nextSteps');
   const statsGridHighlight = useTourHighlight('admin.statsGrid');
   const shiftActionHighlight = useTourHighlight('admin.shiftAction');
+  const activeTourKey = useTourActiveKey();
+  const scrollRef = useRef(null);
+  const sectionY = useRef({});
+  const rememberY = (key) => (e) => { sectionY.current[key] = e.nativeEvent.layout.y; };
 
   const loadStats = useCallback(() => {
     try {
@@ -70,6 +74,19 @@ export default function AdminScreen({ navigation }) {
     { key: 'admin.shiftAction', title: 'Смена', text: 'Здесь же — открыть смену, если она ещё не начата, или закрыть, когда рабочий день закончен.' },
   ];
 
+  // Автопрокрутка к активному шагу тура — карточка тура закреплена внизу
+  // экрана и может полностью закрыть собой то, что не поднято в видимую
+  // область (особенно последние шаги — статистика, блок смены)
+  useEffect(() => {
+    if (!activeTourKey) return;
+    const y = sectionY.current[activeTourKey];
+    if (y == null) return;
+    const t = setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: Math.max(0, y - 70), animated: true });
+    }, 50);
+    return () => clearTimeout(t);
+  }, [activeTourKey]);
+
   return (
     <View style={styles.root}>
       <TopBar
@@ -90,13 +107,13 @@ export default function AdminScreen({ navigation }) {
 
       <View style={{ flex: 1 }}>
 
-        <ScrollView contentContainerStyle={styles.panelContent} style={{ flex: 1 }}>
+        <ScrollView ref={scrollRef} contentContainerStyle={styles.panelContent} style={{ flex: 1 }}>
           {(stats.lowStockCount > 0 || tourOpen) && (() => {
             const isDemo = !(stats.lowStockCount > 0);
             const demoCount = isDemo ? 2 : stats.lowStockCount;
             const demoItems = isDemo ? [{ name: 'Стаканы 250мл', 'остаток': 8, unit: 'шт' }, { name: 'Молоко', 'остаток': 1, unit: 'л' }] : (stats.lowStockItems || []);
             return (
-            <View style={stockBannerHighlight.style}>
+            <View style={stockBannerHighlight.style} onLayout={rememberY('admin.stockBanner')}>
             <Pressable
               style={[styles.stockBanner, stockOpen && styles.stockBannerOpen]}
               onPress={() => setStockOpen(v => !v)}
@@ -125,11 +142,11 @@ export default function AdminScreen({ navigation }) {
           <Text style={styles.panelGreeting}>{getGreeting()}{sessionName ? `, ${sessionName}` : ''}</Text>
           <Text style={styles.panelSub}>{profile?.business_name || 'Сводка за сегодня'}</Text>
 
-          <View style={nextStepsHighlight.style}>
+          <View style={nextStepsHighlight.style} onLayout={rememberY('admin.nextSteps')}>
             <NextStepsCard navigation={navigation} forceVisible={tourOpen} />
           </View>
 
-          <View style={[styles.statsGrid, statsGridHighlight.style]}>
+          <View style={[styles.statsGrid, statsGridHighlight.style]} onLayout={rememberY('admin.statsGrid')}>
             {[
               { label: 'Выручка', value: `${(stats.todayTotal || 0).toLocaleString('ru-RU')} ₽` },
               { label: 'Заказов', value: stats.todayOrders || 0 },
@@ -145,7 +162,7 @@ export default function AdminScreen({ navigation }) {
             ))}
           </View>
 
-          <View style={shiftActionHighlight.style}>
+          <View style={shiftActionHighlight.style} onLayout={rememberY('admin.shiftAction')}>
           {stats.shift ? (
             <>
             <View style={styles.shiftSep} />
