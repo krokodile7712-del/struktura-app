@@ -38,6 +38,10 @@ function fmtDate(str) {
   return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
 }
 
+function fmt(n) {
+  return (n || 0).toLocaleString('ru-RU');
+}
+
 export default function BookingsScreen({ navigation }) {
   const { isLandscape } = useResponsive();
   const [mainTab, setMainTab] = useState(() => {
@@ -368,53 +372,100 @@ export default function BookingsScreen({ navigation }) {
       )}
 
       {mainTab === 'manual' && (
-        <View style={styles.right}>
-          <Pressable style={styles.addManualBtn} onPress={openManualForm}>
-            <Text style={styles.addManualBtnTxt}>+ Добавить запись</Text>
-          </Pressable>
+        <View style={[styles.layout, !isLandscape && { flexDirection: 'column' }]}>
+          <View style={isLandscape ? styles.manualLeftLandscape : styles.manualLeftPortrait}>
+            <Pressable style={styles.addManualBtn} onPress={openManualForm}>
+              <Text style={styles.addManualBtnTxt}>+ Добавить запись</Text>
+            </Pressable>
 
-          {manualBookings.length === 0 ? (
-            <View style={styles.centerWrap}>
-              <Text style={styles.emptyTxt}>Пока нет записей по телефону</Text>
-              <Text style={styles.emptyHint}>Добавляйте сюда клиентов, которые записались, позвонив вам напрямую</Text>
-            </View>
-          ) : (
-            <Animated.ScrollView contentContainerStyle={{ padding: 16 }}>
-              {Object.keys(manualGrouped).sort().map(date => (
-                <View key={date} style={{ marginBottom: 20 }}>
-                  <Text style={styles.groupDate}>{fmtDate(date)}</Text>
-                  <View style={styles.groupCard}>
-                    {manualGrouped[date].map((b, idx) => (
-                      <SwipeableRow
-                        key={b.id}
-                        onAction={() => {
-                          Alert.alert('Удалить запись?', `${b.client_name} · ${b.time_start?.slice(0,5)}`, [
-                            { text: 'Отмена', style: 'cancel' },
-                            { text: 'Удалить', style: 'destructive', onPress: () => { deleteManualBooking(b.id); loadManual(); } },
-                          ]);
-                        }}
-                        label="Удалить"
-                      >
-                        <Pressable
-                          style={[styles.bookingRow, idx < manualGrouped[date].length - 1 && styles.rowDiv]}
-                          onPress={() => openManualEdit(b)}
+            {manualBookings.length === 0 ? (
+              <View style={styles.centerWrap}>
+                <Text style={styles.emptyTxt}>Пока нет записей по телефону</Text>
+                <Text style={styles.emptyHint}>Добавляйте сюда клиентов, которые записались, позвонив вам напрямую</Text>
+              </View>
+            ) : (
+              <Animated.ScrollView contentContainerStyle={{ padding: 16 }}>
+                {Object.keys(manualGrouped).sort().map(date => (
+                  <View key={date} style={{ marginBottom: 20 }}>
+                    <Text style={styles.groupDate}>{fmtDate(date)}</Text>
+                    <View style={styles.groupCard}>
+                      {manualGrouped[date].map((b, idx) => (
+                        <SwipeableRow
+                          key={b.id}
+                          onAction={() => {
+                            Alert.alert('Удалить запись?', `${b.client_name} · ${b.time_start?.slice(0,5)}`, [
+                              { text: 'Отмена', style: 'cancel' },
+                              { text: 'Удалить', style: 'destructive', onPress: () => { deleteManualBooking(b.id); loadManual(); } },
+                            ]);
+                          }}
+                          label="Удалить"
                         >
-                          <Text style={styles.bookingTime}>{b.time_start?.slice(0,5) || '—'}</Text>
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.bookingName}>{b.client_name}</Text>
-                            <Text style={styles.bookingSub}>
-                              📞 {b.service_name || 'Без услуги'}
-                              {b.client_phone ? ` · ${b.client_phone}` : ''}
-                            </Text>
-                          </View>
-                        </Pressable>
-                      </SwipeableRow>
-                    ))}
+                          <Pressable
+                            style={[styles.bookingRow, idx < manualGrouped[date].length - 1 && styles.rowDiv]}
+                            onPress={() => openManualEdit(b)}
+                          >
+                            <Text style={styles.bookingTime}>{b.time_start?.slice(0,5) || '—'}</Text>
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.bookingName}>{b.client_name}</Text>
+                              <Text style={styles.bookingSub}>
+                                📞 {b.service_name || 'Без услуги'}
+                                {b.client_phone ? ` · ${b.client_phone}` : ''}
+                              </Text>
+                            </View>
+                          </Pressable>
+                        </SwipeableRow>
+                      ))}
+                    </View>
                   </View>
+                ))}
+              </Animated.ScrollView>
+            )}
+          </View>
+
+          {isLandscape && (() => {
+            const todayKey = todayStr();
+            const todayList = (manualGrouped[todayKey] || []).slice().sort((a,b) => (a.time_start||'').localeCompare(b.time_start||''));
+            const upcoming = manualBookings
+              .filter(b => b.date > todayKey || (b.date === todayKey))
+              .slice()
+              .sort((a,b) => (a.date+a.time_start).localeCompare(b.date+b.time_start))[0];
+            const totalRevenue = manualBookings.reduce((s,b) => s + (b.service_price||0), 0);
+            return (
+              <View style={styles.sidePanelManual}>
+                <View style={{ padding: 20 }}>
+                  <Text style={styles.sideLabel}>Всего записей</Text>
+                  <Text style={styles.sideVal}>{manualBookings.length}</Text>
+                  <View style={styles.sideDivider} />
+
+                  <Text style={styles.sideLabel}>Сегодня</Text>
+                  <Text style={[styles.sideVal, { fontSize: 22, marginBottom: 4 }]}>{todayList.length} {todayList.length === 1 ? 'запись' : 'записей'}</Text>
+                  {todayList.length > 0 && (
+                    <View style={{ marginTop: 8 }}>
+                      {todayList.map(b => (
+                        <View key={b.id} style={styles.todayRow}>
+                          <Text style={styles.todayTime}>{b.time_start?.slice(0,5)}</Text>
+                          <Text style={styles.todayName} numberOfLines={1}>{b.client_name}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  <View style={styles.sideDivider} />
+                  <Text style={styles.sideLabel}>Ожидаемая выручка</Text>
+                  <Text style={styles.sideVal}>{fmt(totalRevenue)} ₽</Text>
+
+                  {upcoming && (
+                    <>
+                      <View style={styles.sideDivider} />
+                      <Text style={styles.sideLabel}>Ближайшая запись</Text>
+                      <Text style={styles.upcomingName}>{upcoming.client_name}</Text>
+                      <Text style={styles.upcomingWhen}>{fmtDate(upcoming.date)} в {upcoming.time_start?.slice(0,5)}</Text>
+                    </>
+                  )}
                 </View>
-              ))}
-            </Animated.ScrollView>
-          )}
+              </View>
+            );
+          })()}
         </View>
       )}
     </View>
@@ -497,6 +548,18 @@ const styles = StyleSheet.create({
 
   // Правая панель
   right:      { flex: 1 },
+
+  manualLeftLandscape: { width: '38%', maxWidth: 480, margin: 12, marginRight: 0, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, overflow: 'hidden' },
+  manualLeftPortrait:  { flex: 1, backgroundColor: colors.surface },
+  sidePanelManual: { flex: 1, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, margin: 12, marginLeft: 12, overflow: 'hidden' },
+  sideLabel:   { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
+  sideVal:     { fontFamily: fonts.family, fontSize: 32, fontWeight: '800', color: colors.text, marginTop: 4 },
+  sideDivider: { height: 1, backgroundColor: colors.border, marginVertical: 16 },
+  todayRow:    { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
+  todayTime:   { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange, width: 42 },
+  todayName:   { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.text, flex: 1 },
+  upcomingName:{ fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.text, marginTop: 4 },
+  upcomingWhen:{ fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 2 },
   mainTabBar: { flexDirection: 'row', gap: 6, paddingHorizontal: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
   mainTabBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 12 },
   mainTabBtnActive: { backgroundColor: 'rgba(240,160,80,0.14)' },
