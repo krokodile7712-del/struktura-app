@@ -95,7 +95,7 @@ export function useTourHighlight(key, radius = 12) {
           zIndex: 10,
         }
       : isDimmed
-        ? { opacity: 0.25 }
+        ? { opacity: 0.15 }
         : null,
   };
 }

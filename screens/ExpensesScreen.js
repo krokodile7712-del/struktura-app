@@ -56,6 +56,7 @@ export default function ExpensesScreen({ navigation }) {
   const recurringToggleHighlight = useTourHighlight('expenses.recurringToggle', 12);
   const photoAttachHighlight = useTourHighlight('expenses.photoAttach', 12);
   const summaryHighlight = useTourHighlight('expenses.summary');
+  const addBtnHighlight = useTourHighlight('expenses.addBtn.__never__');
   const [category, setCategory]     = useState(CATEGORIES[0]);
   const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [amount, setAmount]         = useState('');
@@ -251,7 +252,7 @@ export default function ExpensesScreen({ navigation }) {
   );
 
   const addBtn = can('add_expense') !== false && (
-    <Pressable style={styles.addBtn} onPress={openModal}>
+    <Pressable style={[styles.addBtn, addBtnHighlight.style]} onPress={openModal}>
       <Text style={styles.addBtnTxt}>+ Добавить расход</Text>
     </Pressable>
   );
@@ -438,10 +439,10 @@ export default function ExpensesScreen({ navigation }) {
   }, []);
 
   const tourSteps = [
-    { key: 'expenses.list', title: 'Список расходов', text: 'Тап по строке открывает редактирование. Свайп влево — удалить. У расходов с прикреплённым фото свайп влево также открывает само фото.' },
+    { key: 'expenses.list', title: 'Список расходов', text: 'Тап по строке открывает редактирование. Свайп влево — удалить. У расходов с прикреплённым фото свайп влево также открывает само фото.', cardPosition: 'top' },
     { key: 'expenses.recurringBtn', title: 'Повторяющиеся расходы', text: 'Здесь список всех настроенных повторов — аренда, зарплата, подписки. Можно отключить любой, если он больше не нужен.' },
-    { key: 'expenses.recurringToggle', title: 'Повторять каждый месяц', text: 'При создании нового расхода включите этот переключатель — и такой же расход будет создаваться автоматически каждый месяц, без ручного ввода заново.' },
-    { key: 'expenses.photoAttach', title: 'Фото чека', text: 'Прикрепите фото чека прямо к расходу — камерой или из галереи. Позже можно посмотреть его на весь экран.' },
+    { key: 'expenses.recurringToggle', title: 'Повторять каждый месяц', text: 'При создании нового расхода включите этот переключатель — и такой же расход будет создаваться автоматически каждый месяц, без ручного ввода заново.', cardPosition: 'top' },
+    { key: 'expenses.photoAttach', title: 'Фото чека', text: 'Прикрепите фото чека прямо к расходу — камерой или из галереи. Позже можно посмотреть его на весь экран.', cardPosition: 'top' },
     { key: 'expenses.summary', title: 'Сводка', text: 'Итог за выбранный период и разбивка по категориям — всегда под рукой.' },
   ];
 

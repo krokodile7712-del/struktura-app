@@ -69,10 +69,10 @@ export default function AdminScreen({ navigation }) {
   const tourSteps = [
     ...(!hasShift ? [{ key: 'admin.shiftBanner', title: 'Смена не открыта', text: 'Напоминание сверху экрана — нажмите, чтобы открыть смену и начать учёт продаж за сегодня.' }] : []),
     { key: 'admin.stockBanner', title: 'Мало на складе', text: 'Появляется, когда на складе заканчивается что-то важное. Нажмите, чтобы развернуть список и перейти на склад.' },
-    { key: 'admin.nextSteps', title: 'Что дальше', text: 'Чек-лист первоначальной настройки — добавить товары, способы оплаты, сотрудников и так далее. Можно скрыть крестиком, когда не нужен.' },
-    { key: 'admin.statsGrid', title: 'Сводка за сегодня', text: 'Выручка, количество заказов, средний чек и разбивка по способам оплаты — всё за текущий день.' },
-    { key: 'admin.shiftAction', title: 'Смена', text: 'Здесь же — открыть смену, если она ещё не начата, или закрыть, когда рабочий день закончен.' },
-    { key: 'admin.navPanel', title: 'Разделы', text: 'Здесь все разделы приложения — переключайтесь между ними в любой момент. У некоторых из них есть и свой собственный тур — ищите кнопку «?» в шапке экрана.' },
+    { key: 'admin.nextSteps', title: 'Что дальше', text: 'Чек-лист первоначальной настройки — добавить товары, способы оплаты, сотрудников и так далее. Можно скрыть крестиком, когда не нужен.', cardPosition: 'top' },
+    { key: 'admin.statsGrid', title: 'Сводка за сегодня', text: 'Выручка, количество заказов, средний чек и разбивка по способам оплаты — всё за текущий день.', cardPosition: 'top' },
+    { key: 'admin.shiftAction', title: 'Смена', text: 'Здесь же — открыть смену, если она ещё не начата, или закрыть, когда рабочий день закончен.', cardPosition: 'top' },
+    { key: 'admin.navPanel', title: 'Разделы', text: 'Здесь все разделы приложения — переключайтесь между ними в любой момент. У некоторых из них есть и свой собственный тур — ищите кнопку «?» в шапке экрана.', cardPosition: 'top' },
   ];
 
   // Автопрокрутка к активному шагу тура — карточка тура закреплена внизу
@@ -82,8 +82,12 @@ export default function AdminScreen({ navigation }) {
     if (!activeTourKey) return;
     const y = sectionY.current[activeTourKey];
     if (y == null) return;
+    const step = tourSteps.find(s => s.key === activeTourKey);
+    // Если карточка тура сверху — не подводим элемент к самому верху,
+    // иначе он окажется под ней; отступ побольше, под высоту карточки
+    const offset = step?.cardPosition === 'top' ? 280 : 70;
     const t = setTimeout(() => {
-      scrollRef.current?.scrollTo({ y: Math.max(0, y - 70), animated: true });
+      scrollRef.current?.scrollTo({ y: Math.max(0, y - offset), animated: true });
     }, 50);
     return () => clearTimeout(t);
   }, [activeTourKey]);

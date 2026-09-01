@@ -42,6 +42,7 @@ export default function TourGuide({ visible, onClose, steps = [] }) {
   const step = steps[stepIndex];
   const isLast = stepIndex === steps.length - 1;
   const cardW = Math.min(420, screenW - 32);
+  const cardPosition = step.cardPosition || 'bottom'; // 'top' | 'bottom'
 
   const handleClose = () => { setActiveKey(null); onClose(); };
   const handleNext = () => isLast ? handleClose() : setStepIndex(i => i + 1);
@@ -49,7 +50,13 @@ export default function TourGuide({ visible, onClose, steps = [] }) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose} statusBarTranslucent>
       <View style={styles.overlay} pointerEvents="box-none">
-        <View style={[styles.card, { width: cardW, left: (screenW - cardW) / 2 }]}>
+        <View
+          style={[
+            styles.card,
+            { width: cardW, left: (screenW - cardW) / 2 },
+            cardPosition === 'top' ? { top: 24 } : { bottom: 24 },
+          ]}
+        >
           <Text style={styles.stepCounter}>{stepIndex + 1} из {steps.length}</Text>
           <Text style={styles.title}>{step.title}</Text>
           <Text style={styles.text}>{step.text}</Text>
@@ -68,10 +75,9 @@ export default function TourGuide({ visible, onClose, steps = [] }) {
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, justifyContent: 'flex-end', paddingBottom: 24 },
+  overlay: { flex: 1 },
   card: {
     position: 'absolute',
-    bottom: 24,
     backgroundColor: colors.surface,
     borderRadius: 18,
     borderWidth: 1,
