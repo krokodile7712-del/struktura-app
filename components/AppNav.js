@@ -190,6 +190,7 @@ export default function AppNav({ navigation, activeScreen }) {
               </View>
             )}
           </Animated.View>
+          {navPanelHighlight.overlay}
         </Animated.View>
 
         <Drawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} navigation={navigation} activeScreen={home} />
@@ -219,6 +220,7 @@ export default function AppNav({ navigation, activeScreen }) {
             </Pressable>
           );
         })}
+        {navPanelHighlight.overlay}
       </View>
 
       <Drawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} navigation={navigation} activeScreen={home} />

@@ -107,6 +107,7 @@ export default function AdminScreen({ navigation }) {
       {!hasShift && (
         <View style={shiftBannerHighlight.style}>
           <ShiftBanner onOpen={() => navigation.navigate('Shift')} />
+          {shiftBannerHighlight.overlay}
         </View>
       )}
 
@@ -140,6 +141,7 @@ export default function AdminScreen({ navigation }) {
                 </Pressable>
               )}
             </Pressable>
+            {stockBannerHighlight.overlay}
             </View>
             );
           })()}
@@ -149,6 +151,7 @@ export default function AdminScreen({ navigation }) {
 
           <View style={nextStepsHighlight.style} onLayout={rememberY('admin.nextSteps')}>
             <NextStepsCard navigation={navigation} forceVisible={tourOpen} />
+            {nextStepsHighlight.overlay}
           </View>
 
           <View style={[styles.statsGrid, statsGridHighlight.style]} onLayout={rememberY('admin.statsGrid')}>
@@ -165,6 +168,7 @@ export default function AdminScreen({ navigation }) {
                 <Text style={styles.statLbl}>{s.label}</Text>
               </View>
             ))}
+            {statsGridHighlight.overlay}
           </View>
 
           <View onLayout={rememberY('admin.shiftAction')}>
@@ -180,6 +184,7 @@ export default function AdminScreen({ navigation }) {
                 <Text style={styles.shiftCloseSub}>Открыта {stats.shiftDuration || ''} · {(stats.todayTotal||0).toLocaleString('ru-RU')} ₽</Text>
               </View>
               <Text style={{ fontSize: 18, color: colors.muted }}>›</Text>
+              {shiftActionHighlight.overlay}
             </Pressable>
             </>
           ) : (
@@ -194,6 +199,7 @@ export default function AdminScreen({ navigation }) {
                 <Text style={styles.shiftOpenSub}>Начните учёт продаж и расходов за сегодня</Text>
               </View>
               <Text style={{ fontSize: 18, color: colors.green }}>›</Text>
+              {shiftActionHighlight.overlay}
             </Pressable>
             </>
           )}

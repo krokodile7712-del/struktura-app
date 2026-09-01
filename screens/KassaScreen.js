@@ -829,8 +829,9 @@ export default function KassaScreen({ navigation, route }) {
 
           {/* Нижнее нажатие на имя клиента → карточка клиента */}
           {/* ═══ СПИСОК ПОЗИЦИЙ ═══ */}
+          <View style={{ flex: 1 }}>
           <ScrollView
-            style={[{ flex: 1 }, cartListHighlight.style]}
+            style={{ flex: 1 }}
             contentContainerStyle={order.length === 0 ? styles.v2EmptyWrap : styles.v2ListWrap}
           >
             {order.length === 0 ? (
@@ -903,6 +904,8 @@ export default function KassaScreen({ navigation, route }) {
               ))
             )}
           </ScrollView>
+          {cartListHighlight.overlay}
+          </View>
 
           {/* ═══ ФУТЕР ═══ */}
           <View style={styles.v2Footer}>
@@ -927,10 +930,12 @@ export default function KassaScreen({ navigation, route }) {
                     <Pressable onPress={() => updateSlot({ forClient: null })} hitSlop={10}>
                       <Text style={styles.v2ClientX}>✕</Text>
                     </Pressable>
+                    {clientRowHighlight.overlay}
                   </View>
                 ) : (
                   <Pressable style={[styles.v2Client, styles.v2ClientDiscountBtn, clientRowHighlight.style]} onPress={() => setClientPickerOpen(true)}>
                     <Text style={styles.v2ClientAdd} numberOfLines={1}>👤 Клиент</Text>
+                    {clientRowHighlight.overlay}
                   </Pressable>
                 )}
               </View>
@@ -949,10 +954,12 @@ export default function KassaScreen({ navigation, route }) {
                       <Pressable onPress={() => setAppliedDiscount(null)} hitSlop={10}>
                         <Text style={styles.v2ClientX}>✕</Text>
                       </Pressable>
+                      {discountRowHighlight.overlay}
                     </View>
                   ) : (
                     <Pressable style={[styles.v2Client, styles.v2ClientDiscountBtn, discountRowHighlight.style]} onPress={() => setDiscountDropOpen(true)}>
                       <Text style={styles.v2ClientAdd} numberOfLines={1}>🏷 Скидка</Text>
+                      {discountRowHighlight.overlay}
                     </Pressable>
                   )}
                 </View>
@@ -965,6 +972,7 @@ export default function KassaScreen({ navigation, route }) {
                 {`${order.reduce((s,i)=>s+(i.quantity||1),0)} поз.`}
               </Text>
               <Text style={styles.v2TotalAmt}>{`${total} ₽`}</Text>
+              {cartActionsHighlight.overlay}
             </View>
 
             {/* Иконки-действия */}
@@ -995,6 +1003,7 @@ export default function KassaScreen({ navigation, route }) {
                   <Text style={[styles.v2ActLbl,{color:colors.redLight}]}>Очистить</Text>
                 </Pressable>
               )}
+              {cartActionsHighlight.overlay}
             </View>
 
             {/* Оплатить */}
@@ -1006,6 +1015,7 @@ export default function KassaScreen({ navigation, route }) {
               <Text style={styles.v2PayTxt}>
                 {order.length===0 ? 'Выберите товар' : `К оплате  ${total} ₽`}
               </Text>
+              {payBtnHighlight.overlay}
             </Pressable>
 
           </View>
@@ -1047,13 +1057,15 @@ export default function KassaScreen({ navigation, route }) {
                 </Pressable>
               );
             })}
+            {catRailHighlight.overlay}
           </View>
         ) : (
           /* ── Горизонтальные чипы категорий (портрет) ── */
+          <View style={[styles.catChipsRow, catRailHighlight.style]}>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            style={[styles.catChipsRow, catRailHighlight.style]}
+            style={{ flex: 1 }}
             contentContainerStyle={styles.catChipsRowInner}
           >
             {groups.map(group => {
@@ -1069,6 +1081,8 @@ export default function KassaScreen({ navigation, route }) {
               );
             })}
           </ScrollView>
+          {catRailHighlight.overlay}
+          </View>
         )}
 
         {/* ── Центр: поиск + сетка товаров ── */}
@@ -1116,11 +1130,13 @@ export default function KassaScreen({ navigation, route }) {
               </View>
             )}
           </Animated.ScrollView>
+          {productGridHighlight.overlay}
         </View>
 
         {isLandscape ? (
           <View style={[styles.orderPanel, cartHighlight.style]}>
             {renderCartContent()}
+            {cartHighlight.overlay}
           </View>
         ) : (
           <>

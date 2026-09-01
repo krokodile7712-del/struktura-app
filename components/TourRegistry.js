@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
+import { View } from 'react-native';
 import { colors } from '../constants/theme';
 
 // Раньше здесь был реестр экранных координат (измерение снаружи через
@@ -94,8 +95,19 @@ export function useTourHighlight(key, radius = 12) {
           // это и было причиной непонятного пятна вокруг рамки раньше.
           zIndex: 10,
         }
-      : isDimmed
-        ? { opacity: 0.15 }
-        : null,
+      : null,
+    // Родителю нужен position:'relative' (или он и так borderRadius/overflow —
+    // почти у всех карточек уже есть), чтобы этот абсолютный слой лёг
+    // ровно поверх, а не поверх всего экрана. Вставлять последним ребёнком.
+    overlay: isDimmed ? (
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(6,6,8,0.78)',
+          borderRadius: radius,
+        }}
+      />
+    ) : null,
   };
 }

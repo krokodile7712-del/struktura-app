@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Pressable, Modal, useWindowDimensions, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, Pressable, Modal, useWindowDimensions, StyleSheet, Animated } from 'react-native';
 import { colors, fonts } from '../constants/theme';
 import { useTourActiveSetter } from './TourRegistry';
 
@@ -25,8 +25,10 @@ import { useTourActiveSetter } from './TourRegistry';
 //   />
 export default function TourGuide({ visible, onClose, steps = [] }) {
   const [stepIndex, setStepIndex] = useState(0);
+  const [cardH, setCardH] = useState(260); // измеряется реально, это лишь стартовое приближение
   const setActiveKey = useTourActiveSetter();
-  const { width: screenW } = useWindowDimensions();
+  const { width: screenW, height: screenH } = useWindowDimensions();
+  const posAnim = useRef(new Animated.Value(0)).current; // 0 = снизу, 1 = сверху
 
   useEffect(() => {
     if (visible) setStepIndex(0);
@@ -37,12 +39,25 @@ export default function TourGuide({ visible, onClose, steps = [] }) {
     return () => setActiveKey(null);
   }, [visible, stepIndex, steps, setActiveKey]);
 
+  const step = steps[stepIndex];
+  const cardPosition = step?.cardPosition || 'bottom'; // 'top' | 'bottom'
+
+  // Плавный переход между позициями при смене шага — не резкий прыжок
+  useEffect(() => {
+    Animated.spring(posAnim, {
+      toValue: cardPosition === 'top' ? 1 : 0,
+      useNativeDriver: false, // анимируем top, не transform — под текст переменной высоты
+      tension: 60,
+      friction: 12,
+    }).start();
+  }, [cardPosition, stepIndex]);
+
   if (!visible || steps.length === 0) return null;
 
-  const step = steps[stepIndex];
   const isLast = stepIndex === steps.length - 1;
   const cardW = Math.min(420, screenW - 32);
-  const cardPosition = step.cardPosition || 'bottom'; // 'top' | 'bottom'
+  const topWhenTop = 24;
+  const topWhenBottom = screenH - 24 - cardH;
 
   const handleClose = () => { setActiveKey(null); onClose(); };
   const handleNext = () => isLast ? handleClose() : setStepIndex(i => i + 1);
@@ -50,11 +65,18 @@ export default function TourGuide({ visible, onClose, steps = [] }) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose} statusBarTranslucent>
       <View style={styles.overlay} pointerEvents="box-none">
-        <View
+        <Animated.View
+          onLayout={e => setCardH(e.nativeEvent.layout.height)}
           style={[
             styles.card,
-            { width: cardW, left: (screenW - cardW) / 2 },
-            cardPosition === 'top' ? { top: 24 } : { bottom: 24 },
+            {
+              width: cardW,
+              left: (screenW - cardW) / 2,
+              top: posAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [topWhenBottom, topWhenTop],
+              }),
+            },
           ]}
         >
           <Text style={styles.stepCounter}>{stepIndex + 1} из {steps.length}</Text>
@@ -68,7 +90,7 @@ export default function TourGuide({ visible, onClose, steps = [] }) {
               <Text style={styles.nextTxt}>{isLast ? 'Готово' : 'Далее'}</Text>
             </Pressable>
           </View>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );

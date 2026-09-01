@@ -254,6 +254,7 @@ export default function ExpensesScreen({ navigation }) {
   const addBtn = can('add_expense') !== false && (
     <Pressable style={[styles.addBtn, addBtnHighlight.style]} onPress={openModal}>
       <Text style={styles.addBtnTxt}>+ Добавить расход</Text>
+      {addBtnHighlight.overlay}
     </Pressable>
   );
 
@@ -303,6 +304,7 @@ export default function ExpensesScreen({ navigation }) {
         </SwipeableRow>
       )}
     />
+    {listHighlight.overlay}
     </View>
   );
 
@@ -390,6 +392,7 @@ export default function ExpensesScreen({ navigation }) {
                       {new Date().getDate()} числа каждого месяца будет создаваться такой же расход автоматически
                     </Text>
                   </View>
+                  {recurringToggleHighlight.overlay}
                 </Pressable>
               )}
 
@@ -410,6 +413,7 @@ export default function ExpensesScreen({ navigation }) {
                   <Text style={styles.photoPickTxt}>📷 Прикрепить фото чека</Text>
                 </Pressable>
               )}
+              {photoAttachHighlight.overlay}
               </View>
 
               {/* Кнопки */}
@@ -473,6 +477,7 @@ export default function ExpensesScreen({ navigation }) {
               <Text style={styles.stripChevron}>{summaryExpanded ? '▲' : '▼'}</Text>
             </View>
             {summaryExpanded && <View style={styles.stripBody}>{summaryBody}</View>}
+            {summaryHighlight.overlay}
           </Pressable>
         )}
 
@@ -487,6 +492,7 @@ export default function ExpensesScreen({ navigation }) {
             <View style={{ flex: 1 }}>{addBtn}</View>
             <Pressable style={[styles.recurringBtn, recurringBtnHighlight.style]} onPress={() => setRecurringModal(true)}>
               <Text style={styles.recurringBtnTxt}>🔁</Text>
+              {recurringBtnHighlight.overlay}
             </Pressable>
           </View>
           <View style={{ flex: 1, paddingHorizontal: 16 }}>{list}</View>
@@ -516,6 +522,7 @@ export default function ExpensesScreen({ navigation }) {
                 <Text style={styles.sideSub}>{expenses.length} расходов</Text>
                 <View style={styles.sideDivider} />
                 <ScrollView showsVerticalScrollIndicator={false}>{summaryBody}</ScrollView>
+                {summaryHighlight.overlay}
               </View>
             )}
           </View>
