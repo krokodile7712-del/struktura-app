@@ -31,11 +31,11 @@ export default function AdminScreen({ navigation }) {
   const [sessionName, setSessionName] = useState('');
   const [stockOpen, setStockOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
-  const shiftBannerHighlight = useTourHighlight('admin.shiftBanner');
+  const shiftBannerHighlight = useTourHighlight('admin.shiftBanner', 0);
   const stockBannerHighlight = useTourHighlight('admin.stockBanner');
-  const nextStepsHighlight = useTourHighlight('admin.nextSteps');
+  const nextStepsHighlight = useTourHighlight('admin.nextSteps', 18);
   const statsGridHighlight = useTourHighlight('admin.statsGrid');
-  const shiftActionHighlight = useTourHighlight('admin.shiftAction');
+  const shiftActionHighlight = useTourHighlight('admin.shiftAction', 14);
   const activeTourKey = useTourActiveKey();
   const scrollRef = useRef(null);
   const sectionY = useRef({});
@@ -162,12 +162,12 @@ export default function AdminScreen({ navigation }) {
             ))}
           </View>
 
-          <View style={shiftActionHighlight.style} onLayout={rememberY('admin.shiftAction')}>
+          <View onLayout={rememberY('admin.shiftAction')}>
           {stats.shift ? (
             <>
             <View style={styles.shiftSep} />
             <Pressable
-              style={({ pressed }) => [styles.shiftCloseBtn, pressed && { opacity: 0.85 }]}
+              style={({ pressed }) => [styles.shiftCloseBtn, shiftActionHighlight.style, pressed && { opacity: 0.85 }]}
               onPress={() => navigation.navigate('ShiftClose')}
             >
               <View>
@@ -181,7 +181,7 @@ export default function AdminScreen({ navigation }) {
             <>
             <View style={styles.shiftSep} />
             <Pressable
-              style={({ pressed }) => [styles.shiftOpenBtn, pressed && { opacity: 0.85 }]}
+              style={({ pressed }) => [styles.shiftOpenBtn, shiftActionHighlight.style, pressed && { opacity: 0.85 }]}
               onPress={() => navigation.navigate('Shift')}
             >
               <View>

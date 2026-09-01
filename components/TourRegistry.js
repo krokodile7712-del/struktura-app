@@ -57,7 +57,7 @@ export function useTourActiveKey() {
 // Использование:
 //   const highlight = useTourHighlight('kassa.clientRow');
 //   <View style={[styles.v2Client, highlight.style]}>...</View>
-export function useTourHighlight(key) {
+export function useTourHighlight(key, radius = 12) {
   const { activeKey } = useContext(TourActiveContext);
   const isActive = !!key && activeKey === key;
   const isRelated = !!activeKey && !!key && (
@@ -85,7 +85,7 @@ export function useTourHighlight(key) {
           borderRightColor: colors.orange,
           borderBottomColor: colors.orange,
           borderLeftColor: colors.orange,
-          borderRadius: 12,
+          borderRadius: radius,
           opacity: 1,
           // Активный элемент должен побеждать соседей за общую границу —
           // без этого сосед (стоящий позже в разметке) перекрывает именно
