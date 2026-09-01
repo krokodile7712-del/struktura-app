@@ -22,7 +22,7 @@ const ADMIN_SECTIONS = [
   { key: 'Inventory',   route: 'Inventory',    label: 'Инвентаризация', module: 'inventory' },
   { key: 'WorkJournal', route: 'WorkJournal',  label: 'Журнал работы' },
   { key: 'Locations',   route: 'Locations',    label: 'Локации',  module: 'locations' },
-  { key: 'Bookings',    route: 'Bookings',     label: 'Записи',   bookingOnly: true },
+  { key: 'Bookings',    route: 'Bookings',     label: 'Записи' },
   { key: 'Settings',    route: 'Settings',     label: 'Настройки' },
 ];
 
