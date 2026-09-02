@@ -59,6 +59,7 @@ export default function KassaScreen({ navigation, route }) {
   const [terms, setTerms] = useState({ item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' });
   const [loyaltyModel, setLoyaltyModel] = useState('points');
   const [productDiscountPct, setProductDiscountPct] = useState(0);
+  const [discountsStackable, setDiscountsStackable] = useState(true);
   const [loyaltyConfig, setLoyaltyConfig] = useState({});
   const [payMethods, setPayMethods] = useState([]);
   // Поиск
@@ -236,6 +237,7 @@ export default function KassaScreen({ navigation, route }) {
       setLoyaltyModel(lc.model);
       setLoyaltyConfig(lc.config);
       setProductDiscountPct(parseFloat(profile?.product_discount_pct) || 0);
+      setDiscountsStackable(profile?.discounts_stackable !== 0);
     } catch (e) { console.error(e); }
   }, []));
 
@@ -641,7 +643,12 @@ export default function KassaScreen({ navigation, route }) {
     return null;
   })();
 
-  const discountAmount = effectiveDiscount ? Math.round(rawTotal * effectiveDiscount.pct / 100) : 0;
+  // Если скидки не должны суммироваться — скидка клиента/лояльности/ручная
+  // не действует на позиции, у которых уже есть своя, товарная скидка
+  const discountBase = discountsStackable
+    ? rawTotal
+    : order.reduce((s, i) => s + (i.discountPct > 0 ? 0 : i.price * (i.quantity || 1)), 0);
+  const discountAmount = effectiveDiscount ? Math.round(discountBase * effectiveDiscount.pct / 100) : 0;
 
   // Оплата баллами с ограничением max_spend_pct
   const maxSpendRub = loyaltyModel === 'points' && loyaltyConfig.allow_spend

@@ -956,6 +956,28 @@ export function getClientsWithDiscountCount() {
   return loyaltyModel === 'discount' ? totalClients : personal;
 }
 
+// Список клиентов с личной скидкой — для экрана Скидок. Не включает
+// клиентов, покрытых только программой лояльности (та не персональная,
+// показывается на экране отдельной строкой-примечанием, не списком).
+export function getClientsWithPersonalDiscount() {
+  const db = getDb();
+  return db.getAllSync(`SELECT id, fio, phone, discount_pct FROM clients WHERE discount_pct > 0 ORDER BY discount_pct DESC, fio`);
+}
+
+// Клиенты без личной скидки — для выбора «добавить клиента»
+export function getClientsWithoutDiscount() {
+  const db = getDb();
+  return db.getAllSync(`SELECT id, fio, phone FROM clients WHERE discount_pct IS NULL OR discount_pct <= 0 ORDER BY fio`);
+}
+
+// Точечное изменение личной скидки клиента — не через updateClient, чтобы
+// не требовать и не рисковать затереть остальные его поля (телефон, баланс,
+// дату рождения)
+export function setClientDiscountPct(clientId, pct) {
+  const db = getDb();
+  db.runSync(`UPDATE clients SET discount_pct = ? WHERE id = ?`, [pct || 0, clientId]);
+}
+
 export function searchClients(query) {
   const db = getDb();
   return db.getAllSync(

@@ -331,6 +331,7 @@ export function initDatabase() {
     `ALTER TABLE business_profile ADD COLUMN logo_base64 TEXT DEFAULT ''`,
     `ALTER TABLE business_profile ADD COLUMN tours_seen TEXT DEFAULT '{}'`,
     `ALTER TABLE business_profile ADD COLUMN product_discount_pct REAL DEFAULT 0`,
+    `ALTER TABLE business_profile ADD COLUMN discounts_stackable INTEGER DEFAULT 1`,
     `ALTER TABLE expenses ADD COLUMN photo_uri TEXT DEFAULT ''`,
     `ALTER TABLE expenses ADD COLUMN recurring_id INTEGER`,
     // Исторический максимум остатка для шкалы склада

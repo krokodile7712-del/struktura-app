@@ -9,7 +9,7 @@ import { useResponsive } from '../hooks/useResponsive';
 import {
   getAllProductsAdmin, insertProduct, setProductActive,
   getDiscountEligibleProducts, getDiscountIneligibleProducts, setProductDiscountEligible,
-  getClientsWithDiscountCount,
+  getClientsWithDiscountCount, getClientsWithPersonalDiscount, getClientsWithoutDiscount, setClientDiscountPct,
   getProductVariants, getProductAxesWithValues, saveProductAxesAndVariants,
   getProductModifierGroups, setProductModifierGroups, getAllModifierGroups,
   insertModifierGroup, updateModifierGroup, deleteModifierGroup,
@@ -111,6 +111,11 @@ export default function SettingsScreen({ navigation, route }) {
   const [discAddProductOpen, setDiscAddProductOpen]     = useState(false);
   const [discIneligibleProducts, setDiscIneligibleProducts] = useState([]);
   const [discClientsCount, setDiscClientsCount] = useState(0);
+  const [discountsStackable, setDiscountsStackable] = useState(true);
+  const [discClientsList, setDiscClientsList] = useState([]);
+  const [discAddClientOpen, setDiscAddClientOpen] = useState(false);
+  const [discClientsWithout, setDiscClientsWithout] = useState([]);
+  const [discClientPctModal, setDiscClientPctModal] = useState(null); // { client, pct }
   const [payMethodsList, setPayMethodsList] = useState([]);
   const [payMethodModal, setPayMethodModal] = useState(null);
   const [zones, setZones]           = useState([]);
@@ -272,6 +277,32 @@ export default function SettingsScreen({ navigation, route }) {
       if (row) db.runSync('UPDATE business_profile SET product_discount_pct = ? WHERE id = ?', [parseFloat(productDiscountPct) || 0, row.id]);
     } catch (e) { console.error('[Скидка на товары]', e); }
   };
+  const toggleDiscountsStackable = (v) => {
+    try {
+      const db = getDb();
+      const row = db.getFirstSync('SELECT id FROM business_profile ORDER BY id LIMIT 1');
+      if (row) db.runSync('UPDATE business_profile SET discounts_stackable = ? WHERE id = ?', [v ? 1 : 0, row.id]);
+      setDiscountsStackable(v);
+    } catch (e) { console.error('[Суммарность скидок]', e); }
+  };
+  const saveClientDiscountPct = () => {
+    if (!discClientPctModal || !discClientPctModal.pct) return;
+    try {
+      setClientDiscountPct(discClientPctModal.client.id, parseFloat(discClientPctModal.pct) || 0);
+      setDiscClientsList(getClientsWithPersonalDiscount());
+      setDiscClientsWithout(getClientsWithoutDiscount());
+      setDiscClientsCount(getClientsWithDiscountCount());
+      setDiscClientPctModal(null);
+    } catch (e) { console.error(e); }
+  };
+  const removeClientDiscount = (client) => {
+    try {
+      setClientDiscountPct(client.id, 0);
+      setDiscClientsList(getClientsWithPersonalDiscount());
+      setDiscClientsWithout(getClientsWithoutDiscount());
+      setDiscClientsCount(getClientsWithDiscountCount());
+    } catch (e) { console.error(e); }
+  };
   const saveDiscounts = (list) => {
     try { setSetting('discounts', JSON.stringify(list)); setDiscounts(list); toast.show('Скидки сохранены ✓', 'info'); } catch (e) { console.error(e); toast.show('Ошибка', 'warn'); }
   };
@@ -396,6 +427,9 @@ export default function SettingsScreen({ navigation, route }) {
     try { setDiscEligibleProducts(getDiscountEligibleProducts()); } catch(e) {}
     try { setDiscIneligibleProducts(getDiscountIneligibleProducts()); } catch(e) {}
     try { setDiscClientsCount(getClientsWithDiscountCount()); } catch(e) {}
+    try { setDiscClientsList(getClientsWithPersonalDiscount()); } catch(e) {}
+    try { setDiscClientsWithout(getClientsWithoutDiscount()); } catch(e) {}
+    try { setDiscountsStackable(getBusinessProfile()?.discounts_stackable !== 0); } catch(e) {}
     try { setPayMethodsList(getPayMethods()); } catch(e) {}
     try { setZones(getZones()); } catch(e) {}
     try { setModifierGroups(getAllModifierGroups()); } catch(e) {}
@@ -903,7 +937,7 @@ export default function SettingsScreen({ navigation, route }) {
           {discTab === 'product' && (
             <>
               <Text style={[styles.menuItemSub, { marginTop: 16, marginBottom: 10 }]}>
-                Общий процент применяется автоматически ко всем товарам из списка ниже — независимо от скидки на заказ, обе могут сработать одновременно
+                Общий процент применяется автоматически ко всем товарам из списка ниже
               </Text>
               <View style={styles.menuCard}>
                 <View style={[styles.menuRow, { paddingVertical: 4 }]}>
@@ -921,6 +955,13 @@ export default function SettingsScreen({ navigation, route }) {
                     />
                     <Text style={styles.menuItemName}>%</Text>
                   </View>
+                </View>
+                <View style={[styles.menuRow, styles.menuRowDiv, { paddingVertical: 10 }]}>
+                  <View style={{ flex: 1, marginRight: 10 }}>
+                    <Text style={styles.menuItemName}>Суммировать со скидкой клиента</Text>
+                    <Text style={styles.menuItemSub}>Если выключено — на товары из этого списка скидка клиента не действует, применяется только скидка на товар</Text>
+                  </View>
+                  <Toggle value={discountsStackable} onValueChange={toggleDiscountsStackable} />
                 </View>
               </View>
 
@@ -959,14 +1000,36 @@ export default function SettingsScreen({ navigation, route }) {
             <>
               <View style={[styles.menuTopBarSticky, { marginTop: 16 }]}>
                 <Text style={styles.menuTopTitle}>Скидка клиента</Text>
+                <View style={styles.menuFloatBtns} pointerEvents="box-none">
+                  <View style={styles.menuFloatRow}>
+                    <Pressable onPress={() => setDiscAddClientOpen(true)} hitSlop={14} style={[styles.menuBadge, styles.menuBadgeAdd]}>
+                      <Text style={[styles.menuBadgeText, { color: colors.orange }]}>+</Text>
+                    </Pressable>
+                  </View>
+                </View>
               </View>
-              <View style={styles.discClientInfoCard}>
-                <Text style={styles.discClientInfoNum}>{discClientsCount}</Text>
-                <Text style={styles.discClientInfoLbl}>
-                  {discClientsCount === 1 ? 'клиент имеет скидку' : discClientsCount >= 2 && discClientsCount <= 4 ? 'клиента имеют скидку' : 'клиентов имеют скидку'}
-                </Text>
-                <Text style={styles.discClientInfoSub}>Личная скидка в карточке клиента или программа лояльности со скидкой — применяется первой, раньше ручной скидки ниже</Text>
-              </View>
+              <Text style={[styles.menuItemSub, { marginBottom: 10 }]}>
+                Применяется первой, раньше ручной скидки ниже{loyaltyModel === 'discount' ? '. Дополнительно у всех клиентов есть скидка по программе лояльности' : ''}
+              </Text>
+
+              {discClientsList.length === 0 ? (
+                <Text style={[styles.empty, { paddingVertical: 16 }]}>Пока ни у одного клиента нет личной скидки</Text>
+              ) : (
+                <View style={styles.menuCard}>
+                  {discClientsList.map((c, i) => (
+                    <View key={c.id} style={[styles.menuRow, i < discClientsList.length - 1 && styles.menuRowDiv]}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.menuItemName}>{c.fio}</Text>
+                        {c.phone ? <Text style={styles.menuItemSub}>{c.phone}</Text> : null}
+                      </View>
+                      <Text style={[styles.menuItemPrice, { color: colors.orange, marginRight: 10 }]}>−{c.discount_pct}%</Text>
+                      <Pressable onPress={() => removeClientDiscount(c)} hitSlop={10} style={styles.discRemoveBtn}>
+                        <Text style={styles.discRemoveBtnTxt}>Убрать</Text>
+                      </Pressable>
+                    </View>
+                  ))}
+                </View>
+              )}
 
               <View style={[styles.menuTopBarSticky, { marginTop: 20 }]}>
                 <Text style={styles.menuTopTitle}>Ручная скидка кассира</Text>
@@ -2033,6 +2096,71 @@ export default function SettingsScreen({ navigation, route }) {
               )}
             </ScrollView>
           </View>
+        </View>
+      </Modal>
+
+      {/* Пикер добавления клиента в личную скидку */}
+      <Modal visible={discAddClientOpen} transparent animationType="fade" onRequestClose={() => setDiscAddClientOpen(false)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setDiscAddClientOpen(false)} />
+          <View style={[styles.modalInner, { maxHeight: '70%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Выбрать клиента</Text>
+              <Pressable onPress={() => setDiscAddClientOpen(false)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
+            </View>
+            <ScrollView>
+              {discClientsWithout.length === 0 ? (
+                <Text style={[styles.empty, { paddingVertical: 16 }]}>У всех клиентов уже есть личная скидка</Text>
+              ) : (
+                discClientsWithout.map((c, i) => (
+                  <Pressable
+                    key={c.id}
+                    style={({ pressed }) => [
+                      styles.menuRow,
+                      i < discClientsWithout.length - 1 && styles.menuRowDiv,
+                      pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
+                    ]}
+                    onPress={() => { setDiscAddClientOpen(false); setDiscClientPctModal({ client: c, pct: '' }); }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.menuItemName}>{c.fio}</Text>
+                      {c.phone ? <Text style={styles.menuItemSub}>{c.phone}</Text> : null}
+                    </View>
+                    <Text style={styles.menuItemArrow}>›</Text>
+                  </Pressable>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Ввод процента личной скидки для выбранного клиента */}
+      <Modal visible={!!discClientPctModal} transparent animationType="fade" onRequestClose={() => setDiscClientPctModal(null)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setDiscClientPctModal(null)} />
+          {discClientPctModal && (
+            <View style={styles.modalInner}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{discClientPctModal.client.fio}</Text>
+                <Pressable onPress={() => setDiscClientPctModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
+              </View>
+              <Text style={styles.fieldLabel}>Личная скидка, %</Text>
+              <TextInput
+                color={colors.text}
+                style={styles.input}
+                keyboardType="numeric"
+                value={discClientPctModal.pct}
+                onChangeText={(v) => setDiscClientPctModal(m => ({ ...m, pct: v }))}
+                placeholder="0"
+                placeholderTextColor={colors.muted}
+                autoFocus
+              />
+              <Pressable style={({ pressed }) => [styles.discSaveBtn, { marginTop: 12 }, pressed && { opacity: 0.85 }]} onPress={saveClientDiscountPct}>
+                <Text style={styles.discSaveBtnTxt}>Сохранить</Text>
+              </Pressable>
+            </View>
+          )}
         </View>
       </Modal>
 
