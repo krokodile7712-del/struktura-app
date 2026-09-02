@@ -319,6 +319,7 @@ export function initDatabase() {
     `ALTER TABLE clients ADD COLUMN discount_pct REAL DEFAULT 0`,
     // Фаза 5: тип способа оплаты для отчётов (чтобы агрегация не зависела от имени метода)
     `ALTER TABLE orders ADD COLUMN method_type TEXT DEFAULT ''`,
+    `ALTER TABLE orders ADD COLUMN method_id TEXT DEFAULT ''`,
     // Блок Б: количество позиции в корзине + заметка к заказу
     `ALTER TABLE order_items ADD COLUMN quantity INTEGER DEFAULT 1`,
     `ALTER TABLE orders      ADD COLUMN note     TEXT    DEFAULT ''`,

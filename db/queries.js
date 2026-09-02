@@ -859,7 +859,7 @@ export function deleteModifier(id) {
 
 // ─── Заказы ───────────────────────────────────────────────────────────────
 
-export function createOrder({ total, method, methodType, shift_id, client_id, cashier_id, items, cashAmount, cardAmount, discountPct, locationId, note, zone }) {
+export function createOrder({ total, method, methodType, methodId, shift_id, client_id, cashier_id, items, cashAmount, cardAmount, discountPct, locationId, note, zone }) {
   const db = getDb();
   const now = new Date().toISOString();
 
@@ -869,9 +869,9 @@ export function createOrder({ total, method, methodType, shift_id, client_id, ca
   try { db.execSync(`ALTER TABLE orders ADD COLUMN cashier_id INTEGER DEFAULT NULL`); } catch (_) {}
 
   const result = db.runSync(
-    `INSERT INTO orders (created_at, total, method, method_type, shift_id, client_id, cashier_id, cash_amount, card_amount, discount_pct, note, zone)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [now, total, method, methodType || '', shift_id || null, client_id || null, cashier_id || null, cashAmount || 0, cardAmount || 0, discountPct || 0, note || '', zone || '']
+    `INSERT INTO orders (created_at, total, method, method_type, method_id, shift_id, client_id, cashier_id, cash_amount, card_amount, discount_pct, note, zone)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [now, total, method, methodType || '', methodId != null ? String(methodId) : '', shift_id || null, client_id || null, cashier_id || null, cashAmount || 0, cardAmount || 0, discountPct || 0, note || '', zone || '']
   );
   const orderId = result.lastInsertRowId;
 
@@ -3202,12 +3202,21 @@ export function getRevenueByEmployee(from, to) {
 export function getPaymentBreakdown(from, to) {
   const db = getDb();
   try {
-    return db.getAllSync(
-      `SELECT method as pay_method, COUNT(*) as count, SUM(total) as total
+    const rows = db.getAllSync(
+      `SELECT method, method_id, COUNT(*) as count, SUM(total) as total
        FROM orders WHERE date(created_at) BETWEEN ? AND ? AND (status IS NULL OR status != 'returned')
-       GROUP BY method ORDER BY total DESC`,
+       GROUP BY COALESCE(NULLIF(method_id, ''), method) ORDER BY total DESC`,
       [from, to]
     );
+    // Переименование способа оплаты в Настройках не должно "раздваивать"
+    // историю в отчётах — группируем по id (если он есть у заказа), а
+    // название всегда берём АКТУАЛЬНОЕ. Для заказов без id (способ оплаты
+    // был удалён, или очень старая запись) — используем сохранённый текст.
+    const payMethods = getPayMethods();
+    return rows.map(r => {
+      const m = r.method_id ? payMethods.find(p => String(p.id) === String(r.method_id)) : null;
+      return { pay_method: m ? m.name : (r.method || 'Другое'), count: r.count, total: r.total };
+    });
   } catch (_) { return []; }
 }
 

@@ -714,7 +714,7 @@ export default function KassaScreen({ navigation, route }) {
     try {
       const currentUser = getSession();
       const { stockWarnings } = createOrder({
-        total, method: payMethod, methodType: selectedMethod.type,
+        total, method: payMethod, methodType: selectedMethod.type, methodId: selectedMethod.id,
         shift_id: currentShift?.id || null,
         client_id: forClient?.id || null,
         cashier_id: currentUser?.id || null,
