@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
@@ -38,6 +38,16 @@ export default function FinancesScreen({ navigation, route }) {
   }, [isAdmin]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  // Переход на конкретную вкладку может случиться, даже когда экран уже
+  // открыт (например, подсказка из формы Расходов) — обычный navigate()
+  // в этом случае не пересоздаёт компонент, значит начальный useState
+  // не сработает заново. Реагируем на смену параметра отдельно.
+  useEffect(() => {
+    if (isAdmin && route?.params?.initialTab) {
+      setTab(route.params.initialTab);
+    }
+  }, [route?.params?.initialTab, isAdmin]);
 
   return (
     <View style={styles.root}>

@@ -13,7 +13,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import {
   getAllExpenses, insertExpense, deleteExpense, updateExpense,
   getRecurringExpenses, insertRecurringExpense, deactivateRecurringExpense, ensureRecurringExpenses,
-  getBusinessProfile, markTourSeen,
+  getBusinessProfile, markTourSeen, getAllStock,
 } from '../../db/queries';
 import { can } from '../../db/session';
 import { colors, fonts } from '../../constants/theme';
@@ -189,8 +189,7 @@ export default function ExpensesPanel({ navigation }) {
     }
   };
 
-  const handleAdd = () => {
-    if (!amount || parseFloat(amount) <= 0) return;
+  const doSaveExpense = () => {
     try {
       if (editingId) {
         updateExpense(editingId, {
@@ -225,6 +224,52 @@ export default function ExpensesPanel({ navigation }) {
       setAddModal(false);
       load();
     } catch(e) { console.error(e); }
+  };
+
+  // Подсказка — похоже на закупку позиции склада (тогда нужна не эта форма,
+  // а «Закупка» в Складе, чтобы остаток тоже увеличился, не только расход)
+  const checkStockNameMatch = () => {
+    const text = comment.trim().toLowerCase();
+    if (!text) return null;
+    try {
+      const stock = getAllStock();
+      return stock.find(s => s.name && (text.includes(s.name.toLowerCase()) || s.name.toLowerCase().includes(text))) || null;
+    } catch (e) { return null; }
+  };
+
+  const handleAdd = () => {
+    if (!amount || parseFloat(amount) <= 0) return;
+
+    // Подсказки — только при создании нового расхода, не при редактировании
+    if (!editingId) {
+      const stockMatch = checkStockNameMatch();
+      if (stockMatch) {
+        Alert.alert(
+          'Это закупка материала?',
+          `«${stockMatch.name}» есть на складе. Если это закупка — используйте «Закупку» в Складе: сумма попадёт в расходы, а остаток сразу увеличится. Здесь остаток не изменится.`,
+          [
+            { text: 'Всё равно добавить как расход', style: 'cancel', onPress: doSaveExpense },
+            { text: 'Перейти в Склад', onPress: () => navigation.navigate('Products', { initialTab: 'stock' }) },
+          ]
+        );
+        return;
+      }
+      const amt = parseFloat(amount);
+      const equipmentLikeCategory = category === 'Прочее' || category === 'Закупка';
+      if (amt >= 15000 && equipmentLikeCategory) {
+        Alert.alert(
+          'Похоже на оборудование?',
+          'Крупная разовая покупка — если это техника или инвентарь длительного пользования, лучше завести как Оборудование: тогда стоимость распределится по износу, а не спишется в расходы одним днём.',
+          [
+            { text: 'Всё равно добавить как расход', style: 'cancel', onPress: doSaveExpense },
+            { text: 'Перейти в Оборудование', onPress: () => navigation.navigate('Finances', { initialTab: 'equipment' }) },
+          ]
+        );
+        return;
+      }
+    }
+
+    doSaveExpense();
   };
 
   // Статистика
