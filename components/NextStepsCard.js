@@ -8,7 +8,7 @@ export const NEXT_STEPS = [
   { key: 'products',   icon: '🛍', label: 'Добавить первый товар или услугу', screen: 'Products', sub: 'Меню и цены' },
   { key: 'payMethods', icon: '💳', label: 'Настроить способы оплаты',         screen: 'Settings', params: { section: 'payment' }, sub: 'Оплата и скидки' },
   { key: 'employees',  icon: '👥', label: 'Добавить сотрудников',             screen: 'Employees', sub: 'Имена и PIN-коды' },
-  { key: 'overheads',  icon: '🏢', label: 'Внести накладные расходы',         screen: 'Overheads', sub: 'Аренда, коммунальные, интернет' },
+  { key: 'overheads',  icon: '🏢', label: 'Внести накладные расходы',         screen: 'Finances', params: { initialTab: 'overheads' }, sub: 'Аренда, коммунальные, интернет' },
   { key: 'loyalty',    icon: '⭐', label: 'Настроить программу лояльности',   screen: 'Settings', params: { section: 'loyalty' }, sub: 'Баллы или скидки для клиентов' },
   { key: 'stock',      icon: '📦', label: 'Добавить склад и закупки',        screen: 'Products',  params: { initialTab: 'stock' }, sub: 'Остатки, пороги, движение' },
 ];

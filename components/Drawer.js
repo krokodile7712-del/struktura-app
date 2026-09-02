@@ -58,10 +58,7 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
       title: 'Аналитика',
       items: [
         { label: 'Отчётность',  screen: 'Reports',     perm: 'view_reports' },
-        { label: 'Расходы',     screen: 'Expenses',    adminOnly: true },
-        { label: 'Оборудование',screen: 'Equipment',   adminOnly: true },
-        { label: 'Накладные',   screen: 'Overheads',   adminOnly: true },
-        { label: 'Инвестиции',  screen: 'Investments', adminOnly: true },
+        { label: 'Финансы',     screen: 'Finances',    adminOnly: true },
         { label: 'Журнал работы',  screen: 'WorkJournal',  adminOnly: true },
         { label: 'Инвентаризация',  screen: 'Inventory',    adminOnly: true, module: 'inventory' },
         { label: 'Локации',    screen: 'Locations',   adminOnly: true, module: 'locations' },

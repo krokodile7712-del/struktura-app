@@ -37,6 +37,7 @@ import SearchScreen from './screens/SearchScreen';
 import ClientCardScreen from './screens/ClientCardScreen';
 import ClientsListScreen from './screens/ClientsListScreen';
 import ExpensesScreen from './screens/ExpensesScreen';
+import FinancesScreen from './screens/FinancesScreen';
 import AdminScreen from './screens/AdminScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import MigrateScreen from './screens/MigrateScreen';
@@ -80,7 +81,7 @@ export default function App() {
   // App.js, а не внутри каждого экрана. Список экранов, у которых она есть
   // (все, кроме служебных вроде Login/Onboarding/Shift/Search и т.п.,
   // где навигация не нужна вовсе).
-  const NAV_SCREENS = ['Products', 'Admin', 'Dashboard', 'Sales', 'ClientsList', 'Reports', 'Expenses', 'Locations', 'Inventory', 'Kassa', 'Equipment', 'Investments', 'Loyalty', 'Overheads', 'WorkJournal', 'Bookings', 'Employees', 'Settings'];
+  const NAV_SCREENS = ['Products', 'Admin', 'Dashboard', 'Sales', 'ClientsList', 'Reports', 'Expenses', 'Finances', 'Locations', 'Inventory', 'Kassa', 'Equipment', 'Investments', 'Loyalty', 'Overheads', 'WorkJournal', 'Bookings', 'Employees', 'Settings'];
 
   const [fontsLoaded] = useFonts({
     AnekDevanagari_400Regular,
@@ -165,6 +166,7 @@ export default function App() {
             <Stack.Screen name="ClientsList" component={ClientsListScreen} />
             <Stack.Screen name="Products"    component={ProductsScreen} />
             <Stack.Screen name="Expenses"    component={ExpensesScreen} />
+            <Stack.Screen name="Finances"    component={FinancesScreen} />
             <Stack.Screen name="Migrate"     component={MigrateScreen} />
             <Stack.Screen name="Locations"      component={LocationsScreen} />
             <Stack.Screen name="Employees"      component={EmployeesScreen} />

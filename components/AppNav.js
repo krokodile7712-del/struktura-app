@@ -15,10 +15,7 @@ const ADMIN_SECTIONS = [
   { key: 'Products',    route: 'Products',     label: 'Управление товарами' },
   { key: 'ClientsList', route: 'ClientsList',  label: 'Клиенты',  module: 'clients' },
   { key: 'Reports',     route: 'Reports',      label: 'Отчётность' },
-  { key: 'Expenses',    route: 'Expenses',     label: 'Расходы' },
-  { key: 'Equipment',   route: 'Equipment',    label: 'Оборудование' },
-  { key: 'Overheads',   route: 'Overheads',    label: 'Накладные расходы' },
-  { key: 'Investments', route: 'Investments',  label: 'Инвестиции' },
+  { key: 'Finances',    route: 'Finances',     label: 'Финансы' },
   { key: 'Inventory',   route: 'Inventory',    label: 'Инвентаризация', module: 'inventory' },
   { key: 'WorkJournal', route: 'WorkJournal',  label: 'Журнал работы' },
   { key: 'Locations',   route: 'Locations',    label: 'Локации',  module: 'locations' },
@@ -30,7 +27,7 @@ const ADMIN_SECTIONS = [
 const STAFF_SECTIONS = [
   { key: 'Sales',       route: 'Sales',        label: 'Продажи',  perm: 'view_order_history' },
   { key: 'ClientsList', route: 'ClientsList',  label: 'Клиенты',  perm: 'view_clients' },
-  { key: 'Expenses',    route: 'Expenses',     label: 'Расходы',  perm: 'add_expenses' },
+  { key: 'Expenses',    route: 'Finances',     label: 'Расходы',  perm: 'add_expenses', params: { initialTab: 'expenses' } },
   { key: 'Products',    route: 'Products',     label: 'Управление товарами',   perm: 'view_stock', params: { initialTab: 'stock' } },
 ];
 

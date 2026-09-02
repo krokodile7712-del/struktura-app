@@ -109,7 +109,7 @@ const NEXT_STEPS = [
   { icon: '🛍', label: 'Добавить первый товар или услугу', screen: 'Settings', sub: 'Настройки → Меню и цены' },
   { icon: '💳', label: 'Настроить способы оплаты', screen: 'Settings', params: { section: 'payment' }, sub: 'Настройки → Оплата и скидки' },
   { icon: '👥', label: 'Добавить сотрудников', screen: 'Employees', sub: 'Имена и PIN-коды' },
-  { icon: '🏢', label: 'Внести накладные расходы', screen: 'Overheads', sub: 'Аренда, коммунальные, интернет' },
+  { icon: '🏢', label: 'Внести накладные расходы', screen: 'Finances', params: { initialTab: 'overheads' }, sub: 'Аренда, коммунальные, интернет' },
   { icon: '⭐', label: 'Настроить программу лояльности', screen: 'Settings', params: { section: 'loyalty' }, sub: 'Баллы или скидки для клиентов' },
   { icon: '📦', label: 'Добавить склад и закупки', screen: 'Products', params: { initialTab: 'stock' }, sub: 'Остатки, пороги, движение' },
 ];

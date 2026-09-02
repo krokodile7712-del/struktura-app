@@ -2747,6 +2747,31 @@ export function deleteInvestment(id) {
 }
 
 // Суммарные вложения и прогресс окупаемости
+// Сводка для раздела Финансы — четыре вида трат за период. Оборудование
+// (амортизация) и Накладные уже материализуются как обычные расходы с
+// соответствующей категорией (см. ensureDailyDepreciationExpense) — берём
+// реальные суммы оттуда, не пересчитываем формулы заново.
+export function getFinancesSummary(dateFrom, dateTo) {
+  const db = getDb();
+  const byCategory = db.getAllSync(
+    `SELECT category, SUM(amount) as total FROM expenses WHERE date >= ? AND date <= ? GROUP BY category`,
+    [dateFrom, dateTo]
+  );
+  let equipmentTotal = 0, overheadsTotal = 0, otherTotal = 0;
+  for (const row of byCategory) {
+    if (row.category === 'Амортизация') equipmentTotal += row.total || 0;
+    else if (row.category === 'Накладные') overheadsTotal += row.total || 0;
+    else otherTotal += row.total || 0;
+  }
+  const investSummary = getInvestmentSummary();
+  return {
+    expensesTotal: otherTotal,
+    equipmentTotal,
+    overheadsTotal,
+    investmentsTotal: investSummary.totalInvested,
+  };
+}
+
 export function getInvestmentSummary() {
   const db = getDb(); ensureInvestments(db);
   const all = db.getAllSync(`SELECT * FROM investments`);
