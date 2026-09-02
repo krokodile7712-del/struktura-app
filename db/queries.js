@@ -697,6 +697,16 @@ export function getAllProductsAdmin() {
   });
 }
 
+// ─── Скидки — раздел Настроек ───────────────────────────────────────────────
+
+// Товары, ещё НЕ участвующие в скидке — для выбора «добавить товар»
+export function getDiscountIneligibleProducts() {
+  const db = getDb();
+  return db.getAllSync(
+    `SELECT id, name, category FROM products WHERE discount_eligible = 0 OR discount_eligible IS NULL ORDER BY category, name`
+  );
+}
+
 export function setProductActive(id, active) {
   const db = getDb();
   db.runSync(`UPDATE products SET active = ? WHERE id = ?`, [active ? 1 : 0, id]);
@@ -918,6 +928,32 @@ export function getOrderItems(order_id) {
 export function getAllClients() {
   const db = getDb();
   return db.getAllSync(`SELECT * FROM clients ORDER BY fio`);
+}
+
+// ─── Скидки — единый раздел ────────────────────────────────────────────────
+
+export function getDiscountEligibleProducts() {
+  const db = getDb();
+  return db.getAllSync(`SELECT id, name, category FROM products WHERE discount_eligible = 1 ORDER BY name`);
+}
+
+export function setProductDiscountEligible(productId, eligible) {
+  const db = getDb();
+  db.runSync(`UPDATE products SET discount_eligible = ? WHERE id = ?`, [eligible ? 1 : 0, productId]);
+}
+
+// Сколько клиентов сейчас имеют скидку — по любой причине (личная настройка
+// ИЛИ попадание под общую скидку программы лояльности). Не различает
+// источник — для человека важен сам факт, не механизм.
+export function getClientsWithDiscountCount() {
+  const db = getDb();
+  const personal = db.getFirstSync(`SELECT COUNT(*) as c FROM clients WHERE discount_pct > 0`)?.c || 0;
+  const profile = getBusinessProfile();
+  const loyaltyModel = profile?.loyalty_model || 'points';
+  const totalClients = db.getFirstSync(`SELECT COUNT(*) as c FROM clients`)?.c || 0;
+  // Если модель лояльности — скидка, она действует для всех клиентов сразу,
+  // независимо от личной настройки
+  return loyaltyModel === 'discount' ? totalClients : personal;
 }
 
 export function searchClients(query) {

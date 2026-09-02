@@ -8,6 +8,8 @@ import TopBar from '../components/TopBar';
 import { useResponsive } from '../hooks/useResponsive';
 import {
   getAllProductsAdmin, insertProduct, setProductActive,
+  getDiscountEligibleProducts, getDiscountIneligibleProducts, setProductDiscountEligible,
+  getClientsWithDiscountCount,
   getProductVariants, getProductAxesWithValues, saveProductAxesAndVariants,
   getProductModifierGroups, setProductModifierGroups, getAllModifierGroups,
   insertModifierGroup, updateModifierGroup, deleteModifierGroup,
@@ -104,6 +106,11 @@ export default function SettingsScreen({ navigation, route }) {
   const [products, setProducts]             = useState([]);
   const [users, setUsers]                   = useState([]);
   const [discounts, setDiscounts]           = useState([]);
+  const [discTab, setDiscTab]               = useState('product'); // product | order
+  const [discEligibleProducts, setDiscEligibleProducts] = useState([]);
+  const [discAddProductOpen, setDiscAddProductOpen]     = useState(false);
+  const [discIneligibleProducts, setDiscIneligibleProducts] = useState([]);
+  const [discClientsCount, setDiscClientsCount] = useState(0);
   const [payMethodsList, setPayMethodsList] = useState([]);
   const [payMethodModal, setPayMethodModal] = useState(null);
   const [zones, setZones]           = useState([]);
@@ -283,6 +290,21 @@ export default function SettingsScreen({ navigation, route }) {
     saveDiscounts(discounts.filter((_, i) => i !== discountModal.index));
     setDiscountModal(null);
   };
+  const moveDiscount = (i, dir) => {
+    const j = i + dir;
+    if (j < 0 || j >= discounts.length) return;
+    const list = [...discounts];
+    [list[i], list[j]] = [list[j], list[i]];
+    saveDiscounts(list);
+  };
+
+  const toggleProductDiscount = (product, eligible) => {
+    try {
+      setProductDiscountEligible(product.id, eligible);
+      setDiscEligibleProducts(getDiscountEligibleProducts());
+      setDiscIneligibleProducts(getDiscountIneligibleProducts());
+    } catch (e) { console.error(e); }
+  };
 
   // Открываем редактор профиля при переходе в секцию
   React.useEffect(() => {
@@ -371,6 +393,9 @@ export default function SettingsScreen({ navigation, route }) {
       setPinAdmin(u.find(x => x.role === 'admin')?.pin || '');
     } catch(e) { console.error('users',e); }
     try { setDiscounts(getDiscounts()); } catch(e) {}
+    try { setDiscEligibleProducts(getDiscountEligibleProducts()); } catch(e) {}
+    try { setDiscIneligibleProducts(getDiscountIneligibleProducts()); } catch(e) {}
+    try { setDiscClientsCount(getClientsWithDiscountCount()); } catch(e) {}
     try { setPayMethodsList(getPayMethods()); } catch(e) {}
     try { setZones(getZones()); } catch(e) {}
     try { setModifierGroups(getAllModifierGroups()); } catch(e) {}
@@ -479,7 +504,8 @@ export default function SettingsScreen({ navigation, route }) {
   const SECTIONS = [
     { key: 'employees', label: 'Сотрудники' },
     { key: 'loyalty',   label: 'Лояльность' },
-    { key: 'payment',   label: 'Оплата и скидки' },
+    { key: 'payment',   label: 'Оплата' },
+    { key: 'discounts', label: 'Скидки' },
     { key: 'stock',     label: 'Склад' },
     { key: 'business',  label: 'Профиль бизнеса' },
     { key: 'system',    label: 'Система' },
@@ -827,77 +853,6 @@ export default function SettingsScreen({ navigation, route }) {
           </View>
         )}
 
-        {/* ── Скидки ── */}
-        <View style={[styles.menuTopBarSticky, { marginTop: 24 }]}>
-          <Text style={styles.menuTopTitle}>Скидки</Text>
-          <View style={styles.menuFloatBtns} pointerEvents="box-none">
-            <View style={styles.menuFloatRow}>
-              <Pressable onPress={openNewDiscount} hitSlop={14} style={[styles.menuBadge, styles.menuBadgeAdd]}>
-                <Text style={[styles.menuBadgeText, { color: colors.orange }]}>+</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-
-        <Text style={[styles.menuItemSub, { marginBottom: 10 }]}>
-          Сотрудник применяет вручную в кассе при оформлении заказа
-        </Text>
-
-        {discounts.length === 0 ? (
-          <Text style={[styles.empty, { paddingVertical: 16 }]}>Скидки не настроены</Text>
-        ) : (
-          <View style={styles.menuCard}>
-            {discounts.map((d, i) => (
-              <Pressable
-                key={i}
-                style={({ pressed }) => [
-                  styles.menuRow,
-                  i < discounts.length - 1 && styles.menuRowDiv,
-                  pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
-                ]}
-                onPress={() => openEditDiscount(i)}
-              >
-                <Text style={{ fontSize: 18, marginRight: 12 }}>🏷</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.menuItemName}>{d.name}</Text>
-                  {d.desc ? (
-                    <Text style={styles.menuItemSub}>{d.desc}</Text>
-                  ) : (
-                    <Text style={styles.menuItemSub}>Нажмите чтобы добавить описание</Text>
-                  )}
-                </View>
-                <Text style={[styles.menuItemPrice, { color: colors.red, marginRight: 8 }]}>−{d.pct}%</Text>
-                <Text style={styles.menuItemArrow}>›</Text>
-              </Pressable>
-            ))}
-          </View>
-        )}
-
-        {/* ── Скидка на товары ── */}
-        <View style={[styles.menuTopBarSticky, { marginTop: 24 }]}>
-          <Text style={styles.menuTopTitle}>Скидка на товары</Text>
-        </View>
-        <Text style={[styles.menuItemSub, { marginBottom: 10 }]}>
-          Общий процент — применяется автоматически к товарам с включённым переключателем «Скидка на товар» в их карточке, независимо от скидки на заказ
-        </Text>
-        <View style={styles.menuCard}>
-          <View style={[styles.menuRow, { paddingVertical: 4 }]}>
-            <Text style={styles.menuItemName}>Процент скидки</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <TextInput
-                color={colors.text}
-                style={[styles.input, { width: 70, textAlign: 'right', paddingVertical: 8 }]}
-                value={productDiscountPct}
-                onChangeText={setProductDiscountPct}
-                onEndEditing={saveProductDiscountPct}
-                keyboardType="numeric"
-                placeholder="0"
-                placeholderTextColor={colors.muted}
-              />
-              <Text style={styles.menuItemName}>%</Text>
-            </View>
-          </View>
-        </View>
 
         {/* Зоны (если включены) */}
         {modules.zones === true && zones.length > 0 && (
@@ -930,6 +885,139 @@ export default function SettingsScreen({ navigation, route }) {
             </View>
           </>
         )}
+
+        </SectionAccordion>
+
+        <SectionAccordion sectionKey="discounts" selectedSection={selectedSection}>
+
+          {/* Переключатель вкладок На товар / На заказ */}
+          <View style={styles.discTabBar}>
+            <Pressable style={[styles.discTabBtn, discTab === 'product' && styles.discTabBtnActive]} onPress={() => setDiscTab('product')}>
+              <Text style={[styles.discTabTxt, discTab === 'product' && styles.discTabTxtActive]}>На товар</Text>
+            </Pressable>
+            <Pressable style={[styles.discTabBtn, discTab === 'order' && styles.discTabBtnActive]} onPress={() => setDiscTab('order')}>
+              <Text style={[styles.discTabTxt, discTab === 'order' && styles.discTabTxtActive]}>На заказ</Text>
+            </Pressable>
+          </View>
+
+          {discTab === 'product' && (
+            <>
+              <Text style={[styles.menuItemSub, { marginTop: 16, marginBottom: 10 }]}>
+                Общий процент применяется автоматически ко всем товарам из списка ниже — независимо от скидки на заказ, обе могут сработать одновременно
+              </Text>
+              <View style={styles.menuCard}>
+                <View style={[styles.menuRow, { paddingVertical: 4 }]}>
+                  <Text style={styles.menuItemName}>Процент скидки</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <TextInput
+                      color={colors.text}
+                      style={[styles.input, { width: 70, textAlign: 'right', paddingVertical: 8 }]}
+                      value={productDiscountPct}
+                      onChangeText={setProductDiscountPct}
+                      onEndEditing={saveProductDiscountPct}
+                      keyboardType="numeric"
+                      placeholder="0"
+                      placeholderTextColor={colors.muted}
+                    />
+                    <Text style={styles.menuItemName}>%</Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={[styles.menuTopBarSticky, { marginTop: 20 }]}>
+                <Text style={styles.menuTopTitle}>Товары со скидкой ({discEligibleProducts.length})</Text>
+                <View style={styles.menuFloatBtns} pointerEvents="box-none">
+                  <View style={styles.menuFloatRow}>
+                    <Pressable onPress={() => setDiscAddProductOpen(true)} hitSlop={14} style={[styles.menuBadge, styles.menuBadgeAdd]}>
+                      <Text style={[styles.menuBadgeText, { color: colors.orange }]}>+</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              </View>
+
+              {discEligibleProducts.length === 0 ? (
+                <Text style={[styles.empty, { paddingVertical: 16 }]}>Пока ни один товар не участвует</Text>
+              ) : (
+                <View style={styles.menuCard}>
+                  {discEligibleProducts.map((p, i) => (
+                    <View key={p.id} style={[styles.menuRow, i < discEligibleProducts.length - 1 && styles.menuRowDiv]}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.menuItemName}>{p.name}</Text>
+                        {p.category ? <Text style={styles.menuItemSub}>{p.category}</Text> : null}
+                      </View>
+                      <Pressable onPress={() => toggleProductDiscount(p, false)} hitSlop={10} style={styles.discRemoveBtn}>
+                        <Text style={styles.discRemoveBtnTxt}>Убрать</Text>
+                      </Pressable>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </>
+          )}
+
+          {discTab === 'order' && (
+            <>
+              <View style={[styles.menuTopBarSticky, { marginTop: 16 }]}>
+                <Text style={styles.menuTopTitle}>Скидка клиента</Text>
+              </View>
+              <View style={styles.discClientInfoCard}>
+                <Text style={styles.discClientInfoNum}>{discClientsCount}</Text>
+                <Text style={styles.discClientInfoLbl}>
+                  {discClientsCount === 1 ? 'клиент имеет скидку' : discClientsCount >= 2 && discClientsCount <= 4 ? 'клиента имеют скидку' : 'клиентов имеют скидку'}
+                </Text>
+                <Text style={styles.discClientInfoSub}>Личная скидка в карточке клиента или программа лояльности со скидкой — применяется первой, раньше ручной скидки ниже</Text>
+              </View>
+
+              <View style={[styles.menuTopBarSticky, { marginTop: 20 }]}>
+                <Text style={styles.menuTopTitle}>Ручная скидка кассира</Text>
+                <View style={styles.menuFloatBtns} pointerEvents="box-none">
+                  <View style={styles.menuFloatRow}>
+                    <Pressable onPress={openNewDiscount} hitSlop={14} style={[styles.menuBadge, styles.menuBadgeAdd]}>
+                      <Text style={[styles.menuBadgeText, { color: colors.orange }]}>+</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              </View>
+              <Text style={[styles.menuItemSub, { marginBottom: 10 }]}>
+                Применяется вручную в кассе, только если у клиента нет личной скидки и он не участвует в программе лояльности со скидкой
+              </Text>
+
+              {discounts.length === 0 ? (
+                <Text style={[styles.empty, { paddingVertical: 16 }]}>Скидки не настроены</Text>
+              ) : (
+                <View style={styles.menuCard}>
+                  {discounts.map((d, i) => (
+                    <View
+                      key={i}
+                      style={[styles.menuRow, i < discounts.length - 1 && styles.menuRowDiv]}
+                    >
+                      <View style={{ flexDirection: 'column', marginRight: 8 }}>
+                        <Pressable onPress={() => moveDiscount(i, -1)} disabled={i === 0} hitSlop={6}>
+                          <Text style={[styles.discOrderArrow, i === 0 && styles.discOrderArrowOff]}>▲</Text>
+                        </Pressable>
+                        <Pressable onPress={() => moveDiscount(i, 1)} disabled={i === discounts.length - 1} hitSlop={6}>
+                          <Text style={[styles.discOrderArrow, i === discounts.length - 1 && styles.discOrderArrowOff]}>▼</Text>
+                        </Pressable>
+                      </View>
+                      <Pressable style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }} onPress={() => openEditDiscount(i)}>
+                        <Text style={{ fontSize: 18, marginRight: 12 }}>🏷</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.menuItemName}>{d.name}</Text>
+                          {d.desc ? (
+                            <Text style={styles.menuItemSub}>{d.desc}</Text>
+                          ) : (
+                            <Text style={styles.menuItemSub}>Нажмите чтобы добавить описание</Text>
+                          )}
+                        </View>
+                        <Text style={[styles.menuItemPrice, { color: colors.red, marginRight: 8 }]}>−{d.pct}%</Text>
+                        <Text style={styles.menuItemArrow}>›</Text>
+                      </Pressable>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </>
+          )}
 
         </SectionAccordion>
 
@@ -1912,6 +2000,42 @@ export default function SettingsScreen({ navigation, route }) {
         </View>
       </Modal>
 
+      {/* Пикер добавления товара в скидку на товар */}
+      <Modal visible={discAddProductOpen} transparent animationType="fade" onRequestClose={() => setDiscAddProductOpen(false)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setDiscAddProductOpen(false)} />
+          <View style={[styles.modalInner, { maxHeight: '70%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Добавить товар</Text>
+              <Pressable onPress={() => setDiscAddProductOpen(false)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
+            </View>
+            <ScrollView>
+              {discIneligibleProducts.length === 0 ? (
+                <Text style={[styles.empty, { paddingVertical: 16 }]}>Все товары уже участвуют</Text>
+              ) : (
+                discIneligibleProducts.map((p, i) => (
+                  <Pressable
+                    key={p.id}
+                    style={({ pressed }) => [
+                      styles.menuRow,
+                      i < discIneligibleProducts.length - 1 && styles.menuRowDiv,
+                      pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
+                    ]}
+                    onPress={() => { toggleProductDiscount(p, true); setDiscAddProductOpen(false); }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.menuItemName}>{p.name}</Text>
+                      {p.category ? <Text style={styles.menuItemSub}>{p.category}</Text> : null}
+                    </View>
+                    <Text style={styles.menuItemArrow}>+</Text>
+                  </Pressable>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       {/* Модалка способа оплаты */}
       <Modal visible={!!payMethodModal} transparent animationType="fade" onRequestClose={() => setPayMethodModal(null)}>
         <View style={styles.modalRoot}>
@@ -2339,6 +2463,23 @@ const styles = StyleSheet.create({
   discSaveBtnTxt: { fontFamily: fonts.family, fontSize: 14, fontWeight: '700', color: '#fff' },
   discDeleteBtn: { borderRadius: 14, paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(160,16,32,0.35)', backgroundColor: 'rgba(160,16,32,0.06)' },
   discDeleteBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red },
+
+  discTabBar: { flexDirection: 'row', gap: 8, backgroundColor: colors.surface2, borderRadius: 12, padding: 4 },
+  discTabBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10 },
+  discTabBtnActive: { backgroundColor: 'rgba(240,160,80,0.14)' },
+  discTabTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  discTabTxtActive: { color: colors.orange },
+
+  discRemoveBtn: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10, backgroundColor: 'rgba(160,16,32,0.08)', borderWidth: 1, borderColor: 'rgba(160,16,32,0.25)' },
+  discRemoveBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.red },
+
+  discClientInfoCard: { backgroundColor: colors.surface2, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 18, alignItems: 'center' },
+  discClientInfoNum: { fontFamily: fonts.family, fontSize: 36, fontWeight: '800', color: colors.text },
+  discClientInfoLbl: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, marginTop: 2 },
+  discClientInfoSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 10, lineHeight: 17 },
+
+  discOrderArrow: { fontSize: 12, color: colors.muted, paddingVertical: 3 },
+  discOrderArrowOff: { opacity: 0.25 },
 
   termBlock: { marginBottom: 14, padding: 16, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border },
   termHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 12 },
