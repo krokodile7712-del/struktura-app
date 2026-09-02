@@ -37,14 +37,7 @@ export default function KassaScreen({ navigation, route }) {
   const discountRowHighlight = useTourHighlight('kassa.cart.discount');
   const cartListHighlight = useTourHighlight('kassa.cart.list');
   const cartActionsHighlight = useTourHighlight('kassa.cart.actions');
-  const tourSteps = [
-    { key: 'kassa.catRail', title: 'Категории', text: 'Слева — категории товаров. Нажмите, чтобы переключиться между ними, не листая весь список.' },
-    { key: 'kassa.productGrid', title: 'Выбор товаров', text: 'Нажимайте на товары здесь, чтобы добавить их в текущий заказ.' },
-    { key: 'kassa.cart', title: 'Корзина', text: 'Здесь собирается заказ — можно менять количество, добавлять заметку или удалять позицию свайпом.' },
-    { key: 'kassa.cart.client', title: 'Клиент', text: 'Привяжите заказ к клиенту — если у него есть личная скидка или баллы лояльности, они применятся автоматически.' },
-    { key: 'kassa.cart.discount', title: 'Скидка', text: 'Здесь можно вручную применить скидку на весь заказ, если она не пришла автоматически вместе с клиентом.' },
-    { key: 'kassa.cart.pay', title: 'Оплата', text: 'Когда всё добавлено — нажмите здесь, чтобы выбрать способ оплаты и завершить заказ.' },
-  ];
+  // tourSteps ниже, после объявления forClient/loyaltyModel
   const [loading, setLoading] = useState(true);
   const [groups, setGroups] = useState([]);
   const [allProducts, setAllProducts] = useState([]);
@@ -135,6 +128,17 @@ export default function KassaScreen({ navigation, route }) {
   const activeZone     = activeSlot.zone;
   const activeTable    = activeSlot.table || null;
   const forClient      = activeSlot.forClient;
+
+  const tourSteps = [
+    { key: 'kassa.catRail', title: 'Категории', text: 'Слева — категории товаров. Нажмите, чтобы переключиться между ними, не листая весь список.' },
+    { key: 'kassa.productGrid', title: 'Выбор товаров', text: 'Нажимайте на товары здесь, чтобы добавить их в текущий заказ.' },
+    { key: 'kassa.cart', title: 'Корзина', text: 'Здесь собирается заказ — можно менять количество, добавлять заметку или удалять позицию свайпом.' },
+    { key: 'kassa.cart.client', title: 'Клиент', text: 'Привяжите заказ к клиенту — если у него есть личная скидка или баллы лояльности, они применятся автоматически.' },
+    ...(loyaltyModel !== 'discount' && can('apply_discounts') && !(forClient?.discount_pct > 0)
+      ? [{ key: 'kassa.cart.discount', title: 'Скидка', text: 'Здесь можно вручную применить скидку на весь заказ, если она не пришла автоматически вместе с клиентом.' }]
+      : []),
+    { key: 'kassa.cart.pay', title: 'Оплата', text: 'Когда всё добавлено — нажмите здесь, чтобы выбрать способ оплаты и завершить заказ.' },
+  ];
 
   const updateSlot = (updates) =>
     setSlots(prev => prev.map(s => s.id === activeSlotId ? { ...s, ...updates } : s));
