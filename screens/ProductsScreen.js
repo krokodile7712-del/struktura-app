@@ -143,13 +143,13 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
         />
 
         {/* Скидка на товар */}
-        <View style={styles.deductQuestionRow}>
+        <Pressable style={styles.deductQuestionRow} onPress={() => setDiscountEligible(v => !v)}>
           <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
             <Text style={styles.deductQuestionTxt}>Скидка на товар</Text>
             <InfoTip title="Скидка на товар" text="Общий процент скидки (настраивается один раз для всех товаров в Настройках → Скидки) будет применяться к этому товару автоматически при каждой продаже — независимо от скидки на весь заказ." />
           </View>
           <Toggle value={discountEligible} onValueChange={setDiscountEligible} size="sm" />
-        </View>
+        </Pressable>
 
         {/* Варианты и цены */}
         <View style={styles.labelRow}>

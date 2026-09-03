@@ -239,6 +239,7 @@ export default function KassaScreen({ navigation, route }) {
       setLoyaltyConfig(lc.config);
       setProductDiscountPct(parseFloat(profile?.product_discount_pct) || 0);
       setDiscountsStackable(profile?.discounts_stackable !== 0);
+      setAllProducts(getAllProducts());
     } catch (e) { console.error(e); }
   }, []));
 
