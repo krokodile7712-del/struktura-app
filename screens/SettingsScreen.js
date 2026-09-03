@@ -945,7 +945,7 @@ export default function SettingsScreen({ navigation, route }) {
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <TextInput
                       color={colors.text}
-                      style={[styles.input, { width: 70, textAlign: 'right', paddingVertical: 8 }]}
+                      style={[styles.input, { width: 70, textAlign: 'right', paddingVertical: 8, paddingHorizontal: 10 }]}
                       value={productDiscountPct}
                       onChangeText={setProductDiscountPct}
                       onEndEditing={saveProductDiscountPct}
@@ -999,39 +999,6 @@ export default function SettingsScreen({ navigation, route }) {
           {discTab === 'order' && (
             <>
               <View style={[styles.menuTopBarSticky, { marginTop: 16 }]}>
-                <Text style={styles.menuTopTitle}>Скидка клиента</Text>
-                <View style={styles.menuFloatBtns} pointerEvents="box-none">
-                  <View style={styles.menuFloatRow}>
-                    <Pressable onPress={() => setDiscAddClientOpen(true)} hitSlop={14} style={[styles.menuBadge, styles.menuBadgeAdd]}>
-                      <Text style={[styles.menuBadgeText, { color: colors.orange }]}>+</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              </View>
-              <Text style={[styles.menuItemSub, { marginBottom: 10 }]}>
-                Применяется первой, раньше ручной скидки ниже{loyaltyModel === 'discount' ? '. Дополнительно у всех клиентов есть скидка по программе лояльности' : ''}
-              </Text>
-
-              {discClientsList.length === 0 ? (
-                <Text style={[styles.empty, { paddingVertical: 16 }]}>Пока ни у одного клиента нет личной скидки</Text>
-              ) : (
-                <View style={styles.menuCard}>
-                  {discClientsList.map((c, i) => (
-                    <View key={c.id} style={[styles.menuRow, i < discClientsList.length - 1 && styles.menuRowDiv]}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.menuItemName}>{c.fio}</Text>
-                        {c.phone ? <Text style={styles.menuItemSub}>{c.phone}</Text> : null}
-                      </View>
-                      <Text style={[styles.menuItemPrice, { color: colors.orange, marginRight: 10 }]}>−{c.discount_pct}%</Text>
-                      <Pressable onPress={() => removeClientDiscount(c)} hitSlop={10} style={styles.discRemoveBtn}>
-                        <Text style={styles.discRemoveBtnTxt}>Убрать</Text>
-                      </Pressable>
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              <View style={[styles.menuTopBarSticky, { marginTop: 20 }]}>
                 <Text style={styles.menuTopTitle}>Ручная скидка кассира</Text>
                 <View style={styles.menuFloatBtns} pointerEvents="box-none">
                   <View style={styles.menuFloatRow}>
@@ -1076,6 +1043,43 @@ export default function SettingsScreen({ navigation, route }) {
                         <Text style={styles.menuItemArrow}>›</Text>
                       </Pressable>
                     </View>
+                  ))}
+                </View>
+              )}
+
+              <View style={[styles.menuTopBarSticky, { marginTop: 20 }]}>
+                <Text style={styles.menuTopTitle}>Скидка клиента</Text>
+                <View style={styles.menuFloatBtns} pointerEvents="box-none">
+                  <View style={styles.menuFloatRow}>
+                    <Pressable onPress={() => setDiscAddClientOpen(true)} hitSlop={14} style={[styles.menuBadge, styles.menuBadgeAdd]}>
+                      <Text style={[styles.menuBadgeText, { color: colors.orange }]}>+</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              </View>
+              <Text style={[styles.menuItemSub, { marginBottom: 10 }]}>
+                Применяется первой, раньше ручной скидки выше{loyaltyModel === 'discount' ? '. Дополнительно у всех клиентов есть скидка по программе лояльности' : ''}
+              </Text>
+
+              {discClientsList.length === 0 ? (
+                <Text style={[styles.empty, { paddingVertical: 16 }]}>Пока ни у одного клиента нет личной скидки</Text>
+              ) : (
+                <View style={styles.menuCard}>
+                  {discClientsList.map((c, i) => (
+                    <Pressable
+                      key={c.id}
+                      style={[styles.menuRow, i < discClientsList.length - 1 && styles.menuRowDiv]}
+                      onPress={() => setDiscClientPctModal({ client: c, pct: String(c.discount_pct) })}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.menuItemName}>{c.fio}</Text>
+                        {c.phone ? <Text style={styles.menuItemSub}>{c.phone}</Text> : null}
+                      </View>
+                      <Text style={[styles.menuItemPrice, { color: colors.orange, marginRight: 10 }]}>−{c.discount_pct}%</Text>
+                      <Pressable onPress={() => removeClientDiscount(c)} hitSlop={10} style={styles.discRemoveBtn}>
+                        <Text style={styles.discRemoveBtnTxt}>Убрать</Text>
+                      </Pressable>
+                    </Pressable>
                   ))}
                 </View>
               )}
