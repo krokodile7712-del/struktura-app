@@ -13,7 +13,7 @@ import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import ShiftBanner from '../components/ShiftBanner';
 import InfoTip from '../components/InfoTip';
-import { getAllProducts, getAllClients, getCategories, getCategoryOrder, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, getAllVariantsWithSku, getZones, getOrderTemplates, saveOrderTemplate, deleteOrderTemplate, applyPendingPriceSchedules, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms, getLoyaltyConfig, spendPoints, checkSubscriptionBalance, getCostCardForVariant, getAllStock, markTourSeen } from '../db/queries';
+import { getAllProducts, getAllClients, getCategories, getCategoryOrder, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, getAllVariantsWithSku, getZones, getOrderTemplates, saveOrderTemplate, deleteOrderTemplate, applyPendingPriceSchedules, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms, getLoyaltyConfig, spendPoints, checkSubscriptionBalance, getCostCardForVariant, getAllStock, markTourSeen, setClientDiscountPct, addClientBalance } from '../db/queries';
 import Sheet from '../components/Sheet';
 import TourGuide from '../components/TourGuide';
 import { useTourHighlight } from '../components/TourRegistry';
@@ -116,6 +116,7 @@ export default function KassaScreen({ navigation, route }) {
   const [prePayOpen, setPrePayOpen]       = useState(false);
   const [discountDropOpen, setDiscountDropOpen] = useState(false);
   const [clientPickerOpen, setClientPickerOpen]   = useState(false);
+  const [clientEditModal, setClientEditModal]     = useState(null); // { client, discountPct, pointsToAdd }
   const [clientSearch, setClientSearch]   = useState('');
   const [clientsList, setClientsList]     = useState([]);
   const [slotEditModal, setSlotEditModal] = useState(null); // { id, name }
@@ -135,7 +136,7 @@ export default function KassaScreen({ navigation, route }) {
     { key: 'kassa.productGrid', title: 'Выбор товаров', text: 'Нажимайте на товары здесь, чтобы добавить их в текущий заказ.' },
     { key: 'kassa.cart', title: 'Корзина', text: 'Здесь собирается заказ — можно менять количество, добавлять заметку или удалять позицию свайпом.' },
     { key: 'kassa.cart.client', title: 'Клиент', text: 'Привяжите заказ к клиенту — если у него есть личная скидка или баллы лояльности, они применятся автоматически.' },
-    ...(loyaltyModel !== 'discount' && can('apply_discounts') && !(forClient?.discount_pct > 0)
+    ...(can('apply_discounts') && !(forClient?.discount_pct > 0) && !(loyaltyModel === 'discount' && forClient)
       ? [{ key: 'kassa.cart.discount', title: 'Скидка', text: 'Здесь можно вручную применить скидку на весь заказ, если она не пришла автоматически вместе с клиентом.' }]
       : []),
     { key: 'kassa.cart.pay', title: 'Оплата', text: 'Когда всё добавлено — нажмите здесь, чтобы выбрать способ оплаты и завершить заказ.' },
@@ -952,7 +953,7 @@ export default function KassaScreen({ navigation, route }) {
               </View>
 
               {/* Ручной выбор скидки — недоступен, если скидка уже применяется автоматически (личная/по лояльности) */}
-              {loyaltyModel !== 'discount' && can('apply_discounts') && !(forClient?.discount_pct > 0) && (
+              {can('apply_discounts') && !(forClient?.discount_pct > 0) && !(loyaltyModel === 'discount' && forClient) && (
                 <View style={{ flex: 1 }}>
                   {appliedDiscount ? (
                     <View style={[styles.v2Client, styles.v2ClientFilled, styles.v2ClientDiscountBtn, discountRowHighlight.style]}>
@@ -1397,14 +1398,23 @@ export default function KassaScreen({ navigation, route }) {
                 .map(cl => (
                   <Pressable
                     key={`cpick-${cl.id}`}
-                    style={({ pressed }) => [styles.clientDropdownItem, pressed && { backgroundColor: 'rgba(255,255,255,0.04)' }]}
+                    style={({ pressed }) => [styles.clientDropdownItem, { flexDirection: 'row', alignItems: 'center' }, pressed && { backgroundColor: 'rgba(255,255,255,0.04)' }]}
                     onPress={() => { updateSlot({ forClient: cl }); setClientPickerOpen(false); setClientSearch(''); }}
                   >
-                    <Text style={styles.clientDropdownName}>{cl.fio}</Text>
-                    <Text style={styles.clientDropdownSub}>
-                      {cl.phone ? `${cl.phone}  ` : ''}
-                      {loyaltyModel === 'points' ? `★ ${cl.balance || 0} балл.` : `${cl.discount_pct || 0}%`}
-                    </Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.clientDropdownName}>{cl.fio}</Text>
+                      <Text style={styles.clientDropdownSub}>
+                        {cl.phone ? `${cl.phone}  ` : ''}
+                        {loyaltyModel === 'points' ? `★ ${cl.balance || 0} балл.` : `${cl.discount_pct || 0}%`}
+                      </Text>
+                    </View>
+                    <Pressable
+                      hitSlop={10}
+                      onPress={() => setClientEditModal({ client: cl, discountPct: String(cl.discount_pct || 0), pointsToAdd: '' })}
+                      style={styles.clientDropdownGear}
+                    >
+                      <Text style={styles.clientDropdownGearTxt}>⚙</Text>
+                    </Pressable>
                   </Pressable>
                 ))
               }
@@ -1417,6 +1427,71 @@ export default function KassaScreen({ navigation, route }) {
               )}
             </ScrollView>
           </View>
+        </View>
+      </Modal>
+
+      {/* Установка скидки / начисление баллов конкретному клиенту — из пикера в Кассе */}
+      <Modal visible={!!clientEditModal} transparent animationType="fade" onRequestClose={() => setClientEditModal(null)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setClientEditModal(null)} />
+          {clientEditModal && (
+            <View style={[styles.modalInner, { width: '40%' }]}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{clientEditModal.client.fio}</Text>
+                <Pressable onPress={() => setClientEditModal(null)} hitSlop={14} style={styles.itemModalClose}>
+                  <Text style={styles.itemModalCloseText}>✕</Text>
+                </Pressable>
+              </View>
+
+              <Text style={[styles.menuItemSub, { marginTop: 14, marginBottom: 6 }]}>Личная скидка, %</Text>
+              <TextInput
+                style={styles.input}
+                color={colors.text}
+                keyboardType="numeric"
+                value={clientEditModal.discountPct}
+                onChangeText={(v) => setClientEditModal(m => ({ ...m, discountPct: v }))}
+                placeholder="0"
+                placeholderTextColor={colors.muted}
+              />
+              <Pressable
+                style={({ pressed }) => [styles.discSaveBtn, { marginTop: 10 }, pressed && { opacity: 0.85 }]}
+                onPress={() => {
+                  setClientDiscountPct(clientEditModal.client.id, parseFloat(clientEditModal.discountPct) || 0);
+                  setClientsList(getAllClients());
+                  setClientEditModal(null);
+                }}
+              >
+                <Text style={styles.discSaveBtnTxt}>Сохранить скидку</Text>
+              </Pressable>
+
+              {loyaltyModel === 'points' && (
+                <>
+                  <Text style={[styles.menuItemSub, { marginTop: 18, marginBottom: 6 }]}>
+                    Начислить баллы (сейчас: {clientEditModal.client.balance || 0})
+                  </Text>
+                  <TextInput
+                    style={styles.input}
+                    color={colors.text}
+                    keyboardType="numeric"
+                    value={clientEditModal.pointsToAdd}
+                    onChangeText={(v) => setClientEditModal(m => ({ ...m, pointsToAdd: v }))}
+                    placeholder="0"
+                    placeholderTextColor={colors.muted}
+                  />
+                  <Pressable
+                    style={({ pressed }) => [styles.discSaveBtn, { marginTop: 10 }, pressed && { opacity: 0.85 }]}
+                    onPress={() => {
+                      addClientBalance(clientEditModal.client.id, parseFloat(clientEditModal.pointsToAdd) || 0);
+                      setClientsList(getAllClients());
+                      setClientEditModal(m => ({ ...m, pointsToAdd: '' }));
+                    }}
+                  >
+                    <Text style={styles.discSaveBtnTxt}>Начислить</Text>
+                  </Pressable>
+                </>
+              )}
+            </View>
+          )}
         </View>
       </Modal>
 
@@ -1858,6 +1933,11 @@ const styles = StyleSheet.create({
   clientDropdownItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.2)' },
   clientDropdownName: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
   clientDropdownSub: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
+  clientDropdownGear: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
+  clientDropdownGearTxt: { fontSize: 15, color: colors.muted },
+  menuItemSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+  discSaveBtn: { backgroundColor: colors.orange, borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
+  discSaveBtnTxt: { fontFamily: fonts.family, fontSize: 13, fontWeight: '700', color: '#fff' },
   prePayTotalBox: { marginTop: 16, padding: 14, backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, gap: 6 },
   prePayTotalLabel: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
   prePayTotalTitle: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },

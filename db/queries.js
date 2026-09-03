@@ -208,6 +208,19 @@ export function spendPoints(client_id, points) {
   return spend;
 }
 
+// Ручное начисление баллов/визитов клиенту — не через покупку, а напрямую
+// (например, компенсация, поощрение, ручная корректировка). Работает и для
+// модели 'points' (баллы), и для 'subscription' (визиты) — механизм тот же,
+// смысл числа зависит только от того, какая модель лояльности сейчас активна.
+export function addClientBalance(client_id, amount) {
+  const db = getDb();
+  const add = Math.round(amount) || 0;
+  if (add !== 0) {
+    db.runSync(`UPDATE clients SET balance = balance + ? WHERE id = ?`, [add, client_id]);
+  }
+  return add;
+}
+
 export function updateBusinessProfile({ businessName, modules, terms, roles, units, accessKey,
   logoBase64, phone, address, city, workHoursFrom, workHoursTo, inn, preset,
   receiptName, receiptFooter, currency, dateFormat,
