@@ -561,7 +561,7 @@ export default function KassaScreen({ navigation, route }) {
   // и в Настройках задан общий процент, применяем её автоматически.
   // Возвращает цену со скидкой и сам процент (для явного показа в строке).
   const applyProductDiscount = (product, basePrice) => {
-    if (product?.discount_eligible && productDiscountPct > 0) {
+    if (Number(product?.discount_eligible) === 1 && productDiscountPct > 0) {
       return {
         price: Math.round(basePrice * (1 - productDiscountPct / 100)),
         discountPct: productDiscountPct,
