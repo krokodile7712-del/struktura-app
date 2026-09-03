@@ -953,7 +953,7 @@ export default function SettingsScreen({ navigation, route }) {
                       placeholder="0"
                       placeholderTextColor={colors.muted}
                     />
-                    <Text style={styles.menuItemName}>%</Text>
+                    <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text }}>%</Text>
                   </View>
                 </View>
                 <View style={[styles.menuRow, styles.menuRowDiv, { paddingVertical: 10 }]}>
