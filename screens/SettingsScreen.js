@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TouchableOpacity, Modal, TextInput, Share, Animated, LayoutAnimation, Platform, Alert, BackHandler, useWindowDimensions, Dimensions, Image, Clipboard } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
@@ -456,7 +457,16 @@ export default function SettingsScreen({ navigation, route }) {
         await FileSystem.writeAsStringAsync(fileUri, json, { encoding: FileSystem.EncodingType.UTF8 });
         toast.show('Резервная копия сохранена ✓', 'info');
       } else {
-        await Share.share({ message: json, title: fileName });
+        // На iOS нет прямого доступа к файловой системе устройства — сохраняем
+        // во временный файл приложения и открываем системный диалог «Сохранить
+        // в Файлы», через который человек уже сам решает, куда именно положить
+        const fileUri = FileSystem.documentDirectory + fileName;
+        await FileSystem.writeAsStringAsync(fileUri, json, { encoding: FileSystem.EncodingType.UTF8 });
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(fileUri, { mimeType: 'application/json', dialogTitle: 'Сохранить резервную копию' });
+        } else {
+          toast.show('Не удалось открыть диалог сохранения', 'warn');
+        }
       }
     } catch (e) {
       console.error('[handleExportSave]', e);
@@ -468,7 +478,19 @@ export default function SettingsScreen({ navigation, route }) {
     try {
       const data = exportAllData();
       const json = JSON.stringify(data, null, 2);
-      await Share.share({ message: json, title: 'Резервная копия СТРУКТУРА' });
+      const fileName = `struktura-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      // Раньше здесь был Share.share({ message: json }) — это отправляло
+      // сырой текст JSON через системное меню «Поделиться», а не файл.
+      // При попытке поделиться через мессенджер или почту получалась
+      // нечитаемая простыня текста, а не файл, который можно восстановить.
+      // Теперь — настоящий файл на диске, которым делится expo-sharing.
+      const fileUri = FileSystem.documentDirectory + fileName;
+      await FileSystem.writeAsStringAsync(fileUri, json, { encoding: FileSystem.EncodingType.UTF8 });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri, { mimeType: 'application/json', dialogTitle: 'Резервная копия СТРУКТУРА' });
+      } else {
+        toast.show('На этом устройстве не поддерживается', 'warn');
+      }
     } catch (e) { console.error(e); toast.show('Не удалось создать копию', 'warn'); }
   };
 
