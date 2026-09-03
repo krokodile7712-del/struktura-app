@@ -14,6 +14,7 @@ import TopBar from '../components/TopBar';
 import ShiftBanner from '../components/ShiftBanner';
 import InfoTip from '../components/InfoTip';
 import { getAllProducts, getAllClients, getCategories, getCategoryOrder, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, getAllVariantsWithSku, getZones, getOrderTemplates, saveOrderTemplate, deleteOrderTemplate, applyPendingPriceSchedules, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms, getLoyaltyConfig, spendPoints, checkSubscriptionBalance, getCostCardForVariant, getAllStock, markTourSeen, setClientDiscountPct, addClientBalance } from '../db/queries';
+import { subscribe } from '../db/events';
 import Sheet from '../components/Sheet';
 import TourGuide from '../components/TourGuide';
 import { useTourHighlight } from '../components/TourRegistry';
@@ -209,6 +210,16 @@ export default function KassaScreen({ navigation, route }) {
   const [mixedCard, setMixedCard] = useState('');
 
   useEffect(() => { loadData(); }, []);
+
+  // Мгновенная синхронизация списка товаров с изменениями в Товарах —
+  // не дожидаясь возврата на экран Кассы (useFocusEffect сработал бы
+  // только при следующем переходе сюда, а не сразу, пока Касса в фоне)
+  useEffect(() => {
+    const unsubscribe = subscribe('productsChanged', () => {
+      try { setAllProducts(getAllProducts()); } catch (e) { console.error(e); }
+    });
+    return unsubscribe;
+  }, []);
 
   // Автозапуск тура при первом заходе на Кассу
   useEffect(() => {

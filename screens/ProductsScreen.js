@@ -27,6 +27,7 @@ import {
   getBusinessProfile, createCombinedProductAndStock,
 } from '../db/queries';
 import { getDb } from '../db/database';
+import { emit } from '../db/events';
 import { getHomeRoute, goBackSmart, can } from '../db/session';
 import { colors, fonts, anim } from '../constants/theme';
 
@@ -575,6 +576,7 @@ export default function ProductsScreen({ navigation, route }) {
       setProductModifierGroups(pid, data.selGroups || []);
       setSelected(null);
       load();
+      emit('productsChanged');
     } catch(e) { console.error('[handleSave ERROR]', e.message, e.stack?.split('\n')[1]); Alert.alert('Ошибка', e.message); }
   };
 
@@ -585,11 +587,12 @@ export default function ProductsScreen({ navigation, route }) {
       deleteProduct(id);
       setSelected(null);
       load();
+      emit('productsChanged');
     } catch(e) { console.error('[handleSave ERROR]', e.message, e.stack?.split('\n')[1]); Alert.alert('Ошибка', e.message); }
   };
 
   const handleToggleActive = (p) => {
-    try { setProductActive(p.id, !p.active); load(); setSelected(null); } catch(e) {}
+    try { setProductActive(p.id, !p.active); load(); setSelected(null); emit('productsChanged'); } catch(e) {}
   };
 
   // Группируем по категориям
