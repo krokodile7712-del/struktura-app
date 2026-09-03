@@ -2027,20 +2027,28 @@ export function exportAllData() {
 // Для каждой таблицы, которая есть в файле, — полностью очищает и заполняет заново.
 // Таблицы, которых в файле нет (например, бэкап сделан более старой версией
 // приложения), — не трогает, но обязательно перечисляет в ответе как пропущенные.
+//
+// Вся операция — единая транзакция. Раньше каждая таблица обрабатывалась
+// отдельно (DELETE + INSERT), и если процесс прерывался посередине (закрытие
+// приложения, сбой, разряд батареи) — часть таблиц оставалась уже очищенной
+// и перезаполненной новыми данными, а часть — ещё в старом состоянии: база
+// оказывалась в несогласованном, битом состоянии. Теперь либо восстанавливается
+// абсолютно всё, либо (при любой ошибке) база откатывается к тому состоянию,
+// что было до начала восстановления — частичного повреждения быть не может.
 export function importAllData(data) {
   const db = getDb();
   const restored = [];
   const skipped = [];
-  const errors = [];
 
   if (!data || typeof data !== 'object') {
     return { ok: false, error: 'Файл повреждён или это не резервная копия СТРУКТУРЫ' };
   }
 
-  for (const { table, label } of BACKUP_TABLES_INFO) {
-    const rows = data[table];
-    if (!Array.isArray(rows)) { skipped.push(label); continue; }
-    try {
+  try {
+    db.execSync('BEGIN TRANSACTION');
+    for (const { table, label } of BACKUP_TABLES_INFO) {
+      const rows = data[table];
+      if (!Array.isArray(rows)) { skipped.push(label); continue; }
       db.runSync(`DELETE FROM ${table}`);
       for (const row of rows) {
         const cols = Object.keys(row);
@@ -2053,13 +2061,20 @@ export function importAllData(data) {
         );
       }
       restored.push(label);
-    } catch (e) {
-      console.error(`[importAllData] Ошибка восстановления таблицы ${table}:`, e);
-      errors.push(label);
     }
+    db.execSync('COMMIT');
+  } catch (e) {
+    console.error('[importAllData] Ошибка восстановления — откат к исходному состоянию:', e);
+    try { db.execSync('ROLLBACK'); } catch (rollbackErr) {
+      console.error('[importAllData] Не удалось откатить транзакцию:', rollbackErr);
+    }
+    return {
+      ok: false,
+      error: 'Не удалось восстановить данные — база оставлена без изменений, как было до попытки. ' + (e?.message || ''),
+    };
   }
 
-  return { ok: true, restored, skipped, errors };
+  return { ok: true, restored, skipped, errors: [] };
 }
 
 // Полный сброс локальной базы — используется при регистрации бизнеса "с нуля"

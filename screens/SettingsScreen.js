@@ -488,9 +488,6 @@ export default function SettingsScreen({ navigation, route }) {
       if (res.skipped.length > 0) {
         msg += `\n\nПропущено (отсутствовали в файле):\n${res.skipped.map(l => '• ' + l).join('\n')}`;
       }
-      if (res.errors.length > 0) {
-        msg += `\n\nОшибки при восстановлении:\n${res.errors.map(l => '• ' + l).join('\n')}`;
-      }
       Alert.alert('Восстановление завершено', msg, [
         { text: 'Ок', onPress: () => { resetKassaCart(); clearSession(); navigation.navigate('Login'); } },
       ]);
