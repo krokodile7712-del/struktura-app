@@ -24,7 +24,7 @@ import {
   getAllCategoriesFull, createCategory, renameCategory, deleteCategory, getCategoryProducts,
   insertModifierOption, updateModifierOption, deleteModifierOption,
   getProductModifierGroups, setProductModifierGroups,
-  getBusinessProfile, createCombinedProductAndStock,
+  getBusinessProfile, createCombinedProductAndStock, setProductDiscountEligible,
 } from '../db/queries';
 import { getDb } from '../db/database';
 import { emit } from '../db/events';
@@ -149,7 +149,25 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
             <Text style={styles.deductQuestionTxt}>Скидка на товар</Text>
             <InfoTip title="Скидка на товар" text="Общий процент скидки (настраивается один раз для всех товаров в Настройках → Скидки) будет применяться к этому товару автоматически при каждой продаже — независимо от скидки на весь заказ." />
           </View>
-          <Toggle value={discountEligible} onValueChange={setDiscountEligible} size="sm" />
+          <Toggle
+            value={discountEligible}
+            onValueChange={(v) => {
+              setDiscountEligible(v);
+              // Для уже существующего товара — сохраняем сразу, не дожидаясь
+              // общей кнопки «Сохранить» всей карточки. Раньше переключатель
+              // менял только локальное состояние формы — если карточку
+              // закрывали без явного сохранения, в базе оставалось старое
+              // значение, и скидка в Кассе продолжала применяться как ни в чём
+              // не бывало, хотя переключатель на экране уже выглядел выключенным.
+              if (product?.id) {
+                try {
+                  setProductDiscountEligible(product.id, v);
+                  emit('productsChanged');
+                } catch (e) { console.error(e); }
+              }
+            }}
+            size="sm"
+          />
         </View>
 
         {/* Варианты и цены */}
