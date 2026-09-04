@@ -585,6 +585,7 @@ export default function KassaScreen({ navigation, route }) {
       size: variant?.label || '',
       price,
       discountPct,
+      discountEligible: !!product?.discount_eligible,
       modifiers: [],
     });
   };
@@ -611,7 +612,7 @@ export default function KassaScreen({ navigation, route }) {
     if (editingCartItemId) {
       setOrder(prev => prev.map(item =>
         item.id === editingCartItemId
-          ? { ...item, variant_id: variant?.id || null, size: variant?.label || '', price: discountedPrice, discountPct, modifiers: mods }
+          ? { ...item, variant_id: variant?.id || null, size: variant?.label || '', price: discountedPrice, discountPct, discountEligible: !!modalItem?.discount_eligible, modifiers: mods }
           : item
       ));
       setEditingCartItemId(null);
@@ -624,6 +625,7 @@ export default function KassaScreen({ navigation, route }) {
         size: variant?.label || '',
         price: discountedPrice,
         discountPct,
+        discountEligible: !!modalItem?.discount_eligible,
         modifiers: mods,
         quantity: modalQty,
       });
@@ -656,11 +658,16 @@ export default function KassaScreen({ navigation, route }) {
     return null;
   })();
 
-  // Если скидки не должны суммироваться — скидка клиента/лояльности/ручная
-  // не действует на позиции, у которых уже есть своя, товарная скидка
-  const discountBase = discountsStackable
-    ? rawTotal
-    : order.reduce((s, i) => s + (i.discountPct > 0 ? 0 : i.price * (i.quantity || 1)), 0);
+  // Товар с выключенным переключателем "Скидка на товар" не участвует ни в
+  // какой скидке на заказ вообще — это безусловное исключение, не зависящее
+  // от переключателя суммарности (тот решает только для товаров, которые
+  // В ПРИНЦИПЕ участвуют в скидке — стоит ли добавлять к их уже сниженной
+  // цене ещё и скидку клиента/лояльности/ручную, или нет).
+  const discountBase = order.reduce((s, i) => {
+    if (i.discountEligible === false) return s; // исключён полностью, всегда
+    if (!discountsStackable && i.discountPct > 0) return s; // уже своя скидка, не суммируем
+    return s + i.price * (i.quantity || 1);
+  }, 0);
   const discountAmount = effectiveDiscount ? Math.round(discountBase * effectiveDiscount.pct / 100) : 0;
 
   // Оплата баллами с ограничением max_spend_pct
