@@ -1,10 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, Pressable, StyleSheet, LayoutAnimation, Platform, UIManager } from 'react-native';
+import { View, Text, Pressable, StyleSheet, LayoutAnimation } from 'react-native';
 import { colors, fonts } from '../constants/theme';
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 const WEEKDAY_LABELS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 const MONTH_LABELS = [
