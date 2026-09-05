@@ -5,11 +5,13 @@ import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
 import Sheet from '../components/Sheet';
 import SwipeableRow from '../components/SwipeableRow';
+import BookingsCalendar from '../components/BookingsCalendar';
+import DayTimelineModal from '../components/DayTimelineModal';
 import { useResponsive } from '../hooks/useResponsive';
 import { getHomeRoute, goBackSmart } from '../db/session';
 import { getBookings, updateBookingStatus } from '../db/supabase';
 import {
-  getBusinessProfile, getManualBookings, insertManualBooking,
+  getBusinessProfile, getManualBookings, getManualBookingsInRange, insertManualBooking,
   updateManualBooking, updateManualBookingStatus, deleteManualBooking,
 } from '../db/queries';
 import { colors, fonts } from '../constants/theme';
@@ -72,6 +74,14 @@ export default function BookingsScreen({ navigation }) {
   const [containerWidth, setContainerWidth] = useState(0);
   const [filter, setFilter]     = useState('all');
 
+  // Календарь — общий для обеих вкладок, не зависит от того, какая активна
+  const [calOnlineDates, setCalOnlineDates] = useState(new Set());
+  const [calManualDates, setCalManualDates] = useState(new Set());
+  const [selectedCalDate, setSelectedCalDate] = useState(null);
+  const [timelineOpen, setTimelineOpen] = useState(false);
+  const [timelineItems, setTimelineItems] = useState([]);
+  const [timelineDateLabel, setTimelineDateLabel] = useState('');
+
   // ── Записи по телефону (локальные) ──
   const [manualBookings, setManualBookings] = useState([]);
   const [manualFormOpen, setManualFormOpen] = useState(false);
@@ -99,7 +109,73 @@ export default function BookingsScreen({ navigation }) {
       setBookings(data || []);
     } catch(e) { console.error(e); }
     setLoading(false);
+  }, []);
 
+  // Данные календаря — общие для обеих вкладок, за видимый месяц
+  const loadCalendarMonth = useCallback(async (year, month0) => {
+    try {
+      const from = `${year}-${String(month0 + 1).padStart(2, '0')}-01`;
+      const lastDay = new Date(year, month0 + 1, 0).getDate();
+      const to = `${year}-${String(month0 + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+      const manual = getManualBookingsInRange(from, to);
+      setCalManualDates(new Set(manual.map(b => b.date)));
+
+      const profile = getBusinessProfile();
+      const slug = profile?.booking_slug;
+      if (slug) {
+        const online = await getBookings(null, null, slug, { from, to });
+        setCalOnlineDates(new Set((online || []).map(b => b.date)));
+      } else {
+        setCalOnlineDates(new Set());
+      }
+    } catch (e) { console.error('[loadCalendarMonth]', e); }
+  }, []);
+
+  useEffect(() => {
+    const now = new Date();
+    loadCalendarMonth(now.getFullYear(), now.getMonth());
+  }, [loadCalendarMonth]);
+
+  const onSelectCalDay = useCallback(async (dateStr, hasBookings) => {
+    setSelectedCalDate(dateStr);
+    if (!hasBookings) return;
+    try {
+      const manual = getManualBookingsInRange(dateStr, dateStr)
+        .map(b => ({ id: b.id, time_start: b.time_start, client_name: b.client_name, service_name: b.service_name, source: 'manual', raw: b }));
+
+      const profile = getBusinessProfile();
+      const slug = profile?.booking_slug;
+      let online = [];
+      if (slug) {
+        const data = await getBookings(null, dateStr, slug);
+        online = (data || []).map(b => ({
+          id: b.id, time_start: b.time_start, client_name: b.client_name,
+          service_name: b.services?.name, duration_min: b.services?.duration_min,
+          source: 'online', raw: b,
+        }));
+      }
+
+      const items = [...online, ...manual].sort((a, b) => (a.time_start || '').localeCompare(b.time_start || ''));
+      const [y, m, d] = dateStr.split('-');
+      setTimelineDateLabel(`${d}.${m}.${y}`);
+      setTimelineItems(items);
+      setTimelineOpen(true);
+    } catch (e) { console.error('[onSelectCalDay]', e); }
+  }, []);
+
+  const onSelectTimelineItem = useCallback((item) => {
+    setTimelineOpen(false);
+    if (item.source === 'manual') {
+      setMainTab('manual');
+      openManualEdit(item.raw);
+    } else {
+      setMainTab('online');
+      setExpanded(item.id);
+    }
+  }, []);
+
+  useEffect(() => {
     fadeAnim.setValue(0); slideAnim.setValue(16);
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: true }),
@@ -216,6 +292,17 @@ export default function BookingsScreen({ navigation }) {
           </Pressable>
         }
       />
+
+      {/* Календарь — общий для обеих вкладок, виден всегда */}
+      <View style={[styles.calWrap, isLandscape && styles.calWrapLandscape]}>
+        <BookingsCalendar
+          onlineDates={calOnlineDates}
+          manualDates={calManualDates}
+          selectedDate={selectedCalDate}
+          onSelectDay={onSelectCalDay}
+          onMonthChange={loadCalendarMonth}
+        />
+      </View>
 
       {/* Вкладки — Онлайн / По телефону */}
       <View style={styles.mainTabBar}>
@@ -578,6 +665,14 @@ export default function BookingsScreen({ navigation }) {
         </Pressable>
       </ScrollView>
     </Sheet>
+
+    <DayTimelineModal
+      visible={timelineOpen}
+      dateLabel={timelineDateLabel}
+      items={timelineItems}
+      onClose={() => setTimelineOpen(false)}
+      onSelectItem={onSelectTimelineItem}
+    />
     </>
   );
 }
@@ -664,4 +759,7 @@ const styles = StyleSheet.create({
   actionTxt:   { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
 
   refreshBtn:  { fontSize: 20, color: colors.muted },
+
+  calWrap: { paddingHorizontal: 12, paddingTop: 12 },
+  calWrapLandscape: { maxWidth: 420, alignSelf: 'center', width: '100%' },
 });

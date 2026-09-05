@@ -1218,6 +1218,16 @@ export function getManualBookings() {
   return db.getAllSync(`SELECT * FROM manual_bookings ORDER BY date, time_start`);
 }
 
+// Записи по телефону за диапазон дат — для календаря (не грузим все записи
+// за всю историю бизнеса, только видимый месяц)
+export function getManualBookingsInRange(dateFrom, dateTo) {
+  const db = getDb();
+  return db.getAllSync(
+    `SELECT * FROM manual_bookings WHERE date >= ? AND date <= ? ORDER BY date, time_start`,
+    [dateFrom, dateTo]
+  );
+}
+
 export function insertManualBooking({ date, time_start, client_name, client_phone, service_name, service_price, comment, status }) {
   const db = getDb();
   db.runSync(

@@ -30,7 +30,7 @@ export async function syncServicesToSupabase(businessId, products) {
 }
 
 // Получает записи для этого бизнеса
-export async function getBookings(businessId, date, slug) {
+export async function getBookings(businessId, date, slug, dateRange) {
   try {
     // Если передан slug — сначала получаем businessId
     let bizId = businessId;
@@ -46,6 +46,10 @@ export async function getBookings(businessId, date, slug) {
       .order('date', { ascending: true })
       .order('time_start', { ascending: true });
     if (date) query = query.eq('date', date);
+    // dateRange: { from, to } — для календаря, чтобы не грузить всю историю
+    // бизнеса разом, только видимый месяц
+    if (dateRange?.from) query = query.gte('date', dateRange.from);
+    if (dateRange?.to) query = query.lte('date', dateRange.to);
     const { data, error } = await query;
     if (error) throw error;
     return data || [];
