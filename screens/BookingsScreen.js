@@ -377,14 +377,16 @@ export default function BookingsScreen({ navigation }) {
         {/* Правая панель */}
         <View style={styles.right}>
           {isLandscape && (
-            <BookingsCalendar
-              onlineDates={calOnlineDates}
-              manualDates={calManualDates}
-              selectedDate={selectedCalDate}
-              onSelectDay={onSelectCalDay}
-              onMonthChange={loadCalendarMonth}
-              embedded
-            />
+            <View style={styles.calEmbeddedWrap}>
+              <BookingsCalendar
+                onlineDates={calOnlineDates}
+                manualDates={calManualDates}
+                selectedDate={selectedCalDate}
+                onSelectDay={onSelectCalDay}
+                onMonthChange={loadCalendarMonth}
+                embedded
+              />
+            </View>
           )}
           {loading ? (
             <View style={styles.centerWrap}>
@@ -542,14 +544,16 @@ export default function BookingsScreen({ navigation }) {
             const totalRevenue = manualBookings.reduce((s,b) => s + (b.service_price||0), 0);
             return (
               <View style={styles.sidePanelManual}>
-                <BookingsCalendar
-                  onlineDates={calOnlineDates}
-                  manualDates={calManualDates}
-                  selectedDate={selectedCalDate}
-                  onSelectDay={onSelectCalDay}
-                  onMonthChange={loadCalendarMonth}
-                  embedded
-                />
+                <View style={styles.calEmbeddedWrap}>
+                  <BookingsCalendar
+                    onlineDates={calOnlineDates}
+                    manualDates={calManualDates}
+                    selectedDate={selectedCalDate}
+                    onSelectDay={onSelectCalDay}
+                    onMonthChange={loadCalendarMonth}
+                    embedded
+                  />
+                </View>
                 <ScrollView contentContainerStyle={{ padding: 20 }}>
                   <Text style={styles.sideLabel}>Всего записей</Text>
                   <Text style={styles.sideVal}>{manualBookings.length}</Text>
@@ -743,7 +747,7 @@ const styles = StyleSheet.create({
   todayName:   { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.text, flex: 1 },
   upcomingName:{ fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.text, marginTop: 4 },
   upcomingWhen:{ fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 2 },
-  mainTabBar: { flexDirection: 'row', gap: 6, paddingHorizontal: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
+  mainTabBar: { flexDirection: 'row', gap: 6, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: colors.surface, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.18, shadowRadius: 6, zIndex: 2 },
   mainTabBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 12 },
   mainTabBtnActive: { backgroundColor: 'rgba(240,160,80,0.14)' },
   mainTabTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
@@ -784,5 +788,6 @@ const styles = StyleSheet.create({
 
   refreshBtn:  { fontSize: 20, color: colors.muted },
 
-  calWrap: { paddingHorizontal: 12, paddingTop: 12 },
+  calWrap: { paddingHorizontal: 12, paddingTop: 12, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 6, zIndex: 1 },
+  calEmbeddedWrap: { maxWidth: 400, alignSelf: 'center', width: '100%', elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 6, zIndex: 1 },
 });

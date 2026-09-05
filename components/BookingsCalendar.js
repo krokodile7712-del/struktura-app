@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, Pressable, StyleSheet, LayoutAnimation } from 'react-native';
+import React, { useState, useMemo, useRef } from 'react';
+import { View, Text, Pressable, StyleSheet, LayoutAnimation, PanResponder } from 'react-native';
 import { colors, fonts } from '../constants/theme';
 
 const WEEKDAY_LABELS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
@@ -14,8 +14,8 @@ function dateKey(y, m, d) { return `${y}-${pad(m + 1)}-${pad(d)}`; }
 // Понедельник — первый день недели (не воскресенье, как в JS Date.getDay())
 function mondayIndex(jsDay) { return jsDay === 0 ? 6 : jsDay - 1; }
 
-function DayCell({ cell, isToday, isSelected, onPress }) {
-  if (!cell) return <View style={styles.cell} />;
+function DayCell({ cell, isToday, isSelected, onPress, onEmptyPress }) {
+  if (!cell) return <Pressable style={styles.cell} onPress={onEmptyPress} />;
   return (
     <Pressable style={styles.cell} onPress={onPress}>
       <View style={[
@@ -44,9 +44,8 @@ function DayCell({ cell, isToday, isSelected, onPress }) {
  * onMonthChange(year, month0) — month0 — индекс месяца с нуля (как в Date).
  * embedded — без собственной рамки/фона, вписывается как верхняя часть уже
  *   существующей карточки (используется в альбомной ориентации).
- * collapsible — сворачивается в одну строку текущей недели, разворачивается
- *   тапом по заголовку в полный месяц (используется в портретной ориентации,
- *   где нет места под постоянно развёрнутый календарь).
+ * collapsible — сворачивается в одну строку недели, разворачивается тапом
+ *   по заголовку в полный месяц (используется в портретной ориентации).
  */
 export default function BookingsCalendar({ onlineDates, manualDates, selectedDate, onSelectDay, onMonthChange, embedded = false, collapsible = false }) {
   const today = new Date();
@@ -76,15 +75,13 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
     return result;
   }, [viewYear, viewMonth, onlineDates, manualDates]);
 
-  // Неделя, содержащая сегодняшний день — для свёрнутого вида
+  // Неделя от сегодняшнего дня вперёд (не Пн-Вс календарной недели) — для
+  // свёрнутого вида: если сегодня 5 сентября, показываем 5..11 сентября
   const weekCells = useMemo(() => {
-    const startOffset = mondayIndex(today.getDay());
-    const weekStart = new Date(today);
-    weekStart.setDate(today.getDate() - startOffset);
     const result = [];
     for (let i = 0; i < 7; i++) {
-      const d = new Date(weekStart);
-      d.setDate(weekStart.getDate() + i);
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
       const key = dateKey(d.getFullYear(), d.getMonth(), d.getDate());
       result.push({
         day: d.getDate(),
@@ -111,21 +108,29 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
     setExpanded(v => !v);
   };
 
+  const clearSelection = () => onSelectDay?.(null, false);
+
+  // Свайп влево/вправо между месяцами — вместо стрелок. Порог по горизонтали
+  // с проверкой, что движение преимущественно горизонтальное, не вертикальный скролл
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 20 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+      onPanResponderRelease: (_, g) => {
+        if (g.dx <= -40) changeMonth(1);
+        else if (g.dx >= 40) changeMonth(-1);
+      },
+    })
+  ).current;
+
   return (
     <View style={[styles.root, !embedded && styles.rootCard]}>
       <Pressable style={styles.header} onPress={toggleExpanded} disabled={!collapsible}>
-        <Pressable onPress={() => changeMonth(-1)} hitSlop={10} style={styles.navBtn}>
-          <Text style={styles.navBtnTxt}>‹</Text>
-        </Pressable>
         <Text style={styles.monthLabel}>{MONTH_LABELS[viewMonth]} {viewYear}</Text>
-        <Pressable onPress={() => changeMonth(1)} hitSlop={10} style={styles.navBtn}>
-          <Text style={styles.navBtnTxt}>›</Text>
-        </Pressable>
         {collapsible && <Text style={styles.collapseArrow}>{expanded ? '▲' : '▼'}</Text>}
       </Pressable>
 
       {expanded ? (
-        <>
+        <View {...panResponder.panHandlers}>
           <View style={styles.weekRow}>
             {WEEKDAY_LABELS.map(w => (
               <Text key={w} style={styles.weekdayLabel}>{w}</Text>
@@ -139,10 +144,11 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
                 isToday={cell?.key === todayKey}
                 isSelected={cell?.key === selectedDate}
                 onPress={() => cell && onSelectDay?.(cell.key, cell.isOnline || cell.isManual)}
+                onEmptyPress={clearSelection}
               />
             ))}
           </View>
-        </>
+        </View>
       ) : (
         <View style={styles.grid}>
           {weekCells.map((cell, i) => (
@@ -164,10 +170,8 @@ const styles = StyleSheet.create({
   root: { padding: 12 },
   rootCard: { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border },
 
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, paddingHorizontal: 4 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 8, paddingHorizontal: 4 },
   monthLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
-  navBtn: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface2 },
-  navBtnTxt: { fontSize: 16, color: colors.muted, fontFamily: fonts.family },
   collapseArrow: { fontSize: 10, color: colors.muted, marginLeft: 6 },
 
   weekRow: { flexDirection: 'row' },

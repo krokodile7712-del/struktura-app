@@ -78,8 +78,8 @@ export default function DayTimelineModal({ visible, dateLabel, items = [], onClo
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: { height: '80%', backgroundColor: colors.bg, borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden' },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
+  sheet: { width: '90%', maxWidth: 460, height: '70%', backgroundColor: colors.bg, borderRadius: 20, overflow: 'hidden' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
   title: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
   close: { fontSize: 18, color: colors.muted },
