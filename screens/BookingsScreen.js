@@ -293,16 +293,22 @@ export default function BookingsScreen({ navigation }) {
         }
       />
 
-      {/* Календарь — общий для обеих вкладок, виден всегда */}
-      <View style={[styles.calWrap, isLandscape && styles.calWrapLandscape]}>
-        <BookingsCalendar
-          onlineDates={calOnlineDates}
-          manualDates={calManualDates}
-          selectedDate={selectedCalDate}
-          onSelectDay={onSelectCalDay}
-          onMonthChange={loadCalendarMonth}
-        />
-      </View>
+      {/* Календарь — общий для обеих вкладок, виден всегда.
+          В портрете — свой, сворачиваемый блок сверху (нет места под
+          постоянную колонку). В альбомной — не здесь, встроен ниже прямо
+          в правую панель каждой вкладки, одной карточкой с её содержимым. */}
+      {!isLandscape && (
+        <View style={styles.calWrap}>
+          <BookingsCalendar
+            onlineDates={calOnlineDates}
+            manualDates={calManualDates}
+            selectedDate={selectedCalDate}
+            onSelectDay={onSelectCalDay}
+            onMonthChange={loadCalendarMonth}
+            collapsible
+          />
+        </View>
+      )}
 
       {/* Вкладки — Онлайн / По телефону */}
       <View style={styles.mainTabBar}>
@@ -370,6 +376,16 @@ export default function BookingsScreen({ navigation }) {
 
         {/* Правая панель */}
         <View style={styles.right}>
+          {isLandscape && (
+            <BookingsCalendar
+              onlineDates={calOnlineDates}
+              manualDates={calManualDates}
+              selectedDate={selectedCalDate}
+              onSelectDay={onSelectCalDay}
+              onMonthChange={loadCalendarMonth}
+              embedded
+            />
+          )}
           {loading ? (
             <View style={styles.centerWrap}>
               <ActivityIndicator color={colors.orange} size="large" />
@@ -526,7 +542,15 @@ export default function BookingsScreen({ navigation }) {
             const totalRevenue = manualBookings.reduce((s,b) => s + (b.service_price||0), 0);
             return (
               <View style={styles.sidePanelManual}>
-                <View style={{ padding: 20 }}>
+                <BookingsCalendar
+                  onlineDates={calOnlineDates}
+                  manualDates={calManualDates}
+                  selectedDate={selectedCalDate}
+                  onSelectDay={onSelectCalDay}
+                  onMonthChange={loadCalendarMonth}
+                  embedded
+                />
+                <ScrollView contentContainerStyle={{ padding: 20 }}>
                   <Text style={styles.sideLabel}>Всего записей</Text>
                   <Text style={styles.sideVal}>{manualBookings.length}</Text>
                   <View style={styles.sideDivider} />
@@ -556,7 +580,7 @@ export default function BookingsScreen({ navigation }) {
                       <Text style={styles.upcomingWhen}>{fmtDate(upcoming.date)} в {upcoming.time_start?.slice(0,5)}</Text>
                     </>
                   )}
-                </View>
+                </ScrollView>
               </View>
             );
           })()}
@@ -761,5 +785,4 @@ const styles = StyleSheet.create({
   refreshBtn:  { fontSize: 20, color: colors.muted },
 
   calWrap: { paddingHorizontal: 12, paddingTop: 12 },
-  calWrapLandscape: { maxWidth: 420, alignSelf: 'center', width: '100%' },
 });
