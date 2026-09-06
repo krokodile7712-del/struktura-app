@@ -324,7 +324,7 @@ export default function BookingsScreen({ navigation }) {
       <View style={[styles.layout, !isLandscape && { flexDirection: 'column' }]} onLayout={e => setContainerWidth(e.nativeEvent.layout.width)}>
 
         {isLandscape ? (
-          <View style={[styles.left, containerWidth > 0 && { width: Math.min(380, Math.max(260, containerWidth * 0.3)) }]}>
+          <View style={[styles.left, containerWidth > 0 && { width: Math.min(480, containerWidth * 0.38) }]}>
             <Text style={styles.sectionLabel}>Фильтр</Text>
             {FILTERS.map(f => {
               const count = f.key === 'all' ? bookings.length : (counts[f.key] || 0);
@@ -788,6 +788,6 @@ const styles = StyleSheet.create({
 
   refreshBtn:  { fontSize: 20, color: colors.muted },
 
-  calWrap: { paddingHorizontal: 12, paddingTop: 12, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 6, zIndex: 1 },
-  calEmbeddedWrap: { maxWidth: 400, alignSelf: 'center', width: '100%', elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 6, zIndex: 1 },
+  calWrap: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 8, backgroundColor: colors.surface2 },
+  calEmbeddedWrap: { maxWidth: 400, alignSelf: 'center', width: '100%', backgroundColor: colors.surface2, borderTopLeftRadius: 16, borderTopRightRadius: 16, marginHorizontal: -1 },
 });

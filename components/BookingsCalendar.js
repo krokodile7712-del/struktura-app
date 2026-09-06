@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { View, Text, Pressable, StyleSheet, LayoutAnimation, PanResponder } from 'react-native';
+import { View, Text, Pressable, StyleSheet, LayoutAnimation, PanResponder, Animated } from 'react-native';
 import { colors, fonts } from '../constants/theme';
 
 const WEEKDAY_LABELS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
@@ -52,6 +52,7 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth()); // 0-based
   const [expanded, setExpanded] = useState(!collapsible);
+  const slideAnim = useRef(new Animated.Value(0)).current;
 
   const todayKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
 
@@ -94,12 +95,17 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
   }, [onlineDates, manualDates]);
 
   const changeMonth = (delta) => {
-    let y = viewYear, m = viewMonth + delta;
-    if (m < 0) { m = 11; y -= 1; }
-    if (m > 11) { m = 0; y += 1; }
-    setViewYear(y);
-    setViewMonth(m);
-    onMonthChange?.(y, m);
+    const dir = delta > 0 ? -1 : 1; // визуальное направление отъезда (навстречу свайпу)
+    Animated.timing(slideAnim, { toValue: dir * 24, duration: 130, useNativeDriver: true }).start(() => {
+      let y = viewYear, m = viewMonth + delta;
+      if (m < 0) { m = 11; y -= 1; }
+      if (m > 11) { m = 0; y += 1; }
+      setViewYear(y);
+      setViewMonth(m);
+      onMonthChange?.(y, m);
+      slideAnim.setValue(dir * -24);
+      Animated.timing(slideAnim, { toValue: 0, duration: 180, useNativeDriver: true }).start();
+    });
   };
 
   const toggleExpanded = () => {
@@ -111,16 +117,17 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
   const clearSelection = () => onSelectDay?.(null, false);
 
   // Свайп влево/вправо между месяцами — вместо стрелок. Порог по горизонтали
-  // с проверкой, что движение преимущественно горизонтальное, не вертикальный скролл
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 20 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
-      onPanResponderRelease: (_, g) => {
-        if (g.dx <= -40) changeMonth(1);
-        else if (g.dx >= 40) changeMonth(-1);
-      },
-    })
-  ).current;
+  // с проверкой, что движение преимущественно горизонтальное, не вертикальный
+  // скролл. Пересоздаём объект на каждом рендере (не useRef) — иначе он
+  // замыкает viewYear/viewMonth из САМОГО ПЕРВОГО рендера навсегда, и каждый
+  // следующий свайп считает delta от исходного месяца, а не от текущего.
+  const panResponder = PanResponder.create({
+    onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 20 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+    onPanResponderRelease: (_, g) => {
+      if (g.dx <= -40) changeMonth(1);
+      else if (g.dx >= 40) changeMonth(-1);
+    },
+  });
 
   return (
     <View style={[styles.root, !embedded && styles.rootCard]}>
@@ -130,7 +137,7 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
       </Pressable>
 
       {expanded ? (
-        <View {...panResponder.panHandlers}>
+        <Animated.View {...panResponder.panHandlers} style={{ transform: [{ translateX: slideAnim }] }}>
           <View style={styles.weekRow}>
             {WEEKDAY_LABELS.map(w => (
               <Text key={w} style={styles.weekdayLabel}>{w}</Text>
@@ -148,7 +155,7 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
               />
             ))}
           </View>
-        </View>
+        </Animated.View>
       ) : (
         <View style={styles.grid}>
           {weekCells.map((cell, i) => (
