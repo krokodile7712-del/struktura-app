@@ -187,6 +187,7 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
       friction: 13,
       useNativeDriver: true,
     }).start(() => {
+      slideAnim.setValue(dir * containerW); // фиксируем ровно цель — пружина могла остановиться чуть раньше своего порога покоя
       if (expanded) {
         const [y, m] = addMonth(viewYear, viewMonth, delta);
         setViewYear(y);
@@ -195,8 +196,17 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
       } else {
         setWeekOffset(o => o + delta);
       }
-      slideAnim.setValue(0);
-      isTransitioning.current = false;
+      // Сброс позиции — только после того, как React реально перерисует
+      // дерево с новым месяцем в качестве центра. Если сбросить сразу
+      // (setValue работает на нативном слое, минуя JS), позиция может
+      // обнулиться раньше, чем JS успеет подменить содержимое — доля
+      // секунды старого контента в новой позиции, воспринимается как доскок.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          slideAnim.setValue(0);
+          isTransitioning.current = false;
+        });
+      });
     });
   };
 
@@ -238,17 +248,14 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
   });
 
   return (
-    <View
-      style={[styles.root, !embedded && styles.rootCard]}
-      onLayout={(e) => setContainerW(e.nativeEvent.layout.width)}
-    >
+    <View style={[styles.root, !embedded && styles.rootCard]}>
       {collapsible && (
         <Pressable style={styles.collapseBtn} onPress={toggleExpanded} hitSlop={10}>
           <Text style={styles.collapseArrow}>{expanded ? '▲' : '▼'}</Text>
         </Pressable>
       )}
 
-      <View style={{ overflow: 'hidden' }}>
+      <View style={{ overflow: 'hidden' }} onLayout={(e) => setContainerW(e.nativeEvent.layout.width)}>
         <Animated.View
           {...panResponder.panHandlers}
           style={{
