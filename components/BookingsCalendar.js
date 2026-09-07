@@ -18,7 +18,11 @@ function buildMonthCells(year, month, onlineDates, manualDates) {
   const firstOfMonth = new Date(year, month, 1);
   const startOffset = mondayIndex(firstOfMonth.getDay());
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7;
+  // Всегда 6 строк (42 ячейки), не 5 или 6 в зависимости от месяца — иначе
+  // высота карточки меняется при переходе на месяц с другим числом строк,
+  // и всё, что находится под календарём (список, сводка), заметно
+  // сдвигается уже после того, как сама анимация перехода закончилась
+  const totalCells = 42;
   const result = [];
   for (let i = 0; i < totalCells; i++) {
     const dayNum = i - startOffset + 1;
