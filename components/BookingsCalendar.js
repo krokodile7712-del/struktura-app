@@ -64,24 +64,33 @@ function DayCell({ cell, isToday, isSelected, onPress, onEmptyPress }) {
   );
 }
 
-// Один месяц шириной с viewport — три таких стоят в ряд (предыдущий,
-// текущий, следующий), все три уже смонтированы одновременно, поэтому
-// при свайпе соседний месяц сразу виден и едет вместе с пальцем, а не
-// появляется только после отпускания
-function MonthPanel({ width, cells, todayKey, selectedDate, onSelectDay, onEmptyPress }) {
+// Один месяц целиком — своё название и своя рамка едут вместе с датами,
+// а не остаются позади статичным заголовком. Три таких панели стоят в ряд
+// (предыдущий/текущий/следующий), все смонтированы одновременно, поэтому
+// при свайпе соседний месяц со своим названием и рамкой сразу виден и
+// едет вместе с пальцем, а не появляется только после отпускания.
+function MonthPanel({ width, year, month, cells, todayKey, selectedDate, onSelectDay, onEmptyPress }) {
   return (
-    <View style={{ width }}>
-      <View style={styles.grid}>
-        {cells.map((cell, i) => (
-          <DayCell
-            key={i}
-            cell={cell}
-            isToday={cell?.key === todayKey}
-            isSelected={cell?.key === selectedDate}
-            onPress={() => cell && onSelectDay?.(cell.key, cell.isOnline || cell.isManual)}
-            onEmptyPress={onEmptyPress}
-          />
-        ))}
+    <View style={{ width, paddingHorizontal: 4 }}>
+      <View style={styles.monthCard}>
+        <Text style={styles.monthLabel}>{MONTH_LABELS[month]} {year}</Text>
+        <View style={styles.weekRow}>
+          {WEEKDAY_LABELS.map(w => (
+            <Text key={w} style={styles.weekdayLabel}>{w}</Text>
+          ))}
+        </View>
+        <View style={styles.grid}>
+          {cells.map((cell, i) => (
+            <DayCell
+              key={i}
+              cell={cell}
+              isToday={cell?.key === todayKey}
+              isSelected={cell?.key === selectedDate}
+              onPress={() => cell && onSelectDay?.(cell.key, cell.isOnline || cell.isManual)}
+              onEmptyPress={onEmptyPress}
+            />
+          ))}
+        </View>
       </View>
     </View>
   );
@@ -95,7 +104,7 @@ function MonthPanel({ width, cells, todayKey, selectedDate, onSelectDay, onEmpty
  * embedded — без собственной рамки/фона, вписывается как верхняя часть уже
  *   существующей карточки (используется в альбомной ориентации).
  * collapsible — сворачивается в одну строку недели, разворачивается тапом
- *   по заголовку в полный месяц (используется в портретной ориентации).
+ *   по стрелке в полный месяц (используется в портретной ориентации).
  */
 export default function BookingsCalendar({ onlineDates, manualDates, selectedDate, onSelectDay, onMonthChange, embedded = false, collapsible = false }) {
   const today = new Date();
@@ -133,12 +142,12 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
     return result;
   }, [onlineDates, manualDates]);
 
-  // Завершение жеста — соседний месяц уже виден и едет вместе с пальцем
-  // (три панели смонтированы одновременно, см. MonthPanel), поэтому здесь
-  // остаётся только один финальный рывок пружиной до полного кадра, без
-  // ожидания подгрузки нового контента — как только пружина останавливается,
-  // меняем viewMonth и мгновенно обнуляем сдвиг (визуально ничего не
-  // прыгает, потому что новый центр карусели уже стоит ровно там же).
+  // Завершение жеста — соседний месяц (со своим названием и рамкой) уже
+  // виден и едет вместе с пальцем (три панели смонтированы одновременно,
+  // см. MonthPanel), поэтому здесь остаётся только один финальный рывок
+  // пружиной до полного кадра. Как только пружина останавливается, меняем
+  // viewMonth и мгновенно обнуляем сдвиг — визуально ничего не прыгает,
+  // потому что новый центр карусели уже стоит ровно там же.
   const commitMonthChange = (delta) => {
     const dir = delta > 0 ? -1 : 1;
     isTransitioning.current = true;
@@ -196,38 +205,30 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
   return (
     <View
       style={[styles.root, !embedded && styles.rootCard]}
-      onLayout={(e) => setContainerW(e.nativeEvent.layout.width - 24)}
+      onLayout={(e) => setContainerW(e.nativeEvent.layout.width)}
     >
-      <Pressable style={styles.header} onPress={toggleExpanded} disabled={!collapsible}>
-        <Text style={styles.monthLabel}>{MONTH_LABELS[viewMonth]} {viewYear}</Text>
-        {collapsible && <Text style={styles.collapseArrow}>{expanded ? '▲' : '▼'}</Text>}
-      </Pressable>
+      {collapsible && (
+        <Pressable style={styles.collapseBtn} onPress={toggleExpanded} hitSlop={10}>
+          <Text style={styles.collapseArrow}>{expanded ? '▲' : '▼'}</Text>
+        </Pressable>
+      )}
 
       {expanded ? (
-        <>
-          <View style={styles.weekRow}>
-            {WEEKDAY_LABELS.map(w => (
-              <Text key={w} style={styles.weekdayLabel}>{w}</Text>
-            ))}
-          </View>
-          {/* Тонкая рамка-окошко — показывает ровно ширину одного месяца,
-              обрезая соседние панели карусели снаружи */}
-          <View style={styles.viewport}>
-            <Animated.View
-              {...panResponder.panHandlers}
-              style={{
-                flexDirection: 'row',
-                width: containerW * 3,
-                marginLeft: -containerW,
-                transform: [{ translateX: slideAnim }],
-              }}
-            >
-              <MonthPanel width={containerW} cells={prevCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} onEmptyPress={clearSelection} />
-              <MonthPanel width={containerW} cells={curCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} onEmptyPress={clearSelection} />
-              <MonthPanel width={containerW} cells={nextCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} onEmptyPress={clearSelection} />
-            </Animated.View>
-          </View>
-        </>
+        <View style={{ overflow: 'hidden' }}>
+          <Animated.View
+            {...panResponder.panHandlers}
+            style={{
+              flexDirection: 'row',
+              width: containerW * 3,
+              marginLeft: -containerW,
+              transform: [{ translateX: slideAnim }],
+            }}
+          >
+            <MonthPanel width={containerW} year={prevYear} month={prevMonth} cells={prevCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} onEmptyPress={clearSelection} />
+            <MonthPanel width={containerW} year={viewYear} month={viewMonth} cells={curCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} onEmptyPress={clearSelection} />
+            <MonthPanel width={containerW} year={nextYear} month={nextMonth} cells={nextCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} onEmptyPress={clearSelection} />
+          </Animated.View>
+        </View>
       ) : (
         <View style={styles.grid}>
           {weekCells.map((cell, i) => (
@@ -249,16 +250,16 @@ const styles = StyleSheet.create({
   root: { padding: 12 },
   rootCard: { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border },
 
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 8, paddingHorizontal: 4 },
-  monthLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
-  collapseArrow: { fontSize: 10, color: colors.muted, marginLeft: 6 },
+  collapseBtn: { position: 'absolute', top: 8, right: 8, zIndex: 2, width: 26, height: 26, alignItems: 'center', justifyContent: 'center' },
+  collapseArrow: { fontSize: 10, color: colors.muted },
+
+  // Рамка и название теперь принадлежат каждой отдельной месячной панели —
+  // едут вместе с её датами, а не остаются позади неподвижным заголовком
+  monthCard: { borderRadius: 10, borderWidth: 1, borderColor: colors.border, padding: 8 },
+  monthLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, textAlign: 'center', marginBottom: 6 },
 
   weekRow: { flexDirection: 'row' },
   weekdayLabel: { flex: 1, textAlign: 'center', fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, paddingVertical: 4 },
-
-  // Тонкая, едва заметная рамка вокруг самой сетки — визуально ограничивает
-  // область, в которой листаются месяцы, обрезая всё, что уезжает за края
-  viewport: { overflow: 'hidden', borderRadius: 10, borderWidth: 1, borderColor: colors.border },
 
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   cell: { width: `${100 / 7}%`, alignItems: 'center', paddingVertical: 3 },
