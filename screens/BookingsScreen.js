@@ -114,17 +114,26 @@ export default function BookingsScreen({ navigation }) {
   // Данные календаря — общие для обеих вкладок, за видимый месяц
   const loadCalendarMonth = useCallback(async (year, month0) => {
     try {
-      const from = `${year}-${String(month0 + 1).padStart(2, '0')}-01`;
-      const lastDay = new Date(year, month0 + 1, 0).getDate();
-      const to = `${year}-${String(month0 + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+      // Грузим сразу диапазон в три месяца (предыдущий+текущий+следующий) —
+      // не только видимый. Календарь всегда держит соседние месяцы уже
+      // смонтированными для свайпа (см. BookingsCalendar.js), и если бы
+      // данные для них подгружались ПОСЛЕ перехода — асинхронный запрос
+      // (0.2-0.4с на сетевой Supabase) завершался бы уже после того, как
+      // анимация визуально закончилась, обновляя точки на днях с заметным
+      // скачком. Заранее готовые данные устраняют саму причину, а не
+      // маскируют её задержкой.
+      const from = new Date(year, month0 - 1, 1);
+      const to = new Date(year, month0 + 2, 0);
+      const fromStr = `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, '0')}-01`;
+      const toStr = `${to.getFullYear()}-${String(to.getMonth() + 1).padStart(2, '0')}-${String(to.getDate()).padStart(2, '0')}`;
 
-      const manual = getManualBookingsInRange(from, to);
+      const manual = getManualBookingsInRange(fromStr, toStr);
       setCalManualDates(new Set(manual.map(b => b.date)));
 
       const profile = getBusinessProfile();
       const slug = profile?.booking_slug;
       if (slug) {
-        const online = await getBookings(null, null, slug, { from, to });
+        const online = await getBookings(null, null, slug, { from: fromStr, to: toStr });
         setCalOnlineDates(new Set((online || []).map(b => b.date)));
       } else {
         setCalOnlineDates(new Set());
