@@ -789,5 +789,5 @@ const styles = StyleSheet.create({
   refreshBtn:  { fontSize: 20, color: colors.muted },
 
   calWrap: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 8, backgroundColor: colors.surface2 },
-  calEmbeddedWrap: { maxWidth: 400, alignSelf: 'center', width: '100%', backgroundColor: colors.surface2, borderTopLeftRadius: 16, borderTopRightRadius: 16, marginHorizontal: -1 },
+  calEmbeddedWrap: { backgroundColor: colors.surface2, borderTopLeftRadius: 16, borderTopRightRadius: 16, marginHorizontal: -1 },
 });

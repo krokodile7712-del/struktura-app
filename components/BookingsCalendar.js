@@ -52,7 +52,9 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth()); // 0-based
   const [expanded, setExpanded] = useState(!collapsible);
+  const [containerW, setContainerW] = useState(320);
   const slideAnim = useRef(new Animated.Value(0)).current;
+  const isTransitioning = useRef(false);
 
   const todayKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
 
@@ -94,18 +96,38 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
     return result;
   }, [onlineDates, manualDates]);
 
-  const changeMonth = (delta) => {
-    const dir = delta > 0 ? -1 : 1; // визуальное направление отъезда (навстречу свайпу)
-    Animated.timing(slideAnim, { toValue: dir * 24, duration: 130, useNativeDriver: true }).start(() => {
+  // Завершение жеста — сетка уезжает пружиной за пределы экрана в направлении
+  // свайпа, ровно в момент, когда она полностью скрылась, происходит смена
+  // месяца, и уже НОВЫЙ месяц въезжает пружиной с противоположной стороны.
+  // Не мгновенная подмена — ощущение веса и инерции, а не щелчка тумблера.
+  const commitMonthChange = (delta) => {
+    const dir = delta > 0 ? -1 : 1; // сторона, В КОТОРУЮ уезжает текущий месяц
+    isTransitioning.current = true;
+    Animated.spring(slideAnim, {
+      toValue: dir * containerW,
+      velocity: 0.6,
+      tension: 60,
+      friction: 14,
+      useNativeDriver: true,
+    }).start(() => {
       let y = viewYear, m = viewMonth + delta;
       if (m < 0) { m = 11; y -= 1; }
       if (m > 11) { m = 0; y += 1; }
       setViewYear(y);
       setViewMonth(m);
       onMonthChange?.(y, m);
-      slideAnim.setValue(dir * -24);
-      Animated.timing(slideAnim, { toValue: 0, duration: 180, useNativeDriver: true }).start();
+      slideAnim.setValue(dir * -containerW);
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        tension: 60,
+        friction: 14,
+        useNativeDriver: true,
+      }).start(() => { isTransitioning.current = false; });
     });
+  };
+
+  const springBack = () => {
+    Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 12, useNativeDriver: true }).start();
   };
 
   const toggleExpanded = () => {
@@ -116,46 +138,61 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
 
   const clearSelection = () => onSelectDay?.(null, false);
 
-  // Свайп влево/вправо между месяцами — вместо стрелок. Порог по горизонтали
-  // с проверкой, что движение преимущественно горизонтальное, не вертикальный
-  // скролл. Пересоздаём объект на каждом рендере (не useRef) — иначе он
-  // замыкает viewYear/viewMonth из САМОГО ПЕРВОГО рендера навсегда, и каждый
-  // следующий свайп считает delta от исходного месяца, а не от текущего.
+  // Свайп влево/вправо между месяцами — сетка следует за пальцем в реальном
+  // времени (не ждёт отпускания), завершение — пружиной, а не линейным
+  // движением. Порог по горизонтали с проверкой, что движение преимущественно
+  // горизонтальное, не вертикальный скролл. Пересоздаём объект на каждом
+  // рендере (не useRef) — иначе он замыкает viewYear/viewMonth из САМОГО
+  // ПЕРВОГО рендера навсегда, и каждый следующий свайп считает delta от
+  // исходного месяца, а не от текущего.
   const panResponder = PanResponder.create({
-    onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 20 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+    onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 12 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+    onPanResponderMove: (_, g) => {
+      if (isTransitioning.current) return;
+      slideAnim.setValue(g.dx);
+    },
     onPanResponderRelease: (_, g) => {
-      if (g.dx <= -40) changeMonth(1);
-      else if (g.dx >= 40) changeMonth(-1);
+      if (isTransitioning.current) return;
+      const passedDistance = Math.abs(g.dx) > containerW * 0.28;
+      const passedVelocity = Math.abs(g.vx) > 0.5;
+      if (g.dx < 0 && (passedDistance || passedVelocity)) commitMonthChange(1);
+      else if (g.dx > 0 && (passedDistance || passedVelocity)) commitMonthChange(-1);
+      else springBack();
     },
   });
 
   return (
-    <View style={[styles.root, !embedded && styles.rootCard]}>
+    <View
+      style={[styles.root, !embedded && styles.rootCard]}
+      onLayout={(e) => setContainerW(e.nativeEvent.layout.width)}
+    >
       <Pressable style={styles.header} onPress={toggleExpanded} disabled={!collapsible}>
         <Text style={styles.monthLabel}>{MONTH_LABELS[viewMonth]} {viewYear}</Text>
         {collapsible && <Text style={styles.collapseArrow}>{expanded ? '▲' : '▼'}</Text>}
       </Pressable>
 
       {expanded ? (
-        <Animated.View {...panResponder.panHandlers} style={{ transform: [{ translateX: slideAnim }] }}>
-          <View style={styles.weekRow}>
-            {WEEKDAY_LABELS.map(w => (
-              <Text key={w} style={styles.weekdayLabel}>{w}</Text>
-            ))}
-          </View>
-          <View style={styles.grid}>
-            {cells.map((cell, i) => (
-              <DayCell
-                key={i}
-                cell={cell}
-                isToday={cell?.key === todayKey}
-                isSelected={cell?.key === selectedDate}
-                onPress={() => cell && onSelectDay?.(cell.key, cell.isOnline || cell.isManual)}
-                onEmptyPress={clearSelection}
-              />
-            ))}
-          </View>
-        </Animated.View>
+        <View style={{ overflow: 'hidden' }}>
+          <Animated.View {...panResponder.panHandlers} style={{ transform: [{ translateX: slideAnim }] }}>
+            <View style={styles.weekRow}>
+              {WEEKDAY_LABELS.map(w => (
+                <Text key={w} style={styles.weekdayLabel}>{w}</Text>
+              ))}
+            </View>
+            <View style={styles.grid}>
+              {cells.map((cell, i) => (
+                <DayCell
+                  key={i}
+                  cell={cell}
+                  isToday={cell?.key === todayKey}
+                  isSelected={cell?.key === selectedDate}
+                  onPress={() => cell && onSelectDay?.(cell.key, cell.isOnline || cell.isManual)}
+                  onEmptyPress={clearSelection}
+                />
+              ))}
+            </View>
+          </Animated.View>
+        </View>
       ) : (
         <View style={styles.grid}>
           {weekCells.map((cell, i) => (
