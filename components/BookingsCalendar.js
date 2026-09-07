@@ -34,6 +34,24 @@ function buildMonthCells(year, month, onlineDates, manualDates) {
   return result;
 }
 
+// 7 дней от «сегодня + смещение*7 дней» вперёд — для свёрнутого недельного
+// вида. weekOffset=0 — неделя, начинающаяся сегодня; +1/-1 — соседние недели
+function buildWeekCells(today, weekOffset, onlineDates, manualDates) {
+  const result = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + weekOffset * 7 + i);
+    const key = dateKey(d.getFullYear(), d.getMonth(), d.getDate());
+    result.push({
+      day: d.getDate(),
+      key,
+      isOnline: onlineDates?.has(key) || false,
+      isManual: manualDates?.has(key) || false,
+    });
+  }
+  return result;
+}
+
 function addMonth(year, month, delta) {
   let y = year, m = month + delta;
   if (m < 0) { m = 11; y -= 1; }
@@ -96,6 +114,26 @@ function MonthPanel({ width, year, month, cells, todayKey, selectedDate, onSelec
   );
 }
 
+// Одна неделя целиком — та же логика, что MonthPanel, только без заголовка
+// и без собственной рамки (свёрнутый вид компактнее, рамка тут не нужна)
+function WeekPanel({ width, cells, todayKey, selectedDate, onSelectDay }) {
+  return (
+    <View style={{ width }}>
+      <View style={styles.grid}>
+        {cells.map((cell, i) => (
+          <DayCell
+            key={i}
+            cell={cell}
+            isToday={cell.key === todayKey}
+            isSelected={cell.key === selectedDate}
+            onPress={() => onSelectDay?.(cell.key, cell.isOnline || cell.isManual)}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
+
 /**
  * Компактный месячный календарь с точками-индикаторами по источнику записи.
  * onlineDates / manualDates — Set строк 'YYYY-MM-DD' с записями за текущий видимый месяц.
@@ -103,13 +141,14 @@ function MonthPanel({ width, year, month, cells, todayKey, selectedDate, onSelec
  * onMonthChange(year, month0) — month0 — индекс месяца с нуля (как в Date).
  * embedded — без собственной рамки/фона, вписывается как верхняя часть уже
  *   существующей карточки (используется в альбомной ориентации).
- * collapsible — сворачивается в одну строку недели, разворачивается тапом
- *   по стрелке в полный месяц (используется в портретной ориентации).
+ * collapsible — сворачивается в одну строку недели (тоже листается свайпом),
+ *   разворачивается тапом по стрелке в полный месяц (портретная ориентация).
  */
 export default function BookingsCalendar({ onlineDates, manualDates, selectedDate, onSelectDay, onMonthChange, embedded = false, collapsible = false }) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth()); // 0-based
+  const [weekOffset, setWeekOffset] = useState(0);
   const [expanded, setExpanded] = useState(!collapsible);
   const [containerW, setContainerW] = useState(320);
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -124,31 +163,17 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
   const curCells = useMemo(() => buildMonthCells(viewYear, viewMonth, onlineDates, manualDates), [viewYear, viewMonth, onlineDates, manualDates]);
   const nextCells = useMemo(() => buildMonthCells(nextYear, nextMonth, onlineDates, manualDates), [nextYear, nextMonth, onlineDates, manualDates]);
 
-  // Неделя от сегодняшнего дня вперёд (не Пн-Вс календарной недели) — для
-  // свёрнутого вида: если сегодня 5 сентября, показываем 5..11 сентября
-  const weekCells = useMemo(() => {
-    const result = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() + i);
-      const key = dateKey(d.getFullYear(), d.getMonth(), d.getDate());
-      result.push({
-        day: d.getDate(),
-        key,
-        isOnline: onlineDates?.has(key) || false,
-        isManual: manualDates?.has(key) || false,
-      });
-    }
-    return result;
-  }, [onlineDates, manualDates]);
+  const prevWeekCells = useMemo(() => buildWeekCells(today, weekOffset - 1, onlineDates, manualDates), [weekOffset, onlineDates, manualDates]);
+  const curWeekCells = useMemo(() => buildWeekCells(today, weekOffset, onlineDates, manualDates), [weekOffset, onlineDates, manualDates]);
+  const nextWeekCells = useMemo(() => buildWeekCells(today, weekOffset + 1, onlineDates, manualDates), [weekOffset, onlineDates, manualDates]);
 
-  // Завершение жеста — соседний месяц (со своим названием и рамкой) уже
-  // виден и едет вместе с пальцем (три панели смонтированы одновременно,
-  // см. MonthPanel), поэтому здесь остаётся только один финальный рывок
-  // пружиной до полного кадра. Как только пружина останавливается, меняем
-  // viewMonth и мгновенно обнуляем сдвиг — визуально ничего не прыгает,
-  // потому что новый центр карусели уже стоит ровно там же.
-  const commitMonthChange = (delta) => {
+  // Завершение жеста — соседняя панель (месяц или неделя, в зависимости от
+  // текущего вида) уже смонтирована и едет вместе с пальцем, поэтому здесь
+  // остаётся только один финальный рывок пружиной до полного кадра. Как
+  // только пружина останавливается, меняем состояние и мгновенно обнуляем
+  // сдвиг — визуально ничего не прыгает, потому что новый центр карусели
+  // уже стоит ровно там же.
+  const commitChange = (delta) => {
     const dir = delta > 0 ? -1 : 1;
     isTransitioning.current = true;
     Animated.spring(slideAnim, {
@@ -158,10 +183,14 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
       friction: 13,
       useNativeDriver: true,
     }).start(() => {
-      const [y, m] = addMonth(viewYear, viewMonth, delta);
-      setViewYear(y);
-      setViewMonth(m);
-      onMonthChange?.(y, m);
+      if (expanded) {
+        const [y, m] = addMonth(viewYear, viewMonth, delta);
+        setViewYear(y);
+        setViewMonth(m);
+        onMonthChange?.(y, m);
+      } else {
+        setWeekOffset(o => o + delta);
+      }
       slideAnim.setValue(0);
       isTransitioning.current = false;
     });
@@ -179,13 +208,15 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
 
   const clearSelection = () => onSelectDay?.(null, false);
 
-  // Свайп влево/вправо между месяцами — сетка следует за пальцем в реальном
-  // времени (не ждёт отпускания), завершение — пружиной, а не линейным
-  // движением. Порог по горизонтали с проверкой, что движение преимущественно
-  // горизонтальное, не вертикальный скролл. Пересоздаём объект на каждом
-  // рендере (не useRef) — иначе он замыкает viewYear/viewMonth из САМОГО
-  // ПЕРВОГО рендера навсегда, и каждый следующий свайп считает delta от
-  // исходного месяца, а не от текущего.
+  // Свайп влево/вправо — сетка следует за пальцем в реальном времени (не
+  // ждёт отпускания), завершение — пружиной, а не линейным движением. Один
+  // и тот же жест работает и для месяца (развёрнутый вид), и для недели
+  // (свёрнутый) — какая именно смена происходит, решает commitChange по
+  // текущему expanded. Порог по горизонтали с проверкой, что движение
+  // преимущественно горизонтальное, не вертикальный скролл. Пересоздаём
+  // объект на каждом рендере (не useRef) — иначе он замыкает состояние из
+  // САМОГО ПЕРВОГО рендера навсегда, и каждый следующий свайп считает delta
+  // от исходного значения, а не от текущего.
   const panResponder = PanResponder.create({
     onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 12 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
     onPanResponderMove: (_, g) => {
@@ -196,8 +227,8 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
       if (isTransitioning.current) return;
       const passedDistance = Math.abs(g.dx) > containerW * 0.28;
       const passedVelocity = Math.abs(g.vx) > 0.5;
-      if (g.dx < 0 && (passedDistance || passedVelocity)) commitMonthChange(1);
-      else if (g.dx > 0 && (passedDistance || passedVelocity)) commitMonthChange(-1);
+      if (g.dx < 0 && (passedDistance || passedVelocity)) commitChange(1);
+      else if (g.dx > 0 && (passedDistance || passedVelocity)) commitChange(-1);
       else springBack();
     },
   });
@@ -213,35 +244,31 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
         </Pressable>
       )}
 
-      {expanded ? (
-        <View style={{ overflow: 'hidden' }}>
-          <Animated.View
-            {...panResponder.panHandlers}
-            style={{
-              flexDirection: 'row',
-              width: containerW * 3,
-              marginLeft: -containerW,
-              transform: [{ translateX: slideAnim }],
-            }}
-          >
-            <MonthPanel width={containerW} year={prevYear} month={prevMonth} cells={prevCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} onEmptyPress={clearSelection} />
-            <MonthPanel width={containerW} year={viewYear} month={viewMonth} cells={curCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} onEmptyPress={clearSelection} />
-            <MonthPanel width={containerW} year={nextYear} month={nextMonth} cells={nextCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} onEmptyPress={clearSelection} />
-          </Animated.View>
-        </View>
-      ) : (
-        <View style={styles.grid}>
-          {weekCells.map((cell, i) => (
-            <DayCell
-              key={i}
-              cell={cell}
-              isToday={cell.key === todayKey}
-              isSelected={cell.key === selectedDate}
-              onPress={() => onSelectDay?.(cell.key, cell.isOnline || cell.isManual)}
-            />
-          ))}
-        </View>
-      )}
+      <View style={{ overflow: 'hidden' }}>
+        <Animated.View
+          {...panResponder.panHandlers}
+          style={{
+            flexDirection: 'row',
+            width: containerW * 3,
+            marginLeft: -containerW,
+            transform: [{ translateX: slideAnim }],
+          }}
+        >
+          {expanded ? (
+            <>
+              <MonthPanel width={containerW} year={prevYear} month={prevMonth} cells={prevCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} onEmptyPress={clearSelection} />
+              <MonthPanel width={containerW} year={viewYear} month={viewMonth} cells={curCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} onEmptyPress={clearSelection} />
+              <MonthPanel width={containerW} year={nextYear} month={nextMonth} cells={nextCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} onEmptyPress={clearSelection} />
+            </>
+          ) : (
+            <>
+              <WeekPanel width={containerW} cells={prevWeekCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} />
+              <WeekPanel width={containerW} cells={curWeekCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} />
+              <WeekPanel width={containerW} cells={nextWeekCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} />
+            </>
+          )}
+        </Animated.View>
+      </View>
     </View>
   );
 }
@@ -264,10 +291,10 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   cell: { width: `${100 / 7}%`, alignItems: 'center', paddingVertical: 3 },
 
-  dayCircle: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  dayCircle: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   dayCircleToday: { borderWidth: 1, borderColor: colors.orange },
   dayCircleSelected: { backgroundColor: colors.orange },
-  dayNum: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.text },
+  dayNum: { fontFamily: fonts.familyRegular, fontSize: 15, color: colors.text },
   dayNumToday: { color: colors.orange, fontFamily: fonts.familySemibold },
   dayNumSelected: { color: '#fff', fontFamily: fonts.familySemibold },
 
