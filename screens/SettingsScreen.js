@@ -102,6 +102,12 @@ function SectionAccordion({ sectionKey, selectedSection, children }) {
 
 // LayoutAnimation работает автоматически в New Architecture
 
+// Единственный источник адреса публичной страницы онлайн-записи —
+// чтобы ссылка (копирование), QR-код и «Поделиться» никогда не расходились
+function getBookingLink(slug) {
+  return `https://struktura-crm.github.io/struktura-booking/?slug=${slug}`;
+}
+
 export default function SettingsScreen({ navigation, route }) {
   // ── Данные ──
   const [products, setProducts]             = useState([]);
@@ -1258,7 +1264,7 @@ export default function SettingsScreen({ navigation, route }) {
                 <TouchableOpacity
                   style={[styles.bizFieldRow, styles.menuRowDiv]}
                   onPress={() => {
-                    const link = `https://krokodile7712-del.github.io/struktura-booking/?slug=${bookingSlug}`;
+                    const link = getBookingLink(bookingSlug);
                     Clipboard.setString(link);
                     Alert.alert('Скопировано', link);
                   }}>
@@ -1894,8 +1900,7 @@ export default function SettingsScreen({ navigation, route }) {
   };
 
   const shareBookingLink = async () => {
-    const url = `https://nwmczqsugimvrwlimxtj.supabase.co/storage/v1/object/public/booking/${bookingSlug}`;
-    const link = `https://struktura.app/book/${bookingSlug}`;
+    const link = getBookingLink(bookingSlug);
     try {
       await Share.share({
         message: `Запишитесь онлайн: ${link}`,
@@ -2511,12 +2516,12 @@ export default function SettingsScreen({ navigation, route }) {
           </Text>
           <View style={{ backgroundColor: '#fff', padding: 20, borderRadius: 20 }}>
             <Image
-              source={{ uri: `https://quickchart.io/qr?text=https://struktura.app/book/${bookingSlug}&size=260&margin=2` }}
+              source={{ uri: `https://quickchart.io/qr?text=${encodeURIComponent(getBookingLink(bookingSlug))}&size=260&margin=2` }}
               style={{ width: 260, height: 260 }}
             />
           </View>
           <Text style={{ fontFamily: fonts.familyRegular, fontSize: 13, color: 'rgba(255,255,255,0.6)', textAlign: 'center' }}>
-            struktura.app/book/{bookingSlug}
+            struktura-crm.github.io/.../{bookingSlug}
           </Text>
           <Pressable
             style={{ paddingVertical: 14, paddingHorizontal: 40, borderRadius: 16, backgroundColor: colors.orange }}
