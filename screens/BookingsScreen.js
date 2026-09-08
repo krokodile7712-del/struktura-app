@@ -6,7 +6,6 @@ import TopBar from '../components/TopBar';
 import Sheet from '../components/Sheet';
 import SwipeableRow from '../components/SwipeableRow';
 import BookingsCalendar from '../components/BookingsCalendar';
-import DayTimelineModal from '../components/DayTimelineModal';
 import { useResponsive } from '../hooks/useResponsive';
 import { getHomeRoute, goBackSmart } from '../db/session';
 import { getBookings, updateBookingStatus } from '../db/supabase';
@@ -78,9 +77,6 @@ export default function BookingsScreen({ navigation }) {
   const [calOnlineDates, setCalOnlineDates] = useState(new Set());
   const [calManualDates, setCalManualDates] = useState(new Set());
   const [selectedCalDate, setSelectedCalDate] = useState(null);
-  const [timelineOpen, setTimelineOpen] = useState(false);
-  const [timelineItems, setTimelineItems] = useState([]);
-  const [timelineDateLabel, setTimelineDateLabel] = useState('');
 
   // ── Записи по телефону (локальные) ──
   const [manualBookings, setManualBookings] = useState([]);
@@ -146,42 +142,10 @@ export default function BookingsScreen({ navigation }) {
     loadCalendarMonth(now.getFullYear(), now.getMonth());
   }, [loadCalendarMonth]);
 
-  const onSelectCalDay = useCallback(async (dateStr, hasBookings) => {
-    setSelectedCalDate(dateStr);
-    if (!hasBookings) return;
-    try {
-      const manual = getManualBookingsInRange(dateStr, dateStr)
-        .map(b => ({ id: b.id, time_start: b.time_start, client_name: b.client_name, service_name: b.service_name, source: 'manual', raw: b }));
-
-      const profile = getBusinessProfile();
-      const slug = profile?.booking_slug;
-      let online = [];
-      if (slug) {
-        const data = await getBookings(null, dateStr, slug);
-        online = (data || []).map(b => ({
-          id: b.id, time_start: b.time_start, client_name: b.client_name,
-          service_name: b.services?.name, duration_min: b.services?.duration_min,
-          source: 'online', raw: b,
-        }));
-      }
-
-      const items = [...online, ...manual].sort((a, b) => (a.time_start || '').localeCompare(b.time_start || ''));
-      const [y, m, d] = dateStr.split('-');
-      setTimelineDateLabel(`${d}.${m}.${y}`);
-      setTimelineItems(items);
-      setTimelineOpen(true);
-    } catch (e) { console.error('[onSelectCalDay]', e); }
-  }, []);
-
-  const onSelectTimelineItem = useCallback((item) => {
-    setTimelineOpen(false);
-    if (item.source === 'manual') {
-      setMainTab('manual');
-      openManualEdit(item.raw);
-    } else {
-      setMainTab('online');
-      setExpanded(item.id);
-    }
+  const onSelectCalDay = useCallback((dateStr) => {
+    // Повторный тап на уже выбранный день — снимает фильтр (возврат к
+    // полному списку), тот же приём, что и тап по пустому месту календаря
+    setSelectedCalDate(prev => prev === dateStr ? null : dateStr);
   }, []);
 
   useEffect(() => {
@@ -200,9 +164,9 @@ export default function BookingsScreen({ navigation }) {
 
   const todayStr = () => new Date().toISOString().slice(0, 10);
 
-  const openManualForm = () => {
+  const openManualForm = (presetDate) => {
     setManualEditingId(null);
-    setMfDate(todayStr());
+    setMfDate(presetDate || todayStr());
     setMfTime('');
     setMfName('');
     setMfPhone('');
@@ -263,7 +227,9 @@ export default function BookingsScreen({ navigation }) {
     } catch(e) { Alert.alert('Ошибка', e.message); }
   };
 
-  const filtered = bookings.filter(b => filter === 'all' || b.status === filter);
+  const filtered = bookings
+    .filter(b => filter === 'all' || b.status === filter)
+    .filter(b => !selectedCalDate || b.date === selectedCalDate);
 
   // Группировка по дате
   const grouped = filtered.reduce((acc, b) => {
@@ -280,7 +246,9 @@ export default function BookingsScreen({ navigation }) {
   }, {});
 
   // Группировка локальных записей по дате
-  const manualGrouped = manualBookings.reduce((acc, b) => {
+  const manualGrouped = manualBookings
+    .filter(b => !selectedCalDate || b.date === selectedCalDate)
+    .reduce((acc, b) => {
     const key = b.date;
     if (!acc[key]) acc[key] = [];
     acc[key].push(b);
@@ -397,6 +365,12 @@ export default function BookingsScreen({ navigation }) {
               />
             </View>
           )}
+          {selectedCalDate && (
+            <Pressable style={styles.dayFilterBar} onPress={() => setSelectedCalDate(null)}>
+              <Text style={styles.dayFilterTxt}>Показаны записи на {fmtDate(selectedCalDate)}</Text>
+              <Text style={styles.dayFilterClear}>✕ Показать все</Text>
+            </Pressable>
+          )}
           {loading ? (
             <View style={styles.centerWrap}>
               <ActivityIndicator color={colors.orange} size="large" />
@@ -405,11 +379,13 @@ export default function BookingsScreen({ navigation }) {
           ) : filtered.length === 0 ? (
             <View style={styles.centerWrap}>
               <Text style={styles.emptyTxt}>
-                {filter === 'all' ? 'Нет записей' : `Нет записей в категории «${FILTERS.find(f=>f.key===filter)?.label}»`}
+                {selectedCalDate ? `Нет записей на ${fmtDate(selectedCalDate)}` : filter === 'all' ? 'Нет записей' : `Нет записей в категории «${FILTERS.find(f=>f.key===filter)?.label}»`}
               </Text>
-              <Text style={styles.emptyHint}>
-                Поделитесь QR-кодом из Настроек чтобы клиенты могли записаться
-              </Text>
+              {!selectedCalDate && (
+                <Text style={styles.emptyHint}>
+                  Поделитесь QR-кодом из Настроек чтобы клиенты могли записаться
+                </Text>
+              )}
             </View>
           ) : (
             <Animated.ScrollView
@@ -495,14 +471,25 @@ export default function BookingsScreen({ navigation }) {
       {mainTab === 'manual' && (
         <View style={[styles.layout, !isLandscape && { flexDirection: 'column' }]}>
           <View style={isLandscape ? styles.manualLeftLandscape : styles.manualLeftPortrait}>
-            <Pressable style={styles.addManualBtn} onPress={openManualForm}>
-              <Text style={styles.addManualBtnTxt}>+ Добавить запись</Text>
+            <Pressable style={styles.addManualBtn} onPress={() => openManualForm(selectedCalDate)}>
+              <Text style={styles.addManualBtnTxt}>{selectedCalDate ? `+ Добавить на ${fmtDate(selectedCalDate)}` : '+ Добавить запись'}</Text>
             </Pressable>
+
+            {selectedCalDate && (
+              <Pressable style={styles.dayFilterBar} onPress={() => setSelectedCalDate(null)}>
+                <Text style={styles.dayFilterTxt}>Показаны записи на {fmtDate(selectedCalDate)}</Text>
+                <Text style={styles.dayFilterClear}>✕ Показать все</Text>
+              </Pressable>
+            )}
 
             {manualBookings.length === 0 ? (
               <View style={styles.centerWrap}>
                 <Text style={styles.emptyTxt}>Пока нет записей по телефону</Text>
                 <Text style={styles.emptyHint}>Добавляйте сюда клиентов, которые записались, позвонив вам напрямую</Text>
+              </View>
+            ) : selectedCalDate && Object.keys(manualGrouped).length === 0 ? (
+              <View style={styles.centerWrap}>
+                <Text style={styles.emptyTxt}>Нет записей на {fmtDate(selectedCalDate)}</Text>
               </View>
             ) : (
               <Animated.ScrollView contentContainerStyle={{ padding: 16 }}>
@@ -702,14 +689,6 @@ export default function BookingsScreen({ navigation }) {
         </Pressable>
       </ScrollView>
     </Sheet>
-
-    <DayTimelineModal
-      visible={timelineOpen}
-      dateLabel={timelineDateLabel}
-      items={timelineItems}
-      onClose={() => setTimelineOpen(false)}
-      onSelectItem={onSelectTimelineItem}
-    />
     </>
   );
 }
@@ -796,6 +775,10 @@ const styles = StyleSheet.create({
   actionTxt:   { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
 
   refreshBtn:  { fontSize: 20, color: colors.muted },
+
+  dayFilterBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 16, marginTop: 12, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.3)' },
+  dayFilterTxt: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.text, flex: 1 },
+  dayFilterClear: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.orange, marginLeft: 8 },
 
   calWrap: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 8, backgroundColor: colors.surface2 },
   calEmbeddedWrap: { backgroundColor: colors.surface2, borderTopLeftRadius: 16, borderTopRightRadius: 16, marginHorizontal: -1 },
