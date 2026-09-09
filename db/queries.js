@@ -2084,9 +2084,16 @@ export function importAllData(data) {
     for (const { table, label } of BACKUP_TABLES_INFO) {
       const rows = data[table];
       if (!Array.isArray(rows)) { skipped.push(label); continue; }
+      // Имена колонок в INSERT нельзя параметризовать через '?' (только значения) —
+      // а они берутся из ключей JSON прямо из файла бэкапа. Если файл подсунут
+      // специально испорченным, через имя "колонки" можно было бы внедрить
+      // произвольный SQL. Поэтому сверяем каждое имя с реальной схемой таблицы
+      // и молча отбрасываем всё, чего там нет — вместо того чтобы доверять
+      // содержимому файла напрямую.
+      const validCols = new Set(db.getAllSync(`PRAGMA table_info(${table})`).map(c => c.name));
       db.runSync(`DELETE FROM ${table}`);
       for (const row of rows) {
-        const cols = Object.keys(row);
+        const cols = Object.keys(row).filter(c => validCols.has(c));
         if (cols.length === 0) continue;
         const placeholders = cols.map(() => '?').join(', ');
         const values = cols.map(c => row[c]);
