@@ -363,6 +363,10 @@ export function initDatabase() {
     `ALTER TABLE business_profile ADD COLUMN website TEXT DEFAULT ''`,
     `ALTER TABLE business_profile ADD COLUMN theme TEXT DEFAULT 'dark'`,
     `ALTER TABLE orders  ADD COLUMN status     TEXT DEFAULT 'completed'`,
+    // Онлайн-запись: показывать ли товар клиентам на странице записи и
+    // отдельное короткое описание для него (сам товар/цена не трогаем)
+    `ALTER TABLE products ADD COLUMN booking_visible     INTEGER DEFAULT 1`,
+    `ALTER TABLE products ADD COLUMN booking_description TEXT    DEFAULT ''`,
     `ALTER TABLE clients ADD COLUMN birth_date TEXT DEFAULT ''`,
     `CREATE TABLE IF NOT EXISTS price_schedules (id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER NOT NULL, variant_id INTEGER, new_price REAL NOT NULL, effective_date TEXT NOT NULL, applied INTEGER DEFAULT 0, created_at TEXT NOT NULL)`,
     // Блок Ж: управленческий учёт

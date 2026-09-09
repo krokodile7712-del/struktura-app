@@ -955,6 +955,18 @@ export function setProductDiscountEligible(productId, eligible) {
   db.runSync(`UPDATE products SET discount_eligible = ? WHERE id = ?`, [eligible ? 1 : 0, productId]);
 }
 
+// Показывать ли товар на странице онлайн-записи (не влияет на Кассу/Товары)
+export function setProductBookingVisible(productId, visible) {
+  const db = getDb();
+  db.runSync(`UPDATE products SET booking_visible = ? WHERE id = ?`, [visible ? 1 : 0, productId]);
+}
+
+// Короткое описание товара только для клиентов на странице онлайн-записи
+export function setProductBookingDescription(productId, description) {
+  const db = getDb();
+  db.runSync(`UPDATE products SET booking_description = ? WHERE id = ?`, [description || '', productId]);
+}
+
 // Сколько клиентов сейчас имеют скидку — по любой причине (личная настройка
 // ИЛИ попадание под общую скидку программы лояльности). Не различает
 // источник — для человека важен сам факт, не механизм.

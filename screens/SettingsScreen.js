@@ -9,6 +9,7 @@ import TopBar from '../components/TopBar';
 import { useResponsive } from '../hooks/useResponsive';
 import {
   getAllProductsAdmin, insertProduct, setProductActive,
+  setProductBookingVisible, setProductBookingDescription,
   getDiscountEligibleProducts, getDiscountIneligibleProducts, setProductDiscountEligible,
   getClientsWithDiscountCount, getClientsWithPersonalDiscount, getClientsWithoutDiscount, setClientDiscountPct,
   getProductVariants, getProductAxesWithValues, saveProductAxesAndVariants,
@@ -38,7 +39,10 @@ import { can, getSession, setPermissions, setUserPermissions, clearSession, goBa
 import { resetKassaCart } from '../db/cartStore';
 import EmptyState from '../components/EmptyState';
 import { colors, fonts, spacing } from '../constants/theme';
-import { upsertBusiness, syncServicesToSupabase } from '../db/supabase';
+import {
+  upsertBusiness, syncServicesToSupabase,
+  getBusinessIdBySlug, getCustomServices, addCustomService, updateCustomService, deleteCustomService,
+} from '../db/supabase';
 import { useToast } from '../components/Toast';
 
 // SectionAccordion — в 2-колоночном layout просто передаёт children
@@ -156,6 +160,12 @@ export default function SettingsScreen({ navigation, route }) {
     Animated.timing(sectionFadeAnim, { toValue: 1, duration: 220, useNativeDriver: true }).start();
   }, [selectedSection]);
   const [qrModal, setQrModal] = useState(false);
+  const [positionsModal, setPositionsModal]         = useState(false);
+  const [bookingBusinessId, setBookingBusinessId]   = useState(null);
+  const [customItems, setCustomItems]               = useState([]);
+  const [customItemsLoading, setCustomItemsLoading] = useState(false);
+  const [customItemModal, setCustomItemModal]       = useState(null); // {id, name, description, price} | null
+  const [menuDescModal, setMenuDescModal]           = useState(null); // {id, name, description}
   const [syncing, setSyncing] = useState(false);
   const [bookingSlug, setBookingSlug] = useState(() => {
     try { return getBusinessProfile()?.booking_slug || ''; } catch { return ''; }
@@ -342,6 +352,77 @@ export default function SettingsScreen({ navigation, route }) {
       setDiscEligibleProducts(getDiscountEligibleProducts());
       setDiscIneligibleProducts(getDiscountIneligibleProducts());
     } catch (e) { console.error(e); }
+  };
+
+  // ── Позиции для онлайн-записи ──
+
+  const openPositionsModal = async () => {
+    setPositionsModal(true);
+    setCustomItemsLoading(true);
+    try {
+      let bizId = bookingBusinessId;
+      if (!bizId) {
+        bizId = await getBusinessIdBySlug(bookingSlug);
+        setBookingBusinessId(bizId);
+      }
+      if (bizId) {
+        setCustomItems(await getCustomServices(bizId));
+      }
+    } catch (e) { console.error(e); }
+    setCustomItemsLoading(false);
+  };
+
+  // Видимость товара из меню Кассы на странице записи — сохраняется мгновенно
+  const toggleMenuItemBookingVisible = (product, visible) => {
+    try {
+      setProductBookingVisible(product.id, visible);
+      setProducts(getAllProductsAdmin());
+    } catch (e) { console.error(e); }
+  };
+
+  const openMenuDescModal = (product) => {
+    setMenuDescModal({ id: product.id, name: product.name, description: product.booking_description || '' });
+  };
+
+  const saveMenuDescModal = () => {
+    if (!menuDescModal) return;
+    try {
+      setProductBookingDescription(menuDescModal.id, menuDescModal.description.trim());
+      setProducts(getAllProductsAdmin());
+    } catch (e) { console.error(e); }
+    setMenuDescModal(null);
+  };
+
+  const openNewCustomItem = () => setCustomItemModal({ id: null, name: '', description: '', price: '' });
+  const openEditCustomItem = (item) => setCustomItemModal({
+    id: item.id, name: item.name, description: item.description || '', price: item.price ? String(item.price) : '',
+  });
+
+  const saveCustomItemModal = async () => {
+    if (!customItemModal || !customItemModal.name.trim() || !bookingBusinessId) return;
+    const payload = {
+      name: customItemModal.name.trim(),
+      description: (customItemModal.description || '').trim(),
+      price: parseFloat(customItemModal.price) || 0,
+    };
+    try {
+      if (customItemModal.id) {
+        await updateCustomService(customItemModal.id, payload);
+      } else {
+        await addCustomService(bookingBusinessId, payload);
+      }
+      setCustomItems(await getCustomServices(bookingBusinessId));
+    } catch (e) { Alert.alert('Ошибка', e.message); }
+    setCustomItemModal(null);
+  };
+
+  const deleteCustomItemModal = async () => {
+    if (!customItemModal || !customItemModal.id) return;
+    try {
+      await deleteCustomService(customItemModal.id);
+      setCustomItems(await getCustomServices(bookingBusinessId));
+    } catch (e) { Alert.alert('Ошибка', e.message); }
+    setCustomItemModal(null);
   };
 
   // Открываем редактор профиля при переходе в секцию
@@ -1291,6 +1372,12 @@ export default function SettingsScreen({ navigation, route }) {
                     <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.red }}>↺ Сбросить</Text>
                   </Pressable>
                 </View>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  style={[styles.bizFieldRow, styles.menuRowDiv, { justifyContent: 'center', paddingVertical: 12 }]}
+                  onPress={openPositionsModal}>
+                  <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange }}>🧾 Позиции для записи</Text>
+                </TouchableOpacity>
               </>
             ) : null}
             <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
@@ -2531,6 +2618,159 @@ export default function SettingsScreen({ navigation, route }) {
           <Pressable onPress={() => setQrModal(false)} hitSlop={20}>
             <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: 'rgba(255,255,255,0.5)' }}>Закрыть</Text>
           </Pressable>
+        </View>
+      </Modal>
+
+      {/* Модалка «Позиции для записи» */}
+      <Modal visible={positionsModal} transparent animationType="fade" onRequestClose={() => setPositionsModal(false)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setPositionsModal(false)} />
+          <View style={[styles.modalInner, { maxHeight: '85%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Позиции для записи</Text>
+              <Pressable onPress={() => setPositionsModal(false)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
+            </View>
+            <ScrollView>
+              <Text style={[styles.menuTopTitle, { marginTop: 4 }]}>Из меню Кассы</Text>
+              <Text style={[styles.menuItemSub, { marginBottom: 10 }]}>
+                Включённые товары появятся в списке для записи. Можно скрыть то, на что записываться не нужно, и добавить короткое описание для клиентов.
+              </Text>
+              {products.filter(p => p.active !== 0).length === 0 ? (
+                <Text style={[styles.empty, { paddingVertical: 12 }]}>Нет активных товаров</Text>
+              ) : (
+                <View style={styles.menuCard}>
+                  {products.filter(p => p.active !== 0).map((p, i, arr) => (
+                    <View key={p.id} style={[styles.menuRow, i < arr.length - 1 && styles.menuRowDiv]}>
+                      <Pressable style={{ flex: 1 }} onPress={() => openMenuDescModal(p)}>
+                        <Text style={styles.menuItemName}>{p.name}</Text>
+                        <Text style={styles.menuItemSub}>
+                          {p.booking_description ? p.booking_description : 'Нажмите чтобы добавить описание'}
+                        </Text>
+                      </Pressable>
+                      <Toggle
+                        value={p.booking_visible !== 0}
+                        onValueChange={(v) => toggleMenuItemBookingVisible(p, v)}
+                        size="sm"
+                      />
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              <View style={[styles.menuTopBarSticky, { marginTop: 20 }]}>
+                <Text style={styles.menuTopTitle}>Свои позиции ({customItems.length})</Text>
+                <View style={styles.menuFloatBtns} pointerEvents="box-none">
+                  <View style={styles.menuFloatRow}>
+                    <Pressable onPress={openNewCustomItem} hitSlop={14} style={[styles.menuBadge, styles.menuBadgeAdd]}>
+                      <Text style={[styles.menuBadgeText, { color: colors.orange }]}>+</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              </View>
+              <Text style={[styles.menuItemSub, { marginBottom: 10 }]}>
+                Позиции, которых нет в меню Кассы — например, отдельная услуга или консультация
+              </Text>
+
+              {customItemsLoading ? (
+                <Text style={[styles.empty, { paddingVertical: 16 }]}>Загрузка...</Text>
+              ) : customItems.length === 0 ? (
+                <Text style={[styles.empty, { paddingVertical: 16 }]}>Пока ничего не добавлено</Text>
+              ) : (
+                <View style={styles.menuCard}>
+                  {customItems.map((item, i) => (
+                    <Pressable
+                      key={item.id}
+                      style={[styles.menuRow, i < customItems.length - 1 && styles.menuRowDiv]}
+                      onPress={() => openEditCustomItem(item)}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.menuItemName}>{item.name}</Text>
+                        <Text style={styles.menuItemSub}>
+                          {item.description ? item.description : 'Нажмите чтобы изменить'}
+                        </Text>
+                      </View>
+                      <Text style={styles.menuItemPrice}>{item.price > 0 ? `${item.price} ₽` : 'По запросу'}</Text>
+                      <Text style={styles.menuItemArrow}>›</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Модалка описания товара из меню — только для страницы записи */}
+      <Modal visible={!!menuDescModal} transparent animationType="fade" onRequestClose={() => setMenuDescModal(null)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setMenuDescModal(null)} />
+          {menuDescModal && (
+            <View style={styles.modalInner}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{menuDescModal.name}</Text>
+                <Pressable onPress={() => setMenuDescModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
+              </View>
+              <Text style={styles.fieldLabel}>Описание для клиентов (необязательно)</Text>
+              <TextInput
+                style={[styles.input, { minHeight: 70, textAlignVertical: 'top' }]}
+                value={menuDescModal.description}
+                onChangeText={(v) => setMenuDescModal(m => ({ ...m, description: v }))}
+                placeholder="Например: приходить за 5 минут до записи"
+                placeholderTextColor={colors.muted}
+                multiline
+              />
+              <Pressable style={[styles.discSaveBtn, { marginTop: 8 }]} onPress={saveMenuDescModal}>
+                <Text style={styles.discSaveBtnTxt}>Сохранить</Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
+      </Modal>
+
+      {/* Модалка своей позиции для записи */}
+      <Modal visible={!!customItemModal} transparent animationType="fade" onRequestClose={() => setCustomItemModal(null)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCustomItemModal(null)} />
+          {customItemModal && (
+            <View style={styles.modalInner}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{customItemModal.id ? 'Изменить позицию' : 'Новая позиция'}</Text>
+                <Pressable onPress={() => setCustomItemModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
+              </View>
+              <Text style={styles.fieldLabel}>Название</Text>
+              <TextInput
+                style={styles.input}
+                value={customItemModal.name}
+                onChangeText={(v) => setCustomItemModal(m => ({ ...m, name: v }))}
+                placeholderTextColor={colors.muted}
+              />
+              <Text style={styles.fieldLabel}>Краткое описание (необязательно)</Text>
+              <TextInput
+                style={[styles.input, { minHeight: 70, textAlignVertical: 'top' }]}
+                value={customItemModal.description}
+                onChangeText={(v) => setCustomItemModal(m => ({ ...m, description: v }))}
+                placeholderTextColor={colors.muted}
+                multiline
+              />
+              <Text style={styles.fieldLabel}>Цена (необязательно, 0 — «по запросу»)</Text>
+              <TextInput
+                style={styles.input}
+                keyboardType="numeric"
+                value={customItemModal.price}
+                onChangeText={(v) => setCustomItemModal(m => ({ ...m, price: v }))}
+                placeholderTextColor={colors.muted}
+              />
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
+                <Pressable style={({ pressed }) => [styles.discSaveBtn, { flex: 1 }, pressed && { opacity: 0.85 }]} onPress={saveCustomItemModal}>
+                  <Text style={styles.discSaveBtnTxt}>Сохранить</Text>
+                </Pressable>
+                {customItemModal.id && (
+                  <Pressable style={({ pressed }) => [styles.discDeleteBtn, { flex: 1 }, pressed && { opacity: 0.85 }]} onPress={deleteCustomItemModal}>
+                    <Text style={styles.discDeleteBtnTxt}>Удалить</Text>
+                  </Pressable>
+                )}
+              </View>
+            </View>
+          )}
         </View>
       </Modal>
     </View>
