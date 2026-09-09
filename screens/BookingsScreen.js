@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
+import TourGuide from '../components/TourGuide';
+import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
 import Sheet from '../components/Sheet';
 import SwipeableRow from '../components/SwipeableRow';
 import BookingsCalendar from '../components/BookingsCalendar';
@@ -11,7 +13,7 @@ import { getHomeRoute, goBackSmart } from '../db/session';
 import { getBookings, updateBookingStatus } from '../db/supabase';
 import {
   getBusinessProfile, getManualBookings, getManualBookingsInRange, insertManualBooking,
-  updateManualBooking, updateManualBookingStatus, deleteManualBooking,
+  updateManualBooking, updateManualBookingStatus, deleteManualBooking, markTourSeen,
 } from '../db/queries';
 import { colors, fonts } from '../constants/theme';
 
@@ -72,6 +74,38 @@ export default function BookingsScreen({ navigation }) {
   const [expanded, setExpanded] = useState(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [filter, setFilter]     = useState('all');
+
+  const [tourOpen, setTourOpen] = useState(false);
+  const tabsHighlight    = useTourHighlight('bookings.tabs');
+  const calendarHighlight = useTourHighlight('bookings.calendar');
+  const filtersHighlight  = useTourHighlight('bookings.filters');
+  const manualAddHighlight = useTourHighlight('bookings.manualAdd', 14);
+  const activeTourKey = useTourActiveKey();
+
+  // Автозапуск тура при первом заходе в раздел
+  useEffect(() => {
+    try {
+      const p = getBusinessProfile();
+      if (!p?.tours_seen?.Bookings) {
+        const t = setTimeout(() => setTourOpen(true), 500);
+        return () => clearTimeout(t);
+      }
+    } catch (_) {}
+  }, []);
+
+  // Шаги тура «Фильтр» и «Онлайн» требуют вкладку Онлайн, «Добавление записи»
+  // требует вкладку По телефону — тур сам переключает нужную на своём шаге
+  useEffect(() => {
+    if (activeTourKey === 'bookings.filters') setMainTab('online');
+    if (activeTourKey === 'bookings.manualAdd') setMainTab('manual');
+  }, [activeTourKey]);
+
+  const tourSteps = [
+    { key: 'bookings.tabs',      title: 'Онлайн и по телефону', text: 'Два независимых источника записей: онлайн — через форму по QR-коду, по телефону — вносите вручную, когда клиент звонит сам.' },
+    { key: 'bookings.calendar',  title: 'Календарь', text: 'Точки под датой — есть ли записи в этот день (оранжевая — онлайн, фиолетовая — по телефону). Тап по дню фильтрует список ниже; повторный тап на тот же день снимает фильтр.', cardPosition: 'top' },
+    { key: 'bookings.filters',   title: 'Фильтр по статусу', text: 'Новые, подтверждённые, выполненные, отменённые — фильтруйте онлайн-записи по статусу.' },
+    { key: 'bookings.manualAdd', title: 'Запись по телефону', text: 'Клиент позвонил и записался сам? Добавьте запись здесь вручную — дата, время, услуга, стоимость.', cardPosition: 'top' },
+  ];
 
   // Календарь — общий для обеих вкладок, не зависит от того, какая активна
   const [calOnlineDates, setCalOnlineDates] = useState(new Set());
@@ -264,9 +298,14 @@ export default function BookingsScreen({ navigation }) {
         navigation={navigation}
         activeScreen="Bookings"
         rightElement={
-          <Pressable onPress={load} hitSlop={12}>
-            <Text style={styles.refreshBtn}>↻</Text>
-          </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+            <Pressable onPress={() => setTourOpen(true)} hitSlop={10} style={styles.tourBtn}>
+              <Text style={styles.tourBtnTxt}>?</Text>
+            </Pressable>
+            <Pressable onPress={load} hitSlop={12}>
+              <Text style={styles.refreshBtn}>↻</Text>
+            </Pressable>
+          </View>
         }
       />
 
@@ -275,7 +314,7 @@ export default function BookingsScreen({ navigation }) {
           постоянную колонку). В альбомной — не здесь, встроен ниже прямо
           в правую панель каждой вкладки, одной карточкой с её содержимым. */}
       {!isLandscape && (
-        <View style={styles.calWrap}>
+        <View style={[styles.calWrap, { position: 'relative' }, calendarHighlight.style]}>
           <BookingsCalendar
             onlineDates={calOnlineDates}
             manualDates={calManualDates}
@@ -284,24 +323,26 @@ export default function BookingsScreen({ navigation }) {
             onMonthChange={loadCalendarMonth}
             collapsible
           />
+          {calendarHighlight.overlay}
         </View>
       )}
 
       {/* Вкладки — Онлайн / По телефону */}
-      <View style={styles.mainTabBar}>
+      <View style={[styles.mainTabBar, { position: 'relative' }, tabsHighlight.style]}>
         <Pressable style={[styles.mainTabBtn, mainTab === 'online' && styles.mainTabBtnActive]} onPress={() => setMainTab('online')}>
           <Text style={[styles.mainTabTxt, mainTab === 'online' && styles.mainTabTxtActive]}>Онлайн</Text>
         </Pressable>
         <Pressable style={[styles.mainTabBtn, mainTab === 'manual' && styles.mainTabBtnActive]} onPress={() => setMainTab('manual')}>
           <Text style={[styles.mainTabTxt, mainTab === 'manual' && styles.mainTabTxtActive]}>По телефону</Text>
         </Pressable>
+        {tabsHighlight.overlay}
       </View>
 
       {mainTab === 'online' && (
       <View style={[styles.layout, !isLandscape && { flexDirection: 'column' }]} onLayout={e => setContainerWidth(e.nativeEvent.layout.width)}>
 
         {isLandscape ? (
-          <View style={[styles.left, containerWidth > 0 && { width: Math.min(480, containerWidth * 0.38) }]}>
+          <View style={[styles.left, containerWidth > 0 && { width: Math.min(480, containerWidth * 0.38) }, { position: 'relative' }, filtersHighlight.style]}>
             <Text style={styles.sectionLabel}>Фильтр</Text>
             {FILTERS.map(f => {
               const count = f.key === 'all' ? bookings.length : (counts[f.key] || 0);
@@ -331,9 +372,10 @@ export default function BookingsScreen({ navigation }) {
                 Клиенты записываются через форму по QR-коду. Новые записи появляются здесь автоматически.
               </Text>
             </View>
+            {filtersHighlight.overlay}
           </View>
         ) : (
-          <View style={styles.filterRowOuter}>
+          <View style={[styles.filterRowOuter, { position: 'relative' }, filtersHighlight.style]}>
             {FILTERS.map(f => {
               const count = f.key === 'all' ? bookings.length : (counts[f.key] || 0);
               return (
@@ -348,13 +390,14 @@ export default function BookingsScreen({ navigation }) {
                 </Pressable>
               );
             })}
+            {filtersHighlight.overlay}
           </View>
         )}
 
         {/* Правая панель */}
         <View style={styles.right}>
           {isLandscape && (
-            <View style={styles.calEmbeddedWrap}>
+            <View style={[styles.calEmbeddedWrap, { position: 'relative' }, calendarHighlight.style]}>
               <BookingsCalendar
                 onlineDates={calOnlineDates}
                 manualDates={calManualDates}
@@ -363,6 +406,7 @@ export default function BookingsScreen({ navigation }) {
                 onMonthChange={loadCalendarMonth}
                 embedded
               />
+              {calendarHighlight.overlay}
             </View>
           )}
           {selectedCalDate && (
@@ -471,8 +515,9 @@ export default function BookingsScreen({ navigation }) {
       {mainTab === 'manual' && (
         <View style={[styles.layout, !isLandscape && { flexDirection: 'column' }]}>
           <View style={isLandscape ? styles.manualLeftLandscape : styles.manualLeftPortrait}>
-            <Pressable style={styles.addManualBtn} onPress={() => openManualForm(selectedCalDate)}>
+            <Pressable style={[styles.addManualBtn, { position: 'relative' }, manualAddHighlight.style]} onPress={() => openManualForm(selectedCalDate)}>
               <Text style={styles.addManualBtnTxt}>{selectedCalDate ? `+ Добавить на ${fmtDate(selectedCalDate)}` : '+ Добавить запись'}</Text>
+              {manualAddHighlight.overlay}
             </Pressable>
 
             {selectedCalDate && (
@@ -540,7 +585,7 @@ export default function BookingsScreen({ navigation }) {
             const totalRevenue = manualBookings.reduce((s,b) => s + (b.service_price||0), 0);
             return (
               <View style={styles.sidePanelManual}>
-                <View style={styles.calEmbeddedWrap}>
+                <View style={[styles.calEmbeddedWrap, { position: 'relative' }, calendarHighlight.style]}>
                   <BookingsCalendar
                     onlineDates={calOnlineDates}
                     manualDates={calManualDates}
@@ -549,6 +594,7 @@ export default function BookingsScreen({ navigation }) {
                     onMonthChange={loadCalendarMonth}
                     embedded
                   />
+                  {calendarHighlight.overlay}
                 </View>
                 <ScrollView contentContainerStyle={{ padding: 20 }}>
                   <Text style={styles.sideLabel}>Всего записей</Text>
@@ -689,11 +735,19 @@ export default function BookingsScreen({ navigation }) {
         </Pressable>
       </ScrollView>
     </Sheet>
+
+    <TourGuide
+      visible={tourOpen}
+      onClose={() => { setTourOpen(false); markTourSeen('Bookings'); }}
+      steps={tourSteps}
+    />
     </>
   );
 }
 
 const styles = StyleSheet.create({
+  tourBtn:  { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  tourBtnTxt: { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: colors.muted },
   root:   { flex: 1, backgroundColor: colors.bg },
   layout: { flex: 1, flexDirection: 'row' },
 

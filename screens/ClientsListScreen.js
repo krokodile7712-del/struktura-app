@@ -1,12 +1,14 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, FlatList, Animated, Linking, Alert } from 'react-native';
 import TopBar from '../components/TopBar';
+import TourGuide from '../components/TourGuide';
+import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
 import { useResponsive } from '../hooks/useResponsive';
 import EmptyState from '../components/EmptyState';
 import Sheet from '../components/Sheet';
 import { useFocusEffect } from '@react-navigation/native';
 import { getAllClients, searchClients, getClientOrders, getTerms, pluralizeRu,
-         getLoyaltyConfig, updateClientNote, getClientById } from '../db/queries';
+         getLoyaltyConfig, updateClientNote, getClientById, getBusinessProfile, markTourSeen } from '../db/queries';
 import { updateClient } from '../db/queries';
 import { getHomeRoute, goBackSmart, getSession } from '../db/session';
 import { colors, fonts } from '../constants/theme';
@@ -38,6 +40,7 @@ function ClientCard({ client, onNewOrder, onSaved, loyaltyModel, loyaltyConfig }
   const [notes, setNotes]       = useState(client.notes || '');
   const [editingNote, setEditingNote] = useState(false);
   const isAdmin = getSession()?.role === 'admin';
+  const cardHighlight = useTourHighlight('clients.card', 18);
 
   React.useEffect(() => {
     try { setOrders(getClientOrders(client.id)); } catch (_) {}
@@ -81,6 +84,7 @@ function ClientCard({ client, onNewOrder, onSaved, loyaltyModel, loyaltyConfig }
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 24, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
 
+      <View style={[{ position: 'relative', marginBottom: 4 }, cardHighlight.style]}>
       {/* Шапка */}
       <View style={[styles.cardHead, { flexDirection: 'row', alignItems: 'center' }]}>
         <View style={styles.avatar}>
@@ -100,6 +104,8 @@ function ClientCard({ client, onNewOrder, onSaved, loyaltyModel, loyaltyConfig }
           {loyaltyModel === 'subscription' ? 'визитов' : loyaltyModel === 'points' ? 'баллов' : `скидка ${loyaltyConfig?.pct||0}%`}
         </Text>
         {client.discount_pct > 0 && <Text style={styles.personalDiscount}>🏷 Личная скидка {client.discount_pct}%</Text>}
+      </View>
+      {cardHighlight.overlay}
       </View>
 
       {/* Статистика */}
@@ -288,6 +294,32 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
       Animated.spring(cardSlide, { toValue: 0, tension: 80, friction: 12, useNativeDriver: true }),
     ]).start();
   };
+
+  const [tourOpen, setTourOpen] = useState(false);
+  const searchHighlight = useTourHighlight('clients.search');
+  const listHighlight   = useTourHighlight('clients.list');
+  const activeTourKey   = useTourActiveKey();
+
+  // Автозапуск тура при первом заходе в раздел
+  React.useEffect(() => {
+    try {
+      const p = getBusinessProfile();
+      if (!p?.tours_seen?.ClientsList) {
+        const t = setTimeout(() => setTourOpen(true), 500);
+        return () => clearTimeout(t);
+      }
+    } catch (_) {}
+  }, []);
+
+  // Шаг тура «Карточка клиента» — если ещё никто не выбран, показываем первого
+  // из списка, чтобы было что подсветить; если клиент уже выбран, не трогаем
+  // (сам эффект — ниже, после объявления filtered)
+
+  const tourSteps = [
+    { key: 'clients.search', title: 'Поиск и сортировка', text: 'Ищите клиента по имени или телефону. Рядом — сортировка по алфавиту или сначала новые.' },
+    { key: 'clients.list',   title: 'Список клиентов', text: 'Нажмите на клиента, чтобы открыть его карточку.' },
+    { key: 'clients.card',   title: 'Карточка клиента', text: 'Баллы/визиты, история заказов, личная скидка и заметки — всё в одной карточке. Кнопка «Новый заказ» ведёт сразу в Кассу с выбранным клиентом.', cardPosition: 'top' },
+  ];
   const [terms, setTerms]       = useState({ client: 'Клиент', order: 'Заказ' });
   const [loyaltyModel, setLoyaltyModel] = useState('points');
   const [loyaltyConfig, setLoyaltyConfig] = useState({});
@@ -320,6 +352,14 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
     return (a.fio || '').localeCompare(b.fio || '', 'ru');
   });
 
+  // Шаг тура «Карточка клиента» — если ещё никто не выбран, показываем первого
+  // из списка, чтобы было что подсветить; если клиент уже выбран, не трогаем
+  React.useEffect(() => {
+    if (activeTourKey === 'clients.card' && !selected && filtered.length > 0) {
+      selectClient(filtered[0]);
+    }
+  }, [activeTourKey]);
+
   return (
     <View style={{ flex: 1 }}>
       <TopBar
@@ -328,15 +368,21 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
         navigation={navigation}
         activeScreen="ClientsList"
         rightElement={
-          <Pressable style={styles.addBtn} onPress={() => navigation.navigate('Reg')} hitSlop={8}>
-            <Text style={styles.addBtnTxt}>＋</Text>
-          </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Pressable onPress={() => setTourOpen(true)} hitSlop={10} style={styles.tourBtn}>
+              <Text style={styles.tourBtnTxt}>?</Text>
+            </Pressable>
+            <Pressable style={styles.addBtn} onPress={() => navigation.navigate('Reg')} hitSlop={8}>
+              <Text style={styles.addBtnTxt}>＋</Text>
+            </Pressable>
+          </View>
         }
       />
 
       <View style={[styles.layout, !isLandscape && { flexDirection: 'column' }]}>
         {/* Левая колонка — список */}
         <View style={[styles.listCol, !isLandscape && { width: undefined, flex: 1, margin: 0, borderRadius: 0, borderWidth: 0, borderRightWidth: 0 }]}>
+          <View style={[{ position: 'relative' }, searchHighlight.style]}>
           <View style={styles.searchWrap}>
             <TextInput
               color={colors.text}
@@ -356,7 +402,10 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
               <Text style={[styles.sortChipTxt, sortMode === 'added' && styles.sortChipTxtActive]}>Сначала новые</Text>
             </Pressable>
           </View>
+          {searchHighlight.overlay}
+          </View>
 
+          <View style={[{ flex: 1, position: 'relative' }, listHighlight.style]}>
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 16 }}>
             {filtered.length === 0 ? (
               <EmptyState icon="👥" title="Нет клиентов"
@@ -395,6 +444,8 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
               </View>
             )}
           </ScrollView>
+          {listHighlight.overlay}
+          </View>
         </View>
 
         {isLandscape ? (
@@ -434,11 +485,19 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
           </Sheet>
         )}
       </View>
+
+      <TourGuide
+        visible={tourOpen}
+        onClose={() => { setTourOpen(false); markTourSeen('ClientsList'); }}
+        steps={tourSteps}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  tourBtn:  { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  tourBtnTxt: { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: colors.muted },
   layout:     { flex: 1, flexDirection: 'row' },
   listCol:    { width: '38%', maxWidth: 480, margin: 12, marginRight: 0, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, overflow: 'hidden' },
   cardCol:    { flex: 1, backgroundColor: colors.bg },

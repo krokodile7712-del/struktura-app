@@ -5,13 +5,15 @@ import {
   Modal, TextInput, Alert, Animated, FlatList,
 } from 'react-native';
 import TopBar from '../components/TopBar';
+import TourGuide from '../components/TourGuide';
+import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
 import Sheet from '../components/Sheet';
 import { useResponsive } from '../hooks/useResponsive';
 import DatePicker from '../components/DatePicker';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   getRecentOrders, getOrderItems, deleteOrder, updateOrder,
-  returnOrder, getTerms, pluralizeRu, getPayMethods,
+  returnOrder, getTerms, pluralizeRu, getPayMethods, getBusinessProfile, markTourSeen,
 } from '../db/queries';
 import { useToast } from '../components/Toast';
 import { getSession, getHomeRoute, goBackSmart } from '../db/session';
@@ -79,6 +81,34 @@ export default function SalesScreen({ navigation }) {
   const [editMethod, setEditMethod]     = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [returnTarget, setReturnTarget] = useState(null);
+
+  const [tourOpen, setTourOpen]       = useState(false);
+  const searchHighlight  = useTourHighlight('sales.search');
+  const ordersHighlight  = useTourHighlight('sales.orders');
+  const summaryHighlight = useTourHighlight('sales.summary');
+  const activeTourKey    = useTourActiveKey();
+
+  // Полоска сводки в портрете по умолчанию свёрнута — на её шаге тура раскрываем
+  React.useEffect(() => {
+    if (activeTourKey === 'sales.summary' && !isLandscape) setSummaryExpanded(true);
+  }, [activeTourKey]);
+
+  // Автозапуск тура при первом заходе в раздел
+  React.useEffect(() => {
+    try {
+      const p = getBusinessProfile();
+      if (!p?.tours_seen?.Sales) {
+        const t = setTimeout(() => setTourOpen(true), 500);
+        return () => clearTimeout(t);
+      }
+    } catch (_) {}
+  }, []);
+
+  const tourSteps = [
+    { key: 'sales.search',  title: 'Поиск и фильтры', text: 'Ищите заказ по товару, сумме или способу оплаты. Кнопка «Фильтры» рядом — период (сегодня/неделя/месяц/свой) и способ оплаты.' },
+    { key: 'sales.orders',  title: 'Список заказов', text: isAdmin ? 'Заказы сгруппированы по дням. Нажмите на заказ — увидите его состав, а также действия: чек, возврат, изменить, удалить.' : 'Заказы сгруппированы по дням — видно, что и когда продано.' },
+    { key: 'sales.summary', title: 'Сводка', text: 'Выручка за период, средний чек и разбивка по способам оплаты. В портретной ориентации сводка свёрнута сверху — нажмите, чтобы развернуть.', cardPosition: 'top' },
+  ];
 
   // Анимации
   const fadeAnim  = useState(new Animated.Value(0))[0];
@@ -166,13 +196,18 @@ export default function SalesScreen({ navigation }) {
         onBack={() => goBackSmart(navigation)}
         navigation={navigation}
         activeScreen="Sales"
+        rightElement={
+          <Pressable onPress={() => setTourOpen(true)} hitSlop={10} style={styles.tourBtn}>
+            <Text style={styles.tourBtnTxt}>?</Text>
+          </Pressable>
+        }
       />
 
       <View style={{ flex: 1, flexDirection: isLandscape ? 'row' : 'column' }}>
 
         {!isLandscape && (
           /* Портрет — компактная сводка сверху, по умолчанию свёрнута */
-          <Pressable style={styles.stripWrap} onPress={() => setSummaryExpanded(v => !v)}>
+          <Pressable style={[styles.stripWrap, { position: 'relative' }, summaryHighlight.style]} onPress={() => setSummaryExpanded(v => !v)}>
             <View style={styles.stripRow}>
               <View>
                 <Text style={styles.stripLabel}>Выручка за период</Text>
@@ -197,12 +232,13 @@ export default function SalesScreen({ navigation }) {
                 ))}
               </View>
             )}
+            {summaryHighlight.overlay}
           </Pressable>
         )}
 
         {/* ── Список: поиск + заказы ── */}
         <View style={{ flex: 1 }}>
-          <View style={styles.searchWrap}>
+          <View style={[styles.searchWrap, { position: 'relative' }, searchHighlight.style]}>
             <TextInput
               style={[styles.searchInput, { flex: 1 }]}
               color={colors.text}
@@ -220,9 +256,11 @@ export default function SalesScreen({ navigation }) {
                 <Text style={styles.filtersClearBtnTxt}>✕</Text>
               </Pressable>
             )}
+            {searchHighlight.overlay}
           </View>
 
           {/* Список заказов */}
+          <View style={[{ flex: 1, position: 'relative' }, ordersHighlight.style]}>
           {filtered.length === 0 ? (
             <View style={styles.emptyWrap}>
               <Text style={styles.emptyTxt}>
@@ -332,11 +370,13 @@ export default function SalesScreen({ navigation }) {
               ))}
             </Animated.ScrollView>
           )}
+          {ordersHighlight.overlay}
+          </View>
         </View>
 
         {isLandscape && (
           /* Альбомная — сводка постоянной панелью справа */
-          <View style={styles.sidePanel}>
+          <View style={[styles.sidePanel, { position: 'relative' }, summaryHighlight.style]}>
             <Text style={styles.sideLabel}>Выручка за период</Text>
             <Text style={styles.sideVal}>{fmt(total)} ₽</Text>
             <Text style={styles.sideSub}>{filtered.length} заказов</Text>
@@ -355,6 +395,7 @@ export default function SalesScreen({ navigation }) {
                 </View>
               ))}
             </ScrollView>
+            {summaryHighlight.overlay}
           </View>
         )}
       </View>
@@ -485,6 +526,12 @@ export default function SalesScreen({ navigation }) {
         </View>
       </Modal>
 
+      <TourGuide
+        visible={tourOpen}
+        onClose={() => { setTourOpen(false); markTourSeen('Sales'); }}
+        steps={tourSteps}
+      />
+
     </View>
   );
 }
@@ -492,6 +539,8 @@ export default function SalesScreen({ navigation }) {
 const styles = StyleSheet.create({
   root:   { flex: 1, backgroundColor: colors.bg },
   layout: { flex: 1 },
+  tourBtn:  { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  tourBtnTxt: { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: colors.muted },
 
   // Левая панель
   left:   { width: 200, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface, padding: 14 },
