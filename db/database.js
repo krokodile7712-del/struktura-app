@@ -376,6 +376,10 @@ export function initDatabase() {
     `CREATE TABLE IF NOT EXISTS equipment (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, cost REAL DEFAULT 0, purchase_date TEXT DEFAULT '', amort_type TEXT DEFAULT 'linear', amort_period INTEGER DEFAULT 12, amort_cycles INTEGER DEFAULT 0, current_cycles INTEGER DEFAULT 0, counter_type TEXT DEFAULT 'order', counter_product_id INTEGER, cycles_per_use REAL DEFAULT 1, active INTEGER DEFAULT 1, created_at TEXT NOT NULL)`,
     `CREATE TABLE IF NOT EXISTS overhead_items (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, amount REAL DEFAULT 0, period TEXT DEFAULT 'month', basis TEXT DEFAULT 'order', basis_value REAL DEFAULT 0, active INTEGER DEFAULT 1)`,
     `CREATE TABLE IF NOT EXISTS investments (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, amount REAL NOT NULL, invest_date TEXT DEFAULT '', amort_months INTEGER DEFAULT 0, category TEXT DEFAULT 'other', equipment_id INTEGER, returnable INTEGER DEFAULT 0, created_at TEXT NOT NULL)`,
+    // Онлайн-запись: секрет бизнеса для защищённых операций в Supabase
+    // (чтение чужих записей, смена статуса, правка услуг — теперь требуют
+    // его предъявления через RPC-функции, не голый анонимный ключ)
+    `ALTER TABLE business_profile ADD COLUMN booking_secret TEXT DEFAULT ''`,
   ];
   for (const sql of migrations) {
     try { db.execSync(sql); } catch (_) {}

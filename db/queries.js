@@ -55,6 +55,23 @@ export function getBusinessProfile() {
   };
 }
 
+// Секрет бизнеса для защищённых операций онлайн-записи в Supabase (чтение
+// чужих записей, смена статуса, правка услуг больше не открыты анонимному
+// ключу напрямую — только через RPC-функции с этим секретом). Генерируется
+// один раз при первом обращении и хранится локально; наружу (в публичную
+// страницу записи) никогда не передаётся.
+export function getOrCreateBookingSecret() {
+  const db = getDb();
+  const row = db.getFirstSync(`SELECT id, booking_secret FROM business_profile ORDER BY id LIMIT 1`);
+  if (!row) return null;
+  if (row.booking_secret) return row.booking_secret;
+  const chars = 'abcdef0123456789';
+  let secret = '';
+  for (let i = 0; i < 48; i++) secret += chars[Math.floor(Math.random() * chars.length)];
+  db.runSync(`UPDATE business_profile SET booking_secret = ? WHERE id = ?`, [secret, row.id]);
+  return secret;
+}
+
 // Отмечает, что пользователь увидел интерактивный тур по разделу screenKey
 // (например 'Kassa') — при следующем заходе тур сам не запустится, останется
 // доступен только по кнопке "?" вручную.

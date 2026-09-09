@@ -8,7 +8,7 @@ import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import { useResponsive } from '../hooks/useResponsive';
 import {
-  getAllProductsAdmin, insertProduct, setProductActive,
+  getAllProductsAdmin, insertProduct, setProductActive, getOrCreateBookingSecret,
   setProductBookingVisible, setProductBookingDescription,
   getDiscountEligibleProducts, getDiscountIneligibleProducts, setProductDiscountEligible,
   getClientsWithDiscountCount, getClientsWithPersonalDiscount, getClientsWithoutDiscount, setClientDiscountPct,
@@ -40,7 +40,7 @@ import { resetKassaCart } from '../db/cartStore';
 import EmptyState from '../components/EmptyState';
 import { colors, fonts, spacing } from '../constants/theme';
 import {
-  upsertBusiness, syncServicesToSupabase,
+  claimBusiness, syncServicesToSupabase,
   getBusinessIdBySlug, getCustomServices, addCustomService, updateCustomService, deleteCustomService,
 } from '../db/supabase';
 import { useToast } from '../components/Toast';
@@ -405,11 +405,12 @@ export default function SettingsScreen({ navigation, route }) {
       description: (customItemModal.description || '').trim(),
       price: parseFloat(customItemModal.price) || 0,
     };
+    const secret = getOrCreateBookingSecret();
     try {
       if (customItemModal.id) {
-        await updateCustomService(customItemModal.id, payload);
+        await updateCustomService(customItemModal.id, secret, payload);
       } else {
-        await addCustomService(bookingBusinessId, payload);
+        await addCustomService(bookingBusinessId, secret, payload);
       }
       setCustomItems(await getCustomServices(bookingBusinessId));
     } catch (e) { Alert.alert('Ошибка', e.message); }
@@ -419,7 +420,7 @@ export default function SettingsScreen({ navigation, route }) {
   const deleteCustomItemModal = async () => {
     if (!customItemModal || !customItemModal.id) return;
     try {
-      await deleteCustomService(customItemModal.id);
+      await deleteCustomService(customItemModal.id, getOrCreateBookingSecret());
       setCustomItems(await getCustomServices(bookingBusinessId));
     } catch (e) { Alert.alert('Ошибка', e.message); }
     setCustomItemModal(null);
@@ -1948,7 +1949,7 @@ export default function SettingsScreen({ navigation, route }) {
         slotDuration: profile?.slot_duration || 60,
         timeSlotsEnabled: profile?.time_slots_enabled !== false,
       };
-      const biz = await upsertBusiness(slug, name, type, settings);
+      const biz = await claimBusiness(slug, name, type, settings, getOrCreateBookingSecret());
       if (biz) {
         setBookingSlug(slug);
         setBookingConnected(true);
@@ -1976,10 +1977,11 @@ export default function SettingsScreen({ navigation, route }) {
         slotDuration: profile?.slot_duration || 60,
         timeSlotsEnabled: profile?.time_slots_enabled !== false,
       };
-      const biz = await upsertBusiness(bookingSlug, profile?.business_name, profile?.business_type, settings);
+      const secret = getOrCreateBookingSecret();
+      const biz = await claimBusiness(bookingSlug, profile?.business_name, profile?.business_type, settings, secret);
       if (biz) {
         const products = getAllProductsAdmin();
-        await syncServicesToSupabase(biz.id, products);
+        await syncServicesToSupabase(biz.id, secret, products);
         Alert.alert('Синхронизировано', `Меню обновлено: ${products.length} позиций`);
       }
     } catch (e) { Alert.alert('Ошибка', e.message); }

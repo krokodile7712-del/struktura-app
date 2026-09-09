@@ -13,7 +13,7 @@ import { getHomeRoute, goBackSmart } from '../db/session';
 import { getBookings, updateBookingStatus } from '../db/supabase';
 import {
   getBusinessProfile, getManualBookings, getManualBookingsInRange, insertManualBooking,
-  updateManualBooking, updateManualBookingStatus, deleteManualBooking, markTourSeen,
+  updateManualBooking, updateManualBookingStatus, deleteManualBooking, markTourSeen, getOrCreateBookingSecret,
 } from '../db/queries';
 import { colors, fonts } from '../constants/theme';
 
@@ -135,7 +135,7 @@ export default function BookingsScreen({ navigation }) {
       const profile = getBusinessProfile();
       const slug = profile?.booking_slug;
       if (!slug) { setLoading(false); return; }
-      const data = await getBookings(null, null, slug);
+      const data = await getBookings(getOrCreateBookingSecret(), null, slug);
       setBookings(data || []);
     } catch(e) { console.error(e); }
     setLoading(false);
@@ -163,7 +163,7 @@ export default function BookingsScreen({ navigation }) {
       const profile = getBusinessProfile();
       const slug = profile?.booking_slug;
       if (slug) {
-        const online = await getBookings(null, null, slug, { from: fromStr, to: toStr });
+        const online = await getBookings(getOrCreateBookingSecret(), null, slug, { from: fromStr, to: toStr });
         setCalOnlineDates(new Set((online || []).map(b => b.date)));
       } else {
         setCalOnlineDates(new Set());
@@ -255,7 +255,7 @@ export default function BookingsScreen({ navigation }) {
 
   const handleStatus = async (id, status) => {
     try {
-      await updateBookingStatus(id, status);
+      await updateBookingStatus(id, getOrCreateBookingSecret(), status);
       setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
       setExpanded(null);
     } catch(e) { Alert.alert('Ошибка', e.message); }
