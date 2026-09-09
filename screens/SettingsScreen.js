@@ -1364,7 +1364,7 @@ export default function SettingsScreen({ navigation, route }) {
                     activeOpacity={0.7}
                     style={{ flex: 1, marginLeft: 8, paddingVertical: 10, borderRadius: 10, backgroundColor: colors.borderLo, alignItems: 'center' }}
                     onPress={() => syncMenu()}>
-                    <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted }}>{syncing ? '⏳...' : '🔄 Меню'}</Text>
+                    <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted }}>{syncing ? '⏳...' : '🔄 Обновить'}</Text>
                   </TouchableOpacity>
                   <Pressable
                     style={{ flex: 1, marginLeft: 8, paddingVertical: 10, borderRadius: 10, backgroundColor: 'rgba(200,50,50,0.12)', alignItems: 'center' }}
