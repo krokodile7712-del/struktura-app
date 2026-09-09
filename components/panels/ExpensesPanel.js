@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import Sheet from '../../components/Sheet';
+import DatePicker from '../../components/DatePicker';
 import SwipeableRow from '../../components/SwipeableRow';
 import TourGuide from '../../components/TourGuide';
 import { useTourHighlight, useTourActiveKey } from '../../components/TourRegistry';
@@ -60,6 +61,8 @@ export default function ExpensesPanel({ navigation }) {
   const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [amount, setAmount]         = useState('');
   const [comment, setComment]       = useState('');
+  const [expenseDate, setExpenseDate] = useState(todayStr());
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const amountRef = useRef(null);
 
   // Анимации
@@ -113,6 +116,7 @@ export default function ExpensesPanel({ navigation }) {
     setComment('');
     setIsRecurring(false);
     setPhotoUri('');
+    setExpenseDate(todayStr());
     if (isLandscape) {
       setSelectedExpense('new');
     } else {
@@ -131,6 +135,7 @@ export default function ExpensesPanel({ navigation }) {
     setComment(item.comment || '');
     setIsRecurring(false); // повтор настраивается только при создании нового
     setPhotoUri(item.photo_uri || '');
+    setExpenseDate(item.date?.slice(0, 10) || todayStr());
     if (isLandscape) {
       setSelectedExpense(item);
     } else {
@@ -197,13 +202,14 @@ export default function ExpensesPanel({ navigation }) {
           amount: parseFloat(amount),
           comment: comment.trim(),
           photo_uri: photoUri,
+          date: expenseDate,
         });
       } else {
         insertExpense({
           category,
           amount: parseFloat(amount),
           comment: comment.trim(),
-          date: todayStr(),
+          date: expenseDate,
           photo_uri: photoUri,
         });
         if (isRecurring) {
@@ -407,6 +413,15 @@ export default function ExpensesPanel({ navigation }) {
                 />
                 <Text style={styles.amountCurrency}>₽</Text>
               </View>
+
+              {/* Дата */}
+              <Text style={styles.fieldLabel}>Дата</Text>
+              <Pressable style={styles.dateFieldBtn} onPress={() => setDatePickerOpen(true)}>
+                <Text style={styles.dateFieldTxt}>
+                  {expenseDate === todayStr() ? 'Сегодня' : fmtDate(expenseDate)}
+                </Text>
+                <Text style={styles.dateFieldChange}>Изменить</Text>
+              </Pressable>
 
               {/* Комментарий */}
               <Text style={styles.fieldLabel}>Комментарий</Text>
@@ -614,6 +629,15 @@ export default function ExpensesPanel({ navigation }) {
         </Pressable>
       </Modal>
 
+      <DatePicker
+        visible={datePickerOpen}
+        value={expenseDate}
+        maxDate={todayStr()}
+        title="Дата расхода"
+        onChange={(d) => { setExpenseDate(d); setDatePickerOpen(false); }}
+        onClose={() => setDatePickerOpen(false)}
+      />
+
       <TourGuide
         visible={tourOpen}
         onClose={() => { setTourOpen(false); markTourSeen('Expenses'); closeForm(); }}
@@ -697,6 +721,9 @@ const styles = StyleSheet.create({
   amountWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 16 },
   amountInput:{ flex: 1, paddingVertical: 16, fontSize: 28, fontFamily: fonts.family, fontWeight: '800', color: colors.text, textAlign: 'center' },
   amountCurrency: { fontFamily: fonts.familySemibold, fontSize: 20, color: colors.muted },
+  dateFieldBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 16, paddingVertical: 14 },
+  dateFieldTxt: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
+  dateFieldChange: { fontFamily: fonts.family, fontSize: 13, color: colors.orange },
 
   commentInput: { backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 13, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 14 },
 

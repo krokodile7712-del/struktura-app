@@ -1184,11 +1184,11 @@ export function deleteExpense(id) {
   db.runSync(`DELETE FROM expenses WHERE id = ?`, [id]);
 }
 
-export function updateExpense(id, { category, amount, comment, photo_uri }) {
+export function updateExpense(id, { category, amount, comment, photo_uri, date }) {
   const db = getDb();
   db.runSync(
-    `UPDATE expenses SET category = ?, amount = ?, comment = ?, photo_uri = ? WHERE id = ?`,
-    [category, amount, comment || '', photo_uri || '', id]
+    `UPDATE expenses SET category = ?, amount = ?, comment = ?, photo_uri = ?, date = COALESCE(?, date) WHERE id = ?`,
+    [category, amount, comment || '', photo_uri || '', date || null, id]
   );
 }
 

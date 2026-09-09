@@ -30,7 +30,7 @@ function getFirstDayOfMonth(year, month) {
 // visible: bool
 export default function DatePicker({
   visible, value, onChange, onClose, title = 'Выберите дату',
-  mode = 'single', rangeFrom = null, rangeTo = null, onRangeChange,
+  mode = 'single', rangeFrom = null, rangeTo = null, onRangeChange, maxDate = null,
 }) {
   const today = new Date();
   const isRange = mode === 'range';
@@ -69,6 +69,7 @@ export default function DatePicker({
   const selectDay = (day) => {
     if (!day) return;
     const dateStr = dayStr(day);
+    if (maxDate && dateStr > maxDate) return;
 
     if (isRange) {
       if (!draftFrom || (draftFrom && draftTo)) {
@@ -161,6 +162,7 @@ export default function DatePicker({
               const inRange = isInRange(day);
               const isSat = day && (firstDay + day - 1) % 7 === 5;
               const isSun = day && (firstDay + day - 1) % 7 === 6;
+              const isFuture = day && maxDate && dayStr(day) > maxDate;
               return (
                 <Pressable
                   key={idx}
@@ -170,9 +172,10 @@ export default function DatePicker({
                     sel && styles.cellSelected,
                     !sel && tod && styles.cellToday,
                     !day && { opacity: 0 },
+                    isFuture && { opacity: 0.3 },
                   ]}
                   onPress={() => selectDay(day)}
-                  disabled={!day}
+                  disabled={!day || isFuture}
                 >
                   <Text style={[
                     styles.cellText,
