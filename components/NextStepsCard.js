@@ -5,6 +5,7 @@ import { getNextStepsStatus, getSetting, setSetting } from '../db/queries';
 import { colors, fonts } from '../constants/theme';
 
 export const NEXT_STEPS = [
+  { key: 'businessType', icon: '🎯', label: 'Подобрать тип бизнеса',       screen: 'Settings', params: { section: 'business' }, sub: 'Подставит термины и разделы' },
   { key: 'products',   icon: '🛍', label: 'Добавить первый товар или услугу', screen: 'Products', sub: 'Меню и цены' },
   { key: 'payMethods', icon: '💳', label: 'Настроить способы оплаты',         screen: 'Settings', params: { section: 'payment' }, sub: 'Оплата и скидки' },
   { key: 'employees',  icon: '👥', label: 'Добавить сотрудников',             screen: 'Employees', sub: 'Имена и PIN-коды' },

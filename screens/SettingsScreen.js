@@ -46,6 +46,47 @@ import {
 import { useToast } from '../components/Toast';
 
 // SectionAccordion — в 2-колоночном layout просто передаёт children
+// Тип бизнеса — та же логика, что раньше была в мастере настройки (Онбординг),
+// доступна здесь отдельно, без визарда: выбор карточки сразу применяет
+// термины и модули под выбранный тип (можно тонко подправить их ниже вручную)
+const PRESET_LIST = [
+  {
+    key: 'coffee',
+    icon: '🏪',
+    label: 'Кофейня / Кафе',
+    desc: 'Напитки, еда и десерты. Модификаторы (молоко, сироп), варианты размера, учёт смен, программа лояльности. Техкарты считают себестоимость каждой чашки.',
+    modules: ['Склад', 'Техкарты', 'Лояльность', 'Смены', 'Зоны/столы'],
+  },
+  {
+    key: 'retail',
+    icon: '🛍',
+    label: 'Магазин / Розница',
+    desc: 'Продажа товаров со складским учётом. Штрихкоды, инвентаризация, закупки. Скидки и карты постоянного покупателя.',
+    modules: ['Склад', 'Инвентаризация', 'Скидки', 'Смены'],
+  },
+  {
+    key: 'services',
+    icon: '✂️',
+    label: 'Услуги / Салон',
+    desc: 'Стрижки, маникюр, массаж, консультации. Запись клиентов, история услуг, абонементы. Учёт по мастерам.',
+    modules: ['Клиенты', 'Лояльность', 'Журнал работ', 'Смены'],
+  },
+  {
+    key: 'production',
+    icon: '🏭',
+    label: 'Производство',
+    desc: 'Пивоварение, дерево- и металлообработка, пошив и другой выпуск изделий. Складской учёт сырья, себестоимость партии, заказчики.',
+    modules: ['Склад', 'Техкарты', 'Инвентаризация', 'Смены'],
+  },
+  {
+    key: 'custom',
+    icon: '⚙️',
+    label: 'Другое',
+    desc: 'Любой другой вид бизнеса. Настройте модули и терминологию вручную ниже.',
+    modules: ['Всё настраивается вручную'],
+  },
+];
+
 // Пресеты терминологии — та же логика, что в мастере настройки (Онбординг),
 // но доступна отдельно в Настройках без прохождения всего мастера заново
 const TERM_CONFIGS = [
@@ -354,6 +395,30 @@ export default function SettingsScreen({ navigation, route }) {
     } catch (e) { console.error(e); }
   };
 
+  // Тип бизнеса — применяется сразу (не через общее «Сохранить»), т.к. одним
+  // тапом переписывает термины и модули целиком. Если это не первый выбор —
+  // предупреждаем, что текущая ручная настройка терминов/модулей будет заменена
+  const choosePreset = (key) => {
+    const apply = () => {
+      try {
+        applyBusinessPreset(key);
+        const updated = getBusinessProfile();
+        setProfile(updated);
+        setBizDraft(d => ({ ...d, preset: key, terms: updated.terms || d.terms, modules: updated.modules || d.modules }));
+        toast.show('Тип бизнеса применён ✓', 'info');
+      } catch (e) { console.error(e); toast.show('Ошибка применения', 'warn'); }
+    };
+    if (bizDraft?.preset) {
+      Alert.alert(
+        'Сменить тип бизнеса?',
+        'Термины и включённые разделы будут заменены на стартовый набор для нового типа. Ручные правки, сделанные ниже, будут перезаписаны.',
+        [{ text: 'Отмена', style: 'cancel' }, { text: 'Сменить', style: 'destructive', onPress: apply }]
+      );
+    } else {
+      apply();
+    }
+  };
+
   // ── Позиции для онлайн-записи ──
 
   const openPositionsModal = async () => {
@@ -456,6 +521,7 @@ export default function SettingsScreen({ navigation, route }) {
         website:       profile.website        || '',
         terms:         getTerms(),
         modules:       profile.modules || {},
+        preset:        profile.preset         || '',
         roles:         getRoleNames(),
         theme:         profile.theme          || 'dark',
       });
@@ -496,7 +562,7 @@ export default function SettingsScreen({ navigation, route }) {
         roles:         bizDraft.roles   || {},
         units:         profile?.units   || [],
         accessKey:     profile?.access_key || '',
-        preset:        profile?.preset  || 'custom',
+        preset:        bizDraft.preset  || 'custom',
       });
       loadAll();
       toast.show('Профиль сохранён ✓', 'info');
@@ -1492,6 +1558,33 @@ export default function SettingsScreen({ navigation, route }) {
           <Pressable style={({ pressed }) => [styles.bizPreviewBtn, pressed && { opacity: 0.8 }]} onPress={() => setReceiptPreview(true)}>
             <Text style={styles.bizPreviewBtnText}>👁 Предпросмотр чека</Text>
           </Pressable>
+
+          {/* ТИП БИЗНЕСА */}
+          <Text style={styles.bizGroupLabel}>Тип бизнеса</Text>
+          <Text style={[styles.menuItemSub, { marginBottom: 10 }]}>
+            Выбор подставит термины и стартовый набор разделов под этот тип — их можно тонко подправить ниже вручную.
+          </Text>
+          {PRESET_LIST.map(p => (
+            <Pressable
+              key={p.key}
+              style={[styles.presetCard, bizDraft.preset === p.key && styles.presetCardActive]}
+              onPress={() => choosePreset(p.key)}
+            >
+              <View style={styles.presetHeader}>
+                <Text style={styles.presetIcon}>{p.icon}</Text>
+                <Text style={[styles.presetLabel, bizDraft.preset === p.key && styles.presetLabelActive]}>{p.label}</Text>
+                <Text style={styles.presetCheck}>{bizDraft.preset === p.key ? '◉' : '○'}</Text>
+              </View>
+              <Text style={styles.presetDesc}>{p.desc}</Text>
+              <View style={styles.presetTags}>
+                {p.modules.map((m, i) => (
+                  <View key={i} style={[styles.presetTag, bizDraft.preset === p.key && styles.presetTagActive]}>
+                    <Text style={[styles.presetTagText, bizDraft.preset === p.key && styles.presetTagTextActive]}>{m}</Text>
+                  </View>
+                ))}
+              </View>
+            </Pressable>
+          ))}
 
           {/* ТЕРМИНОЛОГИЯ */}
           <Text style={styles.bizGroupLabel}>Термины</Text>
@@ -2780,6 +2873,19 @@ export default function SettingsScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
+  presetCard: { borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 16, marginBottom: 10, gap: 8 },
+  presetCardActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.06)' },
+  presetHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  presetIcon: { fontSize: 26 },
+  presetLabel: { flex: 1, fontFamily: fonts.family, fontSize: 16, fontWeight: '700', color: colors.text },
+  presetLabelActive: { color: colors.orange },
+  presetCheck: { fontSize: 18, color: colors.muted },
+  presetDesc: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, lineHeight: 19 },
+  presetTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  presetTag: { paddingVertical: 3, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  presetTagActive: { borderColor: 'rgba(240,160,80,0.4)', backgroundColor: 'rgba(240,160,80,0.08)' },
+  presetTagText: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
+  presetTagTextActive: { color: colors.orange },
   // Двухколоночный layout
   twoCol: { flex: 1, flexDirection: 'row' },
 

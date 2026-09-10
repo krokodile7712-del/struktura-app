@@ -2174,10 +2174,11 @@ export function getNextStepsStatus() {
     const payConfigured = !!getSetting('payMethodsV2');
     const users = getAllUsers();
     const overheads = getOverheadItems();
-    const loyaltyRow = db.getFirstSync(`SELECT loyalty_config FROM business_profile ORDER BY id LIMIT 1`);
-    const loyaltyConfigured = !!(loyaltyRow?.loyalty_config && loyaltyRow.loyalty_config !== '{}' && loyaltyRow.loyalty_config !== 'null');
+    const bizRow = db.getFirstSync(`SELECT preset, loyalty_config FROM business_profile ORDER BY id LIMIT 1`);
+    const loyaltyConfigured = !!(bizRow?.loyalty_config && bizRow.loyalty_config !== '{}' && bizRow.loyalty_config !== 'null');
     const stock = getAllStock();
     return {
+      businessType: !!bizRow?.preset,
       products:   products.length > 0,
       payMethods: payConfigured,
       employees:  users.length > 1,
@@ -2187,7 +2188,7 @@ export function getNextStepsStatus() {
     };
   } catch (e) {
     console.error('[getNextStepsStatus]', e);
-    return { products: false, payMethods: false, employees: false, overheads: false, loyalty: false, stock: false };
+    return { businessType: false, products: false, payMethods: false, employees: false, overheads: false, loyalty: false, stock: false };
   }
 }
 
