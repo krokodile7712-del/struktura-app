@@ -4,6 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
 import NextStepsCard from '../components/NextStepsCard';
 import ShiftBanner from '../components/ShiftBanner';
+import EmployeeStatsSheet from '../components/EmployeeStatsSheet';
 import TourGuide from '../components/TourGuide';
 import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
 import {
@@ -29,6 +30,7 @@ export default function AdminScreen({ navigation }) {
   const [hasShift, setHasShift] = useState(false);
   const [roleNames, setRoleNames] = useState({ admin: 'Администратор' });
   const [sessionName, setSessionName] = useState('');
+  const [meOpen, setMeOpen] = useState(false);
   const [stockOpen, setStockOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
   const shiftBannerHighlight = useTourHighlight('admin.shiftBanner', 0);
@@ -146,8 +148,15 @@ export default function AdminScreen({ navigation }) {
             );
           })()}
 
-          <Text style={styles.panelGreeting}>{getGreeting()}{sessionName ? `, ${sessionName}` : ''}</Text>
-          <Text style={styles.panelSub}>{profile?.business_name || 'Сводка за сегодня'}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Pressable style={styles.avatar} onPress={() => setMeOpen(true)} hitSlop={8}>
+              <Text style={styles.avatarTxt}>{(sessionName || '?').charAt(0).toUpperCase()}</Text>
+            </Pressable>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.panelGreeting}>{getGreeting()}{sessionName ? `, ${sessionName}` : ''}</Text>
+              <Text style={styles.panelSub}>{profile?.business_name || 'Сводка за сегодня'}</Text>
+            </View>
+          </View>
 
           <View style={nextStepsHighlight.style} onLayout={rememberY('admin.nextSteps')}>
             <NextStepsCard navigation={navigation} forceVisible={tourOpen} />
@@ -207,6 +216,8 @@ export default function AdminScreen({ navigation }) {
         </ScrollView>
       </View>
 
+      <EmployeeStatsSheet visible={meOpen} onClose={() => setMeOpen(false)} userId={getSession()?.id} />
+
       <TourGuide
         visible={tourOpen}
         onClose={() => { setTourOpen(false); markTourSeen('Admin'); }}
@@ -217,6 +228,8 @@ export default function AdminScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  avatarTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.orange },
   root:        { flex: 1, backgroundColor: colors.bg },
 
   panelContent:{ padding: 24, paddingBottom: 40 },

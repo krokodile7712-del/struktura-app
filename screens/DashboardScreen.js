@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
 import ShiftBanner from '../components/ShiftBanner';
+import EmployeeStatsSheet from '../components/EmployeeStatsSheet';
 import {
   getOpenShift, getBusinessProfile, getDashboardStats, getRoleNames,
 } from '../db/queries';
@@ -27,6 +28,7 @@ export default function DashboardScreen({ navigation }) {
   const [hasShift, setHasShift]       = useState(false);
   const [roleNames, setRoleNames]     = useState({ barista: 'Сотрудник' });
   const [sessionName, setSessionName] = useState('');
+  const [meOpen, setMeOpen] = useState(false);
 
   const load = useCallback(() => {
     try {
@@ -50,8 +52,15 @@ export default function DashboardScreen({ navigation }) {
       <View style={{ flex: 1 }}>
 
         <ScrollView contentContainerStyle={styles.dashContent} style={{ flex: 1 }}>
-          <Text style={styles.greeting}>{getGreeting()}{sessionName ? `, ${sessionName}` : ''}</Text>
-          <Text style={styles.greetingSub}>{profile?.business_name || 'Сводка текущей смены'}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 28 }}>
+            <Pressable style={styles.avatar} onPress={() => setMeOpen(true)} hitSlop={8}>
+              <Text style={styles.avatarTxt}>{(sessionName || '?').charAt(0).toUpperCase()}</Text>
+            </Pressable>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.greeting, { marginBottom: 0 }]}>{getGreeting()}{sessionName ? `, ${sessionName}` : ''}</Text>
+              <Text style={[styles.greetingSub, { marginBottom: 0 }]}>{profile?.business_name || 'Сводка текущей смены'}</Text>
+            </View>
+          </View>
 
           <View style={styles.statsGrid}>
             {[
@@ -84,11 +93,15 @@ export default function DashboardScreen({ navigation }) {
           )}
         </ScrollView>
       </View>
+
+      <EmployeeStatsSheet visible={meOpen} onClose={() => setMeOpen(false)} userId={getSession()?.id} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  avatarTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.orange },
   root:    { flex: 1, backgroundColor: colors.bg },
 
   dashContent: { padding: 24, paddingBottom: 40 },

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Alert,
 import TopBar from '../components/TopBar';
 import EmptyState from '../components/EmptyState';
 import Sheet from '../components/Sheet';
+import EmployeeStatsSheet from '../components/EmployeeStatsSheet';
 import { useResponsive } from '../hooks/useResponsive';
 import { getAllUsers, addUser, updateUser, toggleUserActive, getRoleNames, deleteUser } from '../db/queries';
 import { useToast } from '../components/Toast';
@@ -43,6 +44,7 @@ export default function EmployeesScreen({ navigation }) {
   const [showPin, setShowPin]     = useState(false);
   const [error, setError]         = useState('');
   const [isNew, setIsNew]         = useState(false);
+  const [statsUserId, setStatsUserId] = useState(null);
   const toast = useToast();
 
   const cardAnim  = useState(new Animated.Value(0))[0];
@@ -186,9 +188,9 @@ export default function EmployeesScreen({ navigation }) {
                       onPress={() => selectUser(u)}
                     >
                       {isActive && <View style={styles.activeBar} />}
-                      <View style={styles.userAvatar}>
+                      <Pressable style={styles.userAvatar} onPress={() => setStatsUserId(u.id)} hitSlop={6}>
                         <Text style={styles.userAvatarTxt}>{(u.name || '?').charAt(0).toUpperCase()}</Text>
-                      </View>
+                      </Pressable>
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.userName, isActive && { color: colors.orange }]}>{u.name}</Text>
                         <Text style={styles.userRole}>{u.role === 'admin' ? roleNames.admin : roleNames.barista}</Text>
@@ -569,6 +571,8 @@ export default function EmployeesScreen({ navigation }) {
           </Sheet>
         )}
       </View>
+
+      <EmployeeStatsSheet visible={!!statsUserId} onClose={() => setStatsUserId(null)} userId={statsUserId} />
     </View>
   );
 }
