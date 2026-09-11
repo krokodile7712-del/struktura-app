@@ -650,24 +650,32 @@ export function getAllUsers() {
 }
 
 // Добавляет нового сотрудника. Возвращает {ok, error}
-export function addUser(name, pin, role, salaryType = 'shift', salaryAmount = 0) {
+export function addUser(name, pin, role, salaryType = 'shift', salaryAmount = 0, extra = {}) {
   const db = getDb();
   if (!name?.trim()) return { ok: false, error: 'Укажите имя сотрудника' };
   if (!pin?.trim() || pin.trim().length < 4) return { ok: false, error: 'PIN — минимум 4 цифры' };
   const exists = db.getFirstSync(`SELECT id FROM users WHERE pin = ?`, [pin.trim()]);
   if (exists) return { ok: false, error: 'Этот PIN уже используется' };
-  db.runSync(`INSERT INTO users (name, pin, role, active, salary_type, salary_amount) VALUES (?, ?, ?, 1, ?, ?)`, [name.trim(), pin.trim(), role, salaryType, salaryAmount]);
+  const { kpiType = '', kpiAmount = 0, kpiPeriod = 'month', locationId = null } = extra;
+  db.runSync(
+    `INSERT INTO users (name, pin, role, active, salary_type, salary_amount, kpi_type, kpi_amount, kpi_period, location_id) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?)`,
+    [name.trim(), pin.trim(), role, salaryType, salaryAmount, kpiType, kpiAmount, kpiPeriod, locationId]
+  );
   return { ok: true };
 }
 
 // Обновляет сотрудника. Возвращает {ok, error}
-export function updateUser(id, name, pin, role, salaryType = 'shift', salaryAmount = 0) {
+export function updateUser(id, name, pin, role, salaryType = 'shift', salaryAmount = 0, extra = {}) {
   const db = getDb();
   if (!name?.trim()) return { ok: false, error: 'Укажите имя сотрудника' };
   if (!pin?.trim() || pin.trim().length < 4) return { ok: false, error: 'PIN — минимум 4 цифры' };
   const exists = db.getFirstSync(`SELECT id FROM users WHERE pin = ? AND id != ?`, [pin.trim(), id]);
   if (exists) return { ok: false, error: 'Этот PIN уже занят другим сотрудником' };
-  db.runSync(`UPDATE users SET name = ?, pin = ?, role = ?, salary_type = ?, salary_amount = ? WHERE id = ?`, [name.trim(), pin.trim(), role, salaryType, salaryAmount, id]);
+  const { kpiType = '', kpiAmount = 0, kpiPeriod = 'month', locationId = null } = extra;
+  db.runSync(
+    `UPDATE users SET name = ?, pin = ?, role = ?, salary_type = ?, salary_amount = ?, kpi_type = ?, kpi_amount = ?, kpi_period = ?, location_id = ? WHERE id = ?`,
+    [name.trim(), pin.trim(), role, salaryType, salaryAmount, kpiType, kpiAmount, kpiPeriod, locationId, id]
+  );
   return { ok: true };
 }
 

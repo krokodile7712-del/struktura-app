@@ -17,7 +17,22 @@ const SALARY_TYPES = [
   { key: 'profit_pct',  label: '% прибыли',      hint: 'Процент от чистой прибыли за смену' },
 ];
 
-const empty = { id: null, name: '', pin: '', pinConfirm: '', role: 'barista', active: 1, salary_type: 'shift', salary_amount: '' };
+const KPI_TYPES = [
+  { key: '',                  label: 'Без плана',        hint: 'KPI не отслеживается' },
+  { key: 'revenue',            label: 'Выручка',          hint: 'План по сумме продаж за период' },
+  { key: 'orders',              label: 'Число чеков',      hint: 'План по количеству заказов — когда важен поток, а не сумма' },
+  { key: 'avg_check',           label: 'Средний чек',      hint: 'План по росту среднего чека — упор на допродажи' },
+  { key: 'services',            label: 'Кол-во услуг',     hint: 'План по числу оказанных услуг — для мастеров, не в деньгах' },
+  { key: 'returning_clients',   label: 'Возврат клиентов', hint: 'План по числу клиентов, вернувшихся повторно' },
+];
+
+const KPI_PERIODS = [
+  { key: 'shift', label: 'За смену' },
+  { key: 'week',  label: 'За неделю' },
+  { key: 'month', label: 'За месяц' },
+];
+
+const empty = { id: null, name: '', pin: '', pinConfirm: '', role: 'barista', active: 1, salary_type: 'shift', salary_amount: '', kpi_type: '', kpi_amount: '', kpi_period: 'month' };
 
 export default function EmployeesScreen({ navigation }) {
   const { isLandscape } = useResponsive();
@@ -78,11 +93,17 @@ export default function EmployeesScreen({ navigation }) {
         salary_amount: parseFloat(draft.salary_amount) || 0,
         active: draft.active,
       };
+      const extra = {
+        kpiType: draft.kpi_type || '',
+        kpiAmount: parseFloat(draft.kpi_amount) || 0,
+        kpiPeriod: draft.kpi_period || 'month',
+        locationId: draft.location_id || null,
+      };
       if (isNew) {
-        addUser(draft.name.trim(), draft.pin, draft.role, data.salary_type, data.salary_amount);
+        addUser(draft.name.trim(), draft.pin, draft.role, data.salary_type, data.salary_amount, extra);
         toast.show('Сотрудник добавлен');
       } else {
-        updateUser(selected.id, { ...data, ...(draft.pin ? { pin: draft.pin } : {}) });
+        updateUser(selected.id, data.name, draft.pin || selected.pin, data.role, data.salary_type, data.salary_amount, extra);
         toast.show('Сохранено');
       }
       load();
@@ -285,6 +306,51 @@ export default function EmployeesScreen({ navigation }) {
                   placeholderTextColor={colors.muted}
                 />
 
+                {/* KPI */}
+                <Text style={styles.fieldLabel}>План (KPI)</Text>
+                <View style={styles.chips}>
+                  {KPI_TYPES.map(kt => (
+                    <Pressable
+                      key={kt.key}
+                      style={[styles.chip, draft.kpi_type === kt.key && styles.chipActive]}
+                      onPress={() => setDraft(d => ({ ...d, kpi_type: kt.key }))}
+                    >
+                      <Text style={[styles.chipTxt, draft.kpi_type === kt.key && styles.chipTxtActive]}>{kt.label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <Text style={styles.roleHint}>
+                  {KPI_TYPES.find(k => k.key === draft.kpi_type)?.hint}
+                </Text>
+
+                {!!draft.kpi_type && (
+                  <>
+                    <Text style={styles.fieldLabel}>Величина плана</Text>
+                    <TextInput
+                      style={styles.input}
+                      color={colors.text}
+                      value={draft.kpi_amount}
+                      onChangeText={v => setDraft(d => ({ ...d, kpi_amount: v }))}
+                      keyboardType="numeric"
+                      placeholder="0"
+                      placeholderTextColor={colors.muted}
+                    />
+
+                    <Text style={styles.fieldLabel}>Период плана</Text>
+                    <View style={styles.chips}>
+                      {KPI_PERIODS.map(kp => (
+                        <Pressable
+                          key={kp.key}
+                          style={[styles.chip, draft.kpi_period === kp.key && styles.chipActive]}
+                          onPress={() => setDraft(d => ({ ...d, kpi_period: kp.key }))}
+                        >
+                          <Text style={[styles.chipTxt, draft.kpi_period === kp.key && styles.chipTxtActive]}>{kp.label}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </>
+                )}
+
                 {error ? <Text style={styles.errorTxt}>{error}</Text> : null}
 
                 {/* Кнопки */}
@@ -425,6 +491,51 @@ export default function EmployeesScreen({ navigation }) {
                   placeholder="0"
                   placeholderTextColor={colors.muted}
                 />
+
+                {/* KPI */}
+                <Text style={styles.fieldLabel}>План (KPI)</Text>
+                <View style={styles.chips}>
+                  {KPI_TYPES.map(kt => (
+                    <Pressable
+                      key={kt.key}
+                      style={[styles.chip, draft.kpi_type === kt.key && styles.chipActive]}
+                      onPress={() => setDraft(d => ({ ...d, kpi_type: kt.key }))}
+                    >
+                      <Text style={[styles.chipTxt, draft.kpi_type === kt.key && styles.chipTxtActive]}>{kt.label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <Text style={styles.roleHint}>
+                  {KPI_TYPES.find(k => k.key === draft.kpi_type)?.hint}
+                </Text>
+
+                {!!draft.kpi_type && (
+                  <>
+                    <Text style={styles.fieldLabel}>Величина плана</Text>
+                    <TextInput
+                      style={styles.input}
+                      color={colors.text}
+                      value={draft.kpi_amount}
+                      onChangeText={v => setDraft(d => ({ ...d, kpi_amount: v }))}
+                      keyboardType="numeric"
+                      placeholder="0"
+                      placeholderTextColor={colors.muted}
+                    />
+
+                    <Text style={styles.fieldLabel}>Период плана</Text>
+                    <View style={styles.chips}>
+                      {KPI_PERIODS.map(kp => (
+                        <Pressable
+                          key={kp.key}
+                          style={[styles.chip, draft.kpi_period === kp.key && styles.chipActive]}
+                          onPress={() => setDraft(d => ({ ...d, kpi_period: kp.key }))}
+                        >
+                          <Text style={[styles.chipTxt, draft.kpi_period === kp.key && styles.chipTxtActive]}>{kp.label}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </>
+                )}
 
                 {error ? <Text style={styles.errorTxt}>{error}</Text> : null}
 
