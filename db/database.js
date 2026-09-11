@@ -380,6 +380,18 @@ export function initDatabase() {
     // (чтение чужих записей, смена статуса, правка услуг — теперь требуют
     // его предъявления через RPC-функции, не голый анонимный ключ)
     `ALTER TABLE business_profile ADD COLUMN booking_secret TEXT DEFAULT ''`,
+
+    // Точки (филиалы) — location_id у операций. NULL = единственная/дефолтная
+    // точка, ничего не меняется в интерфейсе, пока точек больше одной
+    `ALTER TABLE orders   ADD COLUMN location_id INTEGER`,
+    `ALTER TABLE shifts   ADD COLUMN location_id INTEGER`,
+    `ALTER TABLE expenses ADD COLUMN location_id INTEGER`,
+    `ALTER TABLE users    ADD COLUMN location_id INTEGER`, // точка по умолчанию, не ограничение доступа
+
+    // KPI сотрудника — тем же паттерном, что зарплата (вид + план + период)
+    `ALTER TABLE users ADD COLUMN kpi_type   TEXT DEFAULT ''`,   // '' | revenue | orders | avg_check | services | returning_clients
+    `ALTER TABLE users ADD COLUMN kpi_amount REAL DEFAULT 0`,
+    `ALTER TABLE users ADD COLUMN kpi_period TEXT DEFAULT 'month'`, // shift | week | month
   ];
   for (const sql of migrations) {
     try { db.execSync(sql); } catch (_) {}

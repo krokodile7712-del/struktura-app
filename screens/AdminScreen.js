@@ -47,7 +47,7 @@ export default function AdminScreen({ navigation }) {
       setProfile(p);
       const sess = getSession();
       setSessionName(sess?.name?.split(' ')[0] || '');
-      setHasShift(!!getOpenShift());
+      setHasShift(!!getOpenShift(sess?.id));
       setRoleNames(getRoleNames());
       setStats(getDashboardStats());
     } catch (e) { console.error(e); }

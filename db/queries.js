@@ -909,9 +909,9 @@ export function createOrder({ total, method, methodType, methodId, shift_id, cli
   try { db.execSync(`ALTER TABLE orders ADD COLUMN cashier_id INTEGER DEFAULT NULL`); } catch (_) {}
 
   const result = db.runSync(
-    `INSERT INTO orders (created_at, total, method, method_type, method_id, shift_id, client_id, cashier_id, cash_amount, card_amount, discount_pct, note, zone)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [now, total, method, methodType || '', methodId != null ? String(methodId) : '', shift_id || null, client_id || null, cashier_id || null, cashAmount || 0, cardAmount || 0, discountPct || 0, note || '', zone || '']
+    `INSERT INTO orders (created_at, total, method, method_type, method_id, shift_id, client_id, cashier_id, cash_amount, card_amount, discount_pct, note, zone, location_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [now, total, method, methodType || '', methodId != null ? String(methodId) : '', shift_id || null, client_id || null, cashier_id || null, cashAmount || 0, cardAmount || 0, discountPct || 0, note || '', zone || '', locationId || null]
   );
   const orderId = result.lastInsertRowId;
 
@@ -1106,15 +1106,21 @@ export function addClientVisit(client_id, amount) {
 
 // ─── Смены ────────────────────────────────────────────────────────────────
 
-export function openShift(cashOpen = 0, userId = null, employeeName = '') {
+// Открывает смену для конкретного сотрудника. Если у ЭТОГО сотрудника уже
+// есть открытая смена (на любой точке) — новая не создаётся, возвращается
+// та же самая. Разные сотрудники могут иметь параллельно открытые смены —
+// в том числе на одной и той же точке (например, администратор и бариста).
+export function openShift(cashOpen = 0, userId = null, employeeName = '', locationId = null) {
   const db = getDb();
   const now = new Date().toISOString();
   try { db.execSync(`ALTER TABLE shifts ADD COLUMN cash_open REAL DEFAULT 0`); } catch (_) {}
-  const existing = db.getFirstSync(`SELECT * FROM shifts WHERE status='open' ORDER BY opened_at DESC LIMIT 1`);
+  const existing = userId
+    ? db.getFirstSync(`SELECT * FROM shifts WHERE status='open' AND user_id = ? ORDER BY opened_at DESC LIMIT 1`, [userId])
+    : db.getFirstSync(`SELECT * FROM shifts WHERE status='open' ORDER BY opened_at DESC LIMIT 1`);
   if (existing) return existing.id;
   const id = db.runSync(
-    `INSERT INTO shifts (opened_at, status, cash_open, user_id, employee_name) VALUES (?, 'open', ?, ?, ?)`,
-    [now, cashOpen, userId || null, employeeName || '']
+    `INSERT INTO shifts (opened_at, status, cash_open, user_id, employee_name, location_id) VALUES (?, 'open', ?, ?, ?, ?)`,
+    [now, cashOpen, userId || null, employeeName || '', locationId || null]
   ).lastInsertRowId;
   try { ensureDailyDepreciationExpense(); } catch (e) { console.error('[openShift] Ошибка автосчёта расходов:', e); }
   try { ensureRecurringExpenses(); } catch (e) { console.error('[openShift] Ошибка повторяющихся расходов:', e); }
@@ -1159,8 +1165,14 @@ export function closeShift(shift_id) {
   try { ensureRecurringExpenses(); } catch (e) { console.error('[closeShift] Ошибка повторяющихся расходов:', e); }
 }
 
-export function getOpenShift() {
+// Открытая смена конкретного сотрудника (по умолчанию — текущего залогиненного).
+// Если userId не передан — старое поведение (последняя открытая вообще),
+// как аварийный запасной вариант для мест, где сессии ещё нет.
+export function getOpenShift(userId = null) {
   const db = getDb();
+  if (userId) {
+    return db.getFirstSync(`SELECT * FROM shifts WHERE status='open' AND user_id = ? ORDER BY opened_at DESC LIMIT 1`, [userId]) || null;
+  }
   return db.getFirstSync(`SELECT * FROM shifts WHERE status='open' ORDER BY opened_at DESC LIMIT 1`) || null;
 }
 
@@ -1171,11 +1183,11 @@ export function getAllExpenses() {
   return db.getAllSync(`SELECT * FROM expenses ORDER BY date DESC`);
 }
 
-export function insertExpense({ date, category, amount, comment, shift_id, photo_uri }) {
+export function insertExpense({ date, category, amount, comment, shift_id, photo_uri, location_id }) {
   const db = getDb();
   db.runSync(
-    `INSERT INTO expenses (date, category, amount, comment, shift_id, photo_uri) VALUES (?, ?, ?, ?, ?, ?)`,
-    [date, category, amount, comment || '', shift_id || null, photo_uri || '']
+    `INSERT INTO expenses (date, category, amount, comment, shift_id, photo_uri, location_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [date, category, amount, comment || '', shift_id || null, photo_uri || '', location_id || null]
   );
 }
 

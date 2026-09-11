@@ -4,7 +4,7 @@ import TopBar from '../components/TopBar';
 import { getOpenShift, getShiftSummary, closeShift, getTerms, pluralizeRu, getPayMethods } from '../db/queries';
 import { useToast } from '../components/Toast';
 import { useFocusEffect } from '@react-navigation/native';
-import { clearSession, getHomeRoute, goBackSmart } from '../db/session';
+import { clearSession, getHomeRoute, goBackSmart, getSession } from '../db/session';
 import { resetKassaCart } from '../db/cartStore';
 import { colors, fonts } from '../constants/theme';
 
@@ -39,7 +39,7 @@ export default function ShiftCloseScreen({ navigation }) {
     setShowResult(false);
     setFactCash('');
     try {
-      const shift = getOpenShift();
+      const shift = getOpenShift(getSession()?.id);
       setSummary(shift ? getShiftSummary(shift.id) : null);
       setTerms(getTerms());
       setPayMethods(getPayMethods());

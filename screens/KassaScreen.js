@@ -79,7 +79,7 @@ export default function KassaScreen({ navigation, route }) {
   // ── Парковка заказов (слоты) ────────────────────────────────────────────────
   // Каждый слот = один активный чек со своим состоянием.
   // Состояние инициализируется из cartStore, чтобы пережить перемонтаж экрана.
-  const [hasShift, setHasShift] = useState(!!getOpenShift());
+  const [hasShift, setHasShift] = useState(!!getOpenShift(getSession()?.id));
   const [slots, setSlots] = useState(() => {
     if (route?.params?.forClient) {
       cartStore.slots = cartStore.slots.map(s =>
@@ -236,7 +236,7 @@ export default function KassaScreen({ navigation, route }) {
   // (зоны, шаблоны, модули, лояльность могли измениться в Настройках)
   useFocusEffect(useCallback(() => {
     try {
-      setHasShift(!!getOpenShift());
+      setHasShift(!!getOpenShift(getSession()?.id));
       const profile = getBusinessProfile();
       const zonesOn = profile?.modules?.zones === true;
       const templatesOn = profile?.modules?.templates === true;
@@ -260,7 +260,7 @@ export default function KassaScreen({ navigation, route }) {
       try { setClientsList(getAllClients()); } catch (_) {}
       const products = getAllProducts();
       const cats = getCategories();
-      const shift = getOpenShift();
+      const shift = getOpenShift(getSession()?.id);
       const disc = getDiscounts();
       const profile = getBusinessProfile();
 

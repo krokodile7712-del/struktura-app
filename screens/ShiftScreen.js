@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, Animated, KeyboardAvoidingView, Platform } from 'react-native';
-import { openShift, getOpenShift } from '../db/queries';
-import { getSession } from '../db/session';
+import { openShift, getOpenShift, getLocations } from '../db/queries';
+import { getSession, setCurrentLocationId } from '../db/session';
 import { colors, fonts } from '../constants/theme';
 
 export default function ShiftScreen({ navigation, route }) {
   const [cash, setCash]   = useState('');
   const [error, setError] = useState('');
+  const [locations, setLocations]     = useState([]);
+  const [locationId, setLocationId]   = useState(null);
   const inputRef          = useRef(null);
 
   const fadeAnim  = useState(new Animated.Value(0))[0];
@@ -20,12 +22,19 @@ export default function ShiftScreen({ navigation, route }) {
 
   useEffect(() => {
     try {
-      if (getOpenShift()) {
+      const user = getSession();
+      if (getOpenShift(user?.id)) {
         const returnTo = route?.params?.returnTo;
         if (returnTo) { navigation.replace(returnTo); return; }
-        const user = getSession();
         navigation.replace(user?.role === 'admin' ? 'Admin' : 'Dashboard');
         return;
+      }
+      const locs = getLocations();
+      setLocations(locs);
+      if (locs.length > 1) {
+        setLocationId(user?.location_id && locs.some(l => l.id === user.location_id) ? user.location_id : locs[0].id);
+      } else if (locs.length === 1) {
+        setLocationId(locs[0].id);
       }
     } catch(e) {}
     Animated.parallel([
@@ -37,7 +46,8 @@ export default function ShiftScreen({ navigation, route }) {
   const handleOpen = () => {
     try {
       const user = getSession();
-      openShift(parseFloat(cash) || 0, user?.id || null, user?.name || '');
+      openShift(parseFloat(cash) || 0, user?.id || null, user?.name || '', locationId);
+      setCurrentLocationId(locationId);
       const returnTo = route?.params?.returnTo;
       if (returnTo) navigation.navigate(returnTo);
       else navigation.navigate(user?.role === 'admin' ? 'Admin' : 'Dashboard');
@@ -93,6 +103,23 @@ export default function ShiftScreen({ navigation, route }) {
             </Text>
           </View>
 
+          {locations.length > 1 && (
+            <View style={styles.inputSection}>
+              <Text style={styles.inputLabel}>Точка</Text>
+              <View style={styles.locRow}>
+                {locations.map(loc => (
+                  <Pressable
+                    key={loc.id}
+                    style={[styles.locChip, locationId === loc.id && styles.locChipActive]}
+                    onPress={() => setLocationId(loc.id)}
+                  >
+                    <Text style={[styles.locChipTxt, locationId === loc.id && styles.locChipTxtActive]}>{loc.name}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          )}
+
           {error ? (
             <View style={styles.errorBox}>
               <Text style={styles.errorTxt}>{error}</Text>
@@ -142,6 +169,11 @@ const styles = StyleSheet.create({
   cashInput:   { flex: 1, paddingVertical: 20, fontSize: 36, fontFamily: fonts.family, fontWeight: '800', color: colors.text, textAlign: 'center' },
   currency:    { fontFamily: fonts.familySemibold, fontSize: 24, color: colors.muted },
   inputHint:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 8, lineHeight: 17 },
+  locRow:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  locChip:     { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  locChipActive: { borderColor: colors.orange, backgroundColor: 'rgba(240,160,80,0.1)' },
+  locChipTxt:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
+  locChipTxtActive: { color: colors.orange },
   errorBox:    { marginBottom: 16, padding: 14, backgroundColor: 'rgba(217,95,95,0.1)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(217,95,95,0.3)' },
   errorTxt:    { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.red, textAlign: 'center' },
   startBtn:    { backgroundColor: colors.orange, borderRadius: 16, paddingVertical: 18, alignItems: 'center', marginBottom: 12 },

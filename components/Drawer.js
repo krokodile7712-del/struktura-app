@@ -21,7 +21,7 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
   // Синхронно читаем актуальные данные при каждом рендере
   const user    = getSession();
   const profile = (() => { try { return getBusinessProfile(); } catch { return null; } })();
-  const shift   = (() => { try { return getOpenShift(); } catch { return null; } })();
+  const shift   = (() => { try { return getOpenShift(user?.id); } catch { return null; } })();
   const isAdmin = user?.role === 'admin';
   const modules = profile?.modules || {};
 

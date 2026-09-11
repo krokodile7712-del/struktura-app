@@ -17,7 +17,7 @@ import {
   getRecurringExpenses, insertRecurringExpense, deactivateRecurringExpense, ensureRecurringExpenses,
   getBusinessProfile, markTourSeen,
 } from '../db/queries';
-import { goBackSmart, can } from '../db/session';
+import { goBackSmart, can, getCurrentLocationId } from '../db/session';
 import { colors, fonts } from '../constants/theme';
 
 const CATEGORIES = ['Аренда', 'Зарплата', 'Закупка', 'Коммуналка', 'Расходники', 'Реклама', 'Амортизация', 'Накладные', 'Прочее'];
@@ -213,6 +213,7 @@ export default function ExpensesScreen({ navigation }) {
           comment: comment.trim(),
           date: expenseDate,
           photo_uri: photoUri,
+          location_id: getCurrentLocationId(),
         });
         if (isRecurring) {
           insertRecurringExpense({

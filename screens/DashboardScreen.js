@@ -34,8 +34,8 @@ export default function DashboardScreen({ navigation }) {
       setProfile(p);
       setRoleNames(getRoleNames());
       setStats(getDashboardStats());
-      setHasShift(!!getOpenShift());
       const sess = getSession();
+      setHasShift(!!getOpenShift(sess?.id));
       setSessionName(sess?.name?.split(' ')[0] || '');
     } catch(e) { console.error(e); }
   }, []);
