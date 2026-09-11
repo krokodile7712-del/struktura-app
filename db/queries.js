@@ -1652,6 +1652,103 @@ export function getShiftSummary(shift_id) {
   };
 }
 
+// Личная статистика сотрудника за период — для карточки по тапу на аватар
+// (себя — на Обзоре, любого сотрудника — в Настройки → Сотрудники).
+// Считает по СМЕНАМ этого сотрудника (shifts.user_id), не по кассиру заказа —
+// это чуть шире, чем "мои личные продажи", но совпадает с тем, что уже
+// считает зарплата (calcShiftSalaryCost), не заводим второе определение.
+export function getEmployeeStats(userId, dateFrom, dateTo) {
+  const db = getDb();
+  const user = db.getFirstSync(`SELECT * FROM users WHERE id = ?`, [userId]);
+  if (!user) return null;
+
+  const shifts = db.getAllSync(
+    `SELECT * FROM shifts WHERE user_id = ? AND opened_at >= ? AND opened_at < ? ORDER BY opened_at DESC`,
+    [userId, `${dateFrom}T00:00:00`, `${dateTo}T23:59:59.999`]
+  );
+  const shiftIds = shifts.map(s => s.id);
+
+  let orders = [];
+  if (shiftIds.length > 0) {
+    const placeholders = shiftIds.map(() => '?').join(',');
+    orders = db.getAllSync(
+      `SELECT * FROM orders WHERE shift_id IN (${placeholders}) AND (status IS NULL OR status != 'returned') ORDER BY created_at DESC`,
+      shiftIds
+    );
+  }
+
+  const payMethods = getPayMethods();
+  const cash = orders.filter(o => resolveMethodType(o, payMethods) === 'cash').reduce((s, o) => s + o.total, 0);
+  const card = orders.filter(o => resolveMethodType(o, payMethods) === 'card').reduce((s, o) => s + o.total, 0);
+  const revenue = orders.reduce((s, o) => s + o.total, 0);
+  const avgCheck = orders.length > 0 ? Math.round(revenue / orders.length) : 0;
+
+  // Часы — по закрытым сменам (открытая ещё не даёт точного времени)
+  let hours = 0;
+  for (const s of shifts) {
+    if (s.closed_at) hours += (new Date(s.closed_at) - new Date(s.opened_at)) / 3600000;
+  }
+  hours = Math.round(hours * 10) / 10;
+
+  // Разбивка по точкам — только если точек больше одной, иначе не нужна
+  const locations = getLocations();
+  let byLocation = [];
+  if (locations.length > 1) {
+    const map = {};
+    for (const o of orders) {
+      const key = o.location_id || 'none';
+      if (!map[key]) map[key] = { location_id: o.location_id, revenue: 0, orders: 0 };
+      map[key].revenue += o.total;
+      map[key].orders += 1;
+    }
+    byLocation = Object.values(map).map(v => ({
+      ...v,
+      name: locations.find(l => l.id === v.location_id)?.name || 'Без точки',
+    })).sort((a, b) => b.revenue - a.revenue);
+  }
+
+  // Возврат клиентов — среди клиентов, обслуженных за период, доля тех,
+  // у кого есть заказы и ДО начала периода (значит, вернулись, а не впервые пришли)
+  const clientIds = [...new Set(orders.filter(o => o.client_id).map(o => o.client_id))];
+  let returningClients = 0;
+  for (const cid of clientIds) {
+    const prior = db.getFirstSync(
+      `SELECT id FROM orders WHERE client_id = ? AND created_at < ? LIMIT 1`,
+      [cid, `${dateFrom}T00:00:00`]
+    );
+    if (prior) returningClients++;
+  }
+
+  // Прогресс по KPI
+  let kpiFact = 0;
+  switch (user.kpi_type) {
+    case 'revenue':            kpiFact = revenue; break;
+    case 'orders':              kpiFact = orders.length; break;
+    case 'avg_check':           kpiFact = avgCheck; break;
+    case 'services':            kpiFact = orders.length; break; // приближение: 1 заказ = 1 услуга
+    case 'returning_clients':   kpiFact = returningClients; break;
+    default:                     kpiFact = 0;
+  }
+  const kpi = user.kpi_type ? {
+    type: user.kpi_type,
+    period: user.kpi_period,
+    plan: user.kpi_amount || 0,
+    fact: kpiFact,
+    pct: user.kpi_amount > 0 ? Math.min(999, Math.round((kpiFact / user.kpi_amount) * 100)) : 0,
+  } : null;
+
+  return {
+    user, revenue, cash, card, avgCheck,
+    orderCount: orders.length,
+    shiftCount: shifts.length,
+    hours,
+    byLocation,
+    returningClients,
+    kpi,
+    orders, // список чеков — для перехода в детали
+  };
+}
+
 // ─── Редактирование/удаление заказов (только админ) ─────────────────────
 
 export function deleteOrder(order_id) {
