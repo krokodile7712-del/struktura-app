@@ -744,7 +744,7 @@ export default function SettingsScreen({ navigation, route }) {
           <View style={styles.menuFloatBtns} pointerEvents="box-none">
             <View style={styles.menuFloatRow}>
               <Pressable
-                onPress={() => setEmpModal({ id: null, name: '', pin: '', pin2: '', role: 'barista', salaryType: 'shift', salaryAmount: '', permissions: { ...DEFAULT_PERMISSIONS } })}
+                onPress={() => setEmpModal({ id: null, name: '', pin: '', pin2: '', role: 'barista', salaryType: 'shift', salaryAmount: '', kpiType: '', kpiAmount: '', kpiPeriod: 'month', permissions: { ...DEFAULT_PERMISSIONS } })}
                 hitSlop={14}
                 style={[styles.menuBadge, styles.menuBadgeAdd]}
               >
@@ -767,7 +767,7 @@ export default function SettingsScreen({ navigation, route }) {
                   idx < users.length - 1 && styles.menuRowDiv,
                   pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
                 ]}
-                onPress={() => setEmpModal({ id: u.id, name: u.name, pin: u.pin, pin2: u.pin, role: u.role, salaryType: u.salary_type || 'shift', salaryAmount: String(u.salary_amount || ''), permissions: getUserPermissions(u.id) })}
+                onPress={() => setEmpModal({ id: u.id, name: u.name, pin: u.pin, pin2: u.pin, role: u.role, salaryType: u.salary_type || 'shift', salaryAmount: String(u.salary_amount || ''), kpiType: u.kpi_type || '', kpiAmount: String(u.kpi_amount || ''), kpiPeriod: u.kpi_period || 'month', permissions: getUserPermissions(u.id) })}
               >
                 <View style={{ flex: 1 }}>
                   <Text style={styles.menuItemName}>{u.name}</Text>
@@ -2494,6 +2494,68 @@ export default function SettingsScreen({ navigation, route }) {
                     ))}
                   </View>
 
+                  <Text style={styles.productFieldLabel}>План (KPI)</Text>
+                  <View style={styles.menuCard}>
+                    {[
+                      { key: '',                  label: 'Без плана',        unit: '',        hint: 'KPI не отслеживается' },
+                      { key: 'revenue',            label: 'Выручка',          unit: '₽',       hint: 'План по сумме продаж за период' },
+                      { key: 'orders',              label: 'Число чеков',      unit: 'шт',      hint: 'Важен поток, а не сумма' },
+                      { key: 'avg_check',           label: 'Средний чек',      unit: '₽',       hint: 'Упор на допродажи' },
+                      { key: 'services',            label: 'Кол-во услуг',     unit: 'шт',      hint: 'Для мастеров — не в деньгах' },
+                      { key: 'returning_clients',   label: 'Возврат клиентов', unit: 'чел',     hint: 'Сколько клиентов вернулись повторно' },
+                    ].map((k, idx, arr) => (
+                      <Pressable
+                        key={k.key}
+                        style={[styles.menuRow, idx < arr.length - 1 && styles.menuRowDiv]}
+                        onPress={() => setEmpModal(m => ({ ...m, kpiType: k.key }))}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.menuItemName}>{k.label}</Text>
+                          <Text style={styles.menuItemSub}>{k.hint}</Text>
+                        </View>
+                        {empModal.kpiType === k.key && k.key && (
+                          <TextInput
+                            color={colors.text}
+                            style={[styles.prodInput, { width: 72, marginRight: 8, padding: 6, textAlign: 'right', marginBottom: 0 }]}
+                            value={empModal.kpiAmount}
+                            onChangeText={v => setEmpModal(m => ({ ...m, kpiAmount: v }))}
+                            keyboardType="numeric"
+                            placeholder="0"
+                            placeholderTextColor={colors.muted}
+                          />
+                        )}
+                        {empModal.kpiType === k.key && k.key ? <Text style={[styles.menuItemSub, { marginRight: 8 }]}>{k.unit}</Text> : null}
+                        <View style={[styles.productCheckbox, empModal.kpiType === k.key && styles.productCheckboxOn]}>
+                          {empModal.kpiType === k.key && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
+                        </View>
+                      </Pressable>
+                    ))}
+                  </View>
+
+                  {!!empModal.kpiType && (
+                    <>
+                      <Text style={styles.productFieldLabel}>Период плана</Text>
+                      <View style={styles.menuCard}>
+                        {[
+                          { key: 'shift', label: 'За смену' },
+                          { key: 'week',  label: 'За неделю' },
+                          { key: 'month', label: 'За месяц' },
+                        ].map((p, idx) => (
+                          <Pressable
+                            key={p.key}
+                            style={[styles.menuRow, idx < 2 && styles.menuRowDiv]}
+                            onPress={() => setEmpModal(m => ({ ...m, kpiPeriod: p.key }))}
+                          >
+                            <Text style={styles.menuItemName}>{p.label}</Text>
+                            <View style={[styles.productCheckbox, empModal.kpiPeriod === p.key && styles.productCheckboxOn]}>
+                              {empModal.kpiPeriod === p.key && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
+                            </View>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </>
+                  )}
+
                   {/* Права доступа — только для сотрудника */}
                   {empModal.role !== 'admin' && empModal.permissions && (
                     <>
@@ -2647,14 +2709,19 @@ export default function SettingsScreen({ navigation, route }) {
                         if (empModal.pin !== empModal.pin2) return;
                         if (!empModal.id && empModal.pin.length < 4) return;
                         try {
+                          const extra = {
+                            kpiType: empModal.kpiType || '',
+                            kpiAmount: parseFloat(empModal.kpiAmount) || 0,
+                            kpiPeriod: empModal.kpiPeriod || 'month',
+                          };
                           if (empModal.id) {
-                            updateUser(empModal.id, empModal.name, empModal.pin, empModal.role, empModal.salaryType, parseFloat(empModal.salaryAmount) || 0);
+                            updateUser(empModal.id, empModal.name, empModal.pin, empModal.role, empModal.salaryType, parseFloat(empModal.salaryAmount) || 0, extra);
                             if (empModal.role !== 'admin') {
                               saveUserPermissions(empModal.id, empModal.permissions || DEFAULT_PERMISSIONS);
                               setUserPermissions(empModal.id, empModal.permissions || DEFAULT_PERMISSIONS);
                             }
                           } else {
-                            addUser(empModal.name, empModal.pin, empModal.role, empModal.salaryType, parseFloat(empModal.salaryAmount) || 0);
+                            addUser(empModal.name, empModal.pin, empModal.role, empModal.salaryType, parseFloat(empModal.salaryAmount) || 0, extra);
                             if (empModal.role !== 'admin') {
                               const newUser = getUsers().find(u => u.name === empModal.name.trim());
                               if (newUser) saveUserPermissions(newUser.id, empModal.permissions || DEFAULT_PERMISSIONS);
