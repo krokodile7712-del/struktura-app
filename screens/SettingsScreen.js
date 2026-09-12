@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TouchableOpacity, Modal, TextInput, Share, Animated, LayoutAnimation, Platform, Alert, BackHandler, useWindowDimensions, Dimensions, Image, Clipboard } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -215,6 +216,8 @@ export default function SettingsScreen({ navigation, route }) {
     try { return !!(getBusinessProfile()?.booking_slug); } catch { return false; }
   });
   const [bizDraft, setBizDraft]         = useState(null);
+  const [showHoursFrom, setShowHoursFrom] = useState(false);
+  const [showHoursTo, setShowHoursTo]     = useState(false);
   const [termsOpen, setTermsOpen]       = useState(false);
   const [modulesOpen, setModulesOpen]   = useState(false);
   const [rolesOpen, setRolesOpen]       = useState(false);
@@ -1372,10 +1375,72 @@ export default function SettingsScreen({ navigation, route }) {
             <View style={styles.bizFieldRow}>
               <Text style={styles.bizFieldLabel}>Часы работы</Text>
               <View style={styles.hoursGroup}>
-                <TextInput color={colors.text} style={[styles.bizInput, styles.hoursInput]} value={bizDraft.hoursFrom} onChangeText={v => setBizDraft(d => ({ ...d, hoursFrom: v }))} placeholder="09:00" placeholderTextColor={colors.muted} keyboardType="numbers-and-punctuation" />
+                <Pressable style={[styles.bizInput, styles.hoursInput]} onPress={() => setShowHoursFrom(true)}>
+                  <Text style={{ color: bizDraft.hoursFrom ? colors.text : colors.muted, fontFamily: fonts.familyRegular, fontSize: 14 }}>
+                    {bizDraft.hoursFrom || '09:00'}
+                  </Text>
+                </Pressable>
                 <Text style={styles.hoursDash}>—</Text>
-                <TextInput color={colors.text} style={[styles.bizInput, styles.hoursInput]} value={bizDraft.hoursTo} onChangeText={v => setBizDraft(d => ({ ...d, hoursTo: v }))} placeholder="21:00" placeholderTextColor={colors.muted} keyboardType="numbers-and-punctuation" />
+                <Pressable style={[styles.bizInput, styles.hoursInput]} onPress={() => setShowHoursTo(true)}>
+                  <Text style={{ color: bizDraft.hoursTo ? colors.text : colors.muted, fontFamily: fonts.familyRegular, fontSize: 14 }}>
+                    {bizDraft.hoursTo || '21:00'}
+                  </Text>
+                </Pressable>
               </View>
+
+              {showHoursFrom && (
+                <DateTimePicker
+                  value={(() => {
+                    const d = new Date();
+                    const [h, mi] = (bizDraft.hoursFrom || '09:00').split(':').map(Number);
+                    d.setHours(h || 0, mi || 0, 0, 0);
+                    return d;
+                  })()}
+                  mode="time"
+                  display="spinner"
+                  is24Hour
+                  onChange={(event, selectedDate) => {
+                    setShowHoursFrom(Platform.OS === 'ios');
+                    if (event.type !== 'dismissed' && selectedDate) {
+                      const h = String(selectedDate.getHours()).padStart(2, '0');
+                      const mi = String(selectedDate.getMinutes()).padStart(2, '0');
+                      setBizDraft(d => ({ ...d, hoursFrom: `${h}:${mi}` }));
+                    }
+                  }}
+                />
+              )}
+              {Platform.OS === 'ios' && showHoursFrom && (
+                <Pressable style={styles.pickerDoneBtn} onPress={() => setShowHoursFrom(false)}>
+                  <Text style={styles.pickerDoneBtnTxt}>Готово</Text>
+                </Pressable>
+              )}
+
+              {showHoursTo && (
+                <DateTimePicker
+                  value={(() => {
+                    const d = new Date();
+                    const [h, mi] = (bizDraft.hoursTo || '21:00').split(':').map(Number);
+                    d.setHours(h || 0, mi || 0, 0, 0);
+                    return d;
+                  })()}
+                  mode="time"
+                  display="spinner"
+                  is24Hour
+                  onChange={(event, selectedDate) => {
+                    setShowHoursTo(Platform.OS === 'ios');
+                    if (event.type !== 'dismissed' && selectedDate) {
+                      const h = String(selectedDate.getHours()).padStart(2, '0');
+                      const mi = String(selectedDate.getMinutes()).padStart(2, '0');
+                      setBizDraft(d => ({ ...d, hoursTo: `${h}:${mi}` }));
+                    }
+                  }}
+                />
+              )}
+              {Platform.OS === 'ios' && showHoursTo && (
+                <Pressable style={styles.pickerDoneBtn} onPress={() => setShowHoursTo(false)}>
+                  <Text style={styles.pickerDoneBtnTxt}>Готово</Text>
+                </Pressable>
+              )}
             </View>
           </View>
 
@@ -3019,8 +3084,10 @@ const styles = StyleSheet.create({
   bizFieldLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, width: 140 },
   bizInput: { flex: 1, fontFamily: fonts.familyRegular, fontSize: 13, color: colors.text, textAlign: 'right', padding: 0 },
   hoursGroup: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 6 },
-  hoursInput: { flex: 0, width: 56, textAlign: 'center' },
+  hoursInput: { flex: 0, width: 64, alignItems: 'center', justifyContent: 'center' },
   hoursDash: { color: colors.muted, fontSize: 13 },
+  pickerDoneBtn: { marginTop: 8, paddingVertical: 10, borderRadius: 10, backgroundColor: colors.surface2, alignItems: 'center' },
+  pickerDoneBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
   bizPreviewBtn: { marginTop: 8, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', backgroundColor: 'rgba(240,160,80,0.06)' },
   bizPreviewBtnText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
 
