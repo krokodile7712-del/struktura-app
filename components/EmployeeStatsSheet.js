@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
-import Sheet from './Sheet';
+import { View, Text, StyleSheet, ScrollView, Pressable, Modal } from 'react-native';
 import DatePicker from './DatePicker';
 import { getEmployeeStats, getOrderItems, getRoleNames } from '../db/queries';
 import { colors, fonts } from '../constants/theme';
@@ -61,28 +60,42 @@ export default function EmployeeStatsSheet({ visible, onClose, userId }) {
 
   if (!stats) {
     return (
-      <Sheet visible={visible} onClose={onClose} title="Сотрудник">
-        <View style={{ padding: 24 }} />
-      </Sheet>
+      <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+          <View style={styles.modalInner} />
+        </View>
+      </Modal>
     );
   }
 
   const { user, revenue, cash, card, avgCheck, orderCount, shiftCount, hours, byLocation, kpi, orders } = stats;
 
   return (
-    <Sheet visible={visible} onClose={onClose} title={user.name}>
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-        <Text style={styles.role}>{roleNames[user.role] || user.role}</Text>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalRoot}>
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+        <View style={[styles.modalInner, { maxHeight: '85%' }]}>
+          <View style={styles.modalHead}>
+            <View>
+              <Text style={styles.modalTitle}>{user.name}</Text>
+              <Text style={styles.role}>{roleNames[user.role] || user.role}</Text>
+            </View>
+            <Pressable onPress={onClose} hitSlop={14} style={styles.modalClose}>
+              <Text style={styles.modalCloseTxt}>✕</Text>
+            </Pressable>
+          </View>
 
-        {/* Период */}
-        <View style={styles.periodRow}>
-          {PERIODS.map(p => (
-            <Pressable
-              key={p.key}
-              style={[styles.periodChip, period === p.key && styles.periodChipActive]}
-              onPress={() => { if (p.key === 'custom') setPicker(true); else setPeriod(p.key); }}
-            >
-              <Text style={[styles.periodChipTxt, period === p.key && styles.periodChipTxtActive]}>{p.label}</Text>
+          <ScrollView contentContainerStyle={{ paddingBottom: 8 }} showsVerticalScrollIndicator={false}>
+            {/* Период */}
+            <View style={styles.periodRow}>
+              {PERIODS.map(p => (
+                <Pressable
+                  key={p.key}
+                  style={[styles.periodChip, period === p.key && styles.periodChipActive]}
+                  onPress={() => { if (p.key === 'custom') setPicker(true); else setPeriod(p.key); }}
+                >
+                  <Text style={[styles.periodChipTxt, period === p.key && styles.periodChipTxtActive]}>{p.label}</Text>
             </Pressable>
           ))}
         </View>
@@ -168,7 +181,9 @@ export default function EmployeeStatsSheet({ visible, onClose, userId }) {
             ))}
           </View>
         )}
-      </ScrollView>
+          </ScrollView>
+        </View>
+      </View>
 
       <DatePicker
         visible={picker}
@@ -178,12 +193,19 @@ export default function EmployeeStatsSheet({ visible, onClose, userId }) {
         onRangeChange={(from, to) => { setDateFrom(from); setDateTo(to); setPeriod('custom'); setPicker(false); }}
         onClose={() => setPicker(false)}
       />
-    </Sheet>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  role: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginBottom: 16, marginTop: -8 },
+  modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center' },
+  modalInner: { width: '85%', maxWidth: 560, backgroundColor: colors.surface, borderRadius: 20, padding: 24, borderWidth: 1, borderColor: colors.borderHi },
+  modalHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
+  modalTitle: { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.text },
+  modalClose: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  modalCloseTxt: { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: colors.muted },
+
+  role: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginBottom: 0, marginTop: 2 },
 
   periodRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 18 },
   periodChip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },

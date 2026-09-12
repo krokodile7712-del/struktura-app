@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts } from '../constants/theme';
-import { getSession } from '../db/session';
+import { getSession, clearSession } from '../db/session';
+import { resetKassaCart } from '../db/cartStore';
 import { useNextStepsProgress } from './NextStepsCard';
 import { useTourAnyActive } from './TourRegistry';
 
@@ -12,6 +13,21 @@ export default function TopBar({ title, onBack, rightElement, syncPending, navig
   const { doneCount, visible: stepsVisible } = useNextStepsProgress();
   const showBanner = isAdmin && stepsVisible && navigation;
   const tourActive = useTourAnyActive();
+
+  const lockApp = () => {
+    Alert.alert(
+      'Заблокировать приложение?',
+      'Текущий сеанс завершится — для входа снова понадобится PIN.',
+      [
+        { text: 'Отмена', style: 'cancel' },
+        { text: 'Заблокировать', style: 'destructive', onPress: () => {
+          resetKassaCart();
+          clearSession();
+          navigation?.reset ? navigation.reset({ index: 0, routes: [{ name: 'Login' }] }) : navigation?.navigate('Login');
+        } },
+      ]
+    );
+  };
 
   return (
     <>
@@ -44,6 +60,9 @@ export default function TopBar({ title, onBack, rightElement, syncPending, navig
           {syncPending > 0
             ? <Text style={styles.syncBadge}>↑{syncPending}</Text>
             : null}
+          <Pressable onPress={lockApp} style={styles.lockBtn} hitSlop={10} accessibilityLabel="Заблокировать" accessibilityRole="button">
+            <Text style={styles.lockIcon}>🔒</Text>
+          </Pressable>
           {rightElement || null}
         </View>
       </View>
@@ -88,6 +107,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
+  },
+  lockBtn: {
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+  },
+  lockIcon: {
+    fontSize: 16,
   },
   menuIcon: {
     fontSize: 20,
