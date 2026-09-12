@@ -843,16 +843,17 @@ export function getCategoryProducts(name) {
   return db.getAllSync(`SELECT * FROM products WHERE category = ? ORDER BY name`, [name]);
 }
 
-export function insertProduct({ name, category, price_s, price_m, price_l, has_milk, has_syrup }) {
+// Раньше писала только в исходные (ещё "кофейные") колонки price_s/price_m/
+// price_l/has_milk/has_syrup — а актуальная price появилась в таблице позже,
+// отдельной миграцией (ALTER TABLE). Из-за этого цена нового товара всегда
+// уходила в её DEFAULT, а не в то, что реально ввёл пользователь — вызывающий
+// код (ProductsScreen.js) передаёт name/category/price/active, но эта функция
+// их даже не принимала.
+export function insertProduct({ name, category, price = 0, active = 1 }) {
   const db = getDb();
-  const variants = [];
-  if (price_s > 0) variants.push({ size: 'Маленький', price: price_s });
-  if (price_m > 0) variants.push({ size: 'Средний', price: price_m });
-  if (price_l > 0) variants.push({ size: 'Большой', price: price_l });
   return db.runSync(
-    `INSERT INTO products (name, category, price_s, price_m, price_l, has_milk, has_syrup, variants)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [name, category, price_s || 0, price_m || 0, price_l || 0, has_milk ? 1 : 0, has_syrup ? 1 : 0, JSON.stringify(variants)]
+    `INSERT INTO products (name, category, price, active) VALUES (?, ?, ?, ?)`,
+    [name, category, price || 0, active ? 1 : 0]
   ).lastInsertRowId;
 }
 

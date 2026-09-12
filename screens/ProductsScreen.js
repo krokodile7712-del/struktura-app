@@ -623,11 +623,21 @@ export default function ProductsScreen({ navigation, route }) {
     items: filtered.filter(p => p.category === cat),
   })).filter(g => g.items.length > 0);
 
-  // Модификаторы - сохранение
+  // Модификаторы - сохранение (группа + варианты — оба случая: новая группа
+  // и редактирование существующей — в одном месте, чтобы не разъезжались)
   const saveGroup = (data) => {
     try {
-      if (data.id) { updateModifierGroup(data.id, data); }
-      else { insertModifierGroup(data); }
+      let groupId = data.id;
+      if (groupId) {
+        updateModifierGroup(groupId, { name: data.name, mode: data.mode });
+      } else {
+        groupId = insertModifierGroup({ name: data.name, mode: data.mode });
+      }
+      (data.options || []).forEach(opt => {
+        const optData = { name: opt.name, priceDelta: parseFloat(opt.price)||0, groupId, ingrToReplace: opt.ingr_to_replace||'' };
+        if (opt.id) updateModifierOption(opt.id, optData);
+        else insertModifierOption(optData);
+      });
       load(); setGroupModal(null);
     } catch(e) { console.error('[handleSave ERROR]', e.message, e.stack?.split('\n')[1]); Alert.alert('Ошибка', e.message); }
   };
@@ -1250,18 +1260,7 @@ function ModGroupModal({ group, onSave, onDelete, onClose, stock }) {
 
   const handleSave = () => {
     if (!name.trim()) { Alert.alert('Введите название группы'); return; }
-    const data = { ...group, name: name.trim(), mode, options };
-    if (data.id) {
-      try {
-        updateModifierGroup(data.id, { name: data.name, mode: data.mode });
-        options.forEach(opt => {
-          const optData = { name: opt.name, price: parseFloat(opt.price)||0, group_id: data.id, ingr_to_replace: opt.ingr_to_replace||'' };
-          if (opt.id) updateModifierOption(opt.id, optData);
-          else insertModifierOption(optData);
-        });
-      } catch(e) { Alert.alert('Ошибка', e.message); return; }
-    }
-    onSave(data);
+    onSave({ ...group, name: name.trim(), mode, options });
   };
 
   const filteredStock = (stock || []).filter(s => !ingSearch.trim() || s.name.toLowerCase().includes(ingSearch.toLowerCase()));
