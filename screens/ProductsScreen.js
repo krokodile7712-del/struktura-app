@@ -70,7 +70,22 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
   const [optionsOpen, setOptionsOpen] = useState(selGroups.length > 0);
 
 
-  const addVariant   = () => setVars(v => [...v, { id: null, label: '', price: '', deduction_mode: 'fixed', ings: [] }]);
+  // Слова-метки упаковки, зависящей от размера — её НЕ копируем в новый
+  // вариант автоматически, иначе можно случайно получить, например,
+  // "большой капучино" с маленьким стаканом и крышкой от прошлого размера
+  const PACKAGING_WORDS = ['стакан', 'крышк', 'куп'];
+  const isPackaging = (name) => PACKAGING_WORDS.some(w => (name || '').toLowerCase().includes(w));
+
+  const addVariant = () => setVars(v => {
+    const last = v[v.length - 1];
+    const lastIngs = Array.isArray(last?.ings) ? last.ings : [];
+    // Копируем рецепт (кофе, молоко, сироп и т.п.) как отправную точку —
+    // остаётся только поправить количества под новый объём. Упаковку
+    // (стакан/крышку) не копируем намеренно — её обязательно выбирают
+    // заново под конкретный размер, чтобы не свести не тот размер стакана
+    const copiedIngs = lastIngs.filter(ing => !isPackaging(ing.name)).map(ing => ({ ...ing }));
+    return [...v, { id: null, label: '', price: '', deduction_mode: last?.deduction_mode || 'fixed', ings: copiedIngs }];
+  });
   const removeVariant= (i) => setVars(v => v.filter((_,j) => j !== i));
   const setVarField  = (i, f, val) => setVars(v => v.map((r,j) => j===i ? {...r,[f]:val} : r));
   const addIng = (vi, s) => {
@@ -292,6 +307,11 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
                         )}
                       </View>
                     ))}
+                    {vars.length > 1 && !(Array.isArray(v.ings) ? v.ings : []).some(ing => isPackaging(ing.name)) && (
+                      <Text style={styles.packagingHint}>
+                        ⚠️ Стакан и крышка для этого размера ещё не выбраны — добавьте нужные со склада ниже
+                      </Text>
+                    )}
                     <Pressable style={styles.addIngBtn} onPress={() => { setIngPickerVar(vi); onIngPicker?.(vi, (s) => addIng(vi, s)); }}>
                       <Text style={styles.addIngTxt}>+ Добавить со склада</Text>
                     </Pressable>
@@ -1464,6 +1484,7 @@ const styles = StyleSheet.create({
   techBody:   { padding: 12, borderTopWidth: 1, borderTopColor: colors.border },
   ingRow:     { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
   ingListHint: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, lineHeight: 16, marginBottom: 10 },
+  packagingHint: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.amber || '#d9a441', lineHeight: 17, marginBottom: 10, marginTop: 2 },
   modeSwitchRow: { flexDirection: 'row', backgroundColor: colors.surface2, borderRadius: 10, padding: 3, marginBottom: 10 },
   modeSwitchBtn: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
   modeSwitchBtnActive: { backgroundColor: colors.orange },
