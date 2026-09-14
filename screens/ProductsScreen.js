@@ -46,6 +46,7 @@ function pluralizeProducts(n) {
 function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, allModGroups, onClose, onIngPicker, onCreateGroup, modifiersEnabled = true }) {
   const isNew = !product?.id;
   const canEditCost = can('edit_cost_cards');
+  const { isLandscape } = useResponsive();
   const [stock, setStock] = useState(() => { try { return getAllStock(); } catch { return []; } });
 
   const [name, setName]           = useState(product?.name || '');
@@ -110,17 +111,11 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
       <ScrollView contentContainerStyle={styles.editorContent} keyboardShouldPersistTaps="handled">
 
         {/* Шапка */}
-        <View style={styles.editorHeader}>
-          <View style={{ flex: 1 }}>
-            {!isNew && <Text style={styles.editorSub}>{category}</Text>}
+        {!isNew && (
+          <View style={styles.editorHeader}>
+            <Text style={styles.editorSub}>{category}</Text>
           </View>
-          {!isNew && (
-            <View style={styles.activeToggleRow}>
-              <Text style={styles.activeLabel}>{active ? 'Активен' : 'Неактивен'}</Text>
-              <Toggle value={active} onValueChange={setActive} size="sm" />
-            </View>
-          )}
-        </View>
+        )}
 
         <View style={styles.editorDivider} />
 
@@ -162,34 +157,40 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
           />
         </View>
 
-        {/* СЕКЦИЯ: Скидка */}
-        <Text style={styles.sectionTitle}>Скидка</Text>
-        <View style={styles.sectionCard}>
-        <View style={[styles.deductQuestionRow, { marginTop: 0 }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-            <Text style={styles.deductQuestionTxt}>Скидка на товар</Text>
-            <InfoTip title="Скидка на товар" text="Общий процент скидки (настраивается один раз для всех товаров в Настройках → Скидки) будет применяться к этому товару автоматически при каждой продаже — независимо от скидки на весь заказ." />
+        {/* СЕКЦИЯ: Параметры — короткие переключатели рядом, парами в альбомной */}
+        <Text style={styles.sectionTitle}>Параметры</Text>
+        <View style={[styles.paramsGrid, isLandscape && !isNew && styles.paramsGridRow]}>
+          {!isNew && (
+            <View style={[styles.paramCard, isLandscape && styles.paramCardHalf]}>
+              <Text style={styles.deductQuestionTxt}>{active ? 'Активен' : 'Неактивен'}</Text>
+              <Toggle value={active} onValueChange={setActive} size="sm" />
+            </View>
+          )}
+          <View style={[styles.paramCard, isLandscape && !isNew && styles.paramCardHalf]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={styles.deductQuestionTxt}>Скидка на товар</Text>
+              <InfoTip title="Скидка на товар" text="Общий процент скидки (настраивается один раз для всех товаров в Настройках → Скидки) будет применяться к этому товару автоматически при каждой продаже — независимо от скидки на весь заказ." />
+            </View>
+            <Toggle
+              value={discountEligible}
+              onValueChange={(v) => {
+                setDiscountEligible(v);
+                // Для уже существующего товара — сохраняем сразу, не дожидаясь
+                // общей кнопки «Сохранить» всей карточки. Раньше переключатель
+                // менял только локальное состояние формы — если карточку
+                // закрывали без явного сохранения, в базе оставалось старое
+                // значение, и скидка в Кассе продолжала применяться как ни в чём
+                // не бывало, хотя переключатель на экране уже выглядел выключенным.
+                if (product?.id) {
+                  try {
+                    setProductDiscountEligible(product.id, v);
+                    emit('productsChanged');
+                  } catch (e) { console.error(e); }
+                }
+              }}
+              size="sm"
+            />
           </View>
-          <Toggle
-            value={discountEligible}
-            onValueChange={(v) => {
-              setDiscountEligible(v);
-              // Для уже существующего товара — сохраняем сразу, не дожидаясь
-              // общей кнопки «Сохранить» всей карточки. Раньше переключатель
-              // менял только локальное состояние формы — если карточку
-              // закрывали без явного сохранения, в базе оставалось старое
-              // значение, и скидка в Кассе продолжала применяться как ни в чём
-              // не бывало, хотя переключатель на экране уже выглядел выключенным.
-              if (product?.id) {
-                try {
-                  setProductDiscountEligible(product.id, v);
-                  emit('productsChanged');
-                } catch (e) { console.error(e); }
-              }
-            }}
-            size="sm"
-          />
-        </View>
         </View>
 
         {/* СЕКЦИЯ: Цена и размеры */}
@@ -1459,6 +1460,12 @@ const styles = StyleSheet.create({
   editorDivider: { height: 1, backgroundColor: colors.border, marginBottom: 20 },
   sectionTitle: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.orange, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 22 },
   sectionCard: { backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.borderHi, padding: 14 },
+
+  // Параметры — короткие строки "подпись + переключатель", парами в альбомной
+  paramsGrid:     { gap: 10 },
+  paramsGridRow:  { flexDirection: 'row', flexWrap: 'wrap' },
+  paramCard:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.borderHi, paddingVertical: 13, paddingHorizontal: 14 },
+  paramCardHalf:  { flexBasis: '48%', flexGrow: 1 },
   activeToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   activeLabel:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
 
