@@ -123,43 +123,48 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
 
         <View style={styles.editorDivider} />
 
-        {/* Название */}
-        <Text style={styles.fieldLabel}>Название товара <Text style={{ color: colors.orange }}>*</Text></Text>
-        <TextInput
-          style={styles.input}
-          color={colors.text}
-          value={name}
-          onChangeText={setName}
-          placeholder="Название товара или услуги"
-          placeholderTextColor={colors.muted}
-          autoFocus={isNew}
-        />
+        {/* СЕКЦИЯ: Основное */}
+        <Text style={styles.sectionTitle}>Основное</Text>
+        <View style={styles.sectionCard}>
+          <Text style={[styles.fieldLabel, { marginTop: 0 }]}>Название товара <Text style={{ color: colors.orange }}>*</Text></Text>
+          <TextInput
+            style={styles.input}
+            color={colors.text}
+            value={name}
+            onChangeText={setName}
+            placeholder="Название товара или услуги"
+            placeholderTextColor={colors.muted}
+            autoFocus={isNew}
+          />
 
-        {/* Категория */}
-        <View style={styles.labelRow}>
-          <Text style={styles.fieldLabel}>Категория</Text>
-          <InfoTip title="Категория" text="Группирует товары в списке и в кассе. Клиент её не видит. Есть нужная — выберите её; нет — впишите новую, она появится в списке для следующих товаров." />
+          {/* Категория */}
+          <View style={styles.labelRow}>
+            <Text style={styles.fieldLabel}>Категория</Text>
+            <InfoTip title="Категория" text="Группирует товары в списке и в кассе. Клиент её не видит. Есть нужная — выберите её; нет — впишите новую, она появится в списке для следующих товаров." />
+          </View>
+          {categories.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
+              {categories.map(cat => (
+                <Pressable key={cat} style={[styles.chip, category === cat && styles.chipActive]} onPress={() => setCategory(cat)}>
+                  <Text style={[styles.chipTxt, category === cat && styles.chipTxtActive]}>{cat}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
+          <TextInput
+            style={[styles.input, { marginTop: categories.length > 0 ? 8 : 0 }]}
+            color={colors.text}
+            value={category}
+            onChangeText={setCategory}
+            placeholder={categories.length > 0 ? 'Или впишите новую категорию' : 'Название категории (например, Напитки)'}
+            placeholderTextColor={colors.muted}
+          />
         </View>
-        {categories.length > 0 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
-            {categories.map(cat => (
-              <Pressable key={cat} style={[styles.chip, category === cat && styles.chipActive]} onPress={() => setCategory(cat)}>
-                <Text style={[styles.chipTxt, category === cat && styles.chipTxtActive]}>{cat}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        )}
-        <TextInput
-          style={[styles.input, { marginTop: categories.length > 0 ? 8 : 0 }]}
-          color={colors.text}
-          value={category}
-          onChangeText={setCategory}
-          placeholder={categories.length > 0 ? 'Или впишите новую категорию' : 'Название категории (например, Напитки)'}
-          placeholderTextColor={colors.muted}
-        />
 
-        {/* Скидка на товар */}
-        <View style={styles.deductQuestionRow}>
+        {/* СЕКЦИЯ: Скидка */}
+        <Text style={styles.sectionTitle}>Скидка</Text>
+        <View style={styles.sectionCard}>
+        <View style={[styles.deductQuestionRow, { marginTop: 0 }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
             <Text style={styles.deductQuestionTxt}>Скидка на товар</Text>
             <InfoTip title="Скидка на товар" text="Общий процент скидки (настраивается один раз для всех товаров в Настройках → Скидки) будет применяться к этому товару автоматически при каждой продаже — независимо от скидки на весь заказ." />
@@ -184,11 +189,13 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
             size="sm"
           />
         </View>
+        </View>
 
-        {/* Варианты и цены */}
+        {/* СЕКЦИЯ: Цена и размеры */}
+        <Text style={styles.sectionTitle}>Цена и размеры</Text>
         <View style={styles.labelRow}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-            <Text style={styles.fieldLabel}>{vars.length > 1 ? 'Размеры / Виды' : 'Цена продажи'}</Text>
+            <Text style={[styles.fieldLabel, { marginTop: 0 }]}>{vars.length > 1 ? 'Размеры / Виды' : 'Цена продажи'}</Text>
             <InfoTip title="Размеры" text="Один вариант — просто введите цену. Несколько — добавьте S/M/L или виды." />
           </View>
           <Pressable style={styles.addVarBtn} onPress={addVariant}>
@@ -330,9 +337,10 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
           );
         })}
 
-        {/* Опции (модификаторы) */}
+        {/* СЕКЦИЯ: Опции (модификаторы) */}
         {modifiersEnabled && (
         <>
+        <Text style={styles.sectionTitle}>Дополнительные опции</Text>
         <View style={styles.priceRow}>
           <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
             <Text style={styles.fieldLabel}>Есть доп. опции с доплатой?</Text>
@@ -1449,6 +1457,8 @@ const styles = StyleSheet.create({
   editorTitle:   { fontFamily: fonts.family, fontSize: 24, fontWeight: '800', color: colors.text },
   editorSub:     { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 2 },
   editorDivider: { height: 1, backgroundColor: colors.border, marginBottom: 20 },
+  sectionTitle: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.orange, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 22 },
+  sectionCard: { backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, padding: 14 },
   activeToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   activeLabel:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
 
