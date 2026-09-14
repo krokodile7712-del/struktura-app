@@ -1453,7 +1453,7 @@ const styles = StyleSheet.create({
   landscapeHeaderTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text },
 
   // Редактор товара
-  editorContent: { padding: 24, paddingBottom: 40 },
+  editorContent: { padding: 24, paddingBottom: 40, maxWidth: 640, width: '100%', alignSelf: 'center' },
   editorHeader:  { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 4 },
   editorTitle:   { fontFamily: fonts.family, fontSize: 24, fontWeight: '800', color: colors.text },
   editorSub:     { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 2 },
