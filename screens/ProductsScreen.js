@@ -166,7 +166,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
         <Text style={styles.sectionTitle}>Скидка</Text>
         <View style={styles.sectionCard}>
         <View style={[styles.deductQuestionRow, { marginTop: 0 }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 14 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
             <Text style={styles.deductQuestionTxt}>Скидка на товар</Text>
             <InfoTip title="Скидка на товар" text="Общий процент скидки (настраивается один раз для всех товаров в Настройках → Скидки) будет применяться к этому товару автоматически при каждой продаже — независимо от скидки на весь заказ." />
           </View>
@@ -1513,7 +1513,7 @@ const styles = StyleSheet.create({
   chevronOpen:{ transform: [{ rotate: '-90deg' }] },
   deductQuestion: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 12, borderTopWidth: 1, borderTopColor: colors.border },
   deductQuestionRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, marginTop: 4 },
-  deductQuestionTxt: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
+  deductQuestionTxt: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, flex: 1 },
 
   techBody:   { padding: 12, borderTopWidth: 1, borderTopColor: colors.border },
   ingRow:     { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
