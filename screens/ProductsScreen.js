@@ -1462,7 +1462,7 @@ const styles = StyleSheet.create({
   sectionCard: { backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.borderHi, padding: 14 },
 
   // Параметры — короткие строки "подпись + переключатель", парами в альбомной
-  paramsGrid:     { gap: 10 },
+  paramsGrid:     { gap: 10, alignItems: 'flex-start' },
   paramsGridRow:  { flexDirection: 'row', flexWrap: 'wrap' },
   paramCard:      { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 14, backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.borderHi, paddingVertical: 13, paddingHorizontal: 14 },
   paramCardHalf:  { flexBasis: '48%', flexGrow: 1 },
