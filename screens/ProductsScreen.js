@@ -8,6 +8,7 @@ import EmptyState from '../components/EmptyState';
 import StockPanel from '../components/panels/StockPanel';
 import { useResponsive } from '../hooks/useResponsive';
 import Sheet from '../components/Sheet';
+import SwipeableRow from '../components/SwipeableRow';
 import UnitPicker from '../components/UnitPicker';
 import AppNav from '../components/AppNav';
 import Toggle from '../components/Toggle';
@@ -198,144 +199,129 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
             <Text style={[styles.fieldLabel, { marginTop: 0 }]}>{vars.length > 1 ? 'Размеры / Виды' : 'Цена продажи'}</Text>
             <InfoTip title="Размеры" text="Один вариант — просто введите цену. Несколько — добавьте S/M/L или виды." />
           </View>
-          <Pressable style={styles.addVarBtn} onPress={addVariant}>
-            <Text style={styles.addVarTxt}>+ Размер</Text>
-          </Pressable>
         </View>
 
         {vars.map((v, vi) => {
           const cost   = totalCost(v);
           const mrg    = margin(v);
           const isOpen = expandedVar === vi;
+          const hasIngs = Array.isArray(v.ings) && v.ings.length > 0;
           return (
-            <View key={vi} style={styles.varCard}>
-              {/* Строка варианта */}
-              <View style={styles.varRow}>
-                {vars.length > 1 && (
-                  <TextInput style={[styles.input, { flex: 1 }]} color={colors.text}
+            <SwipeableRow key={vi} onAction={() => removeVariant(vi)} label="Удалить" disabled={vars.length <= 1}>
+            <View style={styles.varCard}>
+              {/* Верх: название размера + цена */}
+              <View style={styles.varTopRow}>
+                {vars.length > 1 ? (
+                  <TextInput style={styles.varLabelInput} color={colors.text}
                     value={v.label} onChangeText={val => setVarField(vi, 'label', val)}
                     placeholder="S, M, L..." placeholderTextColor={colors.muted} />
+                ) : (
+                  <Text style={styles.varTopLabel}>Цена</Text>
                 )}
-                <View style={styles.priceRow}>
-                  <TextInput style={[styles.input, { width: 90, textAlign: 'center' }]} color={colors.text}
+                <View style={styles.varPriceWrap}>
+                  <TextInput style={styles.varPriceInput} color={colors.text}
                     keyboardType="numeric" value={v.price} onChangeText={val => setVarField(vi, 'price', val)}
                     placeholder="0" placeholderTextColor={colors.muted} />
-                  <Text style={styles.currencyTxt}>₽</Text>
-                  {mrg !== null && (
-                    <View style={[styles.marginBadge, { backgroundColor: mrg >= 50 ? 'rgba(123,175,142,0.12)' : mrg >= 30 ? 'rgba(123,175,142,0.08)' : 'rgba(217,95,95,0.1)' }]}>
-                      <Text style={[styles.marginTxt, { color: mrg >= 30 ? colors.green : colors.red }]}>{mrg}%</Text>
-                    </View>
-                  )}
-                  {vars.length > 1 && (
-                    <Pressable onPress={() => removeVariant(vi)} hitSlop={10}>
-                      <Text style={{ color: colors.muted, fontSize: 18 }}>✕</Text>
-                    </Pressable>
-                  )}
+                  <Text style={styles.varCurrency}>₽</Text>
                 </View>
               </View>
 
-              <Pressable onPress={() => setUnitOpenVar(o => o === vi ? -1 : vi)} style={styles.unitToggleRow}>
-                <Text style={styles.unitToggleTxt}>
-                  Единица продажи: {v.unit || 'шт'}{unitOpenVar !== vi ? '  ›' : '  ▾'}
-                </Text>
-              </Pressable>
+              {mrg !== null && (
+                <View style={styles.marginDotRow}>
+                  <View style={[styles.marginDot, { backgroundColor: mrg >= 30 ? colors.green : colors.red }]} />
+                  <Text style={styles.marginDotTxt}>Маржа {mrg}%</Text>
+                </View>
+              )}
+
+              {/* Чипы: единица продажи + ингредиенты */}
+              <View style={styles.varChipsRow}>
+                <Pressable style={styles.miniChip} onPress={() => setUnitOpenVar(o => o === vi ? -1 : vi)}>
+                  <Text style={styles.miniChipTxt}>{v.unit || 'шт'} ▾</Text>
+                </Pressable>
+                {canEditCost ? (
+                  <Pressable
+                    style={[styles.miniChip, hasIngs && styles.miniChipFilled]}
+                    onPress={() => setExpandedVar(hasIngs ? (isOpen ? -1 : vi) : vi)}
+                  >
+                    <Text style={[styles.miniChipTxt, hasIngs && styles.miniChipTxtFilled]}>
+                      🧾 {hasIngs ? `Ингредиенты · ${v.ings.length}` : '+ Ингредиенты'}
+                    </Text>
+                  </Pressable>
+                ) : (
+                  <View style={[styles.miniChip, { opacity: 0.4 }]}>
+                    <Text style={styles.miniChipTxt}>Списание · нет доступа</Text>
+                  </View>
+                )}
+                <InfoTip title="Техкарта" text="Список того, что расходуется на одну продажу — ингредиенты, материалы, расходники. Каждая продажа автоматически спишет остаток нужных позиций на складе. Не нужна — просто не добавляйте." />
+              </View>
+
               {unitOpenVar === vi && (
-                <View style={{ marginBottom: 10 }}>
+                <View style={{ marginTop: 10 }}>
                   <UnitPicker value={v.unit || 'шт'} onChange={val => setVarField(vi, 'unit', val)} />
                 </View>
               )}
 
-              {/* Списание со склада (была "Техкарта") */}
-              {canEditCost ? (() => {
-                const hasIngs = Array.isArray(v.ings) && v.ings.length > 0;
-                const deductOn = isOpen || hasIngs;
-                return (
-                <>
-                {!deductOn ? (
-                  <View style={styles.deductQuestion}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                      <Text style={styles.deductQuestionTxt}>Нужна техкарта?</Text>
-                      <InfoTip title="Техкарта" text="Список того, что расходуется на одну продажу — ингредиенты, материалы, расходники. Например, для «Стрижка мужская» — шампунь и бальзам. Каждая продажа автоматически спишет остаток нужных позиций на складе. Не нужна — просто пропустите." />
-                    </View>
-                    <Toggle value={false} onValueChange={() => setExpandedVar(vi)} size="sm" />
-                  </View>
-                ) : (
-                <>
-                <Pressable style={styles.techToggle} onPress={() => setExpandedVar(hasIngs ? (isOpen ? -1 : vi) : vi)}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                    <Text style={styles.techToggleTxt}>
-                      Техкарта{hasIngs ? ` · ${v.ings.length} поз.` : ''}
-                    </Text>
-                    <InfoTip title="Техкарта" text="Каждая продажа автоматически спишет остаток указанных позиций на складе. Уберите все позиции, чтобы отключить техкарту для этого товара." />
-                  </View>
-                  <Toggle value={true} onValueChange={() => setExpandedVar(-1)} size="sm" />
-                </Pressable>
-
-                {isOpen && (
-                  <View style={styles.techBody}>
-                    <View style={styles.modeSwitchRow}>
-                      <Pressable
-                        style={[styles.modeSwitchBtn, (v.deduction_mode || 'fixed') === 'fixed' && styles.modeSwitchBtnActive]}
-                        onPress={() => setDeductionMode(vi, 'fixed')}
-                      >
-                        <Text style={[styles.modeSwitchTxt, (v.deduction_mode || 'fixed') === 'fixed' && styles.modeSwitchTxtActive]}>Фиксированный расход</Text>
-                      </Pressable>
-                      <Pressable
-                        style={[styles.modeSwitchBtn, v.deduction_mode === 'variable' && styles.modeSwitchBtnActive]}
-                        onPress={() => setDeductionMode(vi, 'variable')}
-                      >
-                        <Text style={[styles.modeSwitchTxt, v.deduction_mode === 'variable' && styles.modeSwitchTxtActive]}>Расход по факту</Text>
-                      </Pressable>
-                    </View>
-                    <Text style={styles.ingListHint}>
-                      {v.deduction_mode === 'variable'
-                        ? 'Количество каждого материала вводится заново при каждой продаже — цена и списание считаются по факту (подходит, когда расход у каждого клиента разный)'
-                        : 'Сколько расходуется на одну продажу этого товара — при каждом заказе именно столько спишется со склада'}
-                    </Text>
-                    {(Array.isArray(v.ings) ? v.ings : []).map((ing, ii) => (
-                      <View key={ii} style={styles.ingCard}>
-                        <View style={styles.ingCardHead}>
-                          <Text style={styles.ingName} numberOfLines={1}>{ing.name}</Text>
-                          <Pressable onPress={() => removeIng(vi, ii)} hitSlop={10}>
-                            <Text style={{ color: colors.muted, fontSize: 16 }}>✕</Text>
-                          </Pressable>
-                        </View>
-                        {v.deduction_mode !== 'variable' && (
-                        <View style={styles.ingFieldRow}>
-                          <Text style={styles.ingFieldLabel}>Расход на 1 продажу</Text>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <TextInput style={styles.ingInput} color={colors.text}
-                              keyboardType="numeric" value={ing.amount}
-                              onChangeText={val => setIngField(vi, ii, 'amount', val)}
-                              placeholder="0" placeholderTextColor={colors.muted} />
-                            <Text style={styles.ingUnit}>{ing.unit}</Text>
-                          </View>
-                        </View>
-                        )}
-                      </View>
-                    ))}
-                    {vars.length > 1 && !(Array.isArray(v.ings) ? v.ings : []).some(ing => isPackaging(ing.name)) && (
-                      <Text style={styles.packagingHint}>
-                        ⚠️ Стакан и крышка для этого размера ещё не выбраны — добавьте нужные со склада ниже
-                      </Text>
-                    )}
-                    <Pressable style={styles.addIngBtn} onPress={() => { setIngPickerVar(vi); onIngPicker?.(vi, (s) => addIng(vi, s)); }}>
-                      <Text style={styles.addIngTxt}>+ Добавить со склада</Text>
+              {canEditCost && isOpen && (
+                <View style={styles.techBody}>
+                  <View style={styles.modeSwitchRow}>
+                    <Pressable
+                      style={[styles.modeSwitchBtn, (v.deduction_mode || 'fixed') === 'fixed' && styles.modeSwitchBtnActive]}
+                      onPress={() => setDeductionMode(vi, 'fixed')}
+                    >
+                      <Text style={[styles.modeSwitchTxt, (v.deduction_mode || 'fixed') === 'fixed' && styles.modeSwitchTxtActive]}>Фиксированный расход</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[styles.modeSwitchBtn, v.deduction_mode === 'variable' && styles.modeSwitchBtnActive]}
+                      onPress={() => setDeductionMode(vi, 'variable')}
+                    >
+                      <Text style={[styles.modeSwitchTxt, v.deduction_mode === 'variable' && styles.modeSwitchTxtActive]}>Расход по факту</Text>
                     </Pressable>
                   </View>
-                )}
-                </>
-                )}
-                </>
-                );
-              })() : (
-              <View style={[styles.techToggle, { opacity: 0.4 }]}>
-                <Text style={styles.techToggleTxt}>Списание со склада · нет доступа</Text>
-              </View>
+                  <Text style={styles.ingListHint}>
+                    {v.deduction_mode === 'variable'
+                      ? 'Количество каждого материала вводится заново при каждой продаже — цена и списание считаются по факту (подходит, когда расход у каждого клиента разный)'
+                      : 'Сколько расходуется на одну продажу этого товара — при каждом заказе именно столько спишется со склада'}
+                  </Text>
+                  {(Array.isArray(v.ings) ? v.ings : []).map((ing, ii) => (
+                    <View key={ii} style={styles.ingCard}>
+                      <View style={styles.ingCardHead}>
+                        <Text style={styles.ingName} numberOfLines={1}>{ing.name}</Text>
+                        <Pressable onPress={() => removeIng(vi, ii)} hitSlop={10}>
+                          <Text style={{ color: colors.muted, fontSize: 16 }}>✕</Text>
+                        </Pressable>
+                      </View>
+                      {v.deduction_mode !== 'variable' && (
+                      <View style={styles.ingFieldRow}>
+                        <Text style={styles.ingFieldLabel}>Расход на 1 продажу</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <TextInput style={styles.ingInput} color={colors.text}
+                            keyboardType="numeric" value={ing.amount}
+                            onChangeText={val => setIngField(vi, ii, 'amount', val)}
+                            placeholder="0" placeholderTextColor={colors.muted} />
+                          <Text style={styles.ingUnit}>{ing.unit}</Text>
+                        </View>
+                      </View>
+                      )}
+                    </View>
+                  ))}
+                  {vars.length > 1 && !(Array.isArray(v.ings) ? v.ings : []).some(ing => isPackaging(ing.name)) && (
+                    <Text style={styles.packagingHint}>
+                      ⚠️ Стакан и крышка для этого размера ещё не выбраны — добавьте нужные со склада ниже
+                    </Text>
+                  )}
+                  <Pressable style={styles.addIngBtn} onPress={() => { setIngPickerVar(vi); onIngPicker?.(vi, (s) => addIng(vi, s)); }}>
+                    <Text style={styles.addIngTxt}>+ Добавить со склада</Text>
+                  </Pressable>
+                </View>
               )}
             </View>
+            </SwipeableRow>
           );
         })}
+
+        <Pressable style={styles.addVarBtnBig} onPress={addVariant}>
+          <Text style={styles.addVarBtnBigTxt}>+ Добавить размер</Text>
+        </Pressable>
 
         {/* СЕКЦИЯ: Опции (модификаторы) */}
         {modifiersEnabled && (
@@ -1488,7 +1474,31 @@ const styles = StyleSheet.create({
   addVarBtn:   { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   addVarTxt:   { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
 
-  varCard:    { backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, marginBottom: 10, overflow: 'hidden' },
+  varCard:    { backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.borderHi, marginBottom: 10, overflow: 'hidden', padding: 14 },
+
+  // Верх карточки — название размера + крупная цена
+  varTopRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  varTopLabel: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted },
+  varLabelInput: { flex: 1, fontFamily: fonts.family, fontSize: 17, fontWeight: '700', color: colors.text, padding: 0 },
+  varPriceWrap: { flexDirection: 'row', alignItems: 'baseline', gap: 3 },
+  varPriceInput: { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.text, padding: 0, textAlign: 'right', minWidth: 50 },
+  varCurrency: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
+
+  marginDotRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
+  marginDot:    { width: 7, height: 7, borderRadius: 3.5 },
+  marginDotTxt: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+
+  // Чипы — единица продажи / ингредиенты, нейтральный тон, не вопрос
+  varChipsRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  miniChip:    { paddingVertical: 7, paddingHorizontal: 12, borderRadius: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  miniChipTxt: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
+  miniChipFilled:    { borderColor: 'rgba(240,160,80,0.4)', backgroundColor: 'rgba(240,160,80,0.08)' },
+  miniChipTxtFilled: { color: colors.orange },
+
+  // Большая кнопка "+ Добавить размер" внизу списка
+  addVarBtnBig: { marginTop: 4, paddingVertical: 15, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1.5, borderColor: colors.orange, alignItems: 'center' },
+  addVarBtnBigTxt: { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: colors.orange },
+
   unitToggleRow: { paddingHorizontal: 12, paddingBottom: 10 },
   unitToggleTxt: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
   varRow:     { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 8 },
