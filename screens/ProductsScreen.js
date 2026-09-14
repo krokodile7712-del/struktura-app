@@ -1464,7 +1464,7 @@ const styles = StyleSheet.create({
   // Параметры — короткие строки "подпись + переключатель", парами в альбомной
   paramsGrid:     { gap: 10 },
   paramsGridRow:  { flexDirection: 'row', flexWrap: 'wrap' },
-  paramCard:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.borderHi, paddingVertical: 13, paddingHorizontal: 14 },
+  paramCard:      { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 14, backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.borderHi, paddingVertical: 13, paddingHorizontal: 14 },
   paramCardHalf:  { flexBasis: '48%', flexGrow: 1 },
   activeToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   activeLabel:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
@@ -1484,9 +1484,9 @@ const styles = StyleSheet.create({
   varCard:    { backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.borderHi, marginBottom: 10, overflow: 'hidden', padding: 14 },
 
   // Верх карточки — название размера + крупная цена
-  varTopRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  varTopRow:   { flexDirection: 'row', alignItems: 'center', gap: 14 },
   varTopLabel: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted },
-  varLabelInput: { flex: 1, fontFamily: fonts.family, fontSize: 17, fontWeight: '700', color: colors.text, padding: 0 },
+  varLabelInput: { width: 90, fontFamily: fonts.family, fontSize: 17, fontWeight: '700', color: colors.text, padding: 0 },
   varPriceWrap: { flexDirection: 'row', alignItems: 'baseline', gap: 3 },
   varPriceInput: { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.text, padding: 0, textAlign: 'right', minWidth: 50 },
   varCurrency: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
