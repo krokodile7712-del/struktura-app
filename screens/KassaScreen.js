@@ -1731,7 +1731,7 @@ export default function KassaScreen({ navigation, route }) {
         <View style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={closeModal} />
           {modalItem && (
-            <View style={[styles.modalInner, { width: '46%' }]}>
+            <View style={[styles.modalInner, isLandscape ? { width: '52%', maxWidth: 620 } : { width: '94%', maxHeight: '88%' }]}>
               {/* Заголовок */}
               <View style={styles.itemModalHeader}>
                 <Text style={styles.itemModalName}>{modalItem.name}</Text>
@@ -1745,6 +1745,7 @@ export default function KassaScreen({ navigation, route }) {
                 {modalAxes.length > 0 ? modalAxes.map(axis => (
                   <View key={axis.id} style={styles.itemModalSection}>
                     <Text style={styles.itemModalSectionLabel}>{axis.name}</Text>
+                    <View style={styles.sizeGrid}>
                     {axis.values.map(val => {
                       const isSelected = String(selAxisValues[axis.id]) === String(val.id);
                       const testSel = { ...selAxisValues, [axis.id]: val.id };
@@ -1753,7 +1754,7 @@ export default function KassaScreen({ navigation, route }) {
                       return (
                         <Pressable
                           key={val.id}
-                          style={[styles.itemModalRow, isSelected && styles.itemModalRowActive, unavailable && { opacity: 0.35 }]}
+                          style={[styles.sizeCard, isSelected && styles.sizeCardActive, unavailable && { opacity: 0.35 }]}
                           onPress={() => {
                             if (unavailable) return;
                             const newSel = { ...selAxisValues, [axis.id]: val.id };
@@ -1761,27 +1762,30 @@ export default function KassaScreen({ navigation, route }) {
                             setSelVariantId(findVariantByAxes(modalVariants, newSel)?.id || null);
                           }}
                         >
-                          <Text style={[styles.itemModalRowText, isSelected && styles.itemModalRowTextActive]}>{val.label}</Text>
-                          {isSelected && <Text style={styles.itemModalRowCheck}>✓</Text>}
+                          <Text style={[styles.sizeCardText, isSelected && styles.sizeCardTextActive]}>{val.label}</Text>
+                          {isSelected && <Text style={styles.sizeCardCheck}>✓</Text>}
                         </Pressable>
                       );
                     })}
+                    </View>
                   </View>
                 )) : (
                   modalVariants.length > 1 && (
                     <View style={styles.itemModalSection}>
                       <Text style={styles.itemModalSectionLabel}>Вариант</Text>
+                      <View style={styles.sizeGrid}>
                       {modalVariants.map(v => (
                         <Pressable
                           key={v.id}
-                          style={[styles.itemModalRow, selVariantId === v.id && styles.itemModalRowActive]}
+                          style={[styles.sizeCard, selVariantId === v.id && styles.sizeCardActive]}
                           onPress={() => setSelVariantId(v.id)}
                         >
-                          <Text style={[styles.itemModalRowText, selVariantId === v.id && styles.itemModalRowTextActive]}>{v.label || '—'}</Text>
-                          <Text style={[styles.itemModalRowPrice, selVariantId === v.id && { color: colors.orange }]}>{v.price} ₽</Text>
-                          {selVariantId === v.id && <Text style={styles.itemModalRowCheck}>✓</Text>}
+                          <Text style={[styles.sizeCardText, selVariantId === v.id && styles.sizeCardTextActive]}>{v.label || '—'}</Text>
+                          <Text style={[styles.sizeCardPrice, selVariantId === v.id && styles.sizeCardPriceActive]}>{v.price} ₽</Text>
+                          {selVariantId === v.id && <Text style={styles.sizeCardCheck}>✓</Text>}
                         </Pressable>
                       ))}
+                      </View>
                     </View>
                   )
                 )}
@@ -1832,7 +1836,7 @@ export default function KassaScreen({ navigation, route }) {
                                       onPress={() => toggleModifierOption(group, opt.id)}
                                     >
                                       <View style={[styles.modCheck, selected && styles.modCheckOn]}>
-                                        {selected && <Text style={{ color:'#fff', fontSize: 11, fontWeight:'700' }}>✓</Text>}
+                                        {selected && <Text style={{ color:'#fff', fontSize: 14, fontWeight:'700' }}>✓</Text>}
                                       </View>
                                       <Text style={[styles.modName, selected && { color: colors.orange }]}>{opt.name}</Text>
                                       {opt.price_delta > 0 && (
@@ -1979,22 +1983,31 @@ const styles = StyleSheet.create({
   itemModalClose: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(64,60,55,0.25)', alignItems: 'center', justifyContent: 'center' },
   itemModalCloseText: { fontSize: 14, color: colors.muted, fontFamily: fonts.familySemibold },
   modAllCard:      { backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(64,60,55,0.3)', overflow: 'hidden' },
-  modGroupRow:     { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 14, gap: 10 },
-  modGroupName:    { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
-  modGroupSel:     { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.orange, marginTop: 2 },
-  modGroupNone:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
-  modChevron:      { fontSize: 20, color: colors.muted, transform: [{ rotate: '90deg' }] },
+  modGroupRow:     { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 16, gap: 10 },
+  modGroupName:    { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
+  modGroupSel:     { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.orange, marginTop: 3 },
+  modGroupNone:    { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 3 },
+  modChevron:      { fontSize: 22, color: colors.muted, transform: [{ rotate: '90deg' }] },
   modChevronOpen:  { transform: [{ rotate: '-90deg' }] },
   modOptionsWrap:  { borderTopWidth: 1, borderTopColor: 'rgba(64,60,55,0.2)' },
   modGroupHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
   modGroupType: { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
   modCard:    { backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(64,60,55,0.3)', overflow: 'hidden', marginBottom: 4 },
-  modRow:     { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, gap: 10 },
+  modRow:     { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, paddingHorizontal: 16, gap: 12 },
   modRowDiv:  { borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.15)' },
-  modCheck:   { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: 'rgba(64,60,55,0.5)', alignItems: 'center', justifyContent: 'center' },
+  modCheck:   { width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: 'rgba(64,60,55,0.6)', alignItems: 'center', justifyContent: 'center' },
   modCheckOn: { backgroundColor: colors.orange, borderColor: colors.orange },
-  modName:    { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, flex: 1 },
-  modPrice:   { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  modName:    { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text, flex: 1 },
+  modPrice:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
+  // Карточки выбора размера/варианта — вместо плоского списка строк
+  sizeGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  sizeCard:      { minWidth: 92, flexGrow: 1, alignItems: 'center', paddingVertical: 16, paddingHorizontal: 14, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1.5, borderColor: 'rgba(64,60,55,0.25)' },
+  sizeCardActive:{ borderColor: colors.orange, backgroundColor: 'rgba(240,160,80,0.09)' },
+  sizeCardText:  { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
+  sizeCardTextActive: { color: colors.orange },
+  sizeCardPrice: { fontFamily: fonts.family, fontSize: 14, color: colors.muted, marginTop: 4 },
+  sizeCardPriceActive: { color: colors.orange, fontWeight: '700' },
+  sizeCardCheck: { position: 'absolute', top: 8, right: 10, fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
   itemModalSection: { marginBottom: 4 },
   itemModalSectionLabel: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 14 },
   itemModalRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 14, borderRadius: 12, marginBottom: 4, backgroundColor: colors.surface, borderWidth: 1, borderColor: 'rgba(64,60,55,0.2)' },
