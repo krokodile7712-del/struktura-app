@@ -454,6 +454,7 @@ export default function ProductsScreen({ navigation, route }) {
   const [deletePrompt, setDeletePrompt] = useState(null); // {id, name, count, moveTo} | null
   const [groupModal, setGroupModal] = useState(null);
   const [ingPickerState, setIngPickerState] = useState(null); // {vi}
+  const [ingCatFilter, setIngCatFilter] = useState(null); // null = все категории
   const [ingSearch, setIngSearch]           = useState('');
   const pendingIngCallback = React.useRef(null);
 
@@ -562,7 +563,8 @@ export default function ProductsScreen({ navigation, route }) {
   };
 
   const filteredStock = (stock || []).filter(s =>
-    !ingSearch.trim() || s.name.toLowerCase().includes(ingSearch.toLowerCase())
+    (!ingSearch.trim() || s.name.toLowerCase().includes(ingSearch.toLowerCase())) &&
+    (!ingCatFilter || s.category === ingCatFilter)
   );
   const stockCatsList = [...new Set((stock || []).map(s => s.category).filter(Boolean))].sort();
 
@@ -815,7 +817,7 @@ export default function ProductsScreen({ navigation, route }) {
             onClose={() => setSelected(null)}
             categories={allCategoryNames}
             allModGroups={modGroups}
-            onIngPicker={(vi, callback) => { try { setStock(getAllStock()); } catch(_){} setIngPickerState(vi !== null ? { vi } : null); setIngSearch(''); pendingIngCallback.current = callback; }}
+            onIngPicker={(vi, callback) => { try { setStock(getAllStock()); } catch(_){} setIngPickerState(vi !== null ? { vi } : null); setIngSearch(''); setIngCatFilter(null); pendingIngCallback.current = callback; }}
             onCreateGroup={(g) => setGroupModal(g || { name: '', mode: 'add' })}
             modifiersEnabled={modules.modifiers !== false}
           />
@@ -862,7 +864,7 @@ export default function ProductsScreen({ navigation, route }) {
       {/* Пикер ингредиентов — на уровне экрана */}
       <Sheet
         visible={ingPickerState !== null}
-        onClose={() => { setIngPickerState(null); setIngCreateForm(null); }}
+        onClose={() => { setIngPickerState(null); setIngCreateForm(null); setIngCatFilter(null); }}
         title="Выбрать материал"
       >
         <TextInput
@@ -874,6 +876,18 @@ export default function ProductsScreen({ navigation, route }) {
           placeholderTextColor={colors.muted}
           autoFocus
         />
+        {stockCatsList.length > 1 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 10 }}>
+            <Pressable style={[styles.chip, !ingCatFilter && styles.chipActive]} onPress={() => setIngCatFilter(null)}>
+              <Text style={[styles.chipTxt, !ingCatFilter && styles.chipTxtActive]}>Все</Text>
+            </Pressable>
+            {stockCatsList.map(cat => (
+              <Pressable key={cat} style={[styles.chip, ingCatFilter === cat && styles.chipActive]} onPress={() => setIngCatFilter(cat)}>
+                <Text style={[styles.chipTxt, ingCatFilter === cat && styles.chipTxtActive]}>{cat}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
         <ScrollView keyboardShouldPersistTaps="handled">
           {/* Создание новой позиции — наверху списка, раскрывается на месте */}
           <Pressable
