@@ -73,7 +73,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
   // Слова-метки упаковки, зависящей от размера — её НЕ копируем в новый
   // вариант автоматически, иначе можно случайно получить, например,
   // "большой капучино" с маленьким стаканом и крышкой от прошлого размера
-  const PACKAGING_WORDS = ['стакан', 'крышк', 'куп'];
+  const PACKAGING_WORDS = ['стакан', 'крышк'];
   const isPackaging = (name) => PACKAGING_WORDS.some(w => (name || '').toLowerCase().includes(w));
 
   const addVariant = () => setVars(v => {
@@ -1458,7 +1458,7 @@ const styles = StyleSheet.create({
   editorSub:     { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 2 },
   editorDivider: { height: 1, backgroundColor: colors.border, marginBottom: 20 },
   sectionTitle: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.orange, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 22 },
-  sectionCard: { backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, padding: 14 },
+  sectionCard: { backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.borderHi, padding: 14 },
   activeToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   activeLabel:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
 

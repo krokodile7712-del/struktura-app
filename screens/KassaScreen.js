@@ -1982,7 +1982,7 @@ const styles = StyleSheet.create({
   itemModalName: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, flex: 1, marginRight: 12 },
   itemModalClose: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(64,60,55,0.25)', alignItems: 'center', justifyContent: 'center' },
   itemModalCloseText: { fontSize: 14, color: colors.muted, fontFamily: fonts.familySemibold },
-  modAllCard:      { backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(64,60,55,0.3)', overflow: 'hidden' },
+  modAllCard:      { backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.borderHi, overflow: 'hidden' },
   modGroupRow:     { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 16, gap: 10 },
   modGroupName:    { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
   modGroupSel:     { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.orange, marginTop: 3 },
@@ -2001,7 +2001,7 @@ const styles = StyleSheet.create({
   modPrice:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
   // Карточки выбора размера/варианта — вместо плоского списка строк
   sizeGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  sizeCard:      { minWidth: 92, flexGrow: 1, alignItems: 'center', paddingVertical: 16, paddingHorizontal: 14, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1.5, borderColor: 'rgba(64,60,55,0.25)' },
+  sizeCard:      { minWidth: 92, flexGrow: 1, alignItems: 'center', paddingVertical: 16, paddingHorizontal: 14, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1.5, borderColor: colors.borderHi },
   sizeCardActive:{ borderColor: colors.orange, backgroundColor: 'rgba(240,160,80,0.09)' },
   sizeCardText:  { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
   sizeCardTextActive: { color: colors.orange },
