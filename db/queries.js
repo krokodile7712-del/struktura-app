@@ -143,6 +143,20 @@ export function genitiveSingularRu(word) {
 // "Первый {термин}" в винительном падеже, с согласованием рода —
 // для фраз вида "Оформить первый заказ" / "Оформить первую позицию" / "Оформить первое изделие".
 // Возвращает пару { adj, noun } в нижнем регистре, готовую к вставке во фразу.
+// "N клиентов" / "N клиента" / "N клиент" — согласование числительного
+// с существительным по стандартному русскому правилу (1 → именительный,
+// 2-4 → родительный ед.ч., 0/5+ → родительный мн.ч.). pluralizeRu/
+// genitivePluralRu/genitiveSingularRu меняют только ФОРМУ слова, не
+// умеют выбирать нужную форму по числу — этим и отличается эта функция.
+export function countRu(n, word) {
+  const abs = Math.abs(n) % 100;
+  const last = abs % 10;
+  if (abs > 10 && abs < 20) return `${n} ${genitivePluralRu(word)}`;
+  if (last === 1) return `${n} ${word}`;
+  if (last >= 2 && last <= 4) return `${n} ${genitiveSingularRu(word)}`;
+  return `${n} ${genitivePluralRu(word)}`;
+}
+
 export function firstOneRu(word) {
   const src = word || 'заказ';
   const last = src.slice(-1).toLowerCase();

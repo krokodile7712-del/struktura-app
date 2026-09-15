@@ -7,7 +7,7 @@ import { useResponsive } from '../hooks/useResponsive';
 import EmptyState from '../components/EmptyState';
 import Sheet from '../components/Sheet';
 import { useFocusEffect } from '@react-navigation/native';
-import { getAllClients, searchClients, getClientOrders, getTerms, pluralizeRu,
+import { getAllClients, searchClients, getClientOrders, getTerms, pluralizeRu, countRu,
          getLoyaltyConfig, updateClientNote, getClientById, getBusinessProfile, markTourSeen } from '../db/queries';
 import { updateClient } from '../db/queries';
 import { getHomeRoute, goBackSmart, getSession } from '../db/session';
@@ -404,7 +404,7 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
           <Pressable onPress={() => setLoyaltySummaryOpen(v => !v)} style={styles.loyaltyStrip}>
             <View>
               <Text style={styles.loyaltyStripLabel}>{MODEL_INFO[loyaltyModel]?.label || 'Лояльность'}</Text>
-              <Text style={styles.loyaltyStripVal}>{clients.length} {pluralizeRu(terms.client).toLowerCase()}</Text>
+              <Text style={styles.loyaltyStripVal}>{countRu(clients.length, terms.client.toLowerCase())}</Text>
             </View>
             <Text style={styles.loyaltyStripChevron}>{loyaltySummaryOpen ? '▲' : '▼'}</Text>
           </Pressable>
@@ -503,10 +503,15 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
                 />
               </Animated.View>
             ) : (
-              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', opacity: 0.3 }}>
-                <Text style={{ fontSize: 48 }}>👥</Text>
-                <Text style={{ fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted, marginTop: 12 }}>
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                  <Text style={{ fontSize: 40, opacity: 0.6 }}>👤</Text>
+                </View>
+                <Text style={{ fontFamily: fonts.family, fontSize: 17, fontWeight: '700', color: colors.text }}>
                   Выберите клиента
+                </Text>
+                <Text style={{ fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 6 }}>
+                  Карточка с баллами, историей и заметками откроется здесь
                 </Text>
               </View>
             )}
