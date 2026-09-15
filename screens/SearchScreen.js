@@ -43,7 +43,7 @@ export default function SearchScreen({ navigation }) {
             <Pressable
               key={client.id}
               style={styles.row}
-              onPress={() => navigation.navigate('ClientCard', { client })}
+              onPress={() => navigation.navigate('ClientCard', { clientId: client.id })}
             >
               <View>
                 <Text style={styles.name}>{client.fio}</Text>

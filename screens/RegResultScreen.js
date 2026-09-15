@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Pressable, Animated, Clipboard } fr
 import TopBar from '../components/TopBar';
 import AppNav from '../components/AppNav';
 import { getTerms, getLoyaltyConfig, genitiveSingularRu } from '../db/queries';
+import { goBackSmart } from '../db/session';
 import { colors, fonts, anim } from '../constants/theme';
 import { useToast } from '../components/Toast';
 
@@ -62,7 +63,7 @@ export default function RegResultScreen({ route, navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <TopBar title="Карта создана" onBack={() => navigation.navigate('Loyalty')} />
+      <TopBar title="Карта создана" onBack={() => goBackSmart(navigation)} />
       <ScrollView contentContainerStyle={styles.inner}>
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
 

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, KeyboardAvoid
 import TopBar from '../components/TopBar';
 import AppNav from '../components/AppNav';
 import { insertClient, getClientByCode, getTerms } from '../db/queries';
+import { goBackSmart } from '../db/session';
 import { useToast } from '../components/Toast';
 import { colors, fonts } from '../constants/theme';
 
@@ -48,7 +49,7 @@ export default function RegScreen({ navigation }) {
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, backgroundColor: colors.bg }}>
       <TopBar
         title={`Новый ${(terms.client || 'клиент').toLowerCase()}`}
-        onBack={() => navigation.navigate('Loyalty')}
+        onBack={() => goBackSmart(navigation)}
       />
 
       <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
