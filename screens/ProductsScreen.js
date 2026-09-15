@@ -165,8 +165,8 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
             </View>
           )}
           <View style={[styles.paramCard, isLandscape && !isNew && styles.paramCardHalf]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={styles.deductQuestionTxt}>Скидка на товар</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 1 }}>
+              <Text style={styles.deductQuestionTxt} numberOfLines={1}>Скидка на товар</Text>
               <InfoTip title="Скидка на товар" text="Общий процент скидки (настраивается один раз для всех товаров в Настройках → Скидки) будет применяться к этому товару автоматически при каждой продаже — независимо от скидки на весь заказ." />
             </View>
             <Toggle
@@ -1484,7 +1484,7 @@ const styles = StyleSheet.create({
   // Верх карточки — название размера + крупная цена
   varTopRow:   { flexDirection: 'row', alignItems: 'center', gap: 14 },
   varTopLabel: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted },
-  varLabelInput: { width: 90, fontFamily: fonts.family, fontSize: 17, fontWeight: '700', color: colors.text, padding: 0 },
+  varLabelInput: { width: 90, fontFamily: fonts.family, fontSize: 17, fontWeight: '700', color: colors.text, backgroundColor: colors.surface, borderRadius: 10, borderWidth: 1, borderColor: colors.border, paddingVertical: 6, paddingHorizontal: 10 },
   varPriceWrap: { flexDirection: 'row', alignItems: 'baseline', gap: 3 },
   varPriceInput: { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.text, textAlign: 'right', minWidth: 70, backgroundColor: colors.surface, borderRadius: 10, borderWidth: 1, borderColor: colors.border, paddingVertical: 6, paddingHorizontal: 10 },
   varCurrency: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
