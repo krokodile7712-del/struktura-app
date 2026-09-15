@@ -409,9 +409,9 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 16 }}>
             {filtered.length === 0 ? (
               <EmptyState icon="👥" title="Нет клиентов"
-                text={clients.length === 0 ? 'Зарегистрируйте первого клиента через раздел Лояльность' : 'Ничего не найдено'}
+                text={clients.length === 0 ? 'Зарегистрируйте первого клиента' : 'Ничего не найдено'}
                 action={clients.length === 0 ? 'Зарегистрировать клиента' : undefined}
-                onAction={clients.length === 0 ? () => navigation.navigate('Loyalty') : undefined} />
+                onAction={clients.length === 0 ? () => navigation.navigate('Reg') : undefined} />
             ) : (
               <View style={styles.clientsCard}>
                 {filtered.map((c, idx) => {
