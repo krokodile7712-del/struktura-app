@@ -1484,7 +1484,7 @@ const styles = StyleSheet.create({
   // Верх карточки — название размера + крупная цена
   varTopRow:   { flexDirection: 'row', alignItems: 'center', gap: 14 },
   varTopLabel: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted },
-  varLabelInput: { width: 90, fontFamily: fonts.family, fontSize: 17, fontWeight: '700', color: colors.text, backgroundColor: colors.surface, borderRadius: 10, borderWidth: 1, borderColor: colors.border, paddingVertical: 6, paddingHorizontal: 10 },
+  varLabelInput: { flex: 1, minWidth: 90, fontFamily: fonts.family, fontSize: 17, fontWeight: '700', color: colors.text, backgroundColor: colors.surface, borderRadius: 10, borderWidth: 1, borderColor: colors.border, paddingVertical: 6, paddingHorizontal: 10 },
   varPriceWrap: { flexDirection: 'row', alignItems: 'baseline', gap: 3 },
   varPriceInput: { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.text, textAlign: 'right', minWidth: 70, backgroundColor: colors.surface, borderRadius: 10, borderWidth: 1, borderColor: colors.border, paddingVertical: 6, paddingHorizontal: 10 },
   varCurrency: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
