@@ -23,7 +23,6 @@ import { getSetting } from './db/queries';
 import { initDatabase } from './db/database';
 import { startAutoSync } from './db/sync';
 
-import LoyaltyScreen from './screens/LoyaltyScreen';
 import LoginScreen from './screens/LoginScreen';
 import DashboardScreen from './screens/DashboardScreen';
 import KassaScreen from './screens/KassaScreen';
@@ -81,7 +80,7 @@ export default function App() {
   // App.js, а не внутри каждого экрана. Список экранов, у которых она есть
   // (все, кроме служебных вроде Login/Onboarding/Shift/Search и т.п.,
   // где навигация не нужна вовсе).
-  const NAV_SCREENS = ['Products', 'Admin', 'Dashboard', 'Sales', 'ClientsList', 'Reports', 'Expenses', 'Finances', 'Locations', 'Inventory', 'Kassa', 'Equipment', 'Investments', 'Loyalty', 'Overheads', 'WorkJournal', 'Bookings', 'Employees', 'Settings'];
+  const NAV_SCREENS = ['Products', 'Admin', 'Dashboard', 'Sales', 'ClientsList', 'Reports', 'Expenses', 'Finances', 'Locations', 'Inventory', 'Kassa', 'Equipment', 'Investments', 'Overheads', 'WorkJournal', 'Bookings', 'Employees', 'Settings'];
 
   const [fontsLoaded] = useFonts({
     AnekDevanagari_400Regular,
@@ -149,7 +148,6 @@ export default function App() {
             }}
           >
             <Stack.Screen name="Onboarding"  component={OnboardingScreen} />
-            <Stack.Screen name="Loyalty"     component={LoyaltyScreen} />
             <Stack.Screen name="Login"       component={LoginScreen} />
             <Stack.Screen name="Dashboard"   component={DashboardScreen} />
             <Stack.Screen name="Admin"       component={AdminScreen} />

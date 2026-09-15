@@ -13,6 +13,23 @@ import { updateClient } from '../db/queries';
 import { getHomeRoute, goBackSmart, getSession } from '../db/session';
 import { colors, fonts } from '../constants/theme';
 
+// Перенесено из LoyaltyScreen.js (экран удалён — дублировал список клиентов,
+// единственная уникальная часть была эта сводка по модели лояльности)
+const MODEL_INFO = {
+  points: {
+    label: 'Бонусные баллы',
+    desc: 'За каждую покупку клиент получает баллы. Баллы можно тратить на скидки при следующих заказах.',
+  },
+  discount: {
+    label: 'Скидочная карта',
+    desc: 'Зарегистрированные клиенты получают автоматическую скидку на каждый заказ.',
+  },
+  subscription: {
+    label: 'Абонемент',
+    desc: 'Клиенты покупают фиксированное количество посещений вперёд.',
+  },
+};
+
 function fmtDate(iso) {
   if (!iso) return '';
   const d = new Date(iso);
@@ -322,6 +339,7 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
   ];
   const [terms, setTerms]       = useState({ client: 'Клиент', order: 'Заказ' });
   const [loyaltyModel, setLoyaltyModel] = useState('points');
+  const [loyaltySummaryOpen, setLoyaltySummaryOpen] = useState(false);
   const [loyaltyConfig, setLoyaltyConfig] = useState({});
 
   const load = useCallback(() => {
@@ -383,6 +401,29 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
         {/* Левая колонка — список */}
         <View style={[styles.listCol, !isLandscape && { width: undefined, flex: 1, margin: 0, borderRadius: 0, borderWidth: 0, borderRightWidth: 0 }]}>
           <View style={[{ position: 'relative' }, searchHighlight.style]}>
+          <Pressable onPress={() => setLoyaltySummaryOpen(v => !v)} style={styles.loyaltyStrip}>
+            <View>
+              <Text style={styles.loyaltyStripLabel}>{MODEL_INFO[loyaltyModel]?.label || 'Лояльность'}</Text>
+              <Text style={styles.loyaltyStripVal}>{clients.length} {pluralizeRu(terms.client).toLowerCase()}</Text>
+            </View>
+            <Text style={styles.loyaltyStripChevron}>{loyaltySummaryOpen ? '▲' : '▼'}</Text>
+          </Pressable>
+          {loyaltySummaryOpen && (
+            <View style={styles.loyaltyStripBody}>
+              <Text style={styles.loyaltyStripDesc}>{MODEL_INFO[loyaltyModel]?.desc}</Text>
+              <View style={styles.loyaltyStatRow}>
+                <View style={styles.loyaltyStatBox}>
+                  <Text style={styles.loyaltyStatVal}>{clients.reduce((s, c) => s + (c.visits || 0), 0)}</Text>
+                  <Text style={styles.loyaltyStatLbl}>Визитов</Text>
+                </View>
+                <View style={styles.loyaltyStatBox}>
+                  <Text style={styles.loyaltyStatVal}>{Math.round(clients.reduce((s, c) => s + (c.balance || 0), 0))}</Text>
+                  <Text style={styles.loyaltyStatLbl}>{loyaltyModel === 'subscription' ? 'Визитов выдано' : 'Баллов выдано'}</Text>
+                </View>
+              </View>
+            </View>
+          )}
+
           <View style={styles.searchWrap}>
             <TextInput
               color={colors.text}
@@ -501,6 +542,17 @@ const styles = StyleSheet.create({
   layout:     { flex: 1, flexDirection: 'row' },
   listCol:    { width: '38%', maxWidth: 480, margin: 12, marginRight: 0, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, overflow: 'hidden' },
   cardCol:    { flex: 1, backgroundColor: colors.bg },
+  loyaltyStrip:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, backgroundColor: colors.surface2, borderBottomWidth: 1, borderBottomColor: colors.border },
+  loyaltyStripLabel: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
+  loyaltyStripVal:   { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.text, marginTop: 2 },
+  loyaltyStripChevron: { fontSize: 11, color: colors.muted, opacity: 0.6 },
+  loyaltyStripBody:  { padding: 14, gap: 10, backgroundColor: colors.surface2, borderBottomWidth: 1, borderBottomColor: colors.border },
+  loyaltyStripDesc:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, lineHeight: 18 },
+  loyaltyStatRow:    { flexDirection: 'row', gap: 8 },
+  loyaltyStatBox:    { flex: 1, backgroundColor: colors.surface, borderRadius: 10, borderWidth: 1, borderColor: colors.border, padding: 10, alignItems: 'center' },
+  loyaltyStatVal:    { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.text },
+  loyaltyStatLbl:    { fontFamily: fonts.familyRegular, fontSize: 9, color: colors.muted, textAlign: 'center', marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
+
   searchWrap: { padding: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.2)' },
   sortRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.2)' },
   sortChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },

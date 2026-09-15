@@ -115,9 +115,9 @@ export default function RegResultScreen({ route, navigation }) {
 
           <Pressable
             style={({ pressed }) => [styles.tertiaryBtn, pressed && { opacity: 0.7 }]}
-            onPress={() => navigation.navigate('Loyalty')}
+            onPress={() => navigation.navigate('ClientsList')}
           >
-            <Text style={styles.tertiaryBtnText}>В меню лояльности</Text>
+            <Text style={styles.tertiaryBtnText}>К списку клиентов</Text>
           </Pressable>
 
         </Animated.View>

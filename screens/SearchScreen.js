@@ -4,6 +4,7 @@ import MetalCard from '../components/MetalCard';
 import TopBar from '../components/TopBar';
 import AppNav from '../components/AppNav';
 import { searchClients, getTerms } from '../db/queries';
+import { goBackSmart } from '../db/session';
 import Hint from '../components/Hint';
 import { colors, fonts, spacing } from '../constants/theme';
 
@@ -25,7 +26,7 @@ export default function SearchScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title={`Поиск: ${terms.client}`} onBack={() => navigation.navigate('Loyalty')} />
+      <TopBar title={`Поиск: ${terms.client}`} onBack={() => goBackSmart(navigation)} />
       <ScrollView style={styles.screen} contentContainerStyle={styles.inner}>
         <MetalCard>
           <TextInput
