@@ -117,8 +117,6 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
           </View>
         )}
 
-        <View style={styles.editorDivider} />
-
         {/* СЕКЦИЯ: Основное */}
         <Text style={styles.sectionTitle}>Основное</Text>
         <View style={styles.sectionCard}>
@@ -139,7 +137,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
             <InfoTip title="Категория" text="Группирует товары в списке и в кассе. Клиент её не видит. Есть нужная — выберите её; нет — впишите новую, она появится в списке для следующих товаров." />
           </View>
           {categories.length > 0 && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4, alignItems: 'center' }}>
               {categories.map(cat => (
                 <Pressable key={cat} style={[styles.chip, category === cat && styles.chipActive]} onPress={() => setCategory(cat)}>
                   <Text style={[styles.chipTxt, category === cat && styles.chipTxtActive]}>{cat}</Text>
@@ -864,7 +862,7 @@ export default function ProductsScreen({ navigation, route }) {
           autoFocus
         />
         {stockCatsList.length > 1 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 10 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 10, alignItems: 'center' }}>
             <Pressable style={[styles.chip, !ingCatFilter && styles.chipActive]} onPress={() => setIngCatFilter(null)}>
               <Text style={[styles.chipTxt, !ingCatFilter && styles.chipTxtActive]}>Все</Text>
             </Pressable>
@@ -898,7 +896,7 @@ export default function ProductsScreen({ navigation, route }) {
 
               <Text style={styles.combLabel}>Категория склада</Text>
               {stockCatsList.length > 0 && (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4, alignItems: 'center' }}>
                   {stockCatsList.map(cat => (
                     <Pressable key={cat} style={[styles.chip, ingCreateForm.category === cat && styles.chipActive]} onPress={() => setIngCreateForm(f => ({ ...f, category: cat }))}>
                       <Text style={[styles.chipTxt, ingCreateForm.category === cat && styles.chipTxtActive]}>{cat}</Text>
@@ -1462,9 +1460,9 @@ const styles = StyleSheet.create({
   sectionCard: { backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.borderHi, padding: 14 },
 
   // Параметры — короткие строки "подпись + переключатель", парами в альбомной
-  paramsGrid:     { gap: 10, alignItems: 'flex-start' },
+  paramsGrid:     { gap: 10 },
   paramsGridRow:  { flexDirection: 'row', flexWrap: 'wrap' },
-  paramCard:      { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 14, backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.borderHi, paddingVertical: 13, paddingHorizontal: 14 },
+  paramCard:      { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.borderHi, paddingVertical: 13, paddingHorizontal: 14 },
   paramCardHalf:  { flexBasis: '48%', flexGrow: 1 },
   activeToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   activeLabel:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
@@ -1488,7 +1486,7 @@ const styles = StyleSheet.create({
   varTopLabel: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted },
   varLabelInput: { width: 90, fontFamily: fonts.family, fontSize: 17, fontWeight: '700', color: colors.text, padding: 0 },
   varPriceWrap: { flexDirection: 'row', alignItems: 'baseline', gap: 3 },
-  varPriceInput: { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.text, padding: 0, textAlign: 'right', minWidth: 50 },
+  varPriceInput: { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.text, textAlign: 'right', minWidth: 70, backgroundColor: colors.surface, borderRadius: 10, borderWidth: 1, borderColor: colors.border, paddingVertical: 6, paddingHorizontal: 10 },
   varCurrency: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
 
   marginDotRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
