@@ -517,7 +517,7 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
             )}
           </View>
         ) : (
-          <Sheet visible={!!selected} onClose={() => setSelected(null)} title={selected?.fio || 'Клиент'}>
+          <Sheet visible={!!selected} onClose={() => setSelected(null)} title={selected?.fio || 'Клиент'} fixedHeightPct={0.9}>
             {selected && (
               <ClientCard
                 key={selected.id}
