@@ -211,7 +211,7 @@ function ClientCard({ client, onNewOrder, onSaved, loyaltyModel, loyaltyConfig }
       </View>
 
       {/* Действия */}
-      <View style={{ flexDirection: 'row', gap: 8 }}>
+      <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
         <Pressable style={({ pressed }) => [styles.btn, { flex: 1 }, pressed && { opacity: 0.88 }]}
           onPress={() => onNewOrder(client)}>
           <Text style={styles.btnTxt}>＋ Новый заказ</Text>
