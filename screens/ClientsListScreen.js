@@ -397,7 +397,7 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
         }
       />
 
-      <View style={[styles.layout, !isLandscape && { flexDirection: 'column' }]}>
+      <View key={isLandscape ? 'landscape' : 'portrait'} style={[styles.layout, !isLandscape && { flexDirection: 'column' }]}>
         {/* Левая колонка — список */}
         <View style={[styles.listCol, !isLandscape && { width: undefined, flex: 1, margin: 0, borderRadius: 0, borderWidth: 0, borderRightWidth: 0 }]}>
           <View style={[{ position: 'relative' }, searchHighlight.style]}>
