@@ -2164,7 +2164,7 @@ export default function SettingsScreen({ navigation, route }) {
 
         {/* Левая панель навигации */}
         {(!isPhone || !selectedSection) && (
-          <View style={[styles.leftPanelBase, isPhone && { width: undefined, flex: 1 }, !isPhone && styles.leftPanelCard]}>
+          <View style={[styles.leftPanelBase, isPhone && { width: undefined, maxWidth: undefined, flex: 1 }, !isPhone && styles.leftPanelCard]}>
             <ScrollView showsVerticalScrollIndicator={false}>
               {visibleSections.map(s => (
                 <Pressable

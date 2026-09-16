@@ -111,7 +111,7 @@ export default function OverheadsScreen({ navigation }) {
         {/* Левая панель */}
 
         {/* Левая панель */}
-        <View style={[styles.left, !isLandscape && { width: undefined, flex: 1, margin: 0, borderRadius: 0, borderWidth: 0, borderRightWidth: 0 }]}>
+        <View style={[styles.left, !isLandscape && { width: undefined, maxWidth: undefined, flex: 1, margin: 0, borderRadius: 0, borderWidth: 0, borderRightWidth: 0 }]}>
           {totalMonthly > 0 && (
             <View style={styles.totalCard}>
               <Text style={styles.totalLabel}>Итого в месяц</Text>

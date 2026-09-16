@@ -109,7 +109,7 @@ export default function InvestmentsScreen({ navigation }) {
       <View style={[styles.layout, !isLandscape && { flexDirection: 'column' }]}>
 
         {/* Левая панель */}
-        <View style={[styles.left, !isLandscape && { width: undefined, flex: 1, margin: 0, borderRadius: 0, borderWidth: 0, borderRightWidth: 0 }]}>
+        <View style={[styles.left, !isLandscape && { width: undefined, maxWidth: undefined, flex: 1, margin: 0, borderRadius: 0, borderWidth: 0, borderRightWidth: 0 }]}>
           <Pressable style={styles.addBtnBig} onPress={openNew}>
             <Text style={styles.addBtnBigTxt}>+ Добавить инвестицию</Text>
           </Pressable>
