@@ -219,9 +219,9 @@ const styles = StyleSheet.create({
   panelSub:    { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginBottom: 24 },
 
   statsGrid:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-  statCard:    { flex: 1, minWidth: '44%', backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 12 },
-  statVal:     { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: 2 },
-  statLbl:     { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.8 },
+  statCard:    { flex: 1, minWidth: '44%', backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.borderHi, padding: 16 },
+  statVal:     { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.text, marginBottom: 2 },
+  statLbl:     { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.8 },
 
   shiftStatCard:       { flexDirection: 'row', alignItems: 'center', borderWidth: 2 },
   shiftStatCardClosed: { borderColor: colors.red, backgroundColor: 'rgba(217,95,95,0.09)' },
