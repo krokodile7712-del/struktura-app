@@ -223,9 +223,9 @@ const styles = StyleSheet.create({
   statVal:     { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: 2 },
   statLbl:     { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.8 },
 
-  shiftStatCard:       { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface2, borderWidth: 1.5, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
-  shiftStatCardClosed: { borderColor: colors.red, shadowColor: colors.red },
-  shiftStatCardOpen:   { borderColor: colors.green, shadowColor: colors.green },
+  shiftStatCard:       { flexDirection: 'row', alignItems: 'center', borderWidth: 2 },
+  shiftStatCardClosed: { borderColor: colors.red, backgroundColor: 'rgba(217,95,95,0.09)' },
+  shiftStatCardOpen:   { borderColor: colors.green, backgroundColor: 'rgba(123,175,142,0.1)' },
   shiftStatChevron:    { fontSize: 24, fontWeight: '800' },
 
   stockBanner:     { backgroundColor: 'rgba(217,95,95,0.06)', borderWidth: 1, borderColor: 'rgba(217,95,95,0.25)', borderRadius: 12, padding: 10, paddingHorizontal: 16, marginBottom: 16 },
