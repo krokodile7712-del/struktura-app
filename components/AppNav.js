@@ -58,13 +58,13 @@ export default function AppNav({ navigation, activeScreen }) {
   const bookingActive = !!(profile?.booking_slug);
 
   const isWide = activeScreen === home;
-  const widthAnim = useRef(new Animated.Value(isWide ? 220 : 72)).current;
+  const widthAnim = useRef(new Animated.Value(isWide ? 240 : 84)).current;
   const [renderWide, setRenderWide] = useState(isWide);
   const contentFade = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     Animated.spring(widthAnim, {
-      toValue: isWide ? 220 : 72,
+      toValue: isWide ? 240 : 84,
       useNativeDriver: false, // ширина — layout-свойство, нативный драйвер её не поддерживает
       damping: 22, stiffness: 210, mass: 0.9,
     }).start();
@@ -277,36 +277,36 @@ const styles = StyleSheet.create({
   // ── Панель альбомной ориентации ──
   landscapeNav: { borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface, overflow: 'hidden' },
   bizHeader:   { padding: 18, paddingBottom: 10 },
-  bizName:     { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.text },
+  bizName:     { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text },
   bizCity:     { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
 
-  ctaBtn:      { marginHorizontal: 12, marginBottom: 12, padding: 14, borderRadius: 12, backgroundColor: colors.orange, alignItems: 'center' },
-  ctaLabel:    { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: '#fff', textTransform: 'capitalize' },
+  ctaBtn:      { marginHorizontal: 12, marginBottom: 12, padding: 18, borderRadius: 12, backgroundColor: colors.orange, alignItems: 'center' },
+  ctaLabel:    { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: '#fff', textTransform: 'capitalize' },
   ctaSub:      { fontFamily: fonts.familyRegular, fontSize: 10, color: 'rgba(255,255,255,0.7)', marginTop: 1 },
 
   divider:     { height: 1, backgroundColor: colors.border, marginHorizontal: 12, marginVertical: 4 },
 
-  menuItem:        { paddingVertical: 12, paddingHorizontal: 16, position: 'relative' },
+  menuItem:        { paddingVertical: 16, paddingHorizontal: 16, position: 'relative' },
   menuItemActive:  { backgroundColor: 'rgba(245,240,232,0.06)' },
   menuItemInactive:{ paddingVertical: 12, paddingHorizontal: 16, opacity: 0.45 },
   activeBar:       { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
-  menuLabel:       { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
+  menuLabel:       { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.textDim },
   menuLabelActive: { color: colors.text },
   menuLabelInactive:{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   menuSub:         { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, marginTop: 1 },
 
   // ── Узкая свёрнутая — внутренние элементы ──
-  narrowLogoWrap: { width: 44, height: 44, borderRadius: 12, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: 14 },
-  narrowLogo: { width: 44, height: 44 },
-  narrowLogoFallback: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.muted },
-  narrowCta:   { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center', marginTop: 12 },
-  narrowCtaIcon: { fontSize: 20 },
+  narrowLogoWrap: { width: 52, height: 52, borderRadius: 14, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: 14 },
+  narrowLogo: { width: 52, height: 52 },
+  narrowLogoFallback: { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.muted },
+  narrowCta:   { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center', marginTop: 12 },
+  narrowCtaIcon: { fontSize: 24 },
   narrowDivider: { width: 36, height: 1, backgroundColor: colors.border, marginBottom: 6 },
-  narrowDividerWide: { width: 44, height: 1, backgroundColor: colors.border, marginBottom: 10 },
-  narrowItem:  { width: 72, height: 44, alignItems: 'center', justifyContent: 'center' },
-  narrowItemBig: { width: 60, height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  narrowDividerWide: { width: 52, height: 1, backgroundColor: colors.border, marginBottom: 10 },
+  narrowItem:  { width: 84, height: 52, alignItems: 'center', justifyContent: 'center' },
+  narrowItemBig: { width: 68, height: 60, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
   narrowItemBigActive: { backgroundColor: 'rgba(240,160,80,0.12)' },
-  narrowDot:   { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.muted, opacity: 0.4 },
-  narrowDotActive: { backgroundColor: colors.orange, opacity: 1, width: 10, height: 10, borderRadius: 5 },
+  narrowDot:   { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.muted, opacity: 0.4 },
+  narrowDotActive: { backgroundColor: colors.orange, opacity: 1, width: 14, height: 14, borderRadius: 7 },
   narrowDotDisabled: { opacity: 0.15 },
 });
