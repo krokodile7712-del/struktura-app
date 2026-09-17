@@ -187,8 +187,8 @@ export default function AdminScreen({ navigation }) {
               onLayout={rememberY('admin.shiftAction')}
             >
               <View style={{ flex: 1 }}>
-                <Text style={styles.statVal}>{stats.shift ? (stats.shiftDuration || '—') : 'Не открыта'}</Text>
-                <Text style={styles.statLbl}>{stats.shift ? 'Смена открыта' : 'Смена — нажмите'}</Text>
+                <Text style={styles.shiftStatVal}>{stats.shift ? (stats.shiftDuration || '—') : 'Не открыта'}</Text>
+                <Text style={styles.statLbl}>Смена</Text>
               </View>
               <Text style={[styles.shiftStatChevron, { color: stats.shift ? colors.green : colors.red }]}>›</Text>
               {shiftActionHighlight.overlay}
@@ -224,6 +224,7 @@ const styles = StyleSheet.create({
   statLbl:     { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.8 },
 
   shiftStatCard:       { flexDirection: 'row', alignItems: 'center', borderWidth: 2 },
+  shiftStatVal:        { fontFamily: fonts.familySemibold, fontSize: 17, color: colors.text, marginBottom: 2 },
   shiftStatCardClosed: { borderColor: colors.red, backgroundColor: 'rgba(217,95,95,0.09)' },
   shiftStatCardOpen:   { borderColor: colors.green, backgroundColor: 'rgba(123,175,142,0.1)' },
   shiftStatChevron:    { fontSize: 24, fontWeight: '800' },
