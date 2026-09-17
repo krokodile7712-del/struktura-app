@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
 import NextStepsCard from '../components/NextStepsCard';
-import ShiftBanner from '../components/ShiftBanner';
 import EmployeeStatsSheet from '../components/EmployeeStatsSheet';
 import TourGuide from '../components/TourGuide';
 import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
@@ -33,7 +32,6 @@ export default function AdminScreen({ navigation }) {
   const [meOpen, setMeOpen] = useState(false);
   const [stockOpen, setStockOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
-  const shiftBannerHighlight = useTourHighlight('admin.shiftBanner', 0);
   const stockBannerHighlight = useTourHighlight('admin.stockBanner');
   const nextStepsHighlight = useTourHighlight('admin.nextSteps', 18);
   const statsGridHighlight = useTourHighlight('admin.statsGrid');
@@ -51,7 +49,7 @@ export default function AdminScreen({ navigation }) {
       setSessionName(sess?.name?.split(' ')[0] || '');
       setHasShift(!!getOpenShift(sess?.id));
       setRoleNames(getRoleNames());
-      setStats(getDashboardStats());
+      setStats(getDashboardStats(sess?.id));
     } catch (e) { console.error(e); }
   }, []);
 
@@ -69,7 +67,6 @@ export default function AdminScreen({ navigation }) {
   }, []);
 
   const tourSteps = [
-    ...(!hasShift ? [{ key: 'admin.shiftBanner', title: 'Смена не открыта', text: 'Напоминание сверху экрана — нажмите, чтобы открыть смену и начать учёт продаж за сегодня.' }] : []),
     { key: 'admin.stockBanner', title: 'Мало на складе', text: 'Появляется, когда на складе заканчивается что-то важное. Нажмите, чтобы развернуть список и перейти на склад.' },
     { key: 'admin.nextSteps', title: 'Что дальше', text: 'Чек-лист первоначальной настройки — добавить товары, способы оплаты, сотрудников и так далее. Можно скрыть крестиком, когда не нужен.', cardPosition: 'top' },
     { key: 'admin.statsGrid', title: 'Сводка за сегодня', text: 'Выручка, количество заказов, средний чек и разбивка по способам оплаты — всё за текущий день.', cardPosition: 'top' },
@@ -106,12 +103,6 @@ export default function AdminScreen({ navigation }) {
           </Pressable>
         }
       />
-      {!hasShift && (
-        <View style={shiftBannerHighlight.style}>
-          <ShiftBanner onOpen={() => navigation.navigate('Shift')} />
-          {shiftBannerHighlight.overlay}
-        </View>
-      )}
 
       <View style={{ flex: 1 }}>
 
@@ -170,48 +161,39 @@ export default function AdminScreen({ navigation }) {
               { label: 'Средний чек', value: `${stats.todayOrders > 0 ? Math.round((stats.todayTotal||0) / stats.todayOrders).toLocaleString('ru-RU') : 0} ₽` },
               { label: 'Наличные', value: `${(stats.todayCash || 0).toLocaleString('ru-RU')} ₽` },
               { label: 'Карта', value: `${(stats.todayCard || 0).toLocaleString('ru-RU')} ₽` },
-              { label: 'Смена открыта', value: stats.shiftDuration || '—' },
             ].map((s, i) => (
               <View key={i} style={styles.statCard}>
                 <Text style={styles.statVal}>{s.value}</Text>
                 <Text style={styles.statLbl}>{s.label}</Text>
               </View>
             ))}
-            {statsGridHighlight.overlay}
-          </View>
 
-          <View onLayout={rememberY('admin.shiftAction')}>
-          {stats.shift ? (
-            <>
-            <View style={styles.shiftSep} />
+            {/* Смена — та же карточка сводки, но интерактивная: статус
+                показан цветом рамки (красная — не открыта, зелёная —
+                открыта), тап сразу открывает или закрывает. Раньше это
+                было ДВА отдельных элемента на странице (синий баннер
+                сверху + отдельная кнопка на всю ширину внизу) для одного
+                и того же действия — теперь один, там же, где и так уже
+                показывался статус смены. */}
             <Pressable
-              style={({ pressed }) => [styles.shiftCloseBtn, shiftActionHighlight.style, pressed && { opacity: 0.85 }]}
-              onPress={() => navigation.navigate('ShiftClose')}
+              style={({ pressed }) => [
+                styles.statCard,
+                styles.shiftStatCard,
+                stats.shift ? styles.shiftStatCardOpen : styles.shiftStatCardClosed,
+                shiftActionHighlight.style,
+                pressed && { opacity: 0.85 },
+              ]}
+              onPress={() => navigation.navigate(stats.shift ? 'ShiftClose' : 'Shift')}
+              onLayout={rememberY('admin.shiftAction')}
             >
-              <View>
-                <Text style={styles.shiftCloseTxt}>Закрыть смену</Text>
-                <Text style={styles.shiftCloseSub}>Открыта {stats.shiftDuration || ''} · {(stats.todayTotal||0).toLocaleString('ru-RU')} ₽</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.statVal}>{stats.shift ? (stats.shiftDuration || '—') : 'Не открыта'}</Text>
+                <Text style={styles.statLbl}>{stats.shift ? 'Смена открыта' : 'Смена — нажмите'}</Text>
               </View>
-              <Text style={{ fontSize: 18, color: colors.muted }}>›</Text>
+              <Text style={[styles.shiftStatChevron, { color: stats.shift ? colors.green : colors.red }]}>›</Text>
               {shiftActionHighlight.overlay}
             </Pressable>
-            </>
-          ) : (
-            <>
-            <View style={styles.shiftSep} />
-            <Pressable
-              style={({ pressed }) => [styles.shiftOpenBtn, shiftActionHighlight.style, pressed && { opacity: 0.85 }]}
-              onPress={() => navigation.navigate('Shift')}
-            >
-              <View>
-                <Text style={styles.shiftOpenTxt}>Открыть смену</Text>
-                <Text style={styles.shiftOpenSub}>Начните учёт продаж и расходов за сегодня</Text>
-              </View>
-              <Text style={{ fontSize: 18, color: colors.green }}>›</Text>
-              {shiftActionHighlight.overlay}
-            </Pressable>
-            </>
-          )}
+            {statsGridHighlight.overlay}
           </View>
         </ScrollView>
       </View>
@@ -240,6 +222,11 @@ const styles = StyleSheet.create({
   statCard:    { flex: 1, minWidth: '44%', backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 12 },
   statVal:     { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: 2 },
   statLbl:     { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.8 },
+
+  shiftStatCard:       { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface2, borderWidth: 1.5 },
+  shiftStatCardClosed: { borderColor: colors.red },
+  shiftStatCardOpen:   { borderColor: colors.green },
+  shiftStatChevron:    { fontSize: 20, fontWeight: '700' },
 
   stockBanner:     { backgroundColor: 'rgba(217,95,95,0.06)', borderWidth: 1, borderColor: 'rgba(217,95,95,0.25)', borderRadius: 12, padding: 10, paddingHorizontal: 16, marginBottom: 16 },
   stockBannerOpen: { backgroundColor: 'rgba(217,95,95,0.09)' },

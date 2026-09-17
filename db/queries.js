@@ -2493,11 +2493,17 @@ export function deleteInventoryAct(actId) {
 // - информация о текущей смене
 // - выручка и количество заказов за сегодня
 // - количество позиций склада ниже порогового значения
-export function getDashboardStats() {
+export function getDashboardStats(userId = null) {
   const db = getDb();
 
-  // Текущая открытая смена
-  const shift = db.getFirstSync(`SELECT * FROM shifts WHERE status = 'open' ORDER BY opened_at DESC LIMIT 1`) || null;
+  // Текущая открытая смена — ИМЕННО этого сотрудника (userId), не
+  // "последняя открытая вообще". Смены переведены на "одна на
+  // сотрудника" — эта функция была упущена при той переделке: без
+  // userId показывала чужую смену как свою (например, администратор
+  // видел бы "смена открыта", хотя открыл её другой сотрудник).
+  const shift = (userId
+    ? db.getFirstSync(`SELECT * FROM shifts WHERE status = 'open' AND user_id = ? ORDER BY opened_at DESC LIMIT 1`, [userId])
+    : db.getFirstSync(`SELECT * FROM shifts WHERE status = 'open' ORDER BY opened_at DESC LIMIT 1`)) || null;
 
   // Сегодняшняя дата в формате YYYY-MM-DD
   const today = new Date().toISOString().slice(0, 10);
