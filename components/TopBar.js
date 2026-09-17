@@ -43,7 +43,7 @@ export default function TopBar({ title, onBack, rightElement, syncPending, navig
 
         {navigation ? (
           <Pressable
-            style={{ flex: 1 }}
+            style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
             onPress={() => {
               const home = getSession()?.role === 'admin' ? 'Admin' : 'Dashboard';
               if (activeScreen !== home) navigation.navigate(home);
@@ -53,14 +53,16 @@ export default function TopBar({ title, onBack, rightElement, syncPending, navig
             <Text style={styles.title} numberOfLines={1}>{title || ''}</Text>
           </Pressable>
         ) : (
-          <Text style={styles.title} numberOfLines={1}>{title || ''}</Text>
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <Text style={styles.title} numberOfLines={1}>{title || ''}</Text>
+          </View>
         )}
 
-        <View style={[styles.side, { alignItems: 'flex-end' }]}>
+        <View style={[styles.side, { alignItems: 'flex-end', gap: 10 }]}>
           {syncPending > 0
             ? <Text style={styles.syncBadge}>↑{syncPending}</Text>
             : null}
-          <Pressable onPress={lockApp} style={styles.lockBtn} hitSlop={10} accessibilityLabel="Заблокировать" accessibilityRole="button">
+          <Pressable onPress={lockApp} style={styles.lockBtn} hitSlop={8} accessibilityLabel="Заблокировать" accessibilityRole="button">
             <Text style={styles.lockIcon}>🔒</Text>
           </Pressable>
           {rightElement || null}
@@ -109,11 +111,17 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   lockBtn: {
-    paddingHorizontal: 6,
-    paddingVertical: 6,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.surface2,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   lockIcon: {
-    fontSize: 16,
+    fontSize: 20,
   },
   menuIcon: {
     fontSize: 20,
@@ -133,10 +141,8 @@ const styles = StyleSheet.create({
     color: colors.greenLight,
   },
   title: {
-    flex: 1,
-    textAlign: 'center',
     fontFamily: fonts.familySemibold,
-    fontSize: 11,
+    fontSize: 14,
     color: colors.textDim,
     textTransform: 'uppercase',
     letterSpacing: 3,

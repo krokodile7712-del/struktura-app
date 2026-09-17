@@ -247,9 +247,11 @@ export default function SalesScreen({ navigation }) {
               placeholder="Поиск по товару, сумме или способу оплаты..."
               placeholderTextColor={colors.muted}
             />
-            <Pressable style={styles.filtersBtn} onPress={() => setFiltersOpen(true)}>
-              <Text style={styles.filtersBtnTxt}>⚙ Фильтры</Text>
-              {(period !== 'today' || payFilter !== 'all') && <View style={styles.filtersBtnDot} />}
+            <Pressable
+              style={[styles.filtersBtn, (period !== 'today' || payFilter !== 'all') && styles.filtersBtnActive]}
+              onPress={() => setFiltersOpen(true)}
+            >
+              <Text style={[styles.filtersBtnTxt, (period !== 'today' || payFilter !== 'all') && styles.filtersBtnTxtActive]}>⚙ Фильтры</Text>
             </Pressable>
             {(period !== 'today' || payFilter !== 'all') && (
               <Pressable style={styles.filtersClearBtn} onPress={() => { setPeriod('today'); setPayFilter('all'); }} hitSlop={8}>
@@ -539,8 +541,8 @@ export default function SalesScreen({ navigation }) {
 const styles = StyleSheet.create({
   root:   { flex: 1, backgroundColor: colors.bg },
   layout: { flex: 1 },
-  tourBtn:  { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  tourBtnTxt: { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: colors.muted },
+  tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
+  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.orange },
 
   // Левая панель
   left:   { width: 200, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface, padding: 14 },
@@ -558,9 +560,10 @@ const styles = StyleSheet.create({
 
   // Правая панель
   searchWrap:  { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, paddingBottom: 6 },
-  filtersBtn:  { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 9, paddingHorizontal: 12, borderRadius: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
-  filtersBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
-  filtersBtnDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.orange },
+  filtersBtn:  { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 13, paddingHorizontal: 16, borderRadius: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
+  filtersBtnActive: { backgroundColor: 'rgba(240,160,80,0.14)', borderColor: colors.orange },
+  filtersBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
+  filtersBtnTxtActive: { color: colors.orange },
   filtersClearBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   filtersClearBtnTxt: { fontSize: 13, color: colors.muted, fontWeight: '600' },
   filtersSheetLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },
@@ -572,44 +575,42 @@ const styles = StyleSheet.create({
 
   // ── Сводка — общие строки (переиспользуются в боковой панели и полоске) ──
   catRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 9 },
-  catName:    { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, flex: 1 },
-  catVal:     { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
+  catName:    { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text, flex: 1 },
+  catVal:     { fontFamily: fonts.familyRegular, fontSize: 15, color: colors.muted },
 
   // ── Портрет — сворачиваемая полоска сверху ──
-  stripWrap:  { borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 16, paddingVertical: 12 },
+  stripWrap:  { borderBottomWidth: 1, borderBottomColor: colors.borderHi, backgroundColor: colors.surface2, paddingHorizontal: 16, paddingVertical: 12 },
   stripRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  stripLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
-  stripVal:   { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.orange, marginTop: 2 },
+  stripLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
+  stripVal:   { fontFamily: fonts.family, fontSize: 24, fontWeight: '800', color: colors.orange, marginTop: 2 },
   stripChevron: { fontSize: 11, color: colors.muted, opacity: 0.6 },
   stripBody:  { marginTop: 10 },
 
   // ── Альбомная — постоянная боковая панель сводки ──
-  sidePanel:  { width: '40%', maxWidth: 340, borderLeftWidth: 1, borderLeftColor: colors.border, backgroundColor: colors.surface, padding: 20 },
+  sidePanel:  { width: '40%', maxWidth: 340, borderLeftWidth: 1, borderLeftColor: colors.borderHi, backgroundColor: colors.surface2, padding: 20 },
   sideLabel:  { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
   sideVal:    { fontFamily: fonts.family, fontSize: 34, fontWeight: '800', color: colors.orange, marginTop: 6 },
   sideSub:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
   sideDivider:{ height: 1, backgroundColor: colors.border, marginVertical: 16 },
-  filtersBtn:  { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
-  filtersBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
   searchInput: { backgroundColor: colors.surface, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14, fontFamily: fonts.familyRegular, fontSize: 16, color: colors.text },
 
   emptyWrap:  { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
-  emptyTxt:   { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted },
-  emptyHint:  { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center', marginTop: 8, opacity: 0.7, lineHeight: 20 },
+  emptyTxt:   { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
+  emptyHint:  { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', marginTop: 8, opacity: 0.7, lineHeight: 20 },
 
   dayHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10 },
-  dayLabel:   { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
-  dayTotal:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
-  dayCard:    { backgroundColor: colors.surface, marginHorizontal: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', marginBottom: 8 },
+  dayLabel:   { fontFamily: fonts.familySemibold, fontSize: 18, color: colors.text },
+  dayTotal:   { fontFamily: fonts.familyRegular, fontSize: 15, color: colors.muted },
+  dayCard:    { backgroundColor: colors.surface2, marginHorizontal: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.borderHi, overflow: 'hidden', marginBottom: 8 },
 
-  orderRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, gap: 10 },
+  orderRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, paddingHorizontal: 14, gap: 10 },
   orderRowDiv: { borderBottomWidth: 1, borderBottomColor: colors.border },
-  orderTime:   { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
-  orderItems:  { fontFamily: fonts.familyRegular, fontSize: 15, color: colors.muted },
-  orderMeta:   { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
-  orderTotal:  { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: colors.orange },
-  orderMethod: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
-  chevron:     { fontSize: 18, color: colors.muted, transform: [{ rotate: '90deg' }] },
+  orderTime:   { fontFamily: fonts.familySemibold, fontSize: 17, color: colors.text },
+  orderItems:  { fontFamily: fonts.familyRegular, fontSize: 16, color: colors.muted },
+  orderMeta:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
+  orderTotal:  { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.orange },
+  orderMethod: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
+  chevron:     { fontSize: 22, color: colors.muted, transform: [{ rotate: '90deg' }] },
   chevronOpen: { transform: [{ rotate: '-90deg' }] },
   returnBadge: { paddingVertical: 2, paddingHorizontal: 8, borderRadius: 8, backgroundColor: 'rgba(217,95,95,0.12)' },
   returnBadgeTxt: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.red },

@@ -244,6 +244,6 @@ const styles = StyleSheet.create({
   shiftOpenBtn: { backgroundColor: 'rgba(123,175,142,0.08)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(123,175,142,0.3)', padding: 16, marginTop: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   shiftOpenTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.green, marginBottom: 3 },
   shiftOpenSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
-  tourBtn:  { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  tourBtnTxt: { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: colors.muted },
+  tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
+  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.orange },
 });

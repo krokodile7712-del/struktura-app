@@ -2331,8 +2331,8 @@ const styles = StyleSheet.create({
   clientBadgeName: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
   clientBadgeSub: { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.green, marginTop: 1 },
   warnIcon: { fontSize: 40, textAlign: 'center', marginBottom: 8 },
-  tourBtn:  { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  tourBtnTxt: { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: colors.muted },
+  tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
+  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.orange },
   warnTitle: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, textAlign: 'center', marginBottom: 8 },
   warnText: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center' },
 });
