@@ -837,7 +837,7 @@ export default function ProductsScreen({ navigation, route }) {
           </View>
         ) : (
           /* Редактор товара — выезжающий слой поверх списка, а не соседняя колонка */
-          <Sheet visible={!!selected} onClose={() => setSelected(null)} title={editorTitle}>
+          <Sheet visible={!!selected} onClose={() => setSelected(null)} title={editorTitle} fixedHeightPct={0.9}>
             {editorContent}
           </Sheet>
         );
