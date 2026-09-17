@@ -188,7 +188,7 @@ export default function AdminScreen({ navigation }) {
             >
               <View style={{ flex: 1 }}>
                 <Text style={styles.shiftStatVal}>{stats.shift ? (stats.shiftDuration || '—') : 'Не открыта'}</Text>
-                <Text style={styles.statLbl}>Смена</Text>
+                <Text style={styles.statLbl}>{stats.shift ? 'Смена открыта' : 'Смена закрыта'}</Text>
               </View>
               <Text style={[styles.shiftStatChevron, { color: stats.shift ? colors.green : colors.red }]}>›</Text>
               {shiftActionHighlight.overlay}
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
   statsGrid:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
   statCard:    { flex: 1, minWidth: '44%', backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.borderHi, padding: 16 },
   statVal:     { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.text, marginBottom: 2 },
-  statLbl:     { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.8 },
+  statLbl:     { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
 
   shiftStatCard:       { flexDirection: 'row', alignItems: 'center', borderWidth: 2 },
   shiftStatVal:        { fontFamily: fonts.familySemibold, fontSize: 17, color: colors.text, marginBottom: 2 },
