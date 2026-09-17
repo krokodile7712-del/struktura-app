@@ -25,12 +25,14 @@ import {
   getAllCategoriesFull, createCategory, renameCategory, deleteCategory, getCategoryProducts,
   insertModifierOption, updateModifierOption, deleteModifierOption,
   getProductModifierGroups, setProductModifierGroups,
-  getBusinessProfile, createCombinedProductAndStock, setProductDiscountEligible,
+  getBusinessProfile, createCombinedProductAndStock, setProductDiscountEligible, markTourSeen,
 } from '../db/queries';
 import { getDb } from '../db/database';
 import { emit } from '../db/events';
 import { getHomeRoute, goBackSmart, can } from '../db/session';
 import { colors, fonts, anim } from '../constants/theme';
+import TourGuide from '../components/TourGuide';
+import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
 
 const fmt = n => (n||0).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
@@ -398,6 +400,12 @@ export default function ProductsScreen({ navigation, route }) {
   const toast = useToast();
   const { isLandscape } = useResponsive();
   const [tab, setTab]               = useState(route?.params?.initialTab || 'stock'); // products | stock | modifiers
+  const [tourOpen, setTourOpen]     = useState(false);
+  const [tourFull, setTourFull]     = useState(true); // true — полный тур (Склад→Товары), false — только текущая вкладка
+  const activeTourKey = useTourActiveKey();
+  const listSearchHighlight = useTourHighlight('products.list.search');
+  const listCatsHighlight   = useTourHighlight('products.list.cats');
+  const listCardHighlight   = useTourHighlight('products.list.card');
   const [modules, setModules]       = useState({});
   const [products, setProducts]     = useState([]);
   const [stock, setStock]           = useState([]);
@@ -466,6 +474,46 @@ export default function ProductsScreen({ navigation, route }) {
     load();
     if (route?.params?.initialTab) setTab(route.params.initialTab);
   }, [load, route?.params?.initialTab]));
+
+  // Тур раздела «Товары» — начинается со Склада (открывается первым по
+  // умолчанию), затем анонс вкладки «Товары» и продолжение уже там.
+  // При первом визите — весь тур целиком (tourFull=true), сам переключает
+  // вкладку по ходу. При повторном запуске через «?» — только шаги той
+  // вкладки, на которой сейчас находишься (tourFull=false).
+  const stockTourSteps = [
+    { key: 'products.stock.search', title: 'Поиск и добавление', text: 'Ищите материал по названию или добавьте новый кнопкой «+ Позиция» — название, единица измерения, начальный остаток.' },
+    { key: 'products.stock.item',   title: 'Позиция склада', text: 'Тап открывает карточку: остаток, история движения, приход (закупка) и списание.' },
+    { key: 'products.stock.low',    title: 'Нехватка на складе', text: 'Эта кнопка показывает всё, что заканчивается — быстрый список того, что пора закупить.' },
+  ];
+  const mentionTourStep = { key: 'products.mention', title: 'А ещё — вкладка «Товары»', text: 'Рядом есть вторая вкладка — сами товары для продажи, с ценами и техкартами (не материалы склада, а то, что видит касса).' };
+  const productsTourSteps = [
+    { key: 'products.list.search', title: 'Поиск и добавление', text: 'Ищите товар по названию или добавьте новый кнопкой «+ Товар».' },
+    { key: 'products.list.cats',   title: 'Категории', text: 'Тап по заголовку сворачивает и разворачивает список товаров внутри категории.' },
+    { key: 'products.list.card',   title: 'Карточка товара', text: 'Тап на товар открывает редактор — цена, размеры, техкарта, дополнительные опции.', cardPosition: 'top' },
+  ];
+  const fullTourSteps = [...stockTourSteps, mentionTourStep, ...productsTourSteps];
+  const tourStepsToShow = tourFull ? fullTourSteps : (tab === 'stock' ? stockTourSteps : productsTourSteps);
+
+  // Автозапуск при первом визите в раздел — весь тур целиком
+  useEffect(() => {
+    try {
+      const p = getBusinessProfile();
+      if (!p?.tours_seen?.Products) {
+        const t = setTimeout(() => { setTourFull(true); setTourOpen(true); }, 500);
+        return () => clearTimeout(t);
+      }
+    } catch (_) {}
+  }, []);
+
+  // Шаги про Склад держат вкладку «Склад», шаги про Товары переключают на
+  // «Товары» — шаг-анонс (products.mention) вкладку не трогает, остаётся
+  // там, где тур сейчас идёт (на Складе), просто анонсирует продолжение.
+  const stockStepKeys = new Set(stockTourSteps.map(s => s.key));
+  const productsStepKeys = new Set(productsTourSteps.map(s => s.key));
+  useEffect(() => {
+    if (stockStepKeys.has(activeTourKey)) setTab('stock');
+    else if (productsStepKeys.has(activeTourKey)) setTab('products');
+  }, [activeTourKey]);
 
   const loadCategories = useCallback(() => {
     try { setCatList(getAllCategoriesFull()); } catch(e) { console.error(e); }
@@ -663,7 +711,16 @@ export default function ProductsScreen({ navigation, route }) {
         title="Товары"
         onBack={() => goBackSmart(navigation)}
         rightElement={
-          <View style={{ flexDirection: 'row', gap: 8 }}>
+          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+            <Pressable
+              style={styles.tourBtn}
+              onPress={() => { setTourFull(false); setTourOpen(true); }}
+              hitSlop={10}
+              accessibilityLabel="Подсказка"
+              accessibilityRole="button"
+            >
+              <Text style={styles.tourBtnTxt}>?</Text>
+            </Pressable>
             {tab === 'products' && (
               <Pressable style={styles.headerBtn} onPress={openCategoryMgmt} accessibilityLabel="Категории" accessibilityRole="button">
                 <Text style={styles.headerBtnTxt}>🏷</Text>
@@ -706,7 +763,7 @@ export default function ProductsScreen({ navigation, route }) {
           {tab === 'products' && (
             <>
               {/* Поиск */}
-              <View style={[styles.searchWrap, { flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
+              <View style={[styles.searchWrap, { flexDirection: 'row', alignItems: 'center', gap: 8 }, listSearchHighlight.style]}>
                 <TextInput style={[styles.searchInput, { flex: 1 }]} color={colors.text}
                   value={search} onChangeText={setSearch}
                   placeholder="Поиск товара..." placeholderTextColor={colors.muted} />
@@ -716,6 +773,7 @@ export default function ProductsScreen({ navigation, route }) {
                 <Pressable onPress={() => setCatModal(true)} hitSlop={8} style={styles.catBtn}>
                   <Text style={styles.catBtnText}>⚙</Text>
                 </Pressable>
+                {listSearchHighlight.overlay}
               </View>
 
               {/* Список по категориям */}
@@ -727,14 +785,15 @@ export default function ProductsScreen({ navigation, route }) {
                     action={search ? undefined : '+ Добавить товар'}
                     onAction={search ? undefined : () => setSelected('new')} />
                 ) : (
-                  catGroups.map(({ cat, items }) => {
+                  catGroups.map(({ cat, items }, gi) => {
                     const isOpen = expandedCats[cat] !== false;
                     return (
                       <View key={cat} style={styles.catGroup}>
-                        <Pressable style={styles.catHeadRow} onPress={() => setExpandedCats(e => ({ ...e, [cat]: !isOpen }))}>
+                        <Pressable style={[styles.catHeadRow, gi === 0 && listCatsHighlight.style]} onPress={() => setExpandedCats(e => ({ ...e, [cat]: !isOpen }))}>
                           <Text style={styles.catLabel}>{cat}</Text>
                           <Text style={styles.catCount}>{items.length}</Text>
                           <Text style={[styles.catChevron, isOpen && styles.catChevronOpen]}>›</Text>
+                          {gi === 0 && listCatsHighlight.overlay}
                         </Pressable>
                         {isOpen && (
                           <View style={styles.catCard}>
@@ -749,10 +808,12 @@ export default function ProductsScreen({ navigation, route }) {
                                     isActive && styles.productRowActive,
                                     !p.active && { opacity: 0.45 },
                                     pressed && { backgroundColor: 'rgba(245,240,232,0.03)' },
+                                    gi === 0 && idx === 0 && listCardHighlight.style,
                                   ]}
                                   onPress={() => setSelected(p)}
                                 >
                                   {isActive && <View style={styles.activeBar} />}
+                                  {gi === 0 && idx === 0 && listCardHighlight.overlay}
                                   <View style={{ flex: 1 }}>
                                     <Text style={[styles.productName, isActive && styles.productNameActive]} numberOfLines={1}>{p.name}</Text>
                                   </View>
@@ -1265,6 +1326,12 @@ export default function ProductsScreen({ navigation, route }) {
           </View>
         </View>
       </Modal>
+
+      <TourGuide
+        visible={tourOpen}
+        onClose={() => { setTourOpen(false); if (tourFull) markTourSeen('Products'); }}
+        steps={tourStepsToShow}
+      />
     </View>
   );
 }
@@ -1562,6 +1629,8 @@ const styles = StyleSheet.create({
   // Шапки и кнопки
   headerBtn:  { width: 34, height: 34, borderRadius: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   headerBtnTxt:{ fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
+  tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
+  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.orange },
   addBtn:     { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, backgroundColor: 'rgba(240,160,80,0.12)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)' },
   addBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
 
