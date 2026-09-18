@@ -250,7 +250,6 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
         onPress={() => can('view_stock') && selectItem(item)}
       >
         {isActive && <View style={styles.activeBar} />}
-        {isFirst && stockItemHighlight.overlay}
         <View style={{ flex: 1 }}>
           <Text style={[styles.itemName, isActive && { color: colors.orange }]} numberOfLines={1}>{item.name}</Text>
           {thr > 0 && (
@@ -270,6 +269,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
         </View>
 
         <Text style={styles.rowArrow}>›</Text>
+        {isFirst && stockItemHighlight.overlay}
       </Pressable>
     );
   };
@@ -949,6 +949,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    position: 'relative',
   },
   searchInput: {
     padding: 12,
@@ -960,7 +961,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: fonts.family,
   },
-  catBtn: { width: 38, height: 38, borderRadius: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  catBtn: { width: 38, height: 38, borderRadius: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', position: 'relative' },
   catChip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
   catChipActive: { backgroundColor: 'rgba(240,160,80,0.12)', borderColor: 'rgba(240,160,80,0.5)' },
   catCountTxt: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },

@@ -813,13 +813,13 @@ export default function ProductsScreen({ navigation, route }) {
                                   onPress={() => setSelected(p)}
                                 >
                                   {isActive && <View style={styles.activeBar} />}
-                                  {gi === 0 && idx === 0 && listCardHighlight.overlay}
                                   <View style={{ flex: 1 }}>
                                     <Text style={[styles.productName, isActive && styles.productNameActive]} numberOfLines={1}>{p.name}</Text>
                                   </View>
                                   <Text style={styles.productPrice}>{fmt(p.price)} ₽</Text>
                                   {!p.active && <Text style={styles.inactiveDot}>●</Text>}
                                   <Text style={styles.rowArrow}>›</Text>
+                                  {gi === 0 && idx === 0 && listCardHighlight.overlay}
                                 </Pressable>
                               );
                             })}
@@ -1475,7 +1475,7 @@ const styles = StyleSheet.create({
   tabTxt: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted },
   tabTxtActive: { color: colors.orange },
 
-  searchWrap: { padding: 10, borderBottomWidth: 1, borderBottomColor: colors.borderHi },
+  searchWrap: { padding: 10, borderBottomWidth: 1, borderBottomColor: colors.borderHi, position: 'relative' },
   searchInput:{ backgroundColor: colors.surface3, borderRadius: 10, paddingVertical: 13, paddingHorizontal: 12, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 16 },
   addStockBtn: { paddingHorizontal: 14, height: 46, borderRadius: 10, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
   addStockBtnText: { fontSize: 15, color: colors.orange, fontFamily: fonts.familySemibold },
@@ -1483,7 +1483,7 @@ const styles = StyleSheet.create({
   catBtnText: { fontSize: 18, color: colors.muted },
 
   catGroup:   { marginTop: 26, paddingHorizontal: 14 },
-  catHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, paddingVertical: 12, paddingHorizontal: 12, backgroundColor: colors.surface3, borderRadius: 10 },
+  catHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, paddingVertical: 12, paddingHorizontal: 12, backgroundColor: colors.surface3, borderRadius: 10, position: 'relative' },
   catCard:    { backgroundColor: colors.surface3, borderRadius: 14, borderWidth: 1, borderColor: colors.borderHi, overflow: 'hidden' },
   catLabel:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, flex: 1 },
   catCount:   { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginRight: 6 },
