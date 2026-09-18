@@ -18,6 +18,7 @@ import { colors, fonts, spacing } from '../../constants/theme';
 import { useToast } from '../Toast';
 import Sheet from '../Sheet';
 import { useResponsive } from '../../hooks/useResponsive';
+import { useTourHighlight } from '../TourRegistry';
 import InfoTip from '../InfoTip';
 import UnitPicker from '../UnitPicker';
 
@@ -38,6 +39,9 @@ const MODES = [
 // и встроенной панелью внутри Admin/Dashboard (раньше это были два отдельных
 // файла с продублированной логикой, из-за чего они периодически расходились).
 export default function StockPanel({ navigation, openCreateSignal, hideOwnCreateButton, onSelectedChange }) {
+  const stockSearchHighlight = useTourHighlight('products.stock.search');
+  const stockItemHighlight   = useTourHighlight('products.stock.item');
+  const stockLowHighlight    = useTourHighlight('products.stock.low');
   const { isLandscape } = useResponsive();
   const toast = useToast();
   const [stock, setStock]           = useState([]);
@@ -225,7 +229,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
     return 'Применить';
   })();
 
-  const renderItemRow = (item, isLast) => {
+  const renderItemRow = (item, isLast, isFirst = false) => {
     const cur   = item['остаток'] ?? 0;
     const thr   = item['порог']   ?? 0;
     const isNeg = cur < 0;
@@ -241,10 +245,12 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
           !isLast && styles.rowDivider,
           isActive && styles.rowActive,
           pressed && !isActive && styles.rowPressed,
+          isFirst && stockItemHighlight.style,
         ]}
         onPress={() => can('view_stock') && selectItem(item)}
       >
         {isActive && <View style={styles.activeBar} />}
+        {isFirst && stockItemHighlight.overlay}
         <View style={{ flex: 1 }}>
           <Text style={[styles.itemName, isActive && { color: colors.orange }]} numberOfLines={1}>{item.name}</Text>
           {thr > 0 && (
@@ -457,7 +463,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
           </ScrollView>
         )}
 
-        <View style={styles.searchWrap}>
+        <View style={[styles.searchWrap, stockSearchHighlight.style]}>
           <TextInput
             style={[styles.searchInput, { flex: 1 }]}
             value={search}
@@ -470,12 +476,14 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
             <Text style={styles.addStockBtnText}>+ Позиция</Text>
           </Pressable>
           )}
-          <Pressable onPress={() => setLowStockSheetOpen(true)} hitSlop={8} style={styles.catBtn}>
+          <Pressable onPress={() => setLowStockSheetOpen(true)} hitSlop={8} style={[styles.catBtn, stockLowHighlight.style]}>
             <Text style={styles.catBtnText}>⚠️</Text>
+            {stockLowHighlight.overlay}
           </Pressable>
           <Pressable onPress={() => setCatModal(true)} hitSlop={8} style={styles.catBtn}>
             <Text style={styles.catBtnText}>⚙</Text>
           </Pressable>
+          {stockSearchHighlight.overlay}
         </View>
 
         <View style={styles.filterRow}>
@@ -504,7 +512,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
           ) : viewMode === 'list' ? (
             <View style={styles.catCard}>
               {[...filtered].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ru')).map((item, idx, arr) =>
-                renderItemRow(item, idx === arr.length - 1)
+                renderItemRow(item, idx === arr.length - 1, idx === 0)
               )}
             </View>
           ) : cats.map(cat => {
