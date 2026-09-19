@@ -404,8 +404,7 @@ export default function ProductsScreen({ navigation, route }) {
   const [tourFull, setTourFull]     = useState(true); // true — полный тур (Склад→Товары), false — только текущая вкладка
   const activeTourKey = useTourActiveKey();
   const listSearchHighlight = useTourHighlight('products.list.search');
-  const listCatsHighlight   = useTourHighlight('products.list.cats');
-  const listCardHighlight   = useTourHighlight('products.list.card');
+  const listAreaHighlight   = useTourHighlight('products.list');
   const [modules, setModules]       = useState({});
   const [products, setProducts]     = useState([]);
   const [stock, setStock]           = useState([]);
@@ -777,6 +776,7 @@ export default function ProductsScreen({ navigation, route }) {
               </View>
 
               {/* Список по категориям */}
+              <View style={[{ flex: 1, position: 'relative' }, listAreaHighlight.style]}>
               <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}
                 contentContainerStyle={catGroups.length === 0 ? { flexGrow: 1, justifyContent: 'center' } : undefined}>
                 {catGroups.length === 0 ? (
@@ -789,11 +789,10 @@ export default function ProductsScreen({ navigation, route }) {
                     const isOpen = expandedCats[cat] !== false;
                     return (
                       <View key={cat} style={styles.catGroup}>
-                        <Pressable style={[styles.catHeadRow, gi === 0 && listCatsHighlight.style]} onPress={() => setExpandedCats(e => ({ ...e, [cat]: !isOpen }))}>
+                        <Pressable style={styles.catHeadRow} onPress={() => setExpandedCats(e => ({ ...e, [cat]: !isOpen }))}>
                           <Text style={styles.catLabel}>{cat}</Text>
                           <Text style={styles.catCount}>{items.length}</Text>
                           <Text style={[styles.catChevron, isOpen && styles.catChevronOpen]}>›</Text>
-                          {gi === 0 && listCatsHighlight.overlay}
                         </Pressable>
                         {isOpen && (
                           <View style={styles.catCard}>
@@ -808,7 +807,6 @@ export default function ProductsScreen({ navigation, route }) {
                                     isActive && styles.productRowActive,
                                     !p.active && { opacity: 0.45 },
                                     pressed && { backgroundColor: 'rgba(245,240,232,0.03)' },
-                                    gi === 0 && idx === 0 && listCardHighlight.style,
                                   ]}
                                   onPress={() => setSelected(p)}
                                 >
@@ -819,7 +817,6 @@ export default function ProductsScreen({ navigation, route }) {
                                   <Text style={styles.productPrice}>{fmt(p.price)} ₽</Text>
                                   {!p.active && <Text style={styles.inactiveDot}>●</Text>}
                                   <Text style={styles.rowArrow}>›</Text>
-                                  {gi === 0 && idx === 0 && listCardHighlight.overlay}
                                 </Pressable>
                               );
                             })}
@@ -830,6 +827,8 @@ export default function ProductsScreen({ navigation, route }) {
                   })
                 )}
               </ScrollView>
+              {listAreaHighlight.overlay}
+              </View>
             </>
           )}
 

@@ -229,7 +229,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
     return 'Применить';
   })();
 
-  const renderItemRow = (item, isLast, isFirst = false) => {
+  const renderItemRow = (item, isLast) => {
     const cur   = item['остаток'] ?? 0;
     const thr   = item['порог']   ?? 0;
     const isNeg = cur < 0;
@@ -245,7 +245,6 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
           !isLast && styles.rowDivider,
           isActive && styles.rowActive,
           pressed && !isActive && styles.rowPressed,
-          isFirst && stockItemHighlight.style,
         ]}
         onPress={() => can('view_stock') && selectItem(item)}
       >
@@ -269,7 +268,6 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
         </View>
 
         <Text style={styles.rowArrow}>›</Text>
-        {isFirst && stockItemHighlight.overlay}
       </Pressable>
     );
   };
@@ -497,6 +495,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
           </View>
         </View>
 
+        <View style={[{ flex: 1, position: 'relative' }, stockItemHighlight.style]}>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.inner, filtered.length === 0 && { flexGrow: 1, justifyContent: 'center' }]}
           keyboardShouldPersistTaps="handled">
           {filtered.length === 0 ? (
@@ -512,7 +511,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
           ) : viewMode === 'list' ? (
             <View style={styles.catCard}>
               {[...filtered].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ru')).map((item, idx, arr) =>
-                renderItemRow(item, idx === arr.length - 1, idx === 0)
+                renderItemRow(item, idx === arr.length - 1)
               )}
             </View>
           ) : cats.map(cat => {
@@ -534,6 +533,8 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
             );
           })}
         </ScrollView>
+        {stockItemHighlight.overlay}
+        </View>
       </View>
 
       {isLandscape ? (
