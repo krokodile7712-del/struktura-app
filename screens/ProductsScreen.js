@@ -98,11 +98,21 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
   // работает в Обзоре
   useEffect(() => {
     if (!activeTourKey) return;
-    const y = sectionY.current[activeTourKey];
-    if (y == null) return;
-    const t = setTimeout(() => {
-      scrollRef.current?.scrollTo({ y: Math.max(0, y - 280), animated: true });
-    }, 120);
+    let attempts = 0;
+    let t;
+    const tryScroll = () => {
+      const y = sectionY.current[activeTourKey];
+      if (y != null) {
+        scrollRef.current?.scrollTo({ y: Math.max(0, y - 280), animated: true });
+      } else if (attempts < 10) {
+        // Позиция ещё не записана (onLayout строки, что дальше по списку,
+        // мог просто не успеть отработать к этому моменту) — пробуем ещё,
+        // не сдаёмся после одной неудачной попытки
+        attempts++;
+        t = setTimeout(tryScroll, 60);
+      }
+    };
+    t = setTimeout(tryScroll, 120);
     return () => clearTimeout(t);
   }, [activeTourKey]);
 
@@ -171,7 +181,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
             <Text style={styles.fieldLabel}>Категория</Text>
             <InfoTip title="Категория" text="Группирует товары в списке и в кассе. Клиент её не видит. Есть нужная — выберите её; нет — впишите новую, она появится в списке для следующих товаров." />
           </View>
-          {categories.length > 0 && (
+          {!isDemo && categories.length > 0 && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4, alignItems: 'center' }}>
               {categories.map(cat => (
                 <Pressable key={cat} style={[styles.chip, category === cat && styles.chipActive]} onPress={() => setCategory(cat)}>
@@ -181,7 +191,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
             </ScrollView>
           )}
           <TextInput
-            style={[styles.input, { marginTop: categories.length > 0 ? 8 : 0 }]}
+            style={[styles.input, { marginTop: !isDemo && categories.length > 0 ? 8 : 0 }]}
             color={colors.text}
             value={category}
             onChangeText={setCategory}
