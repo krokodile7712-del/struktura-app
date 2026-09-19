@@ -82,11 +82,29 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
   const [expandedVar, setExpandedVar] = useState(-1);
   const [unitOpenVar, setUnitOpenVar] = useState(-1);
   const [optionsOpen, setOptionsOpen] = useState(selGroups.length > 0);
+  const scrollRef = useRef(null);
+  const sectionY = useRef({});
+  const rememberY = (key) => (e) => { sectionY.current[key] = e.nativeEvent.layout.y; };
+  const activeTourKey = useTourActiveKey();
   const mainHighlight   = useTourHighlight('products.card.main');
   const paramsHighlight = useTourHighlight('products.card.params');
   const priceHighlight  = useTourHighlight('products.card.price');
   const modsAddHighlight     = useTourHighlight('products.card.modsAdd');
   const modsReplaceHighlight = useTourHighlight('products.card.modsReplace');
+
+  // Карточка тура закреплена внизу экрана и может полностью закрыть собой
+  // тот раздел, что ещё не поднят в видимую область — сама подводим нужный
+  // раздел к видимой части при смене активного шага, тот же приём, что уже
+  // работает в Обзоре
+  useEffect(() => {
+    if (!activeTourKey) return;
+    const y = sectionY.current[activeTourKey];
+    if (y == null) return;
+    const t = setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: Math.max(0, y - 280), animated: true });
+    }, 50);
+    return () => clearTimeout(t);
+  }, [activeTourKey]);
 
 
   // Слова-метки упаковки, зависящей от размера — её НЕ копируем в новый
@@ -125,7 +143,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
   const margin    = (v) => { const c = totalCost(v); const p = parseFloat(v.price)||0; return p > 0 && c > 0 ? Math.round((1 - c/p)*100) : null; };
 
   return (
-      <ScrollView contentContainerStyle={styles.editorContent} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.editorContent} keyboardShouldPersistTaps="handled">
 
         {/* Шапка */}
         {!isNew && (
@@ -136,7 +154,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
 
         {/* СЕКЦИЯ: Основное */}
         <Text style={styles.sectionTitle}>Основное</Text>
-        <View style={[styles.sectionCard, { position: 'relative' }, mainHighlight.style]}>
+        <View style={[styles.sectionCard, { position: 'relative' }, mainHighlight.style]} onLayout={rememberY('products.card.main')}>
           <Text style={[styles.fieldLabel, { marginTop: 0 }]}>Название товара <Text style={{ color: colors.orange }}>*</Text></Text>
           <TextInput
             style={styles.input}
@@ -175,7 +193,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
 
         {/* СЕКЦИЯ: Параметры — короткие переключатели рядом, парами в альбомной */}
         <Text style={styles.sectionTitle}>Параметры</Text>
-        <View style={[styles.paramsGrid, isLandscape && !isNew && styles.paramsGridRow, { position: 'relative' }, paramsHighlight.style]}>
+        <View style={[styles.paramsGrid, isLandscape && !isNew && styles.paramsGridRow, { position: 'relative' }, paramsHighlight.style]} onLayout={rememberY('products.card.params')}>
           {!isNew && (
             <View style={[styles.paramCard, isLandscape && styles.paramCardHalf]}>
               <Text style={styles.deductQuestionTxt}>{active ? 'Активен' : 'Неактивен'}</Text>
@@ -219,7 +237,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
           </View>
         </View>
 
-        <View style={[{ position: 'relative' }, priceHighlight.style]}>
+        <View style={[{ position: 'relative' }, priceHighlight.style]} onLayout={rememberY('products.card.price')}>
         {vars.map((v, vi) => {
           const cost   = totalCost(v);
           const mrg    = margin(v);
@@ -366,7 +384,8 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
                   const rowHighlight = g.id === 'demo-add' ? modsAddHighlight : g.id === 'demo-replace' ? modsReplaceHighlight : null;
                   return (
                     <View key={g.id}
-                      style={[styles.modRow, idx < allModGroups.length-1 && styles.modRowDiv, rowHighlight && { position: 'relative' }, rowHighlight?.style]}>
+                      style={[styles.modRow, idx < allModGroups.length-1 && styles.modRowDiv, rowHighlight && { position: 'relative' }, rowHighlight?.style]}
+                      onLayout={g.id === 'demo-add' ? rememberY('products.card.modsAdd') : g.id === 'demo-replace' ? rememberY('products.card.modsReplace') : undefined}>
                       <Pressable style={{ flex: 1 }} onPress={() => !isDemoGroup && onCreateGroup(g)}>
                         <Text style={styles.modName}>{g.name}</Text>
                         <Text style={styles.modSub}>{g.apply_mode === 'replace' ? 'Замена' : 'Добавление'}{!isDemoGroup ? ' · нажмите, чтобы изменить' : ''}</Text>
