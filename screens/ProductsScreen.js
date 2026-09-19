@@ -499,7 +499,7 @@ export default function ProductsScreen({ navigation, route }) {
     try {
       const p = getBusinessProfile();
       if (!p?.tours_seen?.Products) {
-        const t = setTimeout(() => { setTourFull(true); setTourOpen(true); }, 500);
+        const t = setTimeout(() => { setTab('stock'); setTourFull(true); setTourOpen(true); }, 500);
         return () => clearTimeout(t);
       }
     } catch (_) {}
