@@ -403,8 +403,8 @@ export default function ProductsScreen({ navigation, route }) {
   const [tourOpen, setTourOpen]     = useState(false);
   const [tourFull, setTourFull]     = useState(true); // true — полный тур (Склад→Товары), false — только текущая вкладка
   const activeTourKey = useTourActiveKey();
-  const listSearchHighlight = useTourHighlight('products.list.search');
-  const listAreaHighlight   = useTourHighlight('products.list');
+  const listSearchHighlight = useTourHighlight('products.search');
+  const listCatsHighlight   = useTourHighlight('products.categories');
   const [modules, setModules]       = useState({});
   const [products, setProducts]     = useState([]);
   const [stock, setStock]           = useState([]);
@@ -776,7 +776,7 @@ export default function ProductsScreen({ navigation, route }) {
               </View>
 
               {/* Список по категориям */}
-              <View style={[{ flex: 1, position: 'relative' }, listAreaHighlight.style]}>
+              <View style={[{ flex: 1, position: 'relative' }, listCatsHighlight.style]}>
               <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}
                 contentContainerStyle={catGroups.length === 0 ? { flexGrow: 1, justifyContent: 'center' } : undefined}>
                 {catGroups.length === 0 ? (
@@ -827,7 +827,7 @@ export default function ProductsScreen({ navigation, route }) {
                   })
                 )}
               </ScrollView>
-              {listAreaHighlight.overlay}
+              {listCatsHighlight.overlay}
               </View>
             </>
           )}
