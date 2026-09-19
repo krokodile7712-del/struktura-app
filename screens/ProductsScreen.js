@@ -47,6 +47,7 @@ function pluralizeProducts(n) {
 // ─── Правая панель редактирования товара ─────────────────────────────────────
 function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, allModGroups, onClose, onIngPicker, onCreateGroup, modifiersEnabled = true }) {
   const isNew = !product?.id;
+  const isDemo = !!product?.__demo;
   const canEditCost = can('edit_cost_cards');
   const { isLandscape } = useResponsive();
   const [stock, setStock] = useState(() => { try { return getAllStock(); } catch { return []; } });
@@ -56,6 +57,14 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
   const [active, setActive]       = useState(product?.active !== 0);
   const [discountEligible, setDiscountEligible] = useState(!!product?.discount_eligible);
   const [vars, setVars]           = useState(() => {
+    // Демо-карточка — нейтральное наполнение прямо здесь, база вообще
+    // не трогается (нет смысла запрашивать несуществующий id 'demo')
+    if (isDemo) {
+      return [{ id: null, label: '', price: '100', unit: 'шт', deduction_mode: 'fixed', ings: [
+        { name: 'Позиция 1', amount: '1', unit: 'шт', price_per_unit: '0' },
+        { name: 'Позиция 2', amount: '1', unit: 'шт', price_per_unit: '0' },
+      ] }];
+    }
     try {
       const v = isNew ? [] : getProductVariants(product.id);
       const tc = {};
@@ -66,12 +75,18 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
     } catch { return [{ id: null, label: '', price: '', unit: 'шт', deduction_mode: 'fixed', ings: [] }]; }
   });
   const [selGroups, setSelGroups] = useState(() => {
+    if (isDemo) return ['demo-add', 'demo-replace'];
     try { return product?.id ? getProductModifierGroups(product.id).map(g => Number(g.id)) : []; } catch { return []; }
   });
   const [ingPickerVar, setIngPickerVar] = useState(null); // индекс варианта
   const [expandedVar, setExpandedVar] = useState(-1);
   const [unitOpenVar, setUnitOpenVar] = useState(-1);
   const [optionsOpen, setOptionsOpen] = useState(selGroups.length > 0);
+  const mainHighlight   = useTourHighlight('products.card.main');
+  const paramsHighlight = useTourHighlight('products.card.params');
+  const priceHighlight  = useTourHighlight('products.card.price');
+  const modsAddHighlight     = useTourHighlight('products.card.modsAdd');
+  const modsReplaceHighlight = useTourHighlight('products.card.modsReplace');
 
 
   // Слова-метки упаковки, зависящей от размера — её НЕ копируем в новый
@@ -121,7 +136,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
 
         {/* СЕКЦИЯ: Основное */}
         <Text style={styles.sectionTitle}>Основное</Text>
-        <View style={styles.sectionCard}>
+        <View style={[styles.sectionCard, { position: 'relative' }, mainHighlight.style]}>
           <Text style={[styles.fieldLabel, { marginTop: 0 }]}>Название товара <Text style={{ color: colors.orange }}>*</Text></Text>
           <TextInput
             style={styles.input}
@@ -155,11 +170,12 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
             placeholder={categories.length > 0 ? 'Или впишите новую категорию' : 'Название категории (например, Напитки)'}
             placeholderTextColor={colors.muted}
           />
+          {mainHighlight.overlay}
         </View>
 
         {/* СЕКЦИЯ: Параметры — короткие переключатели рядом, парами в альбомной */}
         <Text style={styles.sectionTitle}>Параметры</Text>
-        <View style={[styles.paramsGrid, isLandscape && !isNew && styles.paramsGridRow]}>
+        <View style={[styles.paramsGrid, isLandscape && !isNew && styles.paramsGridRow, { position: 'relative' }, paramsHighlight.style]}>
           {!isNew && (
             <View style={[styles.paramCard, isLandscape && styles.paramCardHalf]}>
               <Text style={styles.deductQuestionTxt}>{active ? 'Активен' : 'Неактивен'}</Text>
@@ -181,7 +197,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
                 // закрывали без явного сохранения, в базе оставалось старое
                 // значение, и скидка в Кассе продолжала применяться как ни в чём
                 // не бывало, хотя переключатель на экране уже выглядел выключенным.
-                if (product?.id) {
+                if (product?.id && !isDemo) {
                   try {
                     setProductDiscountEligible(product.id, v);
                     emit('productsChanged');
@@ -191,6 +207,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
               size="sm"
             />
           </View>
+          {paramsHighlight.overlay}
         </View>
 
         {/* СЕКЦИЯ: Цена и размеры */}
@@ -202,6 +219,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
           </View>
         </View>
 
+        <View style={[{ position: 'relative' }, priceHighlight.style]}>
         {vars.map((v, vi) => {
           const cost   = totalCost(v);
           const mrg    = margin(v);
@@ -323,6 +341,8 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
         <Pressable style={styles.addVarBtnBig} onPress={addVariant}>
           <Text style={styles.addVarBtnBigTxt}>+ Добавить размер</Text>
         </Pressable>
+        {priceHighlight.overlay}
+        </View>
 
         {/* СЕКЦИЯ: Опции (модификаторы) */}
         {modifiersEnabled && (
@@ -341,21 +361,24 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
             {allModGroups && allModGroups.length > 0 && (
               <View style={[styles.modsCard, { marginTop: 8 }]}>
                 {allModGroups.map((g, idx) => {
-                  const on = selGroups.includes(Number(g.id));
+                  const isDemoGroup = typeof g.id === 'string' && g.id.startsWith('demo-');
+                  const on = selGroups.includes(isDemoGroup ? g.id : Number(g.id));
+                  const rowHighlight = g.id === 'demo-add' ? modsAddHighlight : g.id === 'demo-replace' ? modsReplaceHighlight : null;
                   return (
                     <View key={g.id}
-                      style={[styles.modRow, idx < allModGroups.length-1 && styles.modRowDiv]}>
-                      <Pressable style={{ flex: 1 }} onPress={() => onCreateGroup(g)}>
+                      style={[styles.modRow, idx < allModGroups.length-1 && styles.modRowDiv, rowHighlight && { position: 'relative' }, rowHighlight?.style]}>
+                      <Pressable style={{ flex: 1 }} onPress={() => !isDemoGroup && onCreateGroup(g)}>
                         <Text style={styles.modName}>{g.name}</Text>
-                        <Text style={styles.modSub}>{g.apply_mode === 'replace' ? 'Замена' : 'Добавление'} · нажмите, чтобы изменить</Text>
+                        <Text style={styles.modSub}>{g.apply_mode === 'replace' ? 'Замена' : 'Добавление'}{!isDemoGroup ? ' · нажмите, чтобы изменить' : ''}</Text>
                       </Pressable>
                       <Pressable
                         style={[styles.modCheck, on && styles.modCheckActive]}
                         hitSlop={10}
-                        onPress={() => setSelGroups(s => on ? s.filter(x=>x!==Number(g.id)) : [...s, Number(g.id)])}
+                        onPress={() => !isDemoGroup && setSelGroups(s => on ? s.filter(x=>x!==Number(g.id)) : [...s, Number(g.id)])}
                       >
                         {on && <Text style={styles.modCheckMark}>✓</Text>}
                       </Pressable>
+                      {rowHighlight?.overlay}
                     </View>
                   );
                 })}
@@ -370,7 +393,11 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
         )}
 
 
-        {/* Кнопки */}
+        {/* Кнопки — для демо-карточки скрыты, ничего не сохраняется по-настоящему */}
+        {isDemo ? (
+          <Text style={styles.demoNote}>Это пример — реальный товар создаётся точно так же</Text>
+        ) : (
+        <>
         <Pressable style={styles.saveBtn} onPress={handleSave}>
           <Text style={styles.saveBtnTxt}>{isNew ? 'Создать товар' : 'Сохранить изменения'}</Text>
         </Pressable>
@@ -389,6 +416,8 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
               <Text style={styles.deleteTxt}>Удалить</Text>
             </Pressable>
           </View>
+        )}
+        </>
         )}
 
       </ScrollView>
@@ -886,7 +915,7 @@ export default function ProductsScreen({ navigation, route }) {
             allModGroups={selected?.__demo ? DEMO_MOD_GROUPS : modGroups}
             onIngPicker={(vi, callback) => { try { setStock(getAllStock()); } catch(_){} setIngPickerState(vi !== null ? { vi } : null); setIngSearch(''); setIngCatFilter(null); pendingIngCallback.current = callback; }}
             onCreateGroup={(g) => setGroupModal(g || { name: '', mode: 'add' })}
-            modifiersEnabled={modules.modifiers !== false}
+            modifiersEnabled={selected?.__demo ? true : modules.modifiers !== false}
           />
         );
         const editorTitle = selected === 'new' ? 'Новый товар' : (selected?.name || 'Товар');
@@ -1640,6 +1669,7 @@ const styles = StyleSheet.create({
 
   saveBtn:    { backgroundColor: colors.orange, borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginTop: 20 },
   saveBtnTxt: { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: '#fff' },
+  demoNote:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', marginTop: 20, lineHeight: 20 },
 
   dangerRow:     { flexDirection: 'row', gap: 10, marginTop: 10 },
   deactivateBtn: { flex: 1, paddingVertical: 13, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center' },
