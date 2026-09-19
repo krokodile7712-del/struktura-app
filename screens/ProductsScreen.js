@@ -102,7 +102,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
     if (y == null) return;
     const t = setTimeout(() => {
       scrollRef.current?.scrollTo({ y: Math.max(0, y - 280), animated: true });
-    }, 50);
+    }, 120);
     return () => clearTimeout(t);
   }, [activeTourKey]);
 
@@ -443,6 +443,17 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
   );
 }
 
+// Демо-товар для показа карточки изнутри во время тура — никогда не
+// пишется в базу (флаг __demo проверяется в ProductEditor), полностью
+// нейтральное наполнение, без привязки к какому-либо бизнесу. На уровне
+// модуля, не внутри компонента — один и тот же объект при каждом
+// обращении, не пересоздаётся на каждый рендер.
+const DEMO_PRODUCT = { __demo: true, id: 'demo', name: 'Товар', category: 'Категория', active: 1, discount_eligible: 0 };
+const DEMO_MOD_GROUPS = [
+  { id: 'demo-add',     name: 'Опция', apply_mode: 'add' },
+  { id: 'demo-replace', name: 'Опция', apply_mode: 'replace' },
+];
+
 // ─── Главный экран ─────────────────────────────────────────────────────────────
 export default function ProductsScreen({ navigation, route }) {
   const toast = useToast();
@@ -533,15 +544,6 @@ export default function ProductsScreen({ navigation, route }) {
     { key: 'products.stock.low',    title: 'Нехватка на складе', text: 'Эта кнопка показывает всё, что заканчивается — быстрый список того, что пора закупить.' },
   ];
   const mentionTourStep = { key: 'products.mention', title: 'А ещё — вкладка «Товары»', text: 'Рядом есть вторая вкладка — сами товары для продажи, с ценами и техкартами (не материалы склада, а то, что видит касса).' };
-
-  // Демо-товар для показа карточки изнутри — никогда не пишется в базу
-  // (флаг __demo проверяется в ProductEditor), полностью нейтральное
-  // наполнение, без привязки к какому-либо бизнесу
-  const DEMO_PRODUCT = { __demo: true, id: 'demo', name: 'Товар', category: 'Категория', active: 1, discount_eligible: 0 };
-  const DEMO_MOD_GROUPS = [
-    { id: 'demo-add',     name: 'Опция', apply_mode: 'add' },
-    { id: 'demo-replace', name: 'Опция', apply_mode: 'replace' },
-  ];
 
   const productsTourSteps = [
     { key: 'products.intro', title: 'Товары — самый большой раздел', text: 'Пройдёмся подробно, по каждой части — наберитесь терпения, это займёт пару минут.' },
