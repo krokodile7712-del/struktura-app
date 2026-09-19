@@ -485,10 +485,26 @@ export default function ProductsScreen({ navigation, route }) {
     { key: 'products.stock.low',    title: 'Нехватка на складе', text: 'Эта кнопка показывает всё, что заканчивается — быстрый список того, что пора закупить.' },
   ];
   const mentionTourStep = { key: 'products.mention', title: 'А ещё — вкладка «Товары»', text: 'Рядом есть вторая вкладка — сами товары для продажи, с ценами и техкартами (не материалы склада, а то, что видит касса).' };
+
+  // Демо-товар для показа карточки изнутри — никогда не пишется в базу
+  // (флаг __demo проверяется в ProductEditor), полностью нейтральное
+  // наполнение, без привязки к какому-либо бизнесу
+  const DEMO_PRODUCT = { __demo: true, id: 'demo', name: 'Товар', category: 'Категория', active: 1, discount_eligible: 0 };
+  const DEMO_MOD_GROUPS = [
+    { id: 'demo-add',     name: 'Опция', apply_mode: 'add' },
+    { id: 'demo-replace', name: 'Опция', apply_mode: 'replace' },
+  ];
+
   const productsTourSteps = [
-    { key: 'products.list.search', title: 'Поиск и добавление', text: 'Ищите товар по названию или добавьте новый кнопкой «+ Товар».' },
-    { key: 'products.list.cats',   title: 'Категории', text: 'Тап по заголовку сворачивает и разворачивает список товаров внутри категории.' },
-    { key: 'products.list.card',   title: 'Карточка товара', text: 'Тап на товар открывает редактор — цена, размеры, техкарта, дополнительные опции.', cardPosition: 'top' },
+    { key: 'products.intro', title: 'Товары — самый большой раздел', text: 'Пройдёмся подробно, по каждой части — наберитесь терпения, это займёт пару минут.' },
+    { key: 'products.search', title: 'Поиск и добавление', text: 'Ищите товар по названию или добавьте новый кнопкой «+ Товар».' },
+    { key: 'products.categories', title: 'Категории', text: 'Тап по заголовку сворачивает и разворачивает список товаров внутри категории.' },
+    { key: 'products.transition', title: 'Тап открывает карточку', text: 'Так выглядит карточка товара изнутри — на примере, ничего из этого не сохранится.', cardPosition: 'top' },
+    { key: 'products.card.main',   title: 'Основное', text: 'Название и категория товара — то, что видит кассир в списке.', cardPosition: 'top' },
+    { key: 'products.card.params', title: 'Параметры', text: 'Активен ли товар сейчас и участвует ли в общей скидке на товары.', cardPosition: 'top' },
+    { key: 'products.card.price',  title: 'Цена и размеры', text: 'Цена и, если нужно, несколько размеров — у каждого своя техкарта (расход ингредиентов).', cardPosition: 'top' },
+    { key: 'products.card.modsAdd',     title: 'Доп. опции: Добавление', text: '«Добавление» — доплата сверху к цене. Выбрал вариант — прибавилось к чеку.', cardPosition: 'top' },
+    { key: 'products.card.modsReplace', title: 'Доп. опции: Замена', text: '«Замена» — не доплата, а подмена ингредиента в самой технологической карте.', cardPosition: 'top' },
   ];
   const fullTourSteps = [...stockTourSteps, mentionTourStep, ...productsTourSteps];
   const tourStepsToShow = tourFull ? fullTourSteps : (tab === 'stock' ? stockTourSteps : productsTourSteps);
@@ -509,9 +525,15 @@ export default function ProductsScreen({ navigation, route }) {
   // там, где тур сейчас идёт (на Складе), просто анонсирует продолжение.
   const stockStepKeys = new Set(stockTourSteps.map(s => s.key));
   const productsStepKeys = new Set(productsTourSteps.map(s => s.key));
+  // С какого шага и до какого — открыта демо-карточка товара
+  const demoCardStepKeys = new Set(['products.transition', 'products.card.main', 'products.card.params', 'products.card.price', 'products.card.modsAdd', 'products.card.modsReplace']);
   useEffect(() => {
     if (stockStepKeys.has(activeTourKey)) setTab('stock');
     else if (productsStepKeys.has(activeTourKey)) setTab('products');
+    if (tourOpen) {
+      if (demoCardStepKeys.has(activeTourKey)) setSelected(DEMO_PRODUCT);
+      else if (activeTourKey && productsStepKeys.has(activeTourKey)) setSelected(null); // вернулись в список — закрыть демо
+    }
   }, [activeTourKey]);
 
   const loadCategories = useCallback(() => {
@@ -861,7 +883,7 @@ export default function ProductsScreen({ navigation, route }) {
             onToggleActive={handleToggleActive}
             onClose={() => setSelected(null)}
             categories={allCategoryNames}
-            allModGroups={modGroups}
+            allModGroups={selected?.__demo ? DEMO_MOD_GROUPS : modGroups}
             onIngPicker={(vi, callback) => { try { setStock(getAllStock()); } catch(_){} setIngPickerState(vi !== null ? { vi } : null); setIngSearch(''); setIngCatFilter(null); pendingIngCallback.current = callback; }}
             onCreateGroup={(g) => setGroupModal(g || { name: '', mode: 'add' })}
             modifiersEnabled={modules.modifiers !== false}
@@ -1328,7 +1350,7 @@ export default function ProductsScreen({ navigation, route }) {
 
       <TourGuide
         visible={tourOpen}
-        onClose={() => { setTourOpen(false); if (tourFull) markTourSeen('Products'); }}
+        onClose={() => { setTourOpen(false); if (tourFull) markTourSeen('Products'); if (selected?.__demo) setSelected(null); }}
         steps={tourStepsToShow}
       />
     </View>
