@@ -6,50 +6,29 @@ import Sheet from '../../components/Sheet';
 import Toggle from '../../components/Toggle';
 import { useFocusEffect } from '@react-navigation/native';
 import DatePicker from '../../components/DatePicker';
-import { getEquipment, addEquipment, updateEquipment, deleteEquipment, getAllProducts } from '../../db/queries';
+import { getEquipment, addEquipment, updateEquipment, deleteEquipment } from '../../db/queries';
 import { colors, fonts, anim } from '../../constants/theme';
 
-const AMORT_TYPES = [
-  { key: 'linear',     label: 'Линейная',   hint: 'Стоимость ÷ срок (мес.) = сумма в месяц. Не зависит от загрузки.' },
-  { key: 'production', label: 'По циклам',  hint: 'Стоимость ÷ ресурс (циклов) = стоимость за 1 цикл использования.' },
-  { key: 'mixed',      label: 'Смешанная',  hint: 'Линейная + учёт циклов для контроля износа.' },
-];
-const COUNTER_TYPES = [
-  { key: 'order',   label: 'Каждый заказ',   hint: 'Счётчик растёт при каждом оформленном заказе.' },
-  { key: 'product', label: 'Продажа товара',  hint: 'Счётчик растёт только при продаже выбранного товара.' },
-  { key: 'shift',   label: 'Каждая смена',    hint: 'Счётчик растёт при каждом закрытии смены — даже если продаж не было.' },
-];
-const EMPTY = { name: '', cost: '', purchase_date: '', amort_type: 'linear', amort_period: '36', amort_cycles: '0', counter_type: 'order', counter_product_id: null, cycles_per_use: '1' };
+const EMPTY = { name: '', cost: '', purchase_date: '', amort_period: '36' };
 
 const fmt = n => (n || 0).toLocaleString('ru-RU', { maximumFractionDigits: 0 });
 
 function amortMonthly(eq) {
   if (!eq?.cost) return 0;
-  if (eq.amort_type === 'linear' || eq.amort_type === 'mixed') {
-    const months = parseInt(eq.amort_period) || 36;
-    return Math.round(parseFloat(eq.cost) / months);
-  }
-  return 0;
+  const months = parseInt(eq.amort_period) || 36;
+  return Math.round(parseFloat(eq.cost) / months);
 }
 
 function wearPct(eq) {
-  if (!eq) return 0;
-  if (eq.amort_type === 'production' || eq.amort_type === 'mixed') {
-    const total = parseInt(eq.amort_cycles) || 1;
-    return Math.min(100, Math.round((eq.current_cycles || 0) / total * 100));
-  }
-  if (eq.purchase_date) {
-    const months = Math.floor((Date.now() - new Date(eq.purchase_date)) / 2592000000);
-    const period = parseInt(eq.amort_period) || 36;
-    return Math.min(100, Math.round(months / period * 100));
-  }
-  return 0;
+  if (!eq?.purchase_date) return 0;
+  const months = Math.floor((Date.now() - new Date(eq.purchase_date)) / 2592000000);
+  const period = parseInt(eq.amort_period) || 36;
+  return Math.min(100, Math.round(months / period * 100));
 }
 
 export default function EquipmentPanel({ navigation }) {
   const { isLandscape } = useResponsive();
   const [items, setItems]       = useState([]);
-  const [products, setProducts] = useState([]);
   const [selected, setSelected] = useState(null);
   const [draft, setDraft]       = useState(null);
   const [isNew, setIsNew]       = useState(false);
@@ -61,7 +40,6 @@ export default function EquipmentPanel({ navigation }) {
   const load = useCallback(() => {
     try {
       setItems(getEquipment());
-      setProducts(getAllProducts());
     } catch(e) { console.error(e); }
   }, []);
 
@@ -76,7 +54,7 @@ export default function EquipmentPanel({ navigation }) {
 
   const openEdit = (item) => {
     setIsNew(false);
-    setDraft({ ...EMPTY, ...item, cost: String(item.cost || ''), amort_period: String(item.amort_period || '36'), amort_cycles: String(item.amort_cycles || '0'), cycles_per_use: String(item.cycles_per_use || '1') });
+    setDraft({ ...EMPTY, ...item, cost: String(item.cost || ''), amort_period: String(item.amort_period || '36') });
     setSelected(item);
     animate();
   };
@@ -92,7 +70,7 @@ export default function EquipmentPanel({ navigation }) {
   const handleSave = () => {
     if (!draft.name.trim()) { Alert.alert('Введите название'); return; }
     try {
-      const data = { ...draft, cost: parseFloat(draft.cost)||0, amort_period: parseInt(draft.amort_period)||36, amort_cycles: parseInt(draft.amort_cycles)||0, cycles_per_use: parseInt(draft.cycles_per_use)||1 };
+      const data = { ...draft, cost: parseFloat(draft.cost)||0, amort_period: parseInt(draft.amort_period)||36 };
       if (isNew) addEquipment(data);
       else updateEquipment(selected.id, data);
       load();
@@ -207,80 +185,18 @@ export default function EquipmentPanel({ navigation }) {
                 <Text style={{ fontSize: 16, color: colors.muted }}>📅</Text>
               </Pressable>
 
-              {/* Тип амортизации */}
+              {/* Срок амортизации */}
               <View style={styles.labelRow}>
-                <Text style={styles.fieldLabel}>Тип амортизации</Text>
-                <InfoTip title="Амортизация" text="Способ списания стоимости оборудования. Линейная — равномерно по месяцам. По циклам — по количеству использований." />
+                <Text style={styles.fieldLabel}>Срок амортизации, мес.</Text>
+                <InfoTip title="Амортизация" text="Стоимость равномерно списывается по месяцам — стоимость ÷ срок = сумма в месяц. Например, кофемашина за 90 000 ₽ на 36 месяцев — это 2 500 ₽/мес, независимо от того, сколько на ней сварили кофе." />
               </View>
-              <View style={styles.chips}>
-                {AMORT_TYPES.map(t => (
-                  <Pressable key={t.key} style={[styles.chip, draft.amort_type === t.key && styles.chipActive]} onPress={() => setDraft(d => ({ ...d, amort_type: t.key }))}>
-                    <Text style={[styles.chipTxt, draft.amort_type === t.key && styles.chipTxtActive]}>{t.label}</Text>
-                  </Pressable>
-                ))}
+              <View style={styles.inputRow}>
+                <TextInput style={[styles.input, { flex: 1 }]} color={colors.text} value={draft.amort_period} onChangeText={v => setDraft(d => ({ ...d, amort_period: v }))} keyboardType="numeric" placeholder="36" placeholderTextColor={colors.muted} />
+                <Text style={styles.unitTxt}>мес</Text>
               </View>
-              <Text style={styles.hintTxt}>{AMORT_TYPES.find(t => t.key === draft.amort_type)?.hint}</Text>
-
-              {/* Срок (для линейной и смешанной) */}
-              {(draft.amort_type === 'linear' || draft.amort_type === 'mixed') && (
-                <>
-                  <Text style={styles.fieldLabel}>Срок амортизации, мес.</Text>
-                  <View style={styles.inputRow}>
-                    <TextInput style={[styles.input, { flex: 1 }]} color={colors.text} value={draft.amort_period} onChangeText={v => setDraft(d => ({ ...d, amort_period: v }))} keyboardType="numeric" placeholder="36" placeholderTextColor={colors.muted} />
-                    <Text style={styles.unitTxt}>мес</Text>
-                  </View>
-                  {draft.cost && draft.amort_period ? (
-                    <Text style={styles.calcHint}>≈ {fmt(Math.round(parseFloat(draft.cost) / parseInt(draft.amort_period)))} ₽/мес</Text>
-                  ) : null}
-                </>
-              )}
-
-              {/* Ресурс циклов (для production и mixed) */}
-              {(draft.amort_type === 'production' || draft.amort_type === 'mixed') && (
-                <>
-                  <Text style={styles.fieldLabel}>Ресурс, циклов</Text>
-                  <View style={styles.inputRow}>
-                    <TextInput style={[styles.input, { flex: 1 }]} color={colors.text} value={draft.amort_cycles} onChangeText={v => setDraft(d => ({ ...d, amort_cycles: v }))} keyboardType="numeric" placeholder="10000" placeholderTextColor={colors.muted} />
-                    <Text style={styles.unitTxt}>цикл</Text>
-                  </View>
-                </>
-              )}
-
-              {/* Тип счётчика */}
-              <View style={styles.labelRow}>
-                <Text style={styles.fieldLabel}>Счётчик циклов</Text>
-                <InfoTip title="Счётчик" text="Как считать использования оборудования. Влияет на расчёт износа по циклам." />
-              </View>
-              <View style={styles.chips}>
-                {COUNTER_TYPES.map(t => (
-                  <Pressable key={t.key} style={[styles.chip, draft.counter_type === t.key && styles.chipActive]} onPress={() => setDraft(d => ({ ...d, counter_type: t.key }))}>
-                    <Text style={[styles.chipTxt, draft.counter_type === t.key && styles.chipTxtActive]}>{t.label}</Text>
-                  </Pressable>
-                ))}
-              </View>
-              <Text style={styles.hintTxt}>{COUNTER_TYPES.find(t => t.key === draft.counter_type)?.hint}</Text>
-
-              {/* Конкретный товар для counter_type=product */}
-              {draft.counter_type === 'product' && (
-                <>
-                  <Text style={styles.fieldLabel}>Товар</Text>
-                  <View style={styles.prodList}>
-                    {products.map(p => (
-                      <Pressable key={p.id} style={[styles.prodRow, draft.counter_product_id === p.id && styles.prodRowActive]} onPress={() => setDraft(d => ({ ...d, counter_product_id: p.id }))}>
-                        <Text style={[styles.prodName, draft.counter_product_id === p.id && { color: colors.orange }]}>{p.name}</Text>
-                        {draft.counter_product_id === p.id && <Text style={{ color: colors.orange, fontSize: 14 }}>✓</Text>}
-                      </Pressable>
-                    ))}
-                  </View>
-                </>
-              )}
-
-              {/* Циклов за использование */}
-              <View style={styles.labelRow}>
-                <Text style={styles.fieldLabel}>Циклов за 1 использование</Text>
-                <InfoTip title="Циклов за раз" text="Сколько циклов ресурса расходуется при одном использовании. Обычно 1." />
-              </View>
-              <TextInput style={styles.input} color={colors.text} value={draft.cycles_per_use} onChangeText={v => setDraft(d => ({ ...d, cycles_per_use: v }))} keyboardType="numeric" placeholder="1" placeholderTextColor={colors.muted} />
+              {draft.cost && draft.amort_period ? (
+                <Text style={styles.calcHint}>≈ {fmt(Math.round(parseFloat(draft.cost) / parseInt(draft.amort_period)))} ₽/мес</Text>
+              ) : null}
 
               {/* Кнопки */}
               <Pressable style={styles.saveBtn} onPress={handleSave}>
@@ -341,80 +257,18 @@ export default function EquipmentPanel({ navigation }) {
                 <Text style={{ fontSize: 16, color: colors.muted }}>📅</Text>
               </Pressable>
 
-              {/* Тип амортизации */}
+              {/* Срок амортизации */}
               <View style={styles.labelRow}>
-                <Text style={styles.fieldLabel}>Тип амортизации</Text>
-                <InfoTip title="Амортизация" text="Способ списания стоимости оборудования. Линейная — равномерно по месяцам. По циклам — по количеству использований." />
+                <Text style={styles.fieldLabel}>Срок амортизации, мес.</Text>
+                <InfoTip title="Амортизация" text="Стоимость равномерно списывается по месяцам — стоимость ÷ срок = сумма в месяц. Например, кофемашина за 90 000 ₽ на 36 месяцев — это 2 500 ₽/мес, независимо от того, сколько на ней сварили кофе." />
               </View>
-              <View style={styles.chips}>
-                {AMORT_TYPES.map(t => (
-                  <Pressable key={t.key} style={[styles.chip, draft.amort_type === t.key && styles.chipActive]} onPress={() => setDraft(d => ({ ...d, amort_type: t.key }))}>
-                    <Text style={[styles.chipTxt, draft.amort_type === t.key && styles.chipTxtActive]}>{t.label}</Text>
-                  </Pressable>
-                ))}
+              <View style={styles.inputRow}>
+                <TextInput style={[styles.input, { flex: 1 }]} color={colors.text} value={draft.amort_period} onChangeText={v => setDraft(d => ({ ...d, amort_period: v }))} keyboardType="numeric" placeholder="36" placeholderTextColor={colors.muted} />
+                <Text style={styles.unitTxt}>мес</Text>
               </View>
-              <Text style={styles.hintTxt}>{AMORT_TYPES.find(t => t.key === draft.amort_type)?.hint}</Text>
-
-              {/* Срок (для линейной и смешанной) */}
-              {(draft.amort_type === 'linear' || draft.amort_type === 'mixed') && (
-                <>
-                  <Text style={styles.fieldLabel}>Срок амортизации, мес.</Text>
-                  <View style={styles.inputRow}>
-                    <TextInput style={[styles.input, { flex: 1 }]} color={colors.text} value={draft.amort_period} onChangeText={v => setDraft(d => ({ ...d, amort_period: v }))} keyboardType="numeric" placeholder="36" placeholderTextColor={colors.muted} />
-                    <Text style={styles.unitTxt}>мес</Text>
-                  </View>
-                  {draft.cost && draft.amort_period ? (
-                    <Text style={styles.calcHint}>≈ {fmt(Math.round(parseFloat(draft.cost) / parseInt(draft.amort_period)))} ₽/мес</Text>
-                  ) : null}
-                </>
-              )}
-
-              {/* Ресурс циклов (для production и mixed) */}
-              {(draft.amort_type === 'production' || draft.amort_type === 'mixed') && (
-                <>
-                  <Text style={styles.fieldLabel}>Ресурс, циклов</Text>
-                  <View style={styles.inputRow}>
-                    <TextInput style={[styles.input, { flex: 1 }]} color={colors.text} value={draft.amort_cycles} onChangeText={v => setDraft(d => ({ ...d, amort_cycles: v }))} keyboardType="numeric" placeholder="10000" placeholderTextColor={colors.muted} />
-                    <Text style={styles.unitTxt}>цикл</Text>
-                  </View>
-                </>
-              )}
-
-              {/* Тип счётчика */}
-              <View style={styles.labelRow}>
-                <Text style={styles.fieldLabel}>Счётчик циклов</Text>
-                <InfoTip title="Счётчик" text="Как считать использования оборудования. Влияет на расчёт износа по циклам." />
-              </View>
-              <View style={styles.chips}>
-                {COUNTER_TYPES.map(t => (
-                  <Pressable key={t.key} style={[styles.chip, draft.counter_type === t.key && styles.chipActive]} onPress={() => setDraft(d => ({ ...d, counter_type: t.key }))}>
-                    <Text style={[styles.chipTxt, draft.counter_type === t.key && styles.chipTxtActive]}>{t.label}</Text>
-                  </Pressable>
-                ))}
-              </View>
-              <Text style={styles.hintTxt}>{COUNTER_TYPES.find(t => t.key === draft.counter_type)?.hint}</Text>
-
-              {/* Конкретный товар для counter_type=product */}
-              {draft.counter_type === 'product' && (
-                <>
-                  <Text style={styles.fieldLabel}>Товар</Text>
-                  <View style={styles.prodList}>
-                    {products.map(p => (
-                      <Pressable key={p.id} style={[styles.prodRow, draft.counter_product_id === p.id && styles.prodRowActive]} onPress={() => setDraft(d => ({ ...d, counter_product_id: p.id }))}>
-                        <Text style={[styles.prodName, draft.counter_product_id === p.id && { color: colors.orange }]}>{p.name}</Text>
-                        {draft.counter_product_id === p.id && <Text style={{ color: colors.orange, fontSize: 14 }}>✓</Text>}
-                      </Pressable>
-                    ))}
-                  </View>
-                </>
-              )}
-
-              {/* Циклов за использование */}
-              <View style={styles.labelRow}>
-                <Text style={styles.fieldLabel}>Циклов за 1 использование</Text>
-                <InfoTip title="Циклов за раз" text="Сколько циклов ресурса расходуется при одном использовании. Обычно 1." />
-              </View>
-              <TextInput style={styles.input} color={colors.text} value={draft.cycles_per_use} onChangeText={v => setDraft(d => ({ ...d, cycles_per_use: v }))} keyboardType="numeric" placeholder="1" placeholderTextColor={colors.muted} />
+              {draft.cost && draft.amort_period ? (
+                <Text style={styles.calcHint}>≈ {fmt(Math.round(parseFloat(draft.cost) / parseInt(draft.amort_period)))} ₽/мес</Text>
+              ) : null}
 
               {/* Кнопки */}
               <Pressable style={styles.saveBtn} onPress={handleSave}>
