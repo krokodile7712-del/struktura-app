@@ -35,11 +35,17 @@ export default function TourGuide({ visible, onClose, steps = [] }) {
   }, [visible]);
 
   useEffect(() => {
-    setActiveKey(visible ? (steps[stepIndex]?.key || null) : null);
+    const safe = Math.min(stepIndex, Math.max(0, steps.length - 1));
+    setActiveKey(visible ? (steps[safe]?.key || null) : null);
     return () => setActiveKey(null);
   }, [visible, stepIndex, steps, setActiveKey]);
 
-  const step = steps[stepIndex];
+  // steps может измениться на более короткий список, пока тур ещё открыт
+  // (в Товарах — переключение вкладки на лету меняет набор шагов), а
+  // stepIndex остаётся прежним — без подстраховки был бы выход за границы
+  // массива и падение при обращении к step.title
+  const safeIndex = Math.min(stepIndex, Math.max(0, steps.length - 1));
+  const step = steps[safeIndex];
   const cardPosition = step?.cardPosition || 'bottom'; // 'top' | 'bottom'
 
   // Плавный переход между позициями при смене шага — не резкий прыжок
@@ -54,7 +60,7 @@ export default function TourGuide({ visible, onClose, steps = [] }) {
 
   if (!visible || steps.length === 0) return null;
 
-  const isLast = stepIndex === steps.length - 1;
+  const isLast = safeIndex === steps.length - 1;
   const cardW = Math.min(420, screenW - 32);
   const topWhenTop = 24;
   const topWhenBottom = screenH - 24 - cardH;
@@ -79,7 +85,7 @@ export default function TourGuide({ visible, onClose, steps = [] }) {
             },
           ]}
         >
-          <Text style={styles.stepCounter}>{stepIndex + 1} из {steps.length}</Text>
+          <Text style={styles.stepCounter}>{safeIndex + 1} из {steps.length}</Text>
           <Text style={styles.title}>{step.title}</Text>
           <Text style={styles.text}>{step.text}</Text>
           <View style={styles.btnRow}>
