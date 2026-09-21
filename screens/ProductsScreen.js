@@ -98,16 +98,19 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
   // работает в Обзоре
   useEffect(() => {
     if (!activeTourKey) return;
+    // Строки внутри modsCard дают onLayout-координату относительно самой
+    // карточки (её непосредственного родителя), не относительно всего
+    // скролла — нужно прибавить и позицию самой карточки, иначе выходит
+    // маленькое смещение (0-60px) вместо настоящего места в списке
+    const isModRow = activeTourKey === 'products.card.modsAdd' || activeTourKey === 'products.card.modsReplace';
     let attempts = 0;
     let t;
     const tryScroll = () => {
-      const y = sectionY.current[activeTourKey];
-      if (y != null) {
-        scrollRef.current?.scrollTo({ y: Math.max(0, y - 280), animated: true });
+      const base = sectionY.current[activeTourKey];
+      const cardTop = isModRow ? sectionY.current['products.card.modsCardTop'] : 0;
+      if (base != null && (!isModRow || cardTop != null)) {
+        scrollRef.current?.scrollTo({ y: Math.max(0, base + cardTop - 280), animated: true });
       } else if (attempts < 10) {
-        // Позиция ещё не записана (onLayout строки, что дальше по списку,
-        // мог просто не успеть отработать к этому моменту) — пробуем ещё,
-        // не сдаёмся после одной неудачной попытки
         attempts++;
         t = setTimeout(tryScroll, 60);
       }
@@ -387,7 +390,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
         {optionsOpen && (
           <>
             {allModGroups && allModGroups.length > 0 && (
-              <View style={[styles.modsCard, { marginTop: 8 }]}>
+              <View style={[styles.modsCard, { marginTop: 8 }]} onLayout={rememberY('products.card.modsCardTop')}>
                 {allModGroups.map((g, idx) => {
                   const isDemoGroup = typeof g.id === 'string' && g.id.startsWith('demo-');
                   const on = selGroups.includes(isDemoGroup ? g.id : Number(g.id));
