@@ -2849,13 +2849,17 @@ export function deleteEquipment(id) {
 }
 
 // Амортизация за заказ для включения в себестоимость
+// Нагрузка крупных покупок (Инвестиции — растянутые по месяцам) на заказ,
+// для включения в себестоимость. Раньше считалось по отдельной таблице
+// equipment — Оборудование и Инвестиции объединены в один раздел
+// «Крупные покупки», источник теперь один — investments.amort_months
 export function getEquipmentCostPerOrder(ordersInPeriod = 1) {
-  const db = getDb(); ensureEquipment(db);
-  const eq = db.getAllSync(`SELECT * FROM equipment WHERE active = 1 AND cost > 0`);
+  const db = getDb(); ensureInvestments(db);
+  const inv = db.getAllSync(`SELECT * FROM investments WHERE amort_months > 0 AND amount > 0`);
   let total = 0;
-  for (const e of eq) {
-    if (e.amort_period > 0 && ordersInPeriod > 0) {
-      total += (e.cost / e.amort_period / 30) / ordersInPeriod; // per day / per order
+  for (const i of inv) {
+    if (i.amort_months > 0 && ordersInPeriod > 0) {
+      total += (i.amount / i.amort_months / 30) / ordersInPeriod; // per day / per order
     }
   }
   return Math.round(total * 100) / 100;
@@ -3091,19 +3095,19 @@ export function ensureDailyDepreciationExpense() {
   const db = getDb();
   const today = new Date().toISOString().slice(0, 10);
 
-  // Амортизация оборудования (только линейная/смешанная — по времени, не по циклам)
+  // Крупные покупки, растянутые по месяцам (Инвестиции, было — отдельно Оборудование)
   try {
     const already = db.getFirstSync(
       `SELECT id FROM expenses WHERE date = ? AND category = 'Амортизация' AND comment = 'Автоматически'`,
       [today]
     );
     if (!already) {
-      const equipment = getEquipment();
+      const investments = getInvestments();
       let daily = 0;
-      for (const eq of equipment) {
-        if (!eq.cost) continue;
-        if (eq.amort_period > 0) {
-          daily += eq.cost / eq.amort_period / 30;
+      for (const inv of investments) {
+        if (!inv.amount) continue;
+        if (inv.amort_months > 0) {
+          daily += inv.amount / inv.amort_months / 30;
         }
       }
       daily = Math.round(daily * 100) / 100;
@@ -3185,14 +3189,14 @@ export function getPnLFull(dateFrom, dateTo) {
   } catch (_) {}
   salaryTotal = Math.round(salaryTotal);
 
-  // ── Амортизация оборудования за период (только линейная — сумма ÷ срок) ──
+  // ── Крупные покупки за период, растянутые по месяцам (Инвестиции) ──
   let deprTotal = 0;
   try {
-    const equipment = getEquipment();
-    for (const eq of equipment) {
-      if (!eq.cost || eq.cost === 0) continue;
-      if (eq.amort_period > 0) {
-        deprTotal += (eq.cost / eq.amort_period) * (days / 30);
+    const investments = getInvestments();
+    for (const inv of investments) {
+      if (!inv.amount || inv.amount === 0) continue;
+      if (inv.amort_months > 0) {
+        deprTotal += (inv.amount / inv.amort_months) * (days / 30);
       }
     }
   } catch (_) {}
