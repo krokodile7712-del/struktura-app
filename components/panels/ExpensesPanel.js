@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import Sheet from '../../components/Sheet';
+import InfoTip from '../../components/InfoTip';
 import DatePicker from '../../components/DatePicker';
 import SwipeableRow from '../../components/SwipeableRow';
 import TourGuide from '../../components/TourGuide';
@@ -15,11 +16,17 @@ import {
   getAllExpenses, insertExpense, deleteExpense, updateExpense,
   getRecurringExpenses, insertRecurringExpense, deactivateRecurringExpense, ensureRecurringExpenses,
   getBusinessProfile, markTourSeen, getAllStock,
+  getOverheadItems, addOverheadItem, updateOverheadItem, deleteOverheadItem,
 } from '../../db/queries';
 import { can, getCurrentLocationId } from '../../db/session';
 import { colors, fonts } from '../../constants/theme';
 
 const CATEGORIES = ['Аренда', 'Зарплата', 'Закупка', 'Коммуналка', 'Расходники', 'Реклама', 'Амортизация', 'Накладные', 'Прочее'];
+const BASES = [
+  { key: 'order',       label: 'На заказ',     hint: 'Месячная сумма ÷ количество заказов = добавка на 1 заказ' },
+  { key: 'hour',        label: 'На час работы', hint: 'Месячная сумма ÷ рабочие часы = добавка на 1 час' },
+  { key: 'revenue_pct', label: '% от выручки',  hint: 'Фиксированный % с каждого заказа' },
+];
 const todayStr    = () => new Date().toISOString().slice(0, 10);
 const weekAgoStr  = () => { const d = new Date(); d.setDate(d.getDate()-6); return d.toISOString().slice(0,10); };
 const monthAgoStr = () => { const d = new Date(); d.setDate(d.getDate()-29); return d.toISOString().slice(0,10); };
@@ -45,8 +52,12 @@ export default function ExpensesPanel({ navigation }) {
   const [editingId, setEditingId]   = useState(null); // id редактируемого расхода, null = добавление нового
   const [selectedExpense, setSelectedExpense] = useState(null); // альбомная — null | 'new' | сам расход
   const [isRecurring, setIsRecurring] = useState(false);
+  const [basis, setBasis] = useState(null); // null | 'order' | 'hour' | 'revenue_pct' — необязательное распределение
+  const [basisValue, setBasisValue] = useState('');
+  const isAdmin = can('view_reports');
   const [recurringModal, setRecurringModal] = useState(false);
   const [recurringList, setRecurringList] = useState([]);
+  const [overheadList, setOverheadList] = useState([]);
   const [photoUri, setPhotoUri]     = useState('');
   const [photoViewUri, setPhotoViewUri] = useState(''); // полноэкранный просмотр — отдельно от формы
   const [tourOpen, setTourOpen] = useState(false);
@@ -80,6 +91,7 @@ export default function ExpensesPanel({ navigation }) {
     try {
       ensureRecurringExpenses();
       setRecurringList(getRecurringExpenses());
+      if (isAdmin) { try { setOverheadList(getOverheadItems()); } catch(_) {} }
       const { from, to } = getRange();
       const all = getAllExpenses();
       const filtered = all.filter(e => {
@@ -214,12 +226,22 @@ export default function ExpensesPanel({ navigation }) {
           location_id: getCurrentLocationId(),
         });
         if (isRecurring) {
-          insertRecurringExpense({
-            category,
-            amount: parseFloat(amount),
-            comment: comment.trim(),
-            day_of_month: new Date().getDate(),
-          });
+          if (basis) {
+            addOverheadItem({
+              name: comment.trim() || category,
+              amount: parseFloat(amount),
+              period: 'month',
+              basis,
+              basis_value: parseFloat(basisValue) || 0,
+            });
+          } else {
+            insertRecurringExpense({
+              category,
+              amount: parseFloat(amount),
+              comment: comment.trim(),
+              day_of_month: new Date().getDate(),
+            });
+          }
         }
       }
       setEditingId(null);
@@ -228,6 +250,8 @@ export default function ExpensesPanel({ navigation }) {
       setComment('');
       setPhotoUri('');
       setIsRecurring(false);
+      setBasis(null);
+      setBasisValue('');
       setAddModal(false);
       load();
     } catch(e) { console.error(e); }
@@ -456,6 +480,34 @@ export default function ExpensesPanel({ navigation }) {
                 </Pressable>
               )}
 
+              {/* Распределение по заказам/часам/% выручки — необязательно, только
+                  для повторяющихся и только у администратора (было отдельным
+                  разделом «Накладные», теперь — необязательная часть Расходов) */}
+              {!editingId && isRecurring && isAdmin && (
+                <View style={styles.basisBox}>
+                  <View style={styles.labelRow}>
+                    <Text style={styles.fieldLabel}>Распределять по (необязательно)</Text>
+                    <InfoTip title="Распределение" text="Если расход нужно раскладывать на каждый заказ, час работы или % от выручки — выберите способ. Если не выбрано — расход просто повторяется каждый месяц, без распределения." />
+                  </View>
+                  <View style={styles.chips}>
+                    {BASES.map(b => (
+                      <Pressable key={b.key} style={[styles.chip, basis === b.key && styles.chipActive]} onPress={() => setBasis(basis === b.key ? null : b.key)}>
+                        <Text style={[styles.chipTxt, basis === b.key && styles.chipTxtActive]}>{b.label}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                  {basis && (
+                    <Text style={styles.hintTxt}>{BASES.find(b => b.key === basis)?.hint}</Text>
+                  )}
+                  {basis === 'revenue_pct' && (
+                    <View style={styles.inputRow}>
+                      <TextInput style={[styles.input, { flex: 1 }]} color={colors.text} value={basisValue} onChangeText={setBasisValue} keyboardType="numeric" placeholder="2" placeholderTextColor={colors.muted} />
+                      <Text style={styles.unitTxt}>%</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+
               {/* Фото чека */}
               <View style={photoAttachHighlight.style}>
               <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Фото чека</Text>
@@ -591,13 +643,14 @@ export default function ExpensesPanel({ navigation }) {
       {/* Управление повторяющимися расходами */}
       <Sheet visible={recurringModal} onClose={() => setRecurringModal(false)} title="Повторяющиеся расходы">
         <ScrollView contentContainerStyle={{ padding: 20 }}>
-          {recurringList.length === 0 ? (
+          {recurringList.length === 0 && overheadList.length === 0 ? (
             <Text style={styles.modalHint}>
               Пока нет ни одного повторяющегося расхода. Чтобы добавить — при создании нового расхода включите «Повторять каждый месяц».
             </Text>
           ) : (
-            recurringList.map(t => (
-              <View key={t.id} style={styles.recurringItemRow}>
+            <>
+            {recurringList.map(t => (
+              <View key={`r${t.id}`} style={styles.recurringItemRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.recurringItemCat}>{t.category}{t.comment ? ` · ${t.comment}` : ''}</Text>
                   <Text style={styles.recurringItemHint}>{t.day_of_month} числа каждого месяца</Text>
@@ -615,7 +668,28 @@ export default function ExpensesPanel({ navigation }) {
                   <Text style={styles.recurringItemDeleteTxt}>✕</Text>
                 </Pressable>
               </View>
-            ))
+            ))}
+            {overheadList.map(o => (
+              <View key={`o${o.id}`} style={styles.recurringItemRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.recurringItemCat}>{o.name}</Text>
+                  <Text style={styles.recurringItemHint}>Распределяется — {BASES.find(b => b.key === o.basis)?.label || o.basis}</Text>
+                </View>
+                <Text style={styles.recurringItemAmt}>{fmt(o.amount)} ₽</Text>
+                <Pressable
+                  style={styles.recurringItemDelete}
+                  onPress={() => {
+                    Alert.alert('Отключить?', `${o.name} — больше не будет распределяться на заказы.`, [
+                      { text: 'Отмена', style: 'cancel' },
+                      { text: 'Отключить', style: 'destructive', onPress: () => { deleteOverheadItem(o.id); load(); } },
+                    ]);
+                  }}
+                >
+                  <Text style={styles.recurringItemDeleteTxt}>✕</Text>
+                </Pressable>
+              </View>
+            ))}
+            </>
           )}
         </ScrollView>
       </Sheet>
@@ -713,6 +787,17 @@ const styles = StyleSheet.create({
   recurringItemDelete: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(217,95,95,0.12)', alignItems: 'center', justifyContent: 'center' },
   recurringItemDeleteTxt: { fontSize: 13, color: colors.red, fontWeight: '800' },
   fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 16 },
+  basisBox:   { marginTop: 12, backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, padding: 14 },
+  labelRow:   { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 0, marginBottom: 8 },
+  input:      { backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, paddingVertical: 12, paddingHorizontal: 14, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 14 },
+  inputRow:   { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
+  unitTxt:    { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, width: 30 },
+  hintTxt:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 8, lineHeight: 18 },
+  chips:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip:       { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  chipActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.08)' },
+  chipTxt:    { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  chipTxtActive: { color: colors.orange },
   catChips:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   catChip:    { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface2 },
   catChipActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.1)' },
