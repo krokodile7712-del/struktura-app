@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
 import ExpensesPanel from '../components/panels/ExpensesPanel';
-import OverheadsPanel from '../components/panels/OverheadsPanel';
 import InvestmentsPanel from '../components/panels/InvestmentsPanel';
 import { getFinancesSummary } from '../db/queries';
 import { goBackSmart, getSession } from '../db/session';
@@ -11,7 +10,6 @@ import { colors, fonts } from '../constants/theme';
 
 const TABS = [
   { key: 'expenses',    label: 'Расходы' },
-  { key: 'overheads',   label: 'Накладные' },
   { key: 'investments', label: 'Крупные покупки' },
 ];
 
@@ -56,11 +54,7 @@ export default function FinancesScreen({ navigation, route }) {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.summaryRow} contentContainerStyle={styles.summaryRowInner}>
           <View style={styles.summaryChip}>
             <Text style={styles.summaryChipLabel}>Расходы</Text>
-            <Text style={styles.summaryChipVal}>{fmt(summary.expensesTotal)} ₽</Text>
-          </View>
-          <View style={styles.summaryChip}>
-            <Text style={styles.summaryChipLabel}>Накладные</Text>
-            <Text style={styles.summaryChipVal}>{fmt(summary.overheadsTotal)} ₽</Text>
+            <Text style={styles.summaryChipVal}>{fmt(summary.expensesTotal + summary.overheadsTotal)} ₽</Text>
           </View>
           <View style={styles.summaryChip}>
             <Text style={styles.summaryChipLabel}>Крупные покупки</Text>
@@ -82,7 +76,6 @@ export default function FinancesScreen({ navigation, route }) {
 
       <View style={{ flex: 1 }}>
         {tab === 'expenses'    && <ExpensesPanel navigation={navigation} />}
-        {isAdmin && tab === 'overheads'   && <OverheadsPanel navigation={navigation} />}
         {isAdmin && tab === 'investments' && <InvestmentsPanel navigation={navigation} />}
       </View>
     </View>
