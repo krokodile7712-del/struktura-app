@@ -10,7 +10,7 @@ import {
   setStockForLocation, adjustStockForLocation,
   getStockHistory, getLocations,
   getCurrentLocationId, setCurrentLocationId,
-  getBusinessProfile, updateStockThreshold,
+  getBusinessProfile, updateStockThreshold, insertExpense,
 } from '../../db/queries';
 import { getDb } from '../../db/database';
 import { can } from '../../db/session';
@@ -75,6 +75,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
   const [stockCats, setStockCats]   = useState([]);
   const [catModal2, setCatModal2]   = useState(null); // {oldName, newName}
   const [catDeletePrompt, setCatDeletePrompt] = useState(null); // {name, count, moveTo}
+  const [expenseBridge, setExpenseBridge] = useState(null); // {name, amount} — после закупки, предложение добавить как расход
 
   const openMode = (key) => {
     setMode(key);
@@ -180,6 +181,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
         const perUnit = n > 0 ? totalSum / n : 0;
         addPurchase(name, n, perUnit);
         setTimeout(() => { try { updateMaxOstatok(id); } catch (_) {} }, 80);
+        if (totalSum > 0) setExpenseBridge({ name, amount: totalSum });
       } else if (locEnabled && selectedLocId) {
         if (mode === 'add')      adjustStockForLocation(id, selectedLocId, n);
         if (mode === 'subtract') adjustStockForLocation(id, selectedLocId, -n);
@@ -634,6 +636,42 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
         </View>
       </Modal>
 
+      {/* Мостик Склад → Расход: закупка материала обновляет только себестоимость
+          (среднюю цену для техкарт), деньги как трата нигде не отражаются, пока
+          не заведены отдельно — предлагаем сразу, с уже подставленной суммой */}
+      <Sheet visible={!!expenseBridge} onClose={() => setExpenseBridge(null)} title="Себестоимость обновлена">
+        <View style={{ padding: 20 }}>
+          <Text style={styles.bridgeTxt}>
+            Средняя цена «{expenseBridge?.name}» пересчитана. Эти деньги реально потрачены — добавить их как расход?
+          </Text>
+          <View style={styles.bridgeAmountBox}>
+            <Text style={styles.bridgeAmountVal}>{Math.round(expenseBridge?.amount || 0).toLocaleString('ru-RU')} ₽</Text>
+            <Text style={styles.bridgeAmountLbl}>{expenseBridge?.name}</Text>
+          </View>
+          <Pressable
+            style={styles.bridgeAddBtn}
+            onPress={() => {
+              try {
+                insertExpense({
+                  date: new Date().toISOString().slice(0, 10),
+                  category: 'Материалы',
+                  amount: expenseBridge.amount,
+                  comment: expenseBridge.name,
+                  location_id: getCurrentLocationId(),
+                });
+                toast.show('Расход добавлен', 'success');
+              } catch (e) { console.error(e); }
+              setExpenseBridge(null);
+            }}
+          >
+            <Text style={styles.bridgeAddBtnTxt}>Добавить расход</Text>
+          </Pressable>
+          <Pressable style={styles.bridgeSkipBtn} onPress={() => setExpenseBridge(null)}>
+            <Text style={styles.bridgeSkipBtnTxt}>Пропустить</Text>
+          </Pressable>
+        </View>
+      </Sheet>
+
       {/* Отдельный экран — всё, что скоро закончится, в одном месте */}
       <Sheet visible={lowStockSheetOpen} onClose={() => setLowStockSheetOpen(false)} title="Скоро закончится">
         <ScrollView contentContainerStyle={{ padding: 16 }}>
@@ -918,6 +956,14 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
 }
 
 const styles = StyleSheet.create({
+  bridgeTxt:       { fontFamily: fonts.familyRegular, fontSize: 15, color: colors.text, lineHeight: 22 },
+  bridgeAmountBox: { marginTop: 16, backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.borderHi, padding: 16, alignItems: 'center' },
+  bridgeAmountVal: { fontFamily: fonts.family, fontSize: 28, fontWeight: '800', color: colors.orange },
+  bridgeAmountLbl: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 4 },
+  bridgeAddBtn:    { marginTop: 20, paddingVertical: 15, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
+  bridgeAddBtnTxt: { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: '#fff' },
+  bridgeSkipBtn:   { marginTop: 10, paddingVertical: 15, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
+  bridgeSkipBtnTxt:{ fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted },
   layout: { flex: 1 },
   left:   { flex: 1, backgroundColor: colors.surface },
   leftLandscape: { flex: 0, width: '38%', maxWidth: 480, marginLeft: 0, marginTop: 12, marginBottom: 12, marginRight: 0, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
