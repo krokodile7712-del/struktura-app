@@ -9,11 +9,10 @@ import {
   getProductsUsingStockName, deleteStockItem,
   setStockForLocation, adjustStockForLocation,
   getStockHistory, getLocations,
-  getCurrentLocationId, setCurrentLocationId,
   getBusinessProfile, updateStockThreshold, insertExpense,
 } from '../../db/queries';
 import { getDb } from '../../db/database';
-import { can } from '../../db/session';
+import { can, getCurrentLocationId, setCurrentLocationId } from '../../db/session';
 import { colors, fonts, spacing } from '../../constants/theme';
 import { useToast } from '../Toast';
 import Sheet from '../Sheet';
