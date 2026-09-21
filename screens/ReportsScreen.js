@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
   Modal, Animated, Share,
@@ -13,11 +13,13 @@ import {
   getPnL, getPnLFull, getTopProducts, getRevenueByDay,
   getBusinessMetrics, getBusinessProfile,
   getOrdersByHour, getRevenueByEmployee, getPaymentBreakdown,
-  exportAllData,
+  exportAllData, markTourSeen,
 } from '../db/queries';
 import { getHomeRoute, goBackSmart, can } from '../db/session';
 import DatePicker from '../components/DatePicker';
 import { colors, fonts } from '../constants/theme';
+import TourGuide from '../components/TourGuide';
+import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
 
 // ─── Утилиты ─────────────────────────────────────────────────────────────────
 const todayStr    = () => new Date().toISOString().slice(0, 10);
@@ -122,6 +124,13 @@ export default function ReportsScreen({ navigation }) {
   const [tab, setTab]               = useState('pnl');
   const [compare, setCompare]       = useState(false);
   const [picker, setPicker]         = useState(null);
+  const [tourOpen, setTourOpen]     = useState(false);
+  const activeTourKey = useTourActiveKey();
+  const filtersHighlight = useTourHighlight('reports.filters');
+  const pnlHighlight     = useTourHighlight('reports.pnl');
+  const fullHighlight    = useTourHighlight('reports.full');
+  const metricsHighlight = useTourHighlight('reports.metrics');
+  const chartsHighlight  = useTourHighlight('reports.charts');
 
   const [pnl, setPnl]                     = useState(null);
   const [pnlFull, setPnlFull]             = useState(null);
@@ -182,6 +191,34 @@ export default function ReportsScreen({ navigation }) {
     });
   };
 
+  // Тур раздела «Отчётность» — по разделу целиком, не по каждой строке
+  // отдельно (у многих метрик уже есть свои подсказки ⓘ с объяснением)
+  const tourSteps = [
+    { key: 'reports.filters', title: 'Период', text: 'Выберите «Сегодня», «Неделя», «Месяц» или свой период — все вкладки пересчитаются под него.' },
+    { key: 'reports.pnl',     title: 'P&L', text: 'Прибыли и убытки за период — выручка, себестоимость, во что вылилось и что осталось чистыми. У каждой строки есть ⓘ с объяснением, что это значит.' },
+    { key: 'reports.full',    title: 'Полный P&L', text: 'То же самое, но подробнее — расходы разложены по статьям: накладные, зарплата, амортизация — видно, куда именно уходит прибыль.' },
+    { key: 'reports.metrics', title: 'KPI', text: 'Показатели здоровья бизнеса — у каждого есть «норма» для сравнения и отметка ✓/! — сразу видно, что в порядке, а что стоит проверить.' },
+    { key: 'reports.charts',  title: 'Графики', text: 'Выручка по дням, загруженные часы и самые продаваемые товары — наглядно, без чтения цифр.' },
+  ];
+  const tourStepKeys = new Set(tourSteps.map(s => s.key));
+  const tabByStepKey = { 'reports.pnl': 'pnl', 'reports.full': 'full', 'reports.metrics': 'metrics', 'reports.charts': 'charts' };
+
+  // Автозапуск при первом визите в раздел
+  useEffect(() => {
+    try {
+      const p = getBusinessProfile();
+      if (!p?.tours_seen?.Reports) {
+        const t = setTimeout(() => setTourOpen(true), 500);
+        return () => clearTimeout(t);
+      }
+    } catch (_) {}
+  }, []);
+
+  // Каждый шаг про конкретную вкладку сам её открывает
+  useEffect(() => {
+    if (tabByStepKey[activeTourKey]) switchTab(tabByStepKey[activeTourKey]);
+  }, [activeTourKey]);
+
   if (!can('view_reports')) return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <TopBar title="Отчётность" onBack={() => goBackSmart(navigation)} />
@@ -206,11 +243,16 @@ export default function ReportsScreen({ navigation }) {
         navigation={navigation}
         activeScreen="Reports"
         rightElement={
-          <Pressable style={styles.exportBtn} onPress={async () => {
-            try { const d = exportAllData(); await Share.share({ message: d, title: 'Отчёт СТРУКТУРА' }); } catch(_) {}
-          }}>
-            <Text style={styles.exportBtnTxt}>↑ Экспорт</Text>
-          </Pressable>
+          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+            <Pressable style={styles.tourBtn} onPress={() => setTourOpen(true)} hitSlop={10} accessibilityLabel="Подсказка" accessibilityRole="button">
+              <Text style={styles.tourBtnTxt}>?</Text>
+            </Pressable>
+            <Pressable style={styles.exportBtn} onPress={async () => {
+              try { const d = exportAllData(); await Share.share({ message: d, title: 'Отчёт СТРУКТУРА' }); } catch(_) {}
+            }}>
+              <Text style={styles.exportBtnTxt}>↑ Экспорт</Text>
+            </Pressable>
+          </View>
         }
       />
 
@@ -231,8 +273,9 @@ export default function ReportsScreen({ navigation }) {
                 </Pressable>
               ))}
             </View>
-            <Pressable onPress={() => setFiltersOpen(true)} hitSlop={8} style={styles.filtersBtn}>
+            <Pressable onPress={() => setFiltersOpen(true)} hitSlop={8} style={[styles.filtersBtn, { position: 'relative' }, filtersHighlight.style]}>
               <Text style={styles.filtersBtnTxt}>⚙ Период</Text>
+              {filtersHighlight.overlay}
             </Pressable>
           </View>
 
@@ -245,7 +288,7 @@ export default function ReportsScreen({ navigation }) {
 
             {/* P&L */}
             {tab === 'pnl' && pnl && (
-              <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+              <Animated.View style={[{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], position: 'relative' }, pnlHighlight.style]}>
                 <View style={styles.card}>
                   <MetricRow label="Выручка" value={`${fmt(pnl.revenue)} ₽`}
                     color={colors.orange}
@@ -292,12 +335,13 @@ export default function ReportsScreen({ navigation }) {
                     <Text style={styles.hintTxt}>Себестоимость = 0. Заполните техкарты в Настройках → Меню и цены чтобы видеть реальную маржу.</Text>
                   </View>
                 )}
+                {pnlHighlight.overlay}
               </Animated.View>
             )}
 
             {/* Полный P&L */}
             {tab === 'full' && pnlFull && (
-              <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+              <Animated.View style={[{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], position: 'relative' }, fullHighlight.style]}>
                 <View style={styles.card}>
                   <Text style={styles.cardTitle}>Управленческий P&L</Text>
                   {[
@@ -318,12 +362,13 @@ export default function ReportsScreen({ navigation }) {
                     </View>
                   ))}
                 </View>
+                {fullHighlight.overlay}
               </Animated.View>
             )}
 
             {/* KPI */}
             {tab === 'metrics' && (
-              <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+              <Animated.View style={[{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], position: 'relative' }, metricsHighlight.style]}>
                 {metrics.length > 0 ? (
                   <View style={styles.card}>
                     {metrics.map((m, i) => (
@@ -363,12 +408,13 @@ export default function ReportsScreen({ navigation }) {
                     ))}
                   </View>
                 )}
+                {metricsHighlight.overlay}
               </Animated.View>
             )}
 
             {/* Графики */}
             {tab === 'charts' && (
-              <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+              <Animated.View style={[{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], position: 'relative' }, chartsHighlight.style]}>
                 <View style={styles.card}>
                   <Text style={styles.cardTitle}>Выручка по дням</Text>
                   <BarChart data={revenueByDay} color={colors.orange} unit="₽" />
@@ -384,6 +430,7 @@ export default function ReportsScreen({ navigation }) {
                   <Text style={styles.cardTitle}>Топ товаров</Text>
                   <BarChart data={topProducts} color={colors.indigo} unit="шт" />
                 </View>
+                {chartsHighlight.overlay}
               </Animated.View>
             )}
 
@@ -498,6 +545,12 @@ export default function ReportsScreen({ navigation }) {
             </Pressable>
         </View>
       </Sheet>
+
+      <TourGuide
+        visible={tourOpen}
+        onClose={() => { setTourOpen(false); markTourSeen('Reports'); }}
+        steps={tourSteps}
+      />
     </View>
   );
 }
@@ -577,6 +630,8 @@ const styles = StyleSheet.create({
 
   // Экспорт
   exportBtn:    { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', backgroundColor: 'rgba(240,160,80,0.08)' },
+  tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
+  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.orange },
   exportBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.orange },
 
   // Модалка
