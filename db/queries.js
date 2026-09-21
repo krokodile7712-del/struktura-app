@@ -956,7 +956,6 @@ export function createOrder({ total, method, methodType, methodId, shift_id, cli
       stockWarnings.push(...warnings);
     } catch (e) { console.error('[createOrder] Ошибка списания склада:', e); }
   }
-  try { incrementEquipmentCycles(orderId, items); } catch (e) { console.error('[createOrder] Ошибка счётчика оборудования:', e); }
 
   try {
     const profile = getBusinessProfile();
@@ -1175,15 +1174,6 @@ export function closeShift(shift_id) {
     `UPDATE shifts SET closed_at=?, cash_total=?, card_total=?, status='closed' WHERE id=?`,
     [now, totals?.cash_total || 0, totals?.card_total || 0, shift_id]
   );
-  // Инкрементируем оборудование со счётчиком "каждая смена" — раз в смену, даже если продаж не было
-  try {
-    ensureEquipment(db);
-    const shiftEquip = db.getAllSync(`SELECT id, cycles_per_use FROM equipment WHERE counter_type = 'shift' AND active = 1`);
-    for (const eq of shiftEquip) {
-      db.runSync(`UPDATE equipment SET current_cycles = current_cycles + ? WHERE id = ?`, [eq.cycles_per_use || 1, eq.id]);
-    }
-  } catch (e) { console.error('[closeShift] Ошибка инкремента оборудования:', e); }
-
   try { ensureDailyDepreciationExpense(); } catch (e) { console.error('[closeShift] Ошибка автосчёта расходов:', e); }
   try { ensureRecurringExpenses(); } catch (e) { console.error('[closeShift] Ошибка повторяющихся расходов:', e); }
 }
@@ -2830,11 +2820,9 @@ export function addEquipment(data) {
   const db = getDb(); ensureEquipment(db);
   const now = new Date().toISOString();
   const id = db.runSync(
-    `INSERT INTO equipment (name, cost, purchase_date, amort_type, amort_period, amort_cycles, current_cycles, counter_type, counter_product_id, cycles_per_use, active, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, 1, ?)`,
-    [data.name, data.cost||0, data.purchase_date||'', data.amort_type||'linear',
-     data.amort_period||12, data.amort_cycles||0, data.counter_type||'order',
-     data.counter_product_id||null, data.cycles_per_use||1, now]
+    `INSERT INTO equipment (name, cost, purchase_date, amort_type, amort_period, active, created_at)
+     VALUES (?, ?, ?, 'linear', ?, 1, ?)`,
+    [data.name, data.cost||0, data.purchase_date||'', data.amort_period||12, now]
   ).lastInsertRowId;
   // Автоматически добавляем в инвестиционный трекер
   if ((data.cost || 0) > 0) {
@@ -2850,10 +2838,8 @@ export function addEquipment(data) {
 export function updateEquipment(id, data) {
   const db = getDb();
   db.runSync(
-    `UPDATE equipment SET name=?, cost=?, purchase_date=?, amort_type=?, amort_period=?, amort_cycles=?, counter_type=?, counter_product_id=?, cycles_per_use=? WHERE id=?`,
-    [data.name, data.cost||0, data.purchase_date||'', data.amort_type||'linear',
-     data.amort_period||12, data.amort_cycles||0, data.counter_type||'order',
-     data.counter_product_id||null, data.cycles_per_use||1, id]
+    `UPDATE equipment SET name=?, cost=?, purchase_date=?, amort_type='linear', amort_period=? WHERE id=?`,
+    [data.name, data.cost||0, data.purchase_date||'', data.amort_period||12, id]
   );
 }
 
@@ -2862,68 +2848,13 @@ export function deleteEquipment(id) {
   db.runSync(`UPDATE equipment SET active = 0 WHERE id = ?`, [id]);
 }
 
-// Инкремент оборудования при оформлении заказа.
-// 'order'   — раз за заказ, независимо от числа позиций
-// 'product' — по каждой позиции с привязанным товаром, с учётом количества
-export function incrementEquipmentCycles(orderId, items) {
-  const db = getDb(); ensureEquipment(db);
-
-  // Оборудование с типом "По циклам" не покрывается дневным расчётом амортизации
-  // (тот считает только линейную/смешанную по времени) — начисляем сразу при
-  // использовании, добавляя к тому же дневному расходу "Амортизация · Автоматически",
-  // чтобы не плодить отдельную строку на каждый заказ.
-  const chargeCycleDepreciation = (eq, addedCycles) => {
-    if (eq.amort_type !== 'production') return; // "Смешанная" уже учтена по времени — не дублируем
-    const totalCycles = parseInt(eq.amort_cycles) || 0;
-    const cost = parseFloat(eq.cost) || 0;
-    if (!totalCycles || !cost || !addedCycles) return;
-    const amount = (cost / totalCycles) * addedCycles;
-    if (amount <= 0) return;
-    try {
-      const today = new Date().toISOString().slice(0, 10);
-      const existing = db.getFirstSync(
-        `SELECT id, amount FROM expenses WHERE date = ? AND category = 'Амортизация' AND comment = 'Автоматически'`,
-        [today]
-      );
-      if (existing) {
-        db.runSync(`UPDATE expenses SET amount = ? WHERE id = ?`, [Math.round((existing.amount + amount) * 100) / 100, existing.id]);
-      } else {
-        insertExpense({ date: today, category: 'Амортизация', amount: Math.round(amount * 100) / 100, comment: 'Автоматически' });
-      }
-    } catch (e) { console.error('[incrementEquipmentCycles] расход по циклам:', e); }
-  };
-
-  const byOrder = db.getAllSync(`SELECT * FROM equipment WHERE counter_type = 'order' AND active = 1`);
-  for (const eq of byOrder) {
-    const added = eq.cycles_per_use || 1;
-    db.runSync(`UPDATE equipment SET current_cycles = current_cycles + ? WHERE id = ?`, [added, eq.id]);
-    chargeCycleDepreciation(eq, added);
-  }
-
-  const byProduct = db.getAllSync(`SELECT * FROM equipment WHERE counter_type = 'product' AND active = 1`);
-  if (byProduct.length > 0 && items && items.length > 0) {
-    for (const item of items) {
-      if (!item.product_id) continue;
-      const qty = item.quantity || 1;
-      for (const eq of byProduct) {
-        if (eq.counter_product_id !== item.product_id) continue;
-        const added = (eq.cycles_per_use||1) * qty;
-        db.runSync(`UPDATE equipment SET current_cycles = current_cycles + ? WHERE id = ?`, [added, eq.id]);
-        chargeCycleDepreciation(eq, added);
-      }
-    }
-  }
-}
-
 // Амортизация за заказ для включения в себестоимость
 export function getEquipmentCostPerOrder(ordersInPeriod = 1) {
   const db = getDb(); ensureEquipment(db);
   const eq = db.getAllSync(`SELECT * FROM equipment WHERE active = 1 AND cost > 0`);
   let total = 0;
   for (const e of eq) {
-    if (e.amort_type === 'production' && e.amort_cycles > 0) {
-      total += e.cost / e.amort_cycles;
-    } else if (e.amort_type === 'linear' && e.amort_period > 0 && ordersInPeriod > 0) {
+    if (e.amort_period > 0 && ordersInPeriod > 0) {
       total += (e.cost / e.amort_period / 30) / ordersInPeriod; // per day / per order
     }
   }
@@ -3171,7 +3102,7 @@ export function ensureDailyDepreciationExpense() {
       let daily = 0;
       for (const eq of equipment) {
         if (!eq.cost) continue;
-        if ((eq.amort_type === 'linear' || eq.amort_type === 'mixed') && eq.amort_period > 0) {
+        if (eq.amort_period > 0) {
           daily += eq.cost / eq.amort_period / 30;
         }
       }
@@ -3254,18 +3185,13 @@ export function getPnLFull(dateFrom, dateTo) {
   } catch (_) {}
   salaryTotal = Math.round(salaryTotal);
 
-  // ── Амортизация оборудования за период ──
+  // ── Амортизация оборудования за период (только линейная — сумма ÷ срок) ──
   let deprTotal = 0;
   try {
     const equipment = getEquipment();
     for (const eq of equipment) {
       if (!eq.cost || eq.cost === 0) continue;
-      if (eq.amort_type === 'linear' && eq.amort_period > 0) {
-        deprTotal += (eq.cost / eq.amort_period) * (days / 30);
-      } else if (eq.amort_type === 'production' && eq.amort_cycles > 0) {
-        // Циклы за период = заказы за период * cycles_per_use
-        deprTotal += (eq.cost / eq.amort_cycles) * base.orderCount * (eq.cycles_per_use || 1);
-      } else if (eq.amort_type === 'mixed' && eq.amort_period > 0) {
+      if (eq.amort_period > 0) {
         deprTotal += (eq.cost / eq.amort_period) * (days / 30);
       }
     }

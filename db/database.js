@@ -488,5 +488,10 @@ export function initDatabase() {
     }
   } catch (_) {}
 
+  // Амортизация оборудования упрощена до одной линейной схемы — приводим
+  // старые записи (могли быть 'production'/'mixed' со счётчиком износа,
+  // которого больше нет) к единому виду, ничего не считаем заново
+  try { db.execSync(`UPDATE equipment SET amort_type = 'linear' WHERE amort_type != 'linear'`); } catch (_) {}
+
   console.log('[DB] Инициализация завершена');
 }
