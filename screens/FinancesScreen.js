@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
 import ExpensesPanel from '../components/panels/ExpensesPanel';
-import EquipmentPanel from '../components/panels/EquipmentPanel';
 import OverheadsPanel from '../components/panels/OverheadsPanel';
 import InvestmentsPanel from '../components/panels/InvestmentsPanel';
 import { getFinancesSummary } from '../db/queries';
@@ -12,9 +11,8 @@ import { colors, fonts } from '../constants/theme';
 
 const TABS = [
   { key: 'expenses',    label: 'Расходы' },
-  { key: 'equipment',   label: 'Оборудование' },
   { key: 'overheads',   label: 'Накладные' },
-  { key: 'investments', label: 'Инвестиции' },
+  { key: 'investments', label: 'Крупные покупки' },
 ];
 
 const fmt = n => Math.round(n || 0).toLocaleString('ru-RU');
@@ -61,15 +59,11 @@ export default function FinancesScreen({ navigation, route }) {
             <Text style={styles.summaryChipVal}>{fmt(summary.expensesTotal)} ₽</Text>
           </View>
           <View style={styles.summaryChip}>
-            <Text style={styles.summaryChipLabel}>Оборудование</Text>
-            <Text style={styles.summaryChipVal}>{fmt(summary.equipmentTotal)} ₽</Text>
-          </View>
-          <View style={styles.summaryChip}>
             <Text style={styles.summaryChipLabel}>Накладные</Text>
             <Text style={styles.summaryChipVal}>{fmt(summary.overheadsTotal)} ₽</Text>
           </View>
           <View style={styles.summaryChip}>
-            <Text style={styles.summaryChipLabel}>Инвестиции</Text>
+            <Text style={styles.summaryChipLabel}>Крупные покупки</Text>
             <Text style={styles.summaryChipVal}>{fmt(summary.investmentsTotal)} ₽</Text>
           </View>
         </ScrollView>
@@ -88,7 +82,6 @@ export default function FinancesScreen({ navigation, route }) {
 
       <View style={{ flex: 1 }}>
         {tab === 'expenses'    && <ExpensesPanel navigation={navigation} />}
-        {isAdmin && tab === 'equipment'   && <EquipmentPanel navigation={navigation} />}
         {isAdmin && tab === 'overheads'   && <OverheadsPanel navigation={navigation} />}
         {isAdmin && tab === 'investments' && <InvestmentsPanel navigation={navigation} />}
       </View>

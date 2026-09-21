@@ -176,7 +176,7 @@ export default function InvestmentsPanel({ navigation }) {
 
               <View style={styles.infoCard}>
                 <Text style={styles.infoTxt}>
-                  Инвестиции — это начальные вложения в бизнес. Они не списываются сразу, а постепенно распределяются на срок окупаемости. Это помогает видеть реальную прибыль с учётом возврата вложений.
+                  Крупные покупки — оборудование, ремонт, реклама и другие разовые вложения в бизнес. Стоимость можно растянуть по месяцам (амортизация) вместо списания одним днём — так прибыль в отчётах не проседает резко в месяц покупки.
                 </Text>
               </View>
 
@@ -215,18 +215,24 @@ export default function InvestmentsPanel({ navigation }) {
                 ))}
               </View>
 
-              {/* Срок окупаемости */}
-              <View style={styles.labelRow}>
-                <Text style={styles.fieldLabel}>Срок окупаемости, мес.</Text>
-                <InfoTip title="Срок окупаемости" text="За сколько месяцев планируете вернуть вложение. Используется для расчёта ежемесячной нагрузки на P&L." />
-              </View>
-              <View style={styles.inputRow}>
-                <TextInput style={[styles.input, { flex: 1 }]} color={colors.text} value={draft.amort_months} onChangeText={v => setDraft(d => ({ ...d, amort_months: v }))} keyboardType="numeric" placeholder="24" placeholderTextColor={colors.muted} />
-                <Text style={styles.unitTxt}>мес</Text>
-              </View>
-              {draft.amount && draft.amort_months ? (
-                <Text style={styles.calcHint}>≈ {fmt(Math.round(parseFloat(draft.amount) / parseInt(draft.amort_months)))} ₽/мес нагрузки на прибыль</Text>
-              ) : null}
+              {/* Срок амортизации — не показываем для депозита, его не списывают, а возвращают целиком */}
+              {draft.returnable ? (
+                <Text style={styles.depositNote}>Депозит не списывается постепенно — просто ждёт возврата.</Text>
+              ) : (
+                <>
+                  <View style={styles.labelRow}>
+                    <Text style={styles.fieldLabel}>Растянуть по месяцам, мес.</Text>
+                    <InfoTip title="Амортизация" text="Необязательно. Если покупка крупная и служит долго — укажите, за сколько месяцев списать её стоимость, вместо того чтобы показать всю сумму разом в один день." />
+                  </View>
+                  <View style={styles.inputRow}>
+                    <TextInput style={[styles.input, { flex: 1 }]} color={colors.text} value={draft.amort_months} onChangeText={v => setDraft(d => ({ ...d, amort_months: v }))} keyboardType="numeric" placeholder="Например, 24" placeholderTextColor={colors.muted} />
+                    <Text style={styles.unitTxt}>мес</Text>
+                  </View>
+                  {draft.amount && draft.amort_months ? (
+                    <Text style={styles.calcHint}>≈ {fmt(Math.round(parseFloat(draft.amount) / parseInt(draft.amort_months)))} ₽/мес нагрузки на прибыль</Text>
+                  ) : null}
+                </>
+              )}
 
               {/* Кнопки */}
               <Pressable style={styles.saveBtn} onPress={handleSave}>
@@ -254,7 +260,7 @@ export default function InvestmentsPanel({ navigation }) {
 
               <View style={styles.infoCard}>
                 <Text style={styles.infoTxt}>
-                  Инвестиции — это начальные вложения в бизнес. Они не списываются сразу, а постепенно распределяются на срок окупаемости. Это помогает видеть реальную прибыль с учётом возврата вложений.
+                  Крупные покупки — оборудование, ремонт, реклама и другие разовые вложения в бизнес. Стоимость можно растянуть по месяцам (амортизация) вместо списания одним днём — так прибыль в отчётах не проседает резко в месяц покупки.
                 </Text>
               </View>
 
@@ -293,18 +299,24 @@ export default function InvestmentsPanel({ navigation }) {
                 ))}
               </View>
 
-              {/* Срок окупаемости */}
-              <View style={styles.labelRow}>
-                <Text style={styles.fieldLabel}>Срок окупаемости, мес.</Text>
-                <InfoTip title="Срок окупаемости" text="За сколько месяцев планируете вернуть вложение. Используется для расчёта ежемесячной нагрузки на P&L." />
-              </View>
-              <View style={styles.inputRow}>
-                <TextInput style={[styles.input, { flex: 1 }]} color={colors.text} value={draft.amort_months} onChangeText={v => setDraft(d => ({ ...d, amort_months: v }))} keyboardType="numeric" placeholder="24" placeholderTextColor={colors.muted} />
-                <Text style={styles.unitTxt}>мес</Text>
-              </View>
-              {draft.amount && draft.amort_months ? (
-                <Text style={styles.calcHint}>≈ {fmt(Math.round(parseFloat(draft.amount) / parseInt(draft.amort_months)))} ₽/мес нагрузки на прибыль</Text>
-              ) : null}
+              {/* Срок амортизации — не показываем для депозита, его не списывают, а возвращают целиком */}
+              {draft.returnable ? (
+                <Text style={styles.depositNote}>Депозит не списывается постепенно — просто ждёт возврата.</Text>
+              ) : (
+                <>
+                  <View style={styles.labelRow}>
+                    <Text style={styles.fieldLabel}>Растянуть по месяцам, мес.</Text>
+                    <InfoTip title="Амортизация" text="Необязательно. Если покупка крупная и служит долго — укажите, за сколько месяцев списать её стоимость, вместо того чтобы показать всю сумму разом в один день." />
+                  </View>
+                  <View style={styles.inputRow}>
+                    <TextInput style={[styles.input, { flex: 1 }]} color={colors.text} value={draft.amort_months} onChangeText={v => setDraft(d => ({ ...d, amort_months: v }))} keyboardType="numeric" placeholder="Например, 24" placeholderTextColor={colors.muted} />
+                    <Text style={styles.unitTxt}>мес</Text>
+                  </View>
+                  {draft.amount && draft.amort_months ? (
+                    <Text style={styles.calcHint}>≈ {fmt(Math.round(parseFloat(draft.amount) / parseInt(draft.amort_months)))} ₽/мес нагрузки на прибыль</Text>
+                  ) : null}
+                </>
+              )}
 
               {/* Кнопки */}
               <Pressable style={styles.saveBtn} onPress={handleSave}>
@@ -377,6 +389,7 @@ const styles = StyleSheet.create({
   inputRow:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
   unitTxt:    { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, width: 36 },
   calcHint:   { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.orange, marginTop: 6 },
+  depositNote:{ fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, lineHeight: 19 },
 
   chips:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip:       { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },

@@ -265,11 +265,11 @@ export default function ExpensesPanel({ navigation }) {
       const equipmentLikeCategory = category === 'Прочее' || category === 'Закупка';
       if (amt >= 15000 && equipmentLikeCategory) {
         Alert.alert(
-          'Похоже на оборудование?',
-          'Крупная разовая покупка — если это техника или инвентарь длительного пользования, лучше завести как Оборудование: тогда стоимость распределится по износу, а не спишется в расходы одним днём.',
+          'Похоже на крупную покупку?',
+          'Разовая покупка на большую сумму — если это техника, ремонт или другое вложение с долгим сроком службы, лучше завести в разделе «Крупные покупки»: там стоимость можно растянуть по месяцам, а не списывать в расходы одним днём.',
           [
             { text: 'Всё равно добавить как расход', style: 'cancel', onPress: doSaveExpense },
-            { text: 'Перейти в Оборудование', onPress: () => navigation.navigate('Finances', { initialTab: 'equipment' }) },
+            { text: 'Перейти в Крупные покупки', onPress: () => navigation.navigate('Finances', { initialTab: 'investments' }) },
           ]
         );
         return;
