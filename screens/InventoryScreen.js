@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal, Alert, Animated, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Animated, TextInput } from 'react-native';
 import TopBar from '../components/TopBar';
 import Sheet from '../components/Sheet';
 import EmptyState from '../components/EmptyState';
@@ -149,6 +149,48 @@ export default function InventoryScreen({ navigation }) {
 
   const categories = [...new Set(stock.map(s => s.category).filter(Boolean))];
 
+  const fillContent = activeAct && (
+    <>
+      <View style={styles.fillPanelHeader}>
+        <Pressable onPress={handleBack} style={styles.fillCloseBtn} hitSlop={8}>
+          <Text style={styles.fillCloseBtnTxt}>✕</Text>
+        </Pressable>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.fillPanelTitle}>Фактические остатки</Text>
+          <Text style={styles.fillPanelSub}>{SCOPE_OPTIONS.find(s => s.key === activeAct.scope)?.label || 'Инвентаризация'}</Text>
+        </View>
+        <Pressable style={styles.confirmBtn} onPress={handleConfirm}>
+          <Text style={styles.confirmBtnTxt}>Подтвердить</Text>
+        </Pressable>
+      </View>
+      <ScrollView keyboardShouldPersistTaps="handled" style={{ flex: 1 }}>
+        <View style={styles.fillCard}>
+          {actItems.map((item, idx) => {
+            const changed = actVals[item.id] && parseFloat(actVals[item.id]) !== item.expected;
+            return (
+              <View key={item.id} style={[styles.fillRow, idx < actItems.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.borderHi }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.fillName}>{item.stock_name}</Text>
+                  <Text style={styles.fillUnit}>По системе: {fmt(item.expected)} {item.unit}</Text>
+                </View>
+                <TextInput
+                  style={[styles.fillInput, changed && { borderColor: colors.orange, color: colors.orange }]}
+                  color={colors.text}
+                  value={actVals[item.id]}
+                  onChangeText={v => setActVals(prev => ({ ...prev, [item.id]: v }))}
+                  onBlur={() => saveActItem(item.id, actVals[item.id])}
+                  keyboardType="numeric"
+                  placeholder={String(item.expected)}
+                  placeholderTextColor={colors.muted}
+                />
+              </View>
+            );
+          })}
+        </View>
+      </ScrollView>
+    </>
+  );
+
   return (
     <View style={styles.root}>
       <TopBar
@@ -258,87 +300,87 @@ export default function InventoryScreen({ navigation }) {
       </Animated.View>
 
       {isLandscape && (
-        /* Альбомная — подсказка сверху (крупнее, отступ от шапки), статистика ниже, если акты уже есть */
+        /* Альбомная — заполнение остатков, если акт открыт; иначе подсказка + статистика */
         <View style={styles.sidePanel}>
-          <View style={styles.infoCardBig}>
-            <Text style={styles.infoTitleBig}>Что такое инвентаризация?</Text>
-            <Text style={styles.infoTxtBig}>
-              Сверка фактических остатков с данными в системе. Помогает выявить расхождения — недостачи или излишки. Проводится периодически или по необходимости.
-            </Text>
-          </View>
+          {activeAct ? fillContent : (
+            <>
+              <View style={styles.infoCardBig}>
+                <Text style={styles.infoTitleBig}>Что такое инвентаризация?</Text>
+                <Text style={styles.infoTxtBig}>
+                  Сверка фактических остатков с данными в системе. Помогает выявить расхождения — недостачи или излишки. Проводится периодически или по необходимости.
+                </Text>
+              </View>
 
-          {acts.length > 0 && (
-            <View style={{ width: '100%', maxWidth: 420, alignSelf: 'center' }}>
-              <View style={styles.sideDivider} />
+              {acts.length > 0 && (
+                <View style={{ width: '100%', maxWidth: 420, alignSelf: 'center' }}>
+                  <View style={styles.sideDivider} />
 
-              <Text style={styles.sideLabel}>Актов всего</Text>
-              <Text style={styles.sideVal}>{acts.length}</Text>
-              <Text style={styles.sideSub}>
-                {acts.filter(a => a.status === 'confirmed').length} завершено · {acts.filter(a => a.status !== 'confirmed').length} в процессе
-              </Text>
+                  <Text style={styles.sideLabel}>Актов всего</Text>
+                  <Text style={styles.sideVal}>{acts.length}</Text>
+                  <Text style={styles.sideSub}>
+                    {acts.filter(a => a.status === 'confirmed').length} завершено · {acts.filter(a => a.status !== 'confirmed').length} в процессе
+                  </Text>
 
-              <View style={styles.sideDivider} />
+                  <View style={styles.sideDivider} />
 
-              <Text style={styles.sideLabel}>Расхождение план/факт</Text>
-              <Text style={[styles.sideVal, { fontSize: 26, color: discrepancy >= 0 ? colors.green : colors.red }]}>
-                {discrepancy >= 0 ? '+' : ''}{fmt(discrepancy)} ₽
-              </Text>
-              <Text style={styles.sideSub}>
-                {discrepancy >= 0 ? 'Найдено больше, чем ожидалось' : 'Недостача по завершённым актам'}
-              </Text>
+                  <Text style={styles.sideLabel}>Расхождение план/факт</Text>
+                  <Text style={[styles.sideVal, { fontSize: 26, color: discrepancy >= 0 ? colors.green : colors.red }]}>
+                    {discrepancy >= 0 ? '+' : ''}{fmt(discrepancy)} ₽
+                  </Text>
+                  <Text style={styles.sideSub}>
+                    {discrepancy >= 0 ? 'Найдено больше, чем ожидалось' : 'Недостача по завершённым актам'}
+                  </Text>
 
-              <View style={styles.sideDivider} />
+                  <View style={styles.sideDivider} />
 
-              <Text style={styles.sideLabel}>Мало на складе</Text>
-              <Text style={styles.sideSub}>
-                {stock.filter(s => s['остаток'] <= (s.threshold || 0)).length} позиций ниже порога
-              </Text>
-            </View>
+                  <Text style={styles.sideLabel}>Мало на складе</Text>
+                  <Text style={styles.sideSub}>
+                    {stock.filter(s => s['остаток'] <= (s.threshold || 0)).length} позиций ниже порога
+                  </Text>
+                </View>
+              )}
+            </>
           )}
         </View>
       )}
       </View>
 
-      {/* Экран заполнения акта */}
-      <Modal visible={!!activeAct} transparent={false} animationType="slide" onRequestClose={handleBack}>
-        <View style={styles.fillRoot}>
-          <View style={styles.fillHeader}>
-            <Pressable onPress={handleBack} style={styles.fillBack}>
-              <Text style={styles.fillBackTxt}>← Назад</Text>
-            </Pressable>
-            <Text style={styles.fillTitle}>Фактические остатки</Text>
-            <Pressable style={styles.confirmBtn} onPress={handleConfirm}>
-              <Text style={styles.confirmBtnTxt}>Подтвердить</Text>
-            </Pressable>
-          </View>
-          <View style={styles.fillTableHeader}>
-            <Text style={[styles.fillHd, { flex: 2 }]}>Позиция</Text>
-            <Text style={styles.fillHd}>По системе</Text>
-            <Text style={styles.fillHd}>Факт</Text>
-          </View>
-          <ScrollView keyboardShouldPersistTaps="handled">
-            {actItems.map((item, idx) => (
-              <View key={item.id} style={[styles.fillRow, idx < actItems.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
-                <View style={{ flex: 2 }}>
-                  <Text style={styles.fillName}>{item.stock_name}</Text>
-                  <Text style={styles.fillUnit}>{item.unit}</Text>
-                </View>
-                <Text style={styles.fillExpected}>{item.expected}</Text>
-                <TextInput
-                  style={[styles.fillInput, actVals[item.id] && parseFloat(actVals[item.id]) !== item.expected && { borderColor: colors.orange, color: colors.orange }]}
-                  color={colors.text}
-                  value={actVals[item.id]}
-                  onChangeText={v => setActVals(prev => ({ ...prev, [item.id]: v }))}
-                  onBlur={() => saveActItem(item.id, actVals[item.id])}
-                  keyboardType="numeric"
-                  placeholder={String(item.expected)}
-                  placeholderTextColor={colors.muted}
-                />
+      {/* Портрет — заполнение остатков через Sheet, как и остальные формы в приложении */}
+      {!isLandscape && (
+        <Sheet visible={!!activeAct} onClose={handleBack} title="Фактические остатки">
+          {activeAct && (
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20 }}>
+              <Text style={styles.fillPanelSub}>{SCOPE_OPTIONS.find(s => s.key === activeAct.scope)?.label || 'Инвентаризация'}</Text>
+              <View style={[styles.fillCard, { marginTop: 12 }]}>
+                {actItems.map((item, idx) => {
+                  const changed = actVals[item.id] && parseFloat(actVals[item.id]) !== item.expected;
+                  return (
+                    <View key={item.id} style={[styles.fillRow, idx < actItems.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.borderHi }]}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.fillName}>{item.stock_name}</Text>
+                        <Text style={styles.fillUnit}>По системе: {fmt(item.expected)} {item.unit}</Text>
+                      </View>
+                      <TextInput
+                        style={[styles.fillInput, changed && { borderColor: colors.orange, color: colors.orange }]}
+                        color={colors.text}
+                        value={actVals[item.id]}
+                        onChangeText={v => setActVals(prev => ({ ...prev, [item.id]: v }))}
+                        onBlur={() => saveActItem(item.id, actVals[item.id])}
+                        keyboardType="numeric"
+                        placeholder={String(item.expected)}
+                        placeholderTextColor={colors.muted}
+                      />
+                    </View>
+                  );
+                })}
               </View>
-            ))}
-          </ScrollView>
-        </View>
-      </Modal>
+              <Pressable style={[styles.confirmBtn, { marginTop: 20, alignSelf: 'stretch', paddingVertical: 15 }]} onPress={handleConfirm}>
+                <Text style={[styles.confirmBtnTxt, { textAlign: 'center', fontSize: 16 }]}>Подтвердить</Text>
+              </Pressable>
+            </ScrollView>
+          )}
+        </Sheet>
+      )}
 
       {/* Модалка создания акта */}
       <Sheet visible={showSetup} onClose={() => setShowSetup(false)} title="Новый акт инвентаризации">
@@ -474,23 +516,20 @@ const styles = StyleSheet.create({
   fillBtn:    { marginTop: 14, marginBottom: 8, paddingVertical: 13, borderRadius: 12, backgroundColor: 'rgba(240,160,80,0.12)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center' },
   fillBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
 
-  // ─── Экран заполнения фактических остатков ───────────────────────────
-  fillRoot:   { flex: 1, backgroundColor: colors.bg },
-  fillHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
-  fillBack:   { paddingVertical: 6, paddingRight: 10 },
-  fillBackTxt:{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
-  fillTitle:  { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.text },
-  confirmBtn: { backgroundColor: colors.orange, borderRadius: 12, paddingVertical: 9, paddingHorizontal: 16 },
-  confirmBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: '#fff' },
+  // ─── Заполнение фактических остатков — встроено в правую колонку/Sheet ──
+  fillPanelHeader: { flexDirection: 'row', alignItems: 'center', paddingBottom: 16, gap: 12 },
+  fillCloseBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  fillCloseBtnTxt: { fontSize: 15, color: colors.muted, fontWeight: '700' },
+  fillPanelTitle:  { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text },
+  fillPanelSub:    { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 2 },
+  confirmBtn: { backgroundColor: colors.orange, borderRadius: 12, paddingVertical: 11, paddingHorizontal: 18 },
+  confirmBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: '#fff' },
 
-  fillTableHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
-  fillHd:     { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, flex: 1, textAlign: 'right' },
-
-  fillRow:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
-  fillName:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
-  fillUnit:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
-  fillExpected: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.textDim, flex: 1, textAlign: 'right' },
-  fillInput:  { flex: 1, marginLeft: 8, backgroundColor: colors.surface, borderRadius: 10, borderWidth: 1, borderColor: colors.border, paddingVertical: 8, paddingHorizontal: 10, fontFamily: fonts.familySemibold, fontSize: 14, textAlign: 'right' },
+  fillCard:   { backgroundColor: colors.surface2, borderRadius: 16, borderWidth: 1, borderColor: colors.borderHi, overflow: 'hidden' },
+  fillRow:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
+  fillName:   { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
+  fillUnit:   { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 2 },
+  fillInput:  { width: 110, backgroundColor: colors.surface3, borderRadius: 12, borderWidth: 1, borderColor: colors.border, paddingVertical: 12, paddingHorizontal: 12, fontFamily: fonts.familySemibold, fontSize: 15, textAlign: 'right', color: colors.text },
 
   addBtn:     { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, backgroundColor: 'rgba(240,160,80,0.12)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)' },
   addBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
