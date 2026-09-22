@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
   left:   { width: '38%', maxWidth: 480, margin: 12, marginRight: 0, borderRadius: 16, borderWidth: 1, borderColor: colors.borderHi, backgroundColor: colors.surface2, overflow: 'hidden' },
 
   summaryCard: { margin: 10, backgroundColor: colors.surface3, borderRadius: 14, borderWidth: 1, borderColor: colors.borderHi, overflow: 'hidden' },
-  summaryRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
+  summaryRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
   summaryLabel:{ fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
   summaryVal:  { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
   barSection:  { padding: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
 
   listHint: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, paddingHorizontal: 12, paddingBottom: 4 },
   listCard: { margin: 8, backgroundColor: colors.surface3, borderRadius: 14, borderWidth: 1, borderColor: colors.borderHi, overflow: 'hidden' },
-  itemRow:  { flexDirection: 'row', alignItems: 'center', padding: 16, position: 'relative' },
+  itemRow:  { flexDirection: 'row', alignItems: 'center', padding: 13, position: 'relative' },
   itemRowDiv: { borderBottomWidth: 1, borderBottomColor: colors.borderHi },
   itemRowActive: { backgroundColor: 'rgba(240,160,80,0.06)' },
   activeBar: { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },

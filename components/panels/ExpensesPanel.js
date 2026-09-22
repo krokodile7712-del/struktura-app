@@ -681,7 +681,7 @@ const styles = StyleSheet.create({
   tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.orange },
 
   periodRow:  { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 8, borderBottomWidth: 1, borderBottomColor: colors.borderHi },
-  periodBtn:  { paddingVertical: 12, paddingHorizontal: 18, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface2 },
+  periodBtn:  { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface2 },
   periodBtnActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.08)' },
   periodTxt:  { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted },
   periodTxtActive: { color: colors.orange },
@@ -696,14 +696,14 @@ const styles = StyleSheet.create({
   emptyTxt:   { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
   emptyHint:  { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 6, opacity: 0.7 },
 
-  expenseRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, gap: 12 },
+  expenseRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, gap: 12 },
   expenseRowDiv: { borderBottomWidth: 1, borderBottomColor: colors.borderHi },
   expenseCat: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
   expenseDate:{ fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 2 },
   expenseAmt: { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.red, textAlign: 'right', minWidth: 90 },
 
   // ── Сводка — общие строки категорий (переиспользуются в обоих режимах) ──
-  catRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12 },
+  catRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 9 },
   catRowDiv:  { borderBottomWidth: 1, borderBottomColor: colors.borderHi },
   catName:    { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text, flex: 1 },
   catVal:     { fontFamily: fonts.familyRegular, fontSize: 15, color: colors.muted },
@@ -726,7 +726,7 @@ const styles = StyleSheet.create({
   editorCloseBtn: { paddingHorizontal: 6, paddingVertical: 4 },
   editorCloseTxt: { fontSize: 18, color: colors.muted },
   sideLabel:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
-  sideVal:    { fontFamily: fonts.family, fontSize: 34, fontWeight: '800', color: colors.red, marginTop: 6 },
+  sideVal:    { fontFamily: fonts.family, fontSize: 26, fontWeight: '800', color: colors.red, marginTop: 6 },
   sideSub:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
   sideDivider:{ height: 1, backgroundColor: colors.border, marginVertical: 16 },
 
