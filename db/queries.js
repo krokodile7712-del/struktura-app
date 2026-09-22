@@ -2464,10 +2464,17 @@ export function getInventoryAct(actId) {
 // Список актов (для истории)
 export function getInventoryActs(limit = 30) {
   const db = getDb();
-  return db.getAllSync(
+  const acts = db.getAllSync(
     `SELECT * FROM inventory_acts ORDER BY created_at DESC LIMIT ?`,
     [limit]
   );
+  for (const act of acts) {
+    act.items = db.getAllSync(
+      `SELECT * FROM inventory_act_items WHERE act_id = ? ORDER BY stock_name`,
+      [act.id]
+    );
+  }
+  return acts;
 }
 
 // Удаляет черновик

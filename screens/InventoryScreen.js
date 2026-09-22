@@ -35,6 +35,8 @@ export default function InventoryScreen({ navigation }) {
   const [stock, setStock]           = useState([]);
   const [showSetup, setShowSetup]   = useState(false);
   const [scope, setScope]           = useState('all');
+  const [scopeCategory, setScopeCategory] = useState('');
+  const [scopeManualIds, setScopeManualIds] = useState([]);
   const [expanded, setExpanded]     = useState(null);
   const [activeAct, setActiveAct]   = useState(null);
   const [actItems, setActItems]     = useState([]);
@@ -53,7 +55,7 @@ export default function InventoryScreen({ navigation }) {
       // Суммарное расхождение план/факт в деньгах по завершённым актам из списка
       try {
         const db = require('../db/database').getDb();
-        const completedIds = list.filter(a => a.status === 'completed').map(a => a.id);
+        const completedIds = list.filter(a => a.status === 'confirmed').map(a => a.id);
         if (completedIds.length > 0) {
           const row = db.getFirstSync(
             `SELECT SUM(diff_money) AS total FROM inventory_act_items WHERE act_id IN (${completedIds.join(',')})`
@@ -114,8 +116,12 @@ export default function InventoryScreen({ navigation }) {
 
   const handleCreate = () => {
     try {
-      createInventoryAct({ scope, location_id: null });
+      const scopeValue = scope === 'category' ? scopeCategory : scope === 'manual' ? scopeManualIds.join(',') : '';
+      createInventoryAct({ scope, scopeValue, locationId: null });
       setShowSetup(false);
+      setScope('all');
+      setScopeCategory('');
+      setScopeManualIds([]);
       load();
     } catch(e) { Alert.alert('Ошибка', e.message); }
   };
@@ -158,7 +164,7 @@ export default function InventoryScreen({ navigation }) {
             {acts.map((act, idx) => {
               const isOpen = expanded === act.id;
               const items = act.items || [];
-              const discrepancies = items.filter(i => i.fact_qty !== i.system_qty).length;
+              const discrepancies = items.filter(i => i.actual !== null && i.actual !== i.expected).length;
 
               return (
                 <View key={act.id} style={[styles.card, idx > 0 && { marginTop: 10 }]}>
@@ -175,9 +181,9 @@ export default function InventoryScreen({ navigation }) {
                           <Text style={styles.discBadgeTxt}>{discrepancies} расхождений</Text>
                         </View>
                       )}
-                      <View style={[styles.statusBadge, { backgroundColor: act.status === 'completed' ? 'rgba(123,175,142,0.12)' : 'rgba(240,160,80,0.1)' }]}>
-                        <Text style={[styles.statusTxt, { color: act.status === 'completed' ? colors.green : colors.orange }]}>
-                          {act.status === 'completed' ? 'Завершён' : 'В процессе'}
+                      <View style={[styles.statusBadge, { backgroundColor: act.status === 'confirmed' ? 'rgba(123,175,142,0.12)' : 'rgba(240,160,80,0.1)' }]}>
+                        <Text style={[styles.statusTxt, { color: act.status === 'confirmed' ? colors.green : colors.orange }]}>
+                          {act.status === 'confirmed' ? 'Завершён' : 'В процессе'}
                         </Text>
                       </View>
                       <Text style={[styles.chevron, isOpen && styles.chevronOpen]}>›</Text>
@@ -197,14 +203,15 @@ export default function InventoryScreen({ navigation }) {
                             <Text style={styles.tableHd}>Разница</Text>
                           </View>
                           {items.map((item, ii) => {
-                            const diff = (item.fact_qty || 0) - (item.system_qty || 0);
+                            const hasActual = item.actual !== null && item.actual !== undefined;
+                            const diff = hasActual ? item.actual - (item.expected || 0) : 0;
                             return (
                               <View key={ii} style={[styles.tableRow, ii < items.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
-                                <Text style={[styles.tableName, { flex: 2 }]} numberOfLines={1}>{item.name}</Text>
-                                <Text style={styles.tableVal}>{fmt(item.system_qty)}</Text>
-                                <Text style={styles.tableVal}>{fmt(item.fact_qty)}</Text>
-                                <Text style={[styles.tableDiff, { color: diff === 0 ? colors.muted : diff > 0 ? colors.green : colors.red }]}>
-                                  {diff > 0 ? '+' : ''}{fmt(diff)}
+                                <Text style={[styles.tableName, { flex: 2 }]} numberOfLines={1}>{item.stock_name}</Text>
+                                <Text style={styles.tableVal}>{fmt(item.expected)}</Text>
+                                <Text style={styles.tableVal}>{hasActual ? fmt(item.actual) : '—'}</Text>
+                                <Text style={[styles.tableDiff, { color: !hasActual ? colors.muted : diff === 0 ? colors.muted : diff > 0 ? colors.green : colors.red }]}>
+                                  {hasActual ? (diff > 0 ? '+' : '') + fmt(diff) : '—'}
                                 </Text>
                               </View>
                             );
@@ -255,7 +262,7 @@ export default function InventoryScreen({ navigation }) {
               <Text style={styles.sideLabel}>Актов всего</Text>
               <Text style={styles.sideVal}>{acts.length}</Text>
               <Text style={styles.sideSub}>
-                {acts.filter(a => a.status === 'completed').length} завершено · {acts.filter(a => a.status !== 'completed').length} в процессе
+                {acts.filter(a => a.status === 'confirmed').length} завершено · {acts.filter(a => a.status !== 'confirmed').length} в процессе
               </Text>
 
               <View style={styles.sideDivider} />
@@ -344,7 +351,51 @@ export default function InventoryScreen({ navigation }) {
               ))}
             </View>
 
-            <Pressable style={styles.createBtn} onPress={handleCreate}>
+            {scope === 'category' && (
+              <View style={{ marginBottom: 16 }}>
+                <Text style={styles.modalSub}>Какая категория</Text>
+                {categories.length === 0 ? (
+                  <Text style={styles.scopeHint}>На складе пока нет ни одной категории</Text>
+                ) : (
+                  <View style={styles.catChips}>
+                    {categories.map(cat => (
+                      <Pressable key={cat} style={[styles.catChip, scopeCategory === cat && styles.catChipActive]} onPress={() => setScopeCategory(cat)}>
+                        <Text style={[styles.catChipTxt, scopeCategory === cat && styles.catChipTxtActive]}>{cat}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
+              </View>
+            )}
+
+            {scope === 'manual' && (
+              <View style={{ marginBottom: 16 }}>
+                <Text style={styles.modalSub}>Какие позиции ({scopeManualIds.length} выбрано)</Text>
+                <ScrollView style={styles.manualList} keyboardShouldPersistTaps="handled">
+                  {stock.map((s, idx) => {
+                    const checked = scopeManualIds.includes(s.id);
+                    return (
+                      <Pressable
+                        key={s.id}
+                        style={[styles.manualRow, idx < stock.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}
+                        onPress={() => setScopeManualIds(prev => checked ? prev.filter(x => x !== s.id) : [...prev, s.id])}
+                      >
+                        <View style={[styles.scopeCheck, checked && styles.scopeCheckActive]}>
+                          {checked && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
+                        </View>
+                        <Text style={styles.manualName} numberOfLines={1}>{s.name}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
+
+            <Pressable
+              style={[styles.createBtn, ((scope === 'category' && !scopeCategory) || (scope === 'manual' && scopeManualIds.length === 0)) && { opacity: 0.4 }]}
+              disabled={(scope === 'category' && !scopeCategory) || (scope === 'manual' && scopeManualIds.length === 0)}
+              onPress={handleCreate}
+            >
               <Text style={styles.createBtnTxt}>Начать инвентаризацию</Text>
             </Pressable>
             <Pressable style={styles.cancelBtn} onPress={() => setShowSetup(false)}>
@@ -438,6 +489,14 @@ const styles = StyleSheet.create({
   modalSub:   { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginBottom: 20 },
 
   scopeList:  { backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', marginBottom: 16 },
+  catChips:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  catChip:    { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface2 },
+  catChipActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.1)' },
+  catChipTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
+  catChipTxtActive: { color: colors.orange },
+  manualList: { backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', maxHeight: 260 },
+  manualRow:  { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 12 },
+  manualName: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.text, flex: 1 },
   scopeRow:   { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
   scopeRowActive: { backgroundColor: 'rgba(240,160,80,0.06)' },
   scopeCheck: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
