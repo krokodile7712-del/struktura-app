@@ -360,8 +360,8 @@ const styles = StyleSheet.create({
   root:   { flex: 1, backgroundColor: colors.bg },
 
   // ── Боковая панель сводки (альбомная) ──
-  sidePanel:  { flex: 1, borderLeftWidth: 1, borderLeftColor: colors.borderHi, backgroundColor: colors.surface2, padding: 20 },
-  leftCol:    { flex: 0, width: '38%', maxWidth: 480 },
+  sidePanel:  { flex: 1, backgroundColor: colors.bg, margin: 12, marginLeft: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', padding: 20 },
+  leftCol:    { flex: 0, width: '38%', maxWidth: 480, marginTop: 12, marginBottom: 12, marginLeft: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.borderHi, overflow: 'hidden', backgroundColor: colors.surface2 },
   addBtnBig:  { marginHorizontal: 16, marginTop: 16, marginBottom: 8, paddingVertical: 16, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
   addBtnBigTxt: { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: '#fff' },
 
