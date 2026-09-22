@@ -5,7 +5,6 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import Sheet from '../../components/Sheet';
-import InfoTip from '../../components/InfoTip';
 import DatePicker from '../../components/DatePicker';
 import SwipeableRow from '../../components/SwipeableRow';
 import TourGuide from '../../components/TourGuide';
@@ -16,17 +15,12 @@ import {
   getAllExpenses, insertExpense, deleteExpense, updateExpense,
   getRecurringExpenses, insertRecurringExpense, deactivateRecurringExpense, ensureRecurringExpenses,
   getBusinessProfile, markTourSeen, getAllStock,
-  getOverheadItems, addOverheadItem, updateOverheadItem, deleteOverheadItem,
+  getOverheadItems, deleteOverheadItem,
 } from '../../db/queries';
 import { can, getCurrentLocationId } from '../../db/session';
 import { colors, fonts } from '../../constants/theme';
 
 const CATEGORIES = ['Аренда', 'Зарплата', 'Закупка', 'Коммуналка', 'Расходники', 'Реклама', 'Амортизация', 'Накладные', 'Прочее'];
-const BASES = [
-  { key: 'order',       label: 'На заказ',     hint: 'Месячная сумма ÷ количество заказов = добавка на 1 заказ' },
-  { key: 'hour',        label: 'На час работы', hint: 'Месячная сумма ÷ рабочие часы = добавка на 1 час' },
-  { key: 'revenue_pct', label: '% от выручки',  hint: 'Фиксированный % с каждого заказа' },
-];
 const todayStr    = () => new Date().toISOString().slice(0, 10);
 const weekAgoStr  = () => { const d = new Date(); d.setDate(d.getDate()-6); return d.toISOString().slice(0,10); };
 const monthAgoStr = () => { const d = new Date(); d.setDate(d.getDate()-29); return d.toISOString().slice(0,10); };
@@ -52,8 +46,6 @@ export default function ExpensesPanel({ navigation }) {
   const [editingId, setEditingId]   = useState(null); // id редактируемого расхода, null = добавление нового
   const [selectedExpense, setSelectedExpense] = useState(null); // альбомная — null | 'new' | сам расход
   const [isRecurring, setIsRecurring] = useState(false);
-  const [basis, setBasis] = useState(null); // null | 'order' | 'hour' | 'revenue_pct' — необязательное распределение
-  const [basisValue, setBasisValue] = useState('');
   const isAdmin = can('view_reports');
   const [recurringModal, setRecurringModal] = useState(false);
   const [recurringList, setRecurringList] = useState([]);
@@ -226,22 +218,12 @@ export default function ExpensesPanel({ navigation }) {
           location_id: getCurrentLocationId(),
         });
         if (isRecurring) {
-          if (basis) {
-            addOverheadItem({
-              name: comment.trim() || category,
-              amount: parseFloat(amount),
-              period: 'month',
-              basis,
-              basis_value: parseFloat(basisValue) || 0,
-            });
-          } else {
-            insertRecurringExpense({
-              category,
-              amount: parseFloat(amount),
-              comment: comment.trim(),
-              day_of_month: new Date().getDate(),
-            });
-          }
+          insertRecurringExpense({
+            category,
+            amount: parseFloat(amount),
+            comment: comment.trim(),
+            day_of_month: new Date().getDate(),
+          });
         }
       }
       setEditingId(null);
@@ -250,8 +232,6 @@ export default function ExpensesPanel({ navigation }) {
       setComment('');
       setPhotoUri('');
       setIsRecurring(false);
-      setBasis(null);
-      setBasisValue('');
       setAddModal(false);
       load();
     } catch(e) { console.error(e); }
@@ -480,34 +460,6 @@ export default function ExpensesPanel({ navigation }) {
                 </Pressable>
               )}
 
-              {/* Распределение по заказам/часам/% выручки — необязательно, только
-                  для повторяющихся и только у администратора (было отдельным
-                  разделом «Накладные», теперь — необязательная часть Расходов) */}
-              {!editingId && isRecurring && isAdmin && (
-                <View style={styles.basisBox}>
-                  <View style={styles.labelRow}>
-                    <Text style={styles.fieldLabel}>Распределять по (необязательно)</Text>
-                    <InfoTip title="Распределение" text="Если расход нужно раскладывать на каждый заказ, час работы или % от выручки — выберите способ. Если не выбрано — расход просто повторяется каждый месяц, без распределения." />
-                  </View>
-                  <View style={styles.chips}>
-                    {BASES.map(b => (
-                      <Pressable key={b.key} style={[styles.chip, basis === b.key && styles.chipActive]} onPress={() => setBasis(basis === b.key ? null : b.key)}>
-                        <Text style={[styles.chipTxt, basis === b.key && styles.chipTxtActive]}>{b.label}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                  {basis && (
-                    <Text style={styles.hintTxt}>{BASES.find(b => b.key === basis)?.hint}</Text>
-                  )}
-                  {basis === 'revenue_pct' && (
-                    <View style={styles.inputRow}>
-                      <TextInput style={[styles.input, { flex: 1 }]} color={colors.text} value={basisValue} onChangeText={setBasisValue} keyboardType="numeric" placeholder="2" placeholderTextColor={colors.muted} />
-                      <Text style={styles.unitTxt}>%</Text>
-                    </View>
-                  )}
-                </View>
-              )}
-
               {/* Фото чека */}
               <View style={photoAttachHighlight.style}>
               <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Фото чека</Text>
@@ -595,7 +547,7 @@ export default function ExpensesPanel({ navigation }) {
           <View style={{ paddingHorizontal: 16, paddingTop: 12, flexDirection: 'row', gap: 8 }}>
             <View style={{ flex: 1 }}>{addBtn}</View>
             <Pressable style={[styles.recurringBtn, recurringBtnHighlight.style]} onPress={() => setRecurringModal(true)}>
-              <Text style={styles.recurringBtnTxt}>🔁</Text>
+              <Text style={styles.recurringBtnTxt}>🔁 Повторы</Text>
               {recurringBtnHighlight.overlay}
             </Pressable>
           </View>
@@ -673,7 +625,7 @@ export default function ExpensesPanel({ navigation }) {
               <View key={`o${o.id}`} style={styles.recurringItemRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.recurringItemCat}>{o.name}</Text>
-                  <Text style={styles.recurringItemHint}>Распределяется — {BASES.find(b => b.key === o.basis)?.label || o.basis}</Text>
+                  <Text style={styles.recurringItemHint}>Каждый месяц</Text>
                 </View>
                 <Text style={styles.recurringItemAmt}>{fmt(o.amount)} ₽</Text>
                 <Pressable
@@ -734,10 +686,10 @@ const styles = StyleSheet.create({
   periodTxt:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
   periodTxtActive: { color: colors.orange },
 
-  addBtn:     { paddingVertical: 12, borderRadius: 12, backgroundColor: colors.orange, alignItems: 'center', marginBottom: 12 },
+  addBtn:     { height: 50, justifyContent: 'center', borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center', marginBottom: 12 },
   addBtnTxt:  { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: '#fff' },
-  recurringBtn: { width: 46, height: 46, borderRadius: 12, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
-  recurringBtnTxt: { fontSize: 18 },
+  recurringBtn: { paddingHorizontal: 16, height: 50, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.borderHi, alignItems: 'center', justifyContent: 'center', marginBottom: 12, flexDirection: 'row' },
+  recurringBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
 
   // ── Список — тонкие строки, без карточек-рамок ──
   emptyWrap:  { padding: 40, alignItems: 'center' },

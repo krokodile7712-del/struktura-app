@@ -638,11 +638,8 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
       {/* Мостик Склад → Расход: закупка материала обновляет только себестоимость
           (среднюю цену для техкарт), деньги как трата нигде не отражаются, пока
           не заведены отдельно — предлагаем сразу, с уже подставленной суммой */}
-      <Sheet visible={!!expenseBridge} onClose={() => setExpenseBridge(null)} title="Себестоимость обновлена">
+      <Sheet visible={!!expenseBridge} onClose={() => setExpenseBridge(null)} title="Добавить как расход?">
         <View style={{ padding: 20 }}>
-          <Text style={styles.bridgeTxt}>
-            Средняя цена «{expenseBridge?.name}» пересчитана. Эти деньги реально потрачены — добавить их как расход?
-          </Text>
           <View style={styles.bridgeAmountBox}>
             <Text style={styles.bridgeAmountVal}>{Math.round(expenseBridge?.amount || 0).toLocaleString('ru-RU')} ₽</Text>
             <Text style={styles.bridgeAmountLbl}>{expenseBridge?.name}</Text>
