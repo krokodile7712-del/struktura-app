@@ -9,7 +9,7 @@ import { goBackSmart, getSession } from '../db/session';
 import { colors, fonts } from '../constants/theme';
 
 const TABS = [
-  { key: 'expenses',    label: 'Расходы' },
+  { key: 'expenses',    label: 'Ежедневные' },
   { key: 'investments', label: 'Крупные покупки' },
 ];
 
@@ -47,13 +47,13 @@ export default function FinancesScreen({ navigation, route }) {
 
   return (
     <View style={styles.root}>
-      <TopBar title="Финансы" onBack={() => goBackSmart(navigation)} navigation={navigation} activeScreen="Finances" />
+      <TopBar title="Расходы" onBack={() => goBackSmart(navigation)} navigation={navigation} activeScreen="Finances" />
 
       {/* Компактная сводка за текущий месяц — только у администратора */}
       {isAdmin && summary && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.summaryRow} contentContainerStyle={styles.summaryRowInner}>
           <View style={styles.summaryChip}>
-            <Text style={styles.summaryChipLabel}>Расходы</Text>
+            <Text style={styles.summaryChipLabel}>Ежедневные</Text>
             <Text style={styles.summaryChipVal}>{fmt(summary.expensesTotal + summary.overheadsTotal)} ₽</Text>
           </View>
           <View style={styles.summaryChip}>
