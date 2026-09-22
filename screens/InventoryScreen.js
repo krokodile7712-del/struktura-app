@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Modal, Alert, Animated, TextInput } from 'react-native';
 import TopBar from '../components/TopBar';
 import Sheet from '../components/Sheet';
+import EmptyState from '../components/EmptyState';
 import { useResponsive } from '../hooks/useResponsive';
 import InfoTip from '../components/InfoTip';
 import { useFocusEffect } from '@react-navigation/native';
@@ -137,29 +138,21 @@ export default function InventoryScreen({ navigation }) {
         onBack={() => goBackSmart(navigation)}
         navigation={navigation}
         activeScreen="Inventory"
-        rightElement={
-          <Pressable style={styles.addBtn} onPress={() => setShowSetup(true)}>
-            <Text style={styles.addBtnTxt}>+ Новый акт</Text>
-          </Pressable>
-        }
       />
 
-      <View style={{ flex: 1, flexDirection: isLandscape ? 'row' : 'column' }}>
-      <Animated.View style={[{ flex: 1 }, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+      <View key={isLandscape ? 'landscape' : 'portrait'} style={{ flex: 1, flexDirection: isLandscape ? 'row' : 'column' }}>
+      <Animated.View style={[isLandscape ? styles.leftCol : { flex: 1 }, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
 
-        {/* Подсказка */}
-        <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>Что такое инвентаризация?</Text>
-          <Text style={styles.infoTxt}>
-            Сверка фактических остатков с данными в системе. Помогает выявить расхождения — недостачи или излишки. Проводится периодически или по необходимости.
-          </Text>
-        </View>
+        <Pressable style={styles.addBtnBig} onPress={() => setShowSetup(true)}>
+          <Text style={styles.addBtnBigTxt}>+ Новый акт</Text>
+        </Pressable>
 
         {acts.length === 0 ? (
-          <View style={styles.emptyWrap}>
-            <Text style={styles.emptyTxt}>Нет актов инвентаризации</Text>
-            <Text style={styles.emptyHint}>Нажмите «+ Новый акт» чтобы начать пересчёт склада</Text>
-          </View>
+          <EmptyState
+            icon="📋"
+            title="Инвентаризаций ещё не было"
+            text="Сверьте фактические остатки склада с тем, что в системе — так вы увидите недостачи или излишки"
+          />
         ) : (
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingBottom: 32, width: '100%', maxWidth: 760, alignSelf: 'center' }}>
             {acts.map((act, idx) => {
@@ -234,33 +227,55 @@ export default function InventoryScreen({ navigation }) {
             })}
           </ScrollView>
         )}
+
+        {!isLandscape && (
+          <View style={[styles.infoCard, { marginTop: 16, marginHorizontal: 16, marginBottom: 16 }]}>
+            <Text style={styles.infoTitle}>Что такое инвентаризация?</Text>
+            <Text style={styles.infoTxt}>
+              Сверка фактических остатков с данными в системе. Помогает выявить расхождения — недостачи или излишки. Проводится периодически или по необходимости.
+            </Text>
+          </View>
+        )}
       </Animated.View>
 
-      {isLandscape && acts.length > 0 && (
-        /* Альбомная — сводка расхождений постоянной панелью справа */
+      {isLandscape && (
+        /* Альбомная — подсказка сверху (крупнее, отступ от шапки), статистика ниже, если акты уже есть */
         <View style={styles.sidePanel}>
-          <Text style={styles.sideLabel}>Актов всего</Text>
-          <Text style={styles.sideVal}>{acts.length}</Text>
-          <Text style={styles.sideSub}>
-            {acts.filter(a => a.status === 'completed').length} завершено · {acts.filter(a => a.status !== 'completed').length} в процессе
-          </Text>
+          <View style={styles.infoCardBig}>
+            <Text style={styles.infoTitleBig}>Что такое инвентаризация?</Text>
+            <Text style={styles.infoTxtBig}>
+              Сверка фактических остатков с данными в системе. Помогает выявить расхождения — недостачи или излишки. Проводится периодически или по необходимости.
+            </Text>
+          </View>
 
-          <View style={styles.sideDivider} />
+          {acts.length > 0 && (
+            <>
+              <View style={styles.sideDivider} />
 
-          <Text style={styles.sideLabel}>Расхождение план/факт</Text>
-          <Text style={[styles.sideVal, { fontSize: 26, color: discrepancy >= 0 ? colors.green : colors.red }]}>
-            {discrepancy >= 0 ? '+' : ''}{fmt(discrepancy)} ₽
-          </Text>
-          <Text style={styles.sideSub}>
-            {discrepancy >= 0 ? 'Найдено больше, чем ожидалось' : 'Недостача по завершённым актам'}
-          </Text>
+              <Text style={styles.sideLabel}>Актов всего</Text>
+              <Text style={styles.sideVal}>{acts.length}</Text>
+              <Text style={styles.sideSub}>
+                {acts.filter(a => a.status === 'completed').length} завершено · {acts.filter(a => a.status !== 'completed').length} в процессе
+              </Text>
 
-          <View style={styles.sideDivider} />
+              <View style={styles.sideDivider} />
 
-          <Text style={styles.sideLabel}>Мало на складе</Text>
-          <Text style={styles.sideSub}>
-            {stock.filter(s => s['остаток'] <= (s.threshold || 0)).length} позиций ниже порога
-          </Text>
+              <Text style={styles.sideLabel}>Расхождение план/факт</Text>
+              <Text style={[styles.sideVal, { fontSize: 26, color: discrepancy >= 0 ? colors.green : colors.red }]}>
+                {discrepancy >= 0 ? '+' : ''}{fmt(discrepancy)} ₽
+              </Text>
+              <Text style={styles.sideSub}>
+                {discrepancy >= 0 ? 'Найдено больше, чем ожидалось' : 'Недостача по завершённым актам'}
+              </Text>
+
+              <View style={styles.sideDivider} />
+
+              <Text style={styles.sideLabel}>Мало на складе</Text>
+              <Text style={styles.sideSub}>
+                {stock.filter(s => s['остаток'] <= (s.threshold || 0)).length} позиций ниже порога
+              </Text>
+            </>
+          )}
         </View>
       )}
       </View>
@@ -345,15 +360,24 @@ const styles = StyleSheet.create({
   root:   { flex: 1, backgroundColor: colors.bg },
 
   // ── Боковая панель сводки (альбомная) ──
-  sidePanel:  { width: '40%', maxWidth: 320, borderLeftWidth: 1, borderLeftColor: colors.border, backgroundColor: colors.surface, padding: 20 },
+  sidePanel:  { width: '40%', maxWidth: 320, borderLeftWidth: 1, borderLeftColor: colors.borderHi, backgroundColor: colors.surface2, padding: 20 },
+  leftCol:    { flex: 0, width: '38%', maxWidth: 480 },
+  addBtnBig:  { marginHorizontal: 16, marginTop: 16, marginBottom: 8, paddingVertical: 16, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
+  addBtnBigTxt: { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: '#fff' },
+
+  infoCard:  { margin: 12, backgroundColor: 'rgba(139,127,212,0.08)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(139,127,212,0.2)', padding: 16, width: '100%', maxWidth: 760, alignSelf: 'center' },
+  infoTitle: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.indigo, marginBottom: 6 },
+  infoTxt:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.textDim, lineHeight: 20 },
+
+  // Та же подсказка, но крупнее и с отступом сверху — для боковой панели
+  // в альбомной, не прижата к самому верху под шапкой
+  infoCardBig: { marginTop: 24, backgroundColor: 'rgba(139,127,212,0.08)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(139,127,212,0.25)', padding: 20 },
+  infoTitleBig: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.indigo, marginBottom: 8 },
+  infoTxtBig:   { fontFamily: fonts.familyRegular, fontSize: 15, color: colors.textDim, lineHeight: 22 },
   sideLabel:  { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
   sideVal:    { fontFamily: fonts.family, fontSize: 30, fontWeight: '800', color: colors.orange, marginTop: 6 },
   sideSub:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
   sideDivider:{ height: 1, backgroundColor: colors.border, marginVertical: 16 },
-
-  infoCard:  { margin: 12, backgroundColor: 'rgba(139,127,212,0.08)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(139,127,212,0.2)', padding: 14, width: '100%', maxWidth: 760, alignSelf: 'center' },
-  infoTitle: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.indigo, marginBottom: 6 },
-  infoTxt:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.textDim, lineHeight: 18 },
 
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
   emptyTxt:  { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted },
