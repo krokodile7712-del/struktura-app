@@ -520,7 +520,7 @@ export default function ExpensesPanel({ navigation }) {
         <Text style={styles.tourBtnTxt}>?</Text>
       </Pressable>
 
-      <View style={{ flex: 1, flexDirection: isLandscape ? 'row' : 'column' }}>
+      <View key={isLandscape ? 'landscape' : 'portrait'} style={{ flex: 1, flexDirection: isLandscape ? 'row' : 'column' }}>
 
         {!isLandscape && (
           /* Портрет — компактная сводка сверху, по умолчанию свёрнута */
