@@ -96,6 +96,18 @@ export default function InventoryScreen({ navigation }) {
     } catch(e) {}
   };
 
+  // Сохраняет всё введённое (включая поле, которое ещё в фокусе и не
+  // потеряло его — onBlur может не успеть отработать до закрытия) и
+  // только потом закрывает экран — ничего введённого не теряется
+  const handleBack = () => {
+    Object.entries(actVals).forEach(([id, val]) => {
+      const num = parseFloat(val);
+      if (!isNaN(num)) setInventoryItemActual(parseInt(id), num);
+    });
+    setActiveAct(null);
+    load();
+  };
+
   const handleConfirm = () => {
     Alert.alert('Подтвердить инвентаризацию?', 'Фактические остатки будут применены к складу', [
       { text: 'Отмена' },
@@ -288,10 +300,10 @@ export default function InventoryScreen({ navigation }) {
       </View>
 
       {/* Экран заполнения акта */}
-      <Modal visible={!!activeAct} transparent={false} animationType="slide">
+      <Modal visible={!!activeAct} transparent={false} animationType="slide" onRequestClose={handleBack}>
         <View style={styles.fillRoot}>
           <View style={styles.fillHeader}>
-            <Pressable onPress={() => setActiveAct(null)} style={styles.fillBack}>
+            <Pressable onPress={handleBack} style={styles.fillBack}>
               <Text style={styles.fillBackTxt}>← Назад</Text>
             </Pressable>
             <Text style={styles.fillTitle}>Фактические остатки</Text>
