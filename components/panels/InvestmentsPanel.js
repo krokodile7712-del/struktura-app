@@ -5,7 +5,7 @@ import InfoTip from '../../components/InfoTip';
 import Sheet from '../../components/Sheet';
 import DatePicker from '../../components/DatePicker';
 import { useFocusEffect } from '@react-navigation/native';
-import { getInvestments, addInvestment, updateInvestment, deleteInvestment, getInvestmentSummary, getPnL } from '../../db/queries';
+import { getInvestments, addInvestment, updateInvestment, deleteInvestment, getInvestmentSummary } from '../../db/queries';
 import { colors, fonts, anim } from '../../constants/theme';
 
 const CATEGORIES = [
@@ -24,7 +24,6 @@ export default function InvestmentsPanel({ navigation }) {
   const { isLandscape } = useResponsive();
   const [items, setItems]       = useState([]);
   const [summary, setSummary]   = useState(null);
-  const [avgProfit, setAvgProfit] = useState(0);
   const [selected, setSelected] = useState(null);
   const [draft, setDraft]       = useState(null);
   const [isNew, setIsNew]       = useState(false);
@@ -37,11 +36,6 @@ export default function InvestmentsPanel({ navigation }) {
     try {
       setItems(getInvestments());
       setSummary(getInvestmentSummary());
-      const d = new Date();
-      const to = d.toISOString().slice(0,10);
-      const from3 = new Date(d.setMonth(d.getMonth()-3)).toISOString().slice(0,10);
-      const pnl = getPnL(from3, to);
-      setAvgProfit(Math.round((pnl?.netProfit || 0) / 3));
     } catch(e) { console.error(e); }
   }, []);
 
@@ -91,10 +85,6 @@ export default function InvestmentsPanel({ navigation }) {
     ]);
   };
 
-  // Расчёт окупаемости
-  const paybackMonths = summary && avgProfit > 0 ? Math.ceil(summary.totalUnamortized / avgProfit) : null;
-  const paybackStr = paybackMonths ? (paybackMonths > 120 ? '> 10 лет' : `${paybackMonths} мес.`) : '—';
-
   return (
     <View style={styles.root}>
       <View style={[styles.layout, !isLandscape && { flexDirection: 'column' }]}>
@@ -108,20 +98,43 @@ export default function InvestmentsPanel({ navigation }) {
           {summary && (
             <View style={styles.summaryCard}>
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Вложено</Text>
+                <Text style={styles.summaryLabel}>Вложено всего</Text>
                 <Text style={styles.summaryVal}>{fmt(summary.totalInvested)} ₽</Text>
               </View>
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Осталось окупить</Text>
-                <Text style={[styles.summaryVal, { color: colors.amber }]}>{fmt(summary.totalUnamortized)} ₽</Text>
-              </View>
-              <View style={[styles.summaryRow, { borderBottomWidth: 0 }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Text style={styles.summaryLabel}>Окупаемость</Text>
-                  <InfoTip title="Окупаемость" text="Рассчитана на основе средней чистой прибыли за последние 3 месяца." />
+
+              {summary.totalInvested > 0 && (
+                <View style={styles.barSection}>
+                  <View style={styles.barTrack}>
+                    {summary.amortizedTotal > 0 && (
+                      <View style={[styles.barFill, { flex: summary.amortizedTotal, backgroundColor: colors.orange }]} />
+                    )}
+                    {summary.oneOffTotal > 0 && (
+                      <View style={[styles.barFill, { flex: summary.oneOffTotal, backgroundColor: colors.borderHi }]} />
+                    )}
+                  </View>
+                  <View style={styles.barLegendRow}>
+                    <View style={styles.barLegendItem}>
+                      <View style={[styles.barDot, { backgroundColor: colors.orange }]} />
+                      <Text style={styles.barLegendTxt}>Списывается постепенно</Text>
+                    </View>
+                    <Text style={styles.barLegendVal}>{fmt(summary.amortizedTotal)} ₽</Text>
+                  </View>
+                  <View style={styles.barLegendRow}>
+                    <View style={styles.barLegendItem}>
+                      <View style={[styles.barDot, { backgroundColor: colors.borderHi }]} />
+                      <Text style={styles.barLegendTxt}>Разовые</Text>
+                    </View>
+                    <Text style={styles.barLegendVal}>{fmt(summary.oneOffTotal)} ₽</Text>
+                  </View>
                 </View>
-                <Text style={[styles.summaryVal, { color: colors.green }]}>{paybackStr}</Text>
-              </View>
+              )}
+
+              {summary.monthlyLoad > 0 && (
+                <View style={[styles.summaryRow, { borderBottomWidth: 0, borderTopWidth: 1, borderTopColor: colors.border }]}>
+                  <Text style={styles.summaryLabel}>Списывается сейчас</Text>
+                  <Text style={[styles.summaryVal, { color: colors.orange }]}>≈ {fmt(summary.monthlyLoad)} ₽/мес</Text>
+                </View>
+              )}
             </View>
           )}
 
@@ -357,6 +370,14 @@ const styles = StyleSheet.create({
   summaryRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
   summaryLabel:{ fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
   summaryVal:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
+  barSection:  { padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+  barTrack:    { flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden', backgroundColor: colors.surface },
+  barFill:     { height: '100%' },
+  barLegendRow:{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
+  barLegendItem:{ flexDirection: 'row', alignItems: 'center', gap: 6 },
+  barDot:      { width: 8, height: 8, borderRadius: 4 },
+  barLegendTxt:{ fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+  barLegendVal:{ fontFamily: fonts.familySemibold, fontSize: 12, color: colors.text },
 
   listHint: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, paddingHorizontal: 12, paddingBottom: 4 },
   listCard: { margin: 8, backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },

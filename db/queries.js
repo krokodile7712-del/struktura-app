@@ -2985,12 +2985,18 @@ export function getInvestmentSummary() {
   const returnable = all.filter(i => i.returnable);
   const totalInvested = nonReturnable.reduce((s, i) => s + i.amount, 0);
   const totalReturnable = returnable.reduce((s, i) => s + i.amount, 0);
+  // Разбивка не-возвратных покупок — списывается постепенно (амортизация) vs разовая трата
+  const amortized = nonReturnable.filter(i => i.amort_months > 0);
+  const oneOff = nonReturnable.filter(i => !(i.amort_months > 0));
+  const amortizedTotal = amortized.reduce((s, i) => s + i.amount, 0);
+  const oneOffTotal = oneOff.reduce((s, i) => s + i.amount, 0);
+  const monthlyLoad = amortized.reduce((s, i) => s + (i.amort_months > 0 ? i.amount / i.amort_months : 0), 0);
   // Накопленная прибыль из P&L (за всё время)
   const profitRow = db.getFirstSync(
     `SELECT SUM(total) as rev FROM orders WHERE status IS NULL OR status != 'returned'`
   );
   const totalRevenue = profitRow?.rev || 0;
-  return { totalInvested, totalReturnable, totalRevenue, all };
+  return { totalInvested, totalReturnable, totalRevenue, all, amortizedTotal, oneOffTotal, monthlyLoad: Math.round(monthlyLoad) };
 }
 
 // ─── Блок Ж: Журнал работ ───────────────────────────────────────────────────
