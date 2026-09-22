@@ -249,7 +249,7 @@ export default function InventoryScreen({ navigation }) {
           </View>
 
           {acts.length > 0 && (
-            <>
+            <View style={{ width: '100%', maxWidth: 420, alignSelf: 'center' }}>
               <View style={styles.sideDivider} />
 
               <Text style={styles.sideLabel}>Актов всего</Text>
@@ -274,7 +274,7 @@ export default function InventoryScreen({ navigation }) {
               <Text style={styles.sideSub}>
                 {stock.filter(s => s['остаток'] <= (s.threshold || 0)).length} позиций ниже порога
               </Text>
-            </>
+            </View>
           )}
         </View>
       )}
@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
   root:   { flex: 1, backgroundColor: colors.bg },
 
   // ── Боковая панель сводки (альбомная) ──
-  sidePanel:  { width: '40%', maxWidth: 320, borderLeftWidth: 1, borderLeftColor: colors.borderHi, backgroundColor: colors.surface2, padding: 20 },
+  sidePanel:  { flex: 1, borderLeftWidth: 1, borderLeftColor: colors.borderHi, backgroundColor: colors.surface2, padding: 20 },
   leftCol:    { flex: 0, width: '38%', maxWidth: 480 },
   addBtnBig:  { marginHorizontal: 16, marginTop: 16, marginBottom: 8, paddingVertical: 16, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
   addBtnBigTxt: { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: '#fff' },
@@ -371,7 +371,7 @@ const styles = StyleSheet.create({
 
   // Та же подсказка, но крупнее и с отступом сверху — для боковой панели
   // в альбомной, не прижата к самому верху под шапкой
-  infoCardBig: { marginTop: 24, backgroundColor: 'rgba(139,127,212,0.08)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(139,127,212,0.25)', padding: 20 },
+  infoCardBig: { marginTop: 24, backgroundColor: 'rgba(139,127,212,0.08)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(139,127,212,0.25)', padding: 20, width: '100%', maxWidth: 420, alignSelf: 'center' },
   infoTitleBig: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.indigo, marginBottom: 8 },
   infoTxtBig:   { fontFamily: fonts.familyRegular, fontSize: 15, color: colors.textDim, lineHeight: 22 },
   sideLabel:  { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
