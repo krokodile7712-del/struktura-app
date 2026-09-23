@@ -49,6 +49,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
   const isNew = !product?.id;
   const isDemo = !!product?.__demo;
   const canEditCost = can('edit_cost_cards');
+  const canEditProducts = can('edit_products');
   const { isLandscape } = useResponsive();
   const [stock, setStock] = useState(() => { try { return getAllStock(); } catch { return []; } });
 
@@ -148,6 +149,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
   const setDeductionMode = (vi, mode) => setVars(v => v.map((r,j) => j===vi ? { ...r, deduction_mode: mode } : r));
 
   const handleSave = () => {
+    if (!canEditProducts) { Alert.alert('Нет права редактировать товары'); return; }
     if (!name.trim()) { Alert.alert('Введите название товара'); return; }
     onSave({ name: name.trim(), category, active, vars, selGroups, discountEligible });
   };
@@ -425,10 +427,11 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
         )}
 
 
-        {/* Кнопки — для демо-карточки скрыты, ничего не сохраняется по-настоящему */}
+        {/* Кнопки — для демо-карточки скрыты, ничего не сохраняется по-настоящему.
+            Без права edit_products — только просмотр, без сохранения/удаления. */}
         {isDemo ? (
           <Text style={styles.demoNote}>Это пример — реальный товар создаётся точно так же</Text>
-        ) : (
+        ) : !canEditProducts ? null : (
         <>
         <Pressable style={styles.saveBtn} onPress={handleSave}>
           <Text style={styles.saveBtnTxt}>{isNew ? 'Создать товар' : 'Сохранить изменения'}</Text>
@@ -851,9 +854,11 @@ export default function ProductsScreen({ navigation, route }) {
                 <TextInput style={[styles.searchInput, { flex: 1 }]} color={colors.text}
                   value={search} onChangeText={setSearch}
                   placeholder="Поиск товара..." placeholderTextColor={colors.muted} />
-                <Pressable onPress={() => setSelected('new')} hitSlop={8} style={styles.addStockBtn}>
-                  <Text style={styles.addStockBtnText}>+ Товар</Text>
-                </Pressable>
+                {can('edit_products') && (
+                  <Pressable onPress={() => setSelected('new')} hitSlop={8} style={styles.addStockBtn}>
+                    <Text style={styles.addStockBtnText}>+ Товар</Text>
+                  </Pressable>
+                )}
                 <Pressable onPress={() => setCatModal(true)} hitSlop={8} style={styles.catBtn}>
                   <Text style={styles.catBtnText}>⚙</Text>
                 </Pressable>
