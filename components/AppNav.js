@@ -16,7 +16,7 @@ const ADMIN_SECTIONS = [
   { key: 'ClientsList', route: 'ClientsList',  label: 'Клиенты',  module: 'clients' },
   { key: 'Reports',     route: 'Reports',      label: 'Отчётность' },
   { key: 'Finances',    route: 'Finances',     label: 'Расходы' },
-  { key: 'Inventory',   route: 'Inventory',    label: 'Инвентаризация', module: 'inventory' },
+  { key: 'Inventory',   route: 'Inventory',    label: 'Инвентаризация', module: 'inventory', perm: 'edit_stock' },
   { key: 'WorkJournal', route: 'WorkJournal',  label: 'Журнал работы' },
   { key: 'Locations',   route: 'Locations',    label: 'Локации',  module: 'locations' },
   { key: 'Bookings',    route: 'Bookings',     label: 'Записи' },
