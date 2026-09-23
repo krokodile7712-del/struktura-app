@@ -82,7 +82,7 @@ export default function InventoryScreen({ navigation }) {
     { key: 'inventory.scope',  title: 'Охват пересчёта', text: '«Весь склад» — все позиции разом. «По категории» — только один раздел товаров. «Выборочно» — отметьте вручную, что именно пересчитываете.' },
     { key: 'inventory.list',   title: 'Список актов', text: 'Тап разворачивает карточку — видно позиции и расхождения. Оранжевый бейдж — сколько позиций разошлось с учётом.' },
     { key: 'inventory.fill',   title: 'Заполнение остатков', text: 'Вводите то, что реально на складе. Поле подсвечивается оранжевым, если отличается от учётного значения.', cardPosition: 'top' },
-    { key: 'inventory.confirm', title: 'Подтверждение', text: 'Подтверждение необратимо переписывает остатки на складе введёнными значениями — как в жизни, пути назад нет.', cardPosition: 'top' },
+    { key: 'inventory.confirm', title: 'Подтверждение', text: 'Перед подтверждением — краткие итоги по каждой позиции. Подтверждение необратимо переписывает остатки на складе — как в жизни, пути назад нет.', cardPosition: 'top' },
     { key: 'inventory.stats', title: 'Статистика', text: 'Расхождение план/факт в деньгах по завершённым актам, и сколько позиций уже мало на складе.' },
   ];
   const demoStepKeys = new Set(['inventory.fill', 'inventory.confirm']);
@@ -238,13 +238,32 @@ export default function InventoryScreen({ navigation }) {
           {confirmHighlight.overlay}
         </Pressable>
       </View>
+      {activeAct.__demo && activeTourKey === 'inventory.confirm' ? (
+        <View style={[styles.fillCard, { position: 'relative', marginTop: 4 }, fillHighlight.style]}>
+          <View style={{ padding: 16 }}>
+            <Text style={styles.summaryHeading}>Итоги</Text>
+            {actItems.map((item, idx) => {
+              const actual = parseFloat(actVals[item.id]);
+              const diff = actual - item.expected;
+              const matched = diff === 0;
+              return (
+                <View key={item.id} style={[styles.fillRow, { paddingHorizontal: 0 }, idx < actItems.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.borderHi }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.fillName}>{item.stock_name}</Text>
+                    <Text style={styles.fillUnit}>Было {fmt(item.expected)} {item.unit} → стало {fmt(actual)} {item.unit}</Text>
+                  </View>
+                  <Text style={[styles.summaryDiff, { color: matched ? colors.muted : diff > 0 ? colors.green : colors.red }]}>
+                    {matched ? 'Совпало' : `${diff > 0 ? '+' : ''}${fmt(diff)} ${item.unit}`}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+          {fillHighlight.overlay}
+        </View>
+      ) : (
       <ScrollView keyboardShouldPersistTaps="handled" style={{ flex: 1 }}>
         <View style={[styles.fillCard, { position: 'relative' }, fillHighlight.style]}>
-          {actItems.length === 0 && (
-            <Text style={{ padding: 16, color: colors.muted, fontFamily: fonts.familyRegular, fontSize: 14 }}>
-              Список позиций пуст (actItems.length === 0)
-            </Text>
-          )}
           {actItems.map((item, idx) => {
             const changed = actVals[item.id] && parseFloat(actVals[item.id]) !== item.expected;
             return (
@@ -269,6 +288,7 @@ export default function InventoryScreen({ navigation }) {
           {fillHighlight.overlay}
         </View>
       </ScrollView>
+      )}
     </>
   );
 
@@ -440,6 +460,30 @@ export default function InventoryScreen({ navigation }) {
           {activeAct && (
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20 }}>
               <Text style={styles.fillPanelSub}>{SCOPE_OPTIONS.find(s => s.key === activeAct.scope)?.label || 'Инвентаризация'}</Text>
+              {activeAct.__demo && activeTourKey === 'inventory.confirm' ? (
+                <View style={[styles.fillCard, { marginTop: 12, position: 'relative' }, fillHighlight.style]}>
+                  <View style={{ padding: 16 }}>
+                    <Text style={styles.summaryHeading}>Итоги</Text>
+                    {actItems.map((item, idx) => {
+                      const actual = parseFloat(actVals[item.id]);
+                      const diff = actual - item.expected;
+                      const matched = diff === 0;
+                      return (
+                        <View key={item.id} style={[styles.fillRow, { paddingHorizontal: 0 }, idx < actItems.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.borderHi }]}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.fillName}>{item.stock_name}</Text>
+                            <Text style={styles.fillUnit}>Было {fmt(item.expected)} {item.unit} → стало {fmt(actual)} {item.unit}</Text>
+                          </View>
+                          <Text style={[styles.summaryDiff, { color: matched ? colors.muted : diff > 0 ? colors.green : colors.red }]}>
+                            {matched ? 'Совпало' : `${diff > 0 ? '+' : ''}${fmt(diff)} ${item.unit}`}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                  {fillHighlight.overlay}
+                </View>
+              ) : (
               <View style={[styles.fillCard, { marginTop: 12, position: 'relative' }, fillHighlight.style]}>
                 {actItems.map((item, idx) => {
                   const changed = actVals[item.id] && parseFloat(actVals[item.id]) !== item.expected;
@@ -464,6 +508,7 @@ export default function InventoryScreen({ navigation }) {
                 })}
                 {fillHighlight.overlay}
               </View>
+              )}
               <Pressable style={[styles.confirmBtn, { marginTop: 20, alignSelf: 'stretch', paddingVertical: 15, position: 'relative' }, confirmHighlight.style]} onPress={handleConfirm}>
                 <Text style={[styles.confirmBtnTxt, { textAlign: 'center', fontSize: 16 }]}>Подтвердить</Text>
                 {confirmHighlight.overlay}
@@ -636,6 +681,8 @@ const styles = StyleSheet.create({
   fillName:   { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
   fillUnit:   { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 2 },
   fillInput:  { width: 110, backgroundColor: colors.surface3, borderRadius: 12, borderWidth: 1, borderColor: colors.border, paddingVertical: 12, paddingHorizontal: 12, fontFamily: fonts.familySemibold, fontSize: 15, textAlign: 'right', color: colors.text },
+  summaryHeading: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8 },
+  summaryDiff: { fontFamily: fonts.familySemibold, fontSize: 15 },
 
   addBtn:     { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, backgroundColor: 'rgba(240,160,80,0.12)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)' },
   addBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
