@@ -5,12 +5,14 @@ import { fonts, colors } from '../constants/theme';
 // Баннер "Смена не открыта" — показывается под TopBar если нет открытой смены
 export default function ShiftBanner({ onOpen }) {
   return (
-    <Pressable style={styles.banner} onPress={onOpen}>
+    <Pressable style={styles.banner} onPress={onOpen} disabled={!onOpen}>
       <Text style={styles.icon}>⏸</Text>
       <Text style={styles.text}>Смена не открыта</Text>
-      <View style={styles.btn}>
-        <Text style={styles.btnText}>Открыть →</Text>
-      </View>
+      {onOpen && (
+        <View style={styles.btn}>
+          <Text style={styles.btnText}>Открыть →</Text>
+        </View>
+      )}
     </Pressable>
   );
 }

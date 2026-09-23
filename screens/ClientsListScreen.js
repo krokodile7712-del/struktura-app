@@ -10,7 +10,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { getAllClients, searchClients, getClientOrders, getTerms, pluralizeRu, countRu,
          getLoyaltyConfig, updateClientNote, getClientById, getBusinessProfile, markTourSeen } from '../db/queries';
 import { updateClient } from '../db/queries';
-import { getHomeRoute, goBackSmart, getSession } from '../db/session';
+import { getHomeRoute, goBackSmart, getSession, can } from '../db/session';
 import { colors, fonts } from '../constants/theme';
 
 // Перенесено из LoyaltyScreen.js (экран удалён — дублировал список клиентов,
@@ -216,7 +216,7 @@ function ClientCard({ client, onNewOrder, onSaved, loyaltyModel, loyaltyConfig }
           onPress={() => onNewOrder(client)}>
           <Text style={styles.btnTxt}>＋ Новый заказ</Text>
         </Pressable>
-        {isAdmin && (
+        {can('edit_clients') && (
           <Pressable style={({ pressed }) => [styles.btnSec, { flex: 1 }, pressed && { opacity: 0.88 }]}
             onPress={() => setEditing(e => !e)}>
             <Text style={styles.btnSecTxt}>{editing ? 'Скрыть' : '✎ Редактировать'}</Text>
@@ -230,7 +230,7 @@ function ClientCard({ client, onNewOrder, onSaved, loyaltyModel, loyaltyConfig }
           {[
             { label: 'ФИО', val: fio, set: setFio, kb: 'default' },
             { label: 'Телефон', val: phone, set: setPhone, kb: 'phone-pad' },
-            { label: loyaltyModel === 'subscription' ? 'Визитов' : 'Баллов', val: balance, set: setBalance, kb: 'numeric' },
+            ...(can('manage_loyalty') ? [{ label: loyaltyModel === 'subscription' ? 'Визитов' : 'Баллов', val: balance, set: setBalance, kb: 'numeric' }] : []),
             { label: 'Личная скидка %', val: discountPct, set: setDiscountPct, kb: 'numeric' },
             { label: 'Дата рождения', val: birthDate, set: setBirthDate, kb: 'numbers-and-punctuation', placeholder: '01.01.1990' },
           ].map(f => (

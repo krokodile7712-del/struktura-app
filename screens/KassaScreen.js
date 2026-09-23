@@ -690,10 +690,12 @@ export default function KassaScreen({ navigation, route }) {
     if (!hasShift) {
       Alert.alert(
         'Смена не открыта',
-        'Чтобы провести продажу, сначала откройте смену.',
-        [
+        can('open_shift') ? 'Чтобы провести продажу, сначала откройте смену.' : 'Чтобы провести продажу, нужна открытая смена — обратитесь к администратору.',
+        can('open_shift') ? [
           { text: 'Отмена', style: 'cancel' },
           { text: 'Открыть смену', onPress: () => navigation.navigate('Shift', { returnTo: 'Kassa' }) },
+        ] : [
+          { text: 'Понятно' },
         ]
       );
       return;

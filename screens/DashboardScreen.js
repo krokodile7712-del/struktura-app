@@ -7,7 +7,7 @@ import EmployeeStatsSheet from '../components/EmployeeStatsSheet';
 import {
   getOpenShift, getBusinessProfile, getDashboardStats, getRoleNames,
 } from '../db/queries';
-import { getSession } from '../db/session';
+import { getSession, can } from '../db/session';
 import { colors, fonts } from '../constants/theme';
 
 function getGreeting() {
@@ -47,7 +47,7 @@ export default function DashboardScreen({ navigation }) {
   return (
     <View style={styles.root}>
       <TopBar title={roleNames.barista || 'Сотрудник'} navigation={navigation} activeScreen="Dashboard" />
-      {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift')} />}
+      {!hasShift && <ShiftBanner onOpen={can('open_shift') ? () => navigation.navigate('Shift') : undefined} />}
 
       <View style={{ flex: 1 }}>
 
@@ -64,10 +64,12 @@ export default function DashboardScreen({ navigation }) {
 
           <View style={styles.statsGrid}>
             {[
-              { label: 'Выручка',     value: `${fmt(stats.todayTotal)} ₽` },
               { label: 'Заказов',     value: stats.todayOrders || 0 },
-              { label: 'Средний чек', value: `${stats.todayOrders > 0 ? fmt(Math.round((stats.todayTotal||0) / stats.todayOrders)) : 0} ₽` },
-              { label: 'Наличные',    value: `${fmt(stats.todayCash)} ₽` },
+              ...(can('view_revenue') ? [
+                { label: 'Выручка',     value: `${fmt(stats.todayTotal)} ₽` },
+                { label: 'Средний чек', value: `${stats.todayOrders > 0 ? fmt(Math.round((stats.todayTotal||0) / stats.todayOrders)) : 0} ₽` },
+                { label: 'Наличные',    value: `${fmt(stats.todayCash)} ₽` },
+              ] : []),
             ].map((s, i) => (
               <View key={i} style={styles.statCard}>
                 <Text style={styles.statVal}>{s.value}</Text>
@@ -76,7 +78,7 @@ export default function DashboardScreen({ navigation }) {
             ))}
           </View>
 
-          {stats.shift && (
+          {stats.shift && can('close_shift') && (
             <>
               <View style={styles.shiftDivider} />
               <Pressable
@@ -85,7 +87,7 @@ export default function DashboardScreen({ navigation }) {
               >
                 <View>
                   <Text style={styles.shiftCloseTxt}>Закрыть смену</Text>
-                  <Text style={styles.shiftCloseSub}>Открыта {stats.shiftDuration || ''} · {fmt(stats.todayTotal)} ₽</Text>
+                  <Text style={styles.shiftCloseSub}>Открыта {stats.shiftDuration || ''}{can('view_revenue') ? ` · ${fmt(stats.todayTotal)} ₽` : ''}</Text>
                 </View>
                 <Text style={{ fontSize: 18, color: colors.red }}>›</Text>
               </Pressable>

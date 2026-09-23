@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, Animated, KeyboardAvoidingView, Platform } from 'react-native';
 import { openShift, getOpenShift, getLocations } from '../db/queries';
-import { getSession, setCurrentLocationId } from '../db/session';
+import { getSession, setCurrentLocationId, can } from '../db/session';
 import { colors, fonts } from '../constants/theme';
 
 export default function ShiftScreen({ navigation, route }) {
@@ -44,6 +44,7 @@ export default function ShiftScreen({ navigation, route }) {
   }, []);
 
   const handleOpen = () => {
+    if (!can('open_shift')) { setError('Нет права открывать смену — обратитесь к администратору.'); return; }
     try {
       const user = getSession();
       openShift(parseFloat(cash) || 0, user?.id || null, user?.name || '', locationId);

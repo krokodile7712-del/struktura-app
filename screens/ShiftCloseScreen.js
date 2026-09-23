@@ -4,7 +4,7 @@ import TopBar from '../components/TopBar';
 import { getOpenShift, getShiftSummary, closeShift, getTerms, pluralizeRu, getPayMethods } from '../db/queries';
 import { useToast } from '../components/Toast';
 import { useFocusEffect } from '@react-navigation/native';
-import { clearSession, getHomeRoute, goBackSmart, getSession } from '../db/session';
+import { clearSession, getHomeRoute, goBackSmart, getSession, can } from '../db/session';
 import { resetKassaCart } from '../db/cartStore';
 import { colors, fonts } from '../constants/theme';
 
@@ -68,6 +68,7 @@ export default function ShiftCloseScreen({ navigation }) {
 
   const handleConfirm = () => {
     if (!summary) return;
+    if (!can('close_shift')) { toast.show('Нет права закрывать смену'); return; }
     try {
       closeShift(summary.shift.id);
       setClosed(true);

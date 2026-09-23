@@ -16,7 +16,7 @@ import {
   returnOrder, getTerms, pluralizeRu, getPayMethods, getBusinessProfile, markTourSeen,
 } from '../db/queries';
 import { useToast } from '../components/Toast';
-import { getSession, getHomeRoute, goBackSmart } from '../db/session';
+import { getSession, getHomeRoute, goBackSmart, can } from '../db/session';
 import { colors, fonts } from '../constants/theme';
 
 // ─── Утилиты ─────────────────────────────────────────────────────────────────
@@ -351,9 +351,11 @@ export default function SalesScreen({ navigation }) {
                                   }}>
                                     <Text style={styles.actionTxt}>📄 Чек</Text>
                                   </Pressable>
-                                  <Pressable style={styles.actionBtn} onPress={() => setReturnTarget(order)}>
-                                    <Text style={styles.actionTxt}>↩ Возврат</Text>
-                                  </Pressable>
+                                  {can('cancel_orders') && (
+                                    <Pressable style={styles.actionBtn} onPress={() => setReturnTarget(order)}>
+                                      <Text style={styles.actionTxt}>↩ Возврат</Text>
+                                    </Pressable>
+                                  )}
                                   <Pressable style={styles.actionBtn} onPress={() => openEdit(order)}>
                                     <Text style={styles.actionTxt}>✎ Изменить</Text>
                                   </Pressable>
