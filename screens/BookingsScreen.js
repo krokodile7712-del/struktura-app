@@ -527,6 +527,20 @@ export default function BookingsScreen({ navigation }) {
               </Pressable>
             )}
 
+            {isLandscape && (
+              <View style={[styles.calEmbeddedWrap, { position: 'relative' }, calendarHighlight.style]}>
+                <BookingsCalendar
+                  onlineDates={calOnlineDates}
+                  manualDates={calManualDates}
+                  selectedDate={selectedCalDate}
+                  onSelectDay={onSelectCalDay}
+                  onMonthChange={loadCalendarMonth}
+                  embedded
+                />
+                {calendarHighlight.overlay}
+              </View>
+            )}
+
             {selectedCalDate && (
               <Pressable style={styles.dayFilterBar} onPress={() => setSelectedCalDate(null)}>
                 <Text style={styles.dayFilterTxt}>Показаны записи на {fmtDate(selectedCalDate)}</Text>
@@ -597,17 +611,6 @@ export default function BookingsScreen({ navigation }) {
             const totalRevenue = manualBookings.reduce((s,b) => s + (b.service_price||0), 0);
             return (
               <View style={styles.sidePanelManual}>
-                <View style={[styles.calEmbeddedWrap, { position: 'relative' }, calendarHighlight.style]}>
-                  <BookingsCalendar
-                    onlineDates={calOnlineDates}
-                    manualDates={calManualDates}
-                    selectedDate={selectedCalDate}
-                    onSelectDay={onSelectCalDay}
-                    onMonthChange={loadCalendarMonth}
-                    embedded
-                  />
-                  {calendarHighlight.overlay}
-                </View>
                 <ScrollView contentContainerStyle={{ padding: 20 }}>
                   <Text style={styles.sideLabel}>Всего записей</Text>
                   <Text style={styles.sideVal}>{manualBookings.length}</Text>
@@ -847,5 +850,5 @@ const styles = StyleSheet.create({
   dayFilterClear: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.orange, marginLeft: 8 },
 
   calWrap: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 8, backgroundColor: colors.surface2 },
-  calEmbeddedWrap: { backgroundColor: colors.surface2, borderTopLeftRadius: 16, borderTopRightRadius: 16, marginHorizontal: -1 },
+  calEmbeddedWrap: { backgroundColor: colors.surface2, borderRadius: 16, marginHorizontal: 16, marginTop: 4 },
 });
