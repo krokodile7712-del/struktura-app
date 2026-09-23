@@ -61,8 +61,23 @@ export default function InventoryScreen({ navigation }) {
   const addBtnHighlight  = useTourHighlight('inventory.addBtn');
   const scopeHighlight   = useTourHighlight('inventory.scope');
   const listHighlight    = useTourHighlight('inventory.list');
-  const fillHighlight    = useTourHighlight('inventory.fill');
-  const confirmHighlight = useTourHighlight('inventory.confirm');
+  const fillHighlightRaw    = useTourHighlight('inventory.fill');
+  const confirmHighlightRaw = useTourHighlight('inventory.confirm');
+  // Список позиций и кнопка подтверждения — разные шаги тура, но должны
+  // считаться одной областью: во время «Подтверждения» важно продолжать
+  // видеть, что именно подтверждаешь, а не гасить список как «не то,
+  // о чём сейчас речь» — иначе на тёмном фоне он становится почти
+  // невидимым (оверлей затемнения — rgba(6,6,8,0.78), очень плотный)
+  const fillAreaActive = fillHighlightRaw.isActive || confirmHighlightRaw.isActive;
+  const fillAreaDimmed = fillHighlightRaw.isDimmed && confirmHighlightRaw.isDimmed;
+  const fillHighlight = {
+    style: fillAreaActive ? fillHighlightRaw.style : null,
+    overlay: fillAreaDimmed ? fillHighlightRaw.overlay : null,
+  };
+  const confirmHighlight = {
+    style: confirmHighlightRaw.isActive ? confirmHighlightRaw.style : null,
+    overlay: null, // затемнение теперь общее, рисуется один раз на fillHighlight
+  };
   const statsHighlight   = useTourHighlight('inventory.stats');
 
   const tourSteps = [
@@ -385,7 +400,7 @@ export default function InventoryScreen({ navigation }) {
               </View>
 
               {(acts.length > 0 || activeTourKey === 'inventory.stats') && (
-                <View style={[{ width: '100%', maxWidth: 420, alignSelf: 'center', position: 'relative', marginTop: 16, padding: 12 }, statsHighlight.style]}>
+                <View style={[{ width: '100%', maxWidth: 620, alignSelf: 'center', position: 'relative', marginTop: 16, padding: 12 }, statsHighlight.style]}>
                   <Text style={styles.sideLabel}>Актов всего</Text>
                   <Text style={styles.sideVal}>{acts.length}</Text>
                   <Text style={styles.sideSub}>
@@ -565,7 +580,7 @@ const styles = StyleSheet.create({
 
   // Та же подсказка, но крупнее и с отступом сверху — для боковой панели
   // в альбомной, не прижата к самому верху под шапкой
-  infoCardBig: { marginTop: 24, backgroundColor: 'rgba(139,127,212,0.08)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(139,127,212,0.25)', padding: 20, width: '100%', maxWidth: 420, alignSelf: 'center' },
+  infoCardBig: { marginTop: 24, backgroundColor: 'rgba(139,127,212,0.08)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(139,127,212,0.25)', padding: 20, width: '100%', maxWidth: 620, alignSelf: 'center' },
   infoTitleBig: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.indigo, marginBottom: 8 },
   infoTxtBig:   { fontFamily: fonts.familyRegular, fontSize: 15, color: colors.textDim, lineHeight: 22 },
   sideLabel:  { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
