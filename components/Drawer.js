@@ -49,8 +49,8 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
     {
       title: 'Работа',
       items: [
-        { label: 'Управление товарами', screen: 'Products',    adminOnly: true },
-        { label: 'Записи',    screen: 'Bookings',    adminOnly: true },
+        { label: 'Управление товарами', screen: 'Products',    perm: 'view_stock' },
+        { label: 'Записи',    screen: 'Bookings' },
         { label: 'Настройки', screen: 'Settings',    perm: 'access_settings' },
       ],
     },
@@ -58,9 +58,9 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
       title: 'Аналитика',
       items: [
         { label: 'Отчётность',  screen: 'Reports',     perm: 'view_reports' },
-        { label: 'Расходы',     screen: 'Finances',    adminOnly: true },
-        { label: 'Журнал работы',  screen: 'WorkJournal',  adminOnly: true },
-        { label: 'Инвентаризация',  screen: 'Inventory',    adminOnly: true, module: 'inventory' },
+        { label: 'Расходы',     screen: 'Finances',    perm: 'add_expenses' },
+        { label: 'Журнал работы',  screen: 'WorkJournal' },
+        { label: 'Инвентаризация',  screen: 'Inventory',    module: 'inventory', perm: 'edit_stock' },
         { label: 'Локации',    screen: 'Locations',   adminOnly: true, module: 'locations' },
       ],
     },

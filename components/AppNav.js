@@ -29,6 +29,11 @@ const STAFF_SECTIONS = [
   { key: 'ClientsList', route: 'ClientsList',  label: 'Клиенты',  perm: 'view_clients' },
   { key: 'Expenses',    route: 'Finances',     label: 'Расходы',  perm: 'add_expenses', params: { initialTab: 'expenses' } },
   { key: 'Products',    route: 'Products',     label: 'Управление товарами',   perm: 'view_stock', params: { initialTab: 'stock' } },
+  { key: 'Reports',     route: 'Reports',      label: 'Отчётность',    perm: 'view_reports' },
+  { key: 'Inventory',   route: 'Inventory',    label: 'Инвентаризация', module: 'inventory', perm: 'edit_stock' },
+  { key: 'Bookings',    route: 'Bookings',     label: 'Записи' },
+  { key: 'WorkJournal', route: 'WorkJournal',  label: 'Журнал работы' },
+  { key: 'Settings',    route: 'Settings',     label: 'Настройки', perm: 'access_settings' },
 ];
 
 // Компактный список для нижней панели (портрет) — 5 пунктов, Касса по центру.
