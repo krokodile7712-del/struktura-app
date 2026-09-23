@@ -33,9 +33,7 @@ import BookingsScreen from './screens/BookingsScreen';
 import RegScreen from './screens/RegScreen';
 import RegResultScreen from './screens/RegResultScreen';
 import SearchScreen from './screens/SearchScreen';
-import ClientCardScreen from './screens/ClientCardScreen';
 import ClientsListScreen from './screens/ClientsListScreen';
-import ExpensesScreen from './screens/ExpensesScreen';
 import FinancesScreen from './screens/FinancesScreen';
 import AdminScreen from './screens/AdminScreen';
 import SettingsScreen from './screens/SettingsScreen';
@@ -157,10 +155,8 @@ export default function App() {
             <Stack.Screen name="Reg"         component={RegScreen} />
             <Stack.Screen name="RegResult"   component={RegResultScreen} />
             <Stack.Screen name="Search"      component={SearchScreen} />
-            <Stack.Screen name="ClientCard"  component={ClientCardScreen} />
             <Stack.Screen name="ClientsList" component={ClientsListScreen} />
             <Stack.Screen name="Products"    component={ProductsScreen} />
-            <Stack.Screen name="Expenses"    component={ExpensesScreen} />
             <Stack.Screen name="Finances"    component={FinancesScreen} />
             <Stack.Screen name="Migrate"     component={MigrateScreen} />
             <Stack.Screen name="Locations"      component={LocationsScreen} />
