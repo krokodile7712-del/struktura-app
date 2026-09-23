@@ -537,6 +537,7 @@ export default function InventoryScreen({ navigation }) {
 
       <TourGuide
         visible={tourOpen}
+        remountSignal={showSetup}
         onClose={() => {
           setTourOpen(false);
           markTourSeen('Inventory');

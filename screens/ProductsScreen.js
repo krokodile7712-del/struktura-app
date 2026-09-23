@@ -1413,6 +1413,7 @@ export default function ProductsScreen({ navigation, route }) {
 
       <TourGuide
         visible={tourOpen}
+        remountSignal={!!selected}
         onClose={() => { setTourOpen(false); if (tourFull) markTourSeen('Products'); if (selected?.__demo) setSelected(null); }}
         steps={tourStepsToShow}
       />

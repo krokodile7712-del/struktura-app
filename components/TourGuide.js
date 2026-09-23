@@ -23,12 +23,26 @@ import { useTourActiveSetter } from './TourRegistry';
 //     onClose={() => setTourOpen(false)}
 //     steps={[{ key: 'kassa.client', title: 'Заголовок', text: 'Что это' }]}
 //   />
-export default function TourGuide({ visible, onClose, steps = [] }) {
+export default function TourGuide({ visible, onClose, steps = [], remountSignal }) {
   const [stepIndex, setStepIndex] = useState(0);
   const [cardH, setCardH] = useState(260); // измеряется реально, это лишь стартовое приближение
+  const [modalKey, setModalKey] = useState(0);
   const setActiveKey = useTourActiveSetter();
   const { width: screenW, height: screenH } = useWindowDimensions();
   const posAnim = useRef(new Animated.Value(0)).current; // 0 = снизу, 1 = сверху
+
+  // Другой Modal (например Sheet), открытый уже ПОСЛЕ тура, встаёт в стеке
+  // выше него — у Sheet есть полноэкранная невидимая подложка закрытия,
+  // из-за которой первый тап по кнопке тура вместо неё закрывает Sheet.
+  // remountSignal — сигнал от экрана "сейчас откроется/закроется другой
+  // Modal" — пересоздаём здесь только сам <Modal> тура (не весь компонент,
+  // stepIndex и остальное состояние остаются нетронутыми), с небольшой
+  // задержкой, чтобы тот, другой Modal уже успел открыться первым — тур
+  // снова оказывается сверху стека.
+  useEffect(() => {
+    const t = setTimeout(() => setModalKey(k => k + 1), 80);
+    return () => clearTimeout(t);
+  }, [remountSignal]);
 
   useEffect(() => {
     if (visible) setStepIndex(0);
@@ -69,7 +83,7 @@ export default function TourGuide({ visible, onClose, steps = [] }) {
   const handleNext = () => isLast ? handleClose() : setStepIndex(i => i + 1);
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose} statusBarTranslucent>
+    <Modal key={modalKey} visible={visible} transparent animationType="fade" onRequestClose={handleClose} statusBarTranslucent>
       <View style={styles.overlay} pointerEvents="box-none">
         <Animated.View
           onLayout={e => setCardH(e.nativeEvent.layout.height)}
