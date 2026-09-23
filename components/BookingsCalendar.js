@@ -285,30 +285,30 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
 }
 
 const styles = StyleSheet.create({
-  root: { padding: 12 },
-  rootCard: { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border },
+  root: { padding: 14 },
+  rootCard: { backgroundColor: colors.surface2, borderRadius: 16, borderWidth: 1, borderColor: colors.borderHi },
 
-  collapseBtn: { position: 'absolute', top: 8, right: 8, zIndex: 2, width: 26, height: 26, alignItems: 'center', justifyContent: 'center' },
-  collapseArrow: { fontSize: 10, color: colors.muted },
+  collapseBtn: { position: 'absolute', top: 10, right: 10, zIndex: 2, width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surface3, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  collapseArrow: { fontSize: 13, color: colors.muted },
 
   // Рамка и название теперь принадлежат каждой отдельной месячной панели —
   // едут вместе с её датами, а не остаются позади неподвижным заголовком
-  monthCard: { borderRadius: 10, borderWidth: 1, borderColor: colors.border, padding: 8 },
-  monthLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, textAlign: 'center', marginBottom: 6 },
+  monthCard: { borderRadius: 12, borderWidth: 1, borderColor: colors.borderHi, padding: 10, backgroundColor: colors.surface3 },
+  monthLabel: { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text, textAlign: 'center', marginBottom: 10 },
 
   weekRow: { flexDirection: 'row' },
-  weekdayLabel: { flex: 1, textAlign: 'center', fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, paddingVertical: 4 },
+  weekdayLabel: { flex: 1, textAlign: 'center', fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, paddingVertical: 6 },
 
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
-  cell: { width: `${100 / 7}%`, alignItems: 'center', paddingVertical: 3 },
+  cell: { width: `${100 / 7}%`, alignItems: 'center', paddingVertical: 4 },
 
-  dayCircle: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  dayCircleToday: { borderWidth: 1, borderColor: colors.orange },
+  dayCircle: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  dayCircleToday: { borderWidth: 1.5, borderColor: colors.orange },
   dayCircleSelected: { backgroundColor: colors.orange },
   dayNum: { fontFamily: fonts.familyRegular, fontSize: 15, color: colors.text },
   dayNumToday: { color: colors.orange, fontFamily: fonts.familySemibold },
   dayNumSelected: { color: '#fff', fontFamily: fonts.familySemibold },
 
-  dotsRow: { flexDirection: 'row', gap: 3, height: 6, marginTop: 2 },
-  dot: { width: 5, height: 5, borderRadius: 2.5 },
+  dotsRow: { flexDirection: 'row', gap: 3, height: 7, marginTop: 3 },
+  dot: { width: 6, height: 6, borderRadius: 3 },
 });
