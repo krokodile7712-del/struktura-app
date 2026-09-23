@@ -2639,6 +2639,9 @@ export default function SettingsScreen({ navigation, route }) {
                           { key: 'edit_clients',   label: 'Редактировать клиентов' },
                           { key: 'manage_loyalty', label: 'Управлять баллами' },
                         ]},
+                        { group: 'Записи', items: [
+                          { key: 'edit_bookings', label: 'Добавлять, изменять и удалять записи' },
+                        ]},
                         { group: 'Склад', items: [
                           { key: 'view_stock',      label: 'Просматривать остатки' },
                           { key: 'edit_stock',      label: 'Закупки и списания' },

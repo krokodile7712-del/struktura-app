@@ -3352,6 +3352,8 @@ export const DEFAULT_PERMISSIONS = {
   view_clients:       true,
   edit_clients:       false,
   manage_loyalty:     false,
+  // Записи
+  edit_bookings:      true,
   // Склад
   view_stock:         true,
   edit_stock:         false,
