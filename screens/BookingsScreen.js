@@ -9,7 +9,7 @@ import Sheet from '../components/Sheet';
 import SwipeableRow from '../components/SwipeableRow';
 import BookingsCalendar from '../components/BookingsCalendar';
 import { useResponsive } from '../hooks/useResponsive';
-import { getHomeRoute, goBackSmart } from '../db/session';
+import { getHomeRoute, goBackSmart, can } from '../db/session';
 import { getBookings, updateBookingStatus } from '../db/supabase';
 import {
   getBusinessProfile, getManualBookings, getManualBookingsInRange, insertManualBooking,
@@ -484,7 +484,7 @@ export default function BookingsScreen({ navigation }) {
                             </Pressable>
 
                             {/* Действия */}
-                            {isExp && (
+                            {isExp && can('edit_bookings') && (
                               <View style={[styles.actionsPanel, idx < items.length - 1 && styles.rowDiv]}>
                                 {b.status !== 'confirmed' && (
                                   <Pressable style={styles.actionBtn} onPress={() => handleStatus(b.id, 'confirmed')}>
@@ -520,10 +520,12 @@ export default function BookingsScreen({ navigation }) {
       {mainTab === 'manual' && (
         <View style={[styles.layout, !isLandscape && { flexDirection: 'column' }]}>
           <View style={isLandscape ? styles.manualLeftLandscape : styles.manualLeftPortrait}>
-            <Pressable style={[styles.addManualBtn, { position: 'relative' }, manualAddHighlight.style]} onPress={() => openManualForm(selectedCalDate)}>
-              <Text style={styles.addManualBtnTxt}>{selectedCalDate ? `+ Добавить на ${fmtDate(selectedCalDate)}` : '+ Добавить запись'}</Text>
-              {manualAddHighlight.overlay}
-            </Pressable>
+            {can('edit_bookings') && (
+              <Pressable style={[styles.addManualBtn, { position: 'relative' }, manualAddHighlight.style]} onPress={() => openManualForm(selectedCalDate)}>
+                <Text style={styles.addManualBtnTxt}>{selectedCalDate ? `+ Добавить на ${fmtDate(selectedCalDate)}` : '+ Добавить запись'}</Text>
+                {manualAddHighlight.overlay}
+              </Pressable>
+            )}
 
             {selectedCalDate && (
               <Pressable style={styles.dayFilterBar} onPress={() => setSelectedCalDate(null)}>
@@ -547,20 +549,11 @@ export default function BookingsScreen({ navigation }) {
                   <View key={date} style={{ marginBottom: 20 }}>
                     <Text style={styles.groupDate}>{fmtDate(date)}</Text>
                     <View style={styles.groupCard}>
-                      {manualGrouped[date].map((b, idx) => (
-                        <SwipeableRow
-                          key={b.id}
-                          onAction={() => {
-                            Alert.alert('Удалить запись?', `${b.client_name} · ${b.time_start?.slice(0,5)}`, [
-                              { text: 'Отмена', style: 'cancel' },
-                              { text: 'Удалить', style: 'destructive', onPress: () => { deleteManualBooking(b.id); loadManual(); } },
-                            ]);
-                          }}
-                          label="Удалить"
-                        >
+                      {manualGrouped[date].map((b, idx) => {
+                        const row = (
                           <Pressable
                             style={[styles.bookingRow, idx < manualGrouped[date].length - 1 && styles.rowDiv]}
-                            onPress={() => openManualEdit(b)}
+                            onPress={() => can('edit_bookings') && openManualEdit(b)}
                           >
                             <Text style={styles.bookingTime}>{b.time_start?.slice(0,5) || '—'}</Text>
                             <View style={{ flex: 1 }}>
@@ -571,8 +564,22 @@ export default function BookingsScreen({ navigation }) {
                               </Text>
                             </View>
                           </Pressable>
-                        </SwipeableRow>
-                      ))}
+                        );
+                        return can('edit_bookings') ? (
+                          <SwipeableRow
+                            key={b.id}
+                            onAction={() => {
+                              Alert.alert('Удалить запись?', `${b.client_name} · ${b.time_start?.slice(0,5)}`, [
+                                { text: 'Отмена', style: 'cancel' },
+                                { text: 'Удалить', style: 'destructive', onPress: () => { deleteManualBooking(b.id); loadManual(); } },
+                              ]);
+                            }}
+                            label="Удалить"
+                          >
+                            {row}
+                          </SwipeableRow>
+                        ) : <React.Fragment key={b.id}>{row}</React.Fragment>;
+                      })}
                     </View>
                   </View>
                 ))}
