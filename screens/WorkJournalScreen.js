@@ -29,7 +29,8 @@ export default function WorkJournalScreen({ navigation }) {
   const { isLandscape } = useResponsive();
   const [entries, setEntries]   = useState([]);
   const [search, setSearch]     = useState('');
-  const [expanded, setExpanded] = useState(null);
+  const [expanded, setExpanded] = useState(null); // портрет — разворот на месте
+  const [selected, setSelected] = useState(null); // альбомная — подробности справа
   const [itemsMap, setItemsMap] = useState({});
   const [tourOpen, setTourOpen] = useState(false);
   const fadeAnim = useState(new Animated.Value(0))[0];
@@ -40,8 +41,8 @@ export default function WorkJournalScreen({ navigation }) {
 
   const tourSteps = [
     { key: 'workjournal.search', title: 'Поиск', text: 'Найдите смену по имени сотрудника или по дате.' },
-    { key: 'workjournal.list',   title: 'История смен', text: 'Тап по карточке разворачивает подробности — количество заказов, оплаты, сами позиции. Зелёная точка — смена закрыта, оранжевая — ещё открыта.' },
-    { key: 'workjournal.stats',  title: 'Сводка', text: 'Общая выручка за все смены в списке и сравнение по сотрудникам — видно, только если есть право видеть выручку.' },
+    { key: 'workjournal.list',   title: 'История смен', text: 'Тап по карточке показывает подробности — количество заказов, оплаты, сами позиции. Зелёная точка — смена закрыта, оранжевая — ещё открыта.' },
+    { key: 'workjournal.stats',  title: 'Сводка', text: 'Общая выручка за все смены в списке и сравнение по сотрудникам.' },
   ];
 
   // Автозапуск при первом визите в раздел
@@ -74,6 +75,15 @@ export default function WorkJournalScreen({ navigation }) {
       try { setItemsMap(m => ({ ...m, [id]: getShiftOrderItems(id) })); } catch(_) {}
     }
   };
+
+  const selectEntry = (entry) => {
+    setSelected(s => s?.id === entry.id ? null : entry);
+    if (!itemsMap[entry.id]) {
+      try { setItemsMap(m => ({ ...m, [entry.id]: getShiftOrderItems(entry.id) })); } catch(_) {}
+    }
+  };
+
+  const onCardPress = (entry) => isLandscape ? selectEntry(entry) : toggleExpand(entry.id);
 
   const filtered = entries.filter(e =>
     !search.trim() ||
@@ -133,14 +143,14 @@ export default function WorkJournalScreen({ navigation }) {
         ) : (
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingBottom: 32, width: '100%', maxWidth: 760, alignSelf: 'center' }}>
             {filtered.map((entry, idx) => {
-              const isOpen = expanded === entry.id;
+              const isOpen = isLandscape ? selected?.id === entry.id : expanded === entry.id;
               const duration = fmtDuration(entry.opened_at, entry.closed_at);
               const items = itemsMap[entry.id] || [];
 
               return (
-                <View key={entry.id} style={[styles.card, idx > 0 && { marginTop: 10 }]}>
+                <View key={entry.id} style={[styles.card, idx > 0 && { marginTop: 10 }, isLandscape && isOpen && styles.cardActive]}>
                   {/* Шапка смены */}
-                  <Pressable style={styles.cardHeader} onPress={() => toggleExpand(entry.id)}>
+                  <Pressable style={styles.cardHeader} onPress={() => onCardPress(entry)}>
                     <View style={styles.cardHeaderLeft}>
                       <View style={[styles.statusDot, { backgroundColor: entry.closed_at ? colors.green : colors.orange }]} />
                       <View>
@@ -155,8 +165,8 @@ export default function WorkJournalScreen({ navigation }) {
                     </View>
                   </Pressable>
 
-                  {/* Статистика */}
-                  {isOpen && (
+                  {/* Статистика — только в портрете, разворачивается на месте; в альбомной уходит в панель справа */}
+                  {!isLandscape && isOpen && (
                     <View style={styles.cardBody}>
                       <View style={styles.statsRow}>
                         {[
@@ -211,27 +221,82 @@ export default function WorkJournalScreen({ navigation }) {
         </View>
       </Animated.View>
 
-      {isLandscape && filtered.length > 0 && can('view_revenue') && (
-        /* Альбомная — сводка постоянной панелью справа */
+      {isLandscape && (
         <View style={[styles.sidePanel, { position: 'relative' }, statsHighlight.style]}>
-          <Text style={styles.sideLabel}>Выручка за смены</Text>
-          <Text style={styles.sideVal}>{fmt(totalRevenue)} ₽</Text>
-          <Text style={styles.sideSub}>{filtered.length} смен · ср. {fmt(avgRevenue)} ₽</Text>
+          {selected ? (
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Pressable onPress={() => setSelected(null)} style={styles.backToSummary} hitSlop={8}>
+                <Text style={styles.backToSummaryTxt}>← Все смены</Text>
+              </Pressable>
 
-          <View style={styles.sideDivider} />
+              <Text style={styles.sideShiftDate}>{fmtDate(selected.opened_at)}</Text>
+              <Text style={styles.sideShiftUser}>{selected.user_name || 'Сотрудник'}</Text>
 
-          <Text style={styles.sideLabel}>По сотрудникам</Text>
-          <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 4 }}>
-            {byEmployee.map((emp, i) => (
-              <View key={emp.name} style={[styles.catRow, i < byEmployee.length - 1 && styles.catRowDiv]}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.catName} numberOfLines={1}>{emp.name}</Text>
-                  <Text style={styles.catSub}>{emp.shifts} смен</Text>
-                </View>
-                <Text style={styles.catVal}>{fmt(emp.revenue)} ₽</Text>
+              <View style={[styles.statsRow, { marginTop: 16 }]}>
+                {[
+                  { label: 'Заказов',   val: selected.order_count || 0 },
+                  ...(can('view_revenue') ? [
+                    { label: 'Наличные',  val: `${fmt(selected.cash_total)} ₽` },
+                    { label: 'Карта',     val: `${fmt(selected.card_total)} ₽` },
+                  ] : []),
+                ].map((s, i) => (
+                  <View key={i} style={styles.statBox}>
+                    <Text style={styles.statVal}>{s.val}</Text>
+                    <Text style={styles.statLbl}>{s.label}</Text>
+                  </View>
+                ))}
               </View>
-            ))}
-          </ScrollView>
+
+              <View style={styles.timeRow}>
+                <View style={styles.timeItem}>
+                  <Text style={styles.timeLbl}>Открыта</Text>
+                  <Text style={styles.timeVal}>{fmtDate(selected.opened_at)}</Text>
+                </View>
+                {selected.closed_at && (
+                  <View style={styles.timeItem}>
+                    <Text style={styles.timeLbl}>Закрыта</Text>
+                    <Text style={styles.timeVal}>{fmtDate(selected.closed_at)}</Text>
+                  </View>
+                )}
+              </View>
+
+              {(itemsMap[selected.id] || []).length > 0 && (
+                <>
+                  <Text style={styles.ordersTitle}>Заказы смены</Text>
+                  {(itemsMap[selected.id] || []).map((item, ii, arr) => (
+                    <View key={ii} style={[styles.orderRow, ii < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
+                      <Text style={styles.orderName} numberOfLines={1}>{item.name}</Text>
+                      <Text style={styles.orderQty}>×{item.quantity}</Text>
+                      {can('view_revenue') && <Text style={styles.orderAmt}>{fmt(item.total)} ₽</Text>}
+                    </View>
+                  ))}
+                </>
+              )}
+            </ScrollView>
+          ) : filtered.length > 0 && can('view_revenue') ? (
+            <>
+              <Text style={styles.sideLabel}>Выручка за смены</Text>
+              <Text style={styles.sideVal}>{fmt(totalRevenue)} ₽</Text>
+              <Text style={styles.sideSub}>{filtered.length} смен · ср. {fmt(avgRevenue)} ₽</Text>
+
+              <View style={styles.sideDivider} />
+
+              <Text style={styles.sideLabel}>По сотрудникам</Text>
+              <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 4 }}>
+                {byEmployee.map((emp, i) => (
+                  <View key={emp.name} style={[styles.catRow, i < byEmployee.length - 1 && styles.catRowDiv]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.catName} numberOfLines={1}>{emp.name}</Text>
+                      <Text style={styles.catSub}>{emp.shifts} смен</Text>
+                    </View>
+                    <Text style={styles.catVal}>{fmt(emp.revenue)} ₽</Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </>
+          ) : (
+            <EmptyState icon="🕓" title="Выберите смену" text="Тап по карточке слева покажет её подробности здесь" />
+          )}
           {statsHighlight.overlay}
         </View>
       )}
@@ -258,6 +323,10 @@ const styles = StyleSheet.create({
   sideVal:    { fontFamily: fonts.family, fontSize: 28, fontWeight: '800', color: colors.orange, marginTop: 6 },
   sideSub:    { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 2 },
   sideDivider:{ height: 1, backgroundColor: colors.border, marginVertical: 16 },
+  backToSummary: { marginBottom: 16 },
+  backToSummaryTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
+  sideShiftDate: { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.text },
+  sideShiftUser: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 2 },
   catRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12 },
   catRowDiv:  { borderBottomWidth: 1, borderBottomColor: colors.borderHi },
   catName:    { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
@@ -272,6 +341,7 @@ const styles = StyleSheet.create({
   emptyHint: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', marginTop: 8, lineHeight: 19, opacity: 0.7 },
 
   card:       { backgroundColor: colors.surface2, borderRadius: 16, borderWidth: 1, borderColor: colors.borderHi, overflow: 'hidden' },
+  cardActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.06)' },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16 },
   cardHeaderLeft:  { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   cardHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
