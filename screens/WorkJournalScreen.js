@@ -1,12 +1,14 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Animated } from 'react-native';
 import TopBar from '../components/TopBar';
 import EmptyState from '../components/EmptyState';
 import { useResponsive } from '../hooks/useResponsive';
 import { useFocusEffect } from '@react-navigation/native';
-import { getWorkJournal, getShiftOrderItems } from '../db/queries';
+import { getWorkJournal, getShiftOrderItems, getBusinessProfile, markTourSeen } from '../db/queries';
 import { getHomeRoute, goBackSmart, can } from '../db/session';
 import { colors, fonts, anim } from '../constants/theme';
+import TourGuide from '../components/TourGuide';
+import { useTourHighlight } from '../components/TourRegistry';
 
 const fmt = n => Math.round(n||0).toLocaleString('ru-RU');
 
@@ -29,8 +31,29 @@ export default function WorkJournalScreen({ navigation }) {
   const [search, setSearch]     = useState('');
   const [expanded, setExpanded] = useState(null);
   const [itemsMap, setItemsMap] = useState({});
+  const [tourOpen, setTourOpen] = useState(false);
   const fadeAnim = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(anim.slideFrom))[0];
+  const searchHighlight = useTourHighlight('workjournal.search');
+  const listHighlight   = useTourHighlight('workjournal.list');
+  const statsHighlight  = useTourHighlight('workjournal.stats');
+
+  const tourSteps = [
+    { key: 'workjournal.search', title: 'Поиск', text: 'Найдите смену по имени сотрудника или по дате.' },
+    { key: 'workjournal.list',   title: 'История смен', text: 'Тап по карточке разворачивает подробности — количество заказов, оплаты, сами позиции. Зелёная точка — смена закрыта, оранжевая — ещё открыта.' },
+    { key: 'workjournal.stats',  title: 'Сводка', text: 'Общая выручка за все смены в списке и сравнение по сотрудникам — видно, только если есть право видеть выручку.' },
+  ];
+
+  // Автозапуск при первом визите в раздел
+  useEffect(() => {
+    try {
+      const p = getBusinessProfile();
+      if (!p?.tours_seen?.WorkJournal) {
+        const t = setTimeout(() => setTourOpen(true), 500);
+        return () => clearTimeout(t);
+      }
+    } catch (_) {}
+  }, []);
 
   const load = useCallback(() => {
     try {
@@ -73,12 +96,22 @@ export default function WorkJournalScreen({ navigation }) {
 
   return (
     <View style={styles.root}>
-      <TopBar title="Журнал работы" onBack={() => goBackSmart(navigation)} navigation={navigation} activeScreen="WorkJournal" />
+      <TopBar
+        title="Журнал работы"
+        onBack={() => goBackSmart(navigation)}
+        navigation={navigation}
+        activeScreen="WorkJournal"
+        rightElement={
+          <Pressable style={styles.tourBtn} onPress={() => setTourOpen(true)} hitSlop={10} accessibilityLabel="Подсказка" accessibilityRole="button">
+            <Text style={styles.tourBtnTxt}>?</Text>
+          </Pressable>
+        }
+      />
 
       <View key={isLandscape ? 'landscape' : 'portrait'} style={{ flex: 1, flexDirection: isLandscape ? 'row' : 'column' }}>
       <Animated.View style={[styles.content, { flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
         {/* Поиск */}
-        <View style={styles.searchWrap}>
+        <View style={[styles.searchWrap, { position: 'relative' }, searchHighlight.style]}>
           <TextInput
             style={styles.searchInput}
             color={colors.text}
@@ -87,8 +120,10 @@ export default function WorkJournalScreen({ navigation }) {
             placeholder="Поиск по сотруднику или дате..."
             placeholderTextColor={colors.muted}
           />
+          {searchHighlight.overlay}
         </View>
 
+        <View style={[{ flex: 1, position: 'relative' }, listHighlight.style]}>
         {filtered.length === 0 ? (
           <EmptyState
             icon="🕓"
@@ -172,11 +207,13 @@ export default function WorkJournalScreen({ navigation }) {
             })}
           </ScrollView>
         )}
+        {listHighlight.overlay}
+        </View>
       </Animated.View>
 
       {isLandscape && filtered.length > 0 && can('view_revenue') && (
         /* Альбомная — сводка постоянной панелью справа */
-        <View style={styles.sidePanel}>
+        <View style={[styles.sidePanel, { position: 'relative' }, statsHighlight.style]}>
           <Text style={styles.sideLabel}>Выручка за смены</Text>
           <Text style={styles.sideVal}>{fmt(totalRevenue)} ₽</Text>
           <Text style={styles.sideSub}>{filtered.length} смен · ср. {fmt(avgRevenue)} ₽</Text>
@@ -195,9 +232,16 @@ export default function WorkJournalScreen({ navigation }) {
               </View>
             ))}
           </ScrollView>
+          {statsHighlight.overlay}
         </View>
       )}
       </View>
+
+      <TourGuide
+        visible={tourOpen}
+        onClose={() => { setTourOpen(false); markTourSeen('WorkJournal'); }}
+        steps={tourSteps}
+      />
     </View>
   );
 }
@@ -205,6 +249,8 @@ export default function WorkJournalScreen({ navigation }) {
 const styles = StyleSheet.create({
   root:    { flex: 1, backgroundColor: colors.bg },
   content: { flex: 1 },
+  tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
+  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.orange },
 
   // ── Боковая панель сводки (альбомная) ──
   sidePanel:  { flex: 1, backgroundColor: colors.bg, margin: 12, marginLeft: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', padding: 20 },
