@@ -63,20 +63,17 @@ export default function InventoryScreen({ navigation }) {
   const listHighlight    = useTourHighlight('inventory.list');
   const fillHighlightRaw    = useTourHighlight('inventory.fill');
   const confirmHighlightRaw = useTourHighlight('inventory.confirm');
-  // Список позиций и кнопка подтверждения — разные шаги тура, но должны
-  // считаться одной областью: во время «Подтверждения» важно продолжать
-  // видеть, что именно подтверждаешь, а не гасить список как «не то,
-  // о чём сейчас речь» — иначе на тёмном фоне он становится почти
-  // невидимым (оверлей затемнения — rgba(6,6,8,0.78), очень плотный)
-  const fillAreaActive = fillHighlightRaw.isActive || confirmHighlightRaw.isActive;
-  const fillAreaDimmed = fillHighlightRaw.isDimmed && confirmHighlightRaw.isDimmed;
+  // Список позиций никогда не гасится на этих двух шагах — важно
+  // продолжать видеть, что именно заполняешь/подтверждаешь. Рамку
+  // получает только тот элемент, чей шаг активен именно сейчас.
+  const isFillOrConfirmStep = activeTourKey === 'inventory.fill' || activeTourKey === 'inventory.confirm';
   const fillHighlight = {
-    style: fillAreaActive ? fillHighlightRaw.style : null,
-    overlay: fillAreaDimmed ? fillHighlightRaw.overlay : null,
+    style: fillHighlightRaw.isActive ? fillHighlightRaw.style : null,
+    overlay: isFillOrConfirmStep ? null : fillHighlightRaw.overlay,
   };
   const confirmHighlight = {
     style: confirmHighlightRaw.isActive ? confirmHighlightRaw.style : null,
-    overlay: null, // затемнение теперь общее, рисуется один раз на fillHighlight
+    overlay: null,
   };
   const statsHighlight   = useTourHighlight('inventory.stats');
 
@@ -243,6 +240,11 @@ export default function InventoryScreen({ navigation }) {
       </View>
       <ScrollView keyboardShouldPersistTaps="handled" style={{ flex: 1 }}>
         <View style={[styles.fillCard, { position: 'relative' }, fillHighlight.style]}>
+          {actItems.length === 0 && (
+            <Text style={{ padding: 16, color: colors.muted, fontFamily: fonts.familyRegular, fontSize: 14 }}>
+              Список позиций пуст (actItems.length === 0)
+            </Text>
+          )}
           {actItems.map((item, idx) => {
             const changed = actVals[item.id] && parseFloat(actVals[item.id]) !== item.expected;
             return (
