@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput } from 'react-native';
-import MetalCard from '../components/MetalCard';
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput } from 'react-native';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import Sheet from '../components/Sheet';
-import { useResponsive } from '../hooks/useResponsive';
+import InfoTip from '../components/InfoTip';
+import TourGuide from '../components/TourGuide';
+import { useTourHighlight } from '../components/TourRegistry';
 import {
   getLocations, addLocation, updateLocation, deleteLocation, initDefaultLocation,
+  getBusinessProfile, markTourSeen,
 } from '../db/queries';
 import { useToast } from '../components/Toast';
 import { getCurrentLocationId, setCurrentLocationId } from '../db/session';
@@ -17,8 +19,27 @@ export default function LocationsScreen({ navigation }) {
   const [modal, setModal]           = useState(null); // null | { id?, name, description }
   const toast = useToast();
   const [currentLocId, setCurrentLocId] = useState(getCurrentLocationId());
+  const [tourOpen, setTourOpen] = useState(false);
+  const listHighlight   = useTourHighlight('locations.list');
+  const addBtnHighlight = useTourHighlight('locations.addBtn');
+  const editHighlight   = useTourHighlight('locations.list.edit');
 
-  useEffect(() => { load(); }, []);
+  const tourSteps = [
+    { key: 'locations.list',   title: 'Список точек', text: 'Тап по карточке выбирает активную точку — она используется в кассе при списании ингредиентов и на Складе при просмотре остатков. Выбор сбрасывается при перезапуске приложения, так что выбирайте нужную в начале смены.' },
+    { key: 'locations.addBtn', title: '+ Добавить локацию', text: 'Если у вас несколько мест хранения — например основной склад и барная стойка — заведите каждую отдельно.' },
+    { key: 'locations.list.edit', title: 'Изменить или удалить', text: 'Значок ✎ открывает редактирование названия и описания. Удалить можно любую, кроме последней — хотя бы одна точка должна остаться всегда.' },
+  ];
+
+  useEffect(() => {
+    load();
+    try {
+      const p = getBusinessProfile();
+      if (!p?.tours_seen?.Locations) {
+        const t = setTimeout(() => setTourOpen(true), 500);
+        return () => clearTimeout(t);
+      }
+    } catch (_) {}
+  }, []);
 
   const load = () => {
     try {
@@ -62,7 +83,7 @@ export default function LocationsScreen({ navigation }) {
         setCurrentLocationId(next);
         setCurrentLocId(next);
       }
-      toast.show(modal.id ? 'Локация обновлена ✓' : 'Локация добавлена ✓');
+      toast.show('Локация удалена');
       load();
     } catch (e) { console.error(e); }
     closeModal();
@@ -75,46 +96,55 @@ export default function LocationsScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title="Локации" onBack={() => navigation.navigate('Admin')} navigation={navigation} activeScreen="Locations" />
+      <TopBar
+        title="Локации"
+        onBack={() => navigation.navigate('Admin')}
+        navigation={navigation}
+        activeScreen="Locations"
+        rightElement={
+          <Pressable style={styles.tourBtn} onPress={() => setTourOpen(true)} hitSlop={10} accessibilityLabel="Подсказка" accessibilityRole="button">
+            <Text style={styles.tourBtnTxt}>?</Text>
+          </Pressable>
+        }
+      />
 
       <ScrollView style={styles.screen} contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
-        <MetalCard>
-          <Text style={styles.hint}>
-            Если у вас несколько мест хранения — например основной склад и барная стойка — добавьте их здесь. Выбранная точка хранения используется в кассе при списании ингредиентов и в разделе Склад при просмотре остатков.
-          </Text>
+        <View style={styles.labelRow}>
+          <Text style={styles.sectionLabel}>Ваши локации</Text>
+          <InfoTip title="Локации" text="Если у вас несколько мест хранения — например основной склад и барная стойка — добавьте их здесь. Выбранная точка используется в кассе при списании ингредиентов и на Складе при просмотре остатков." />
+        </View>
 
-          {locations.map(loc => {
+        <Pressable style={[styles.addBtnBig, { position: 'relative' }, addBtnHighlight.style]} onPress={openAdd}>
+          <Text style={styles.addBtnBigTxt}>+ Добавить локацию</Text>
+          {addBtnHighlight.overlay}
+        </Pressable>
+
+        <View style={[{ position: 'relative' }, listHighlight.style]}>
+          {locations.map((loc, idx) => {
             const isActive = currentLocId === loc.id;
             return (
-              <Pressable key={loc.id} style={styles.row} onPress={() => selectLocation(loc.id)}>
+              <Pressable
+                key={loc.id}
+                style={[styles.card, idx > 0 && { marginTop: 10 }, isActive && styles.cardActive]}
+                onPress={() => selectLocation(loc.id)}
+              >
+                <View style={[styles.statusDot, { backgroundColor: isActive ? colors.green : colors.border }]} />
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.locName, isActive && styles.locNameActive]}>
-                    {isActive ? '📍 ' : ''}{loc.name}
-                  </Text>
+                  <Text style={[styles.locName, isActive && styles.locNameActive]}>{loc.name}</Text>
                   {!!loc.description && (
                     <Text style={styles.locDesc}>{loc.description}</Text>
                   )}
                 </View>
-                <Pressable onPress={() => openEdit(loc)} hitSlop={10} style={styles.editBtn}>
+                {isActive && <Text style={styles.activeBadge}>Активна</Text>}
+                <Pressable onPress={() => openEdit(loc)} hitSlop={10} style={[styles.editBtn, { position: 'relative' }, editHighlight.style]}>
                   <Text style={styles.editBtnText}>✎</Text>
+                  {editHighlight.overlay}
                 </Pressable>
               </Pressable>
             );
           })}
-
-          <MetalButton
-            title="+ Добавить локацию"
-            variant="default"
-            onPress={openAdd}
-            style={{ marginTop: 12 }}
-          />
-        </MetalCard>
-
-        <MetalCard style={{ marginTop: 12 }}>
-          <Text style={styles.hint}>
-            💡 Совет: выбирайте нужную точку в начале смены — иконка 📍 рядом с названием покажет что выбрано. При перезапуске приложения выбор сбрасывается.
-          </Text>
-        </MetalCard>
+          {listHighlight.overlay}
+        </View>
       </ScrollView>
 
       <Sheet visible={!!modal} onClose={closeModal} title={modal?.id ? 'Редактировать локацию' : 'Новая локация'}>
@@ -123,6 +153,7 @@ export default function LocationsScreen({ navigation }) {
               <Text style={styles.fieldLabel}>Название</Text>
               <TextInput
                 style={styles.input}
+                color={colors.text}
                 value={modal.name}
                 onChangeText={v => setModal(m => ({ ...m, name: v }))}
                 placeholder="напр. Основной склад, Бар"
@@ -133,6 +164,7 @@ export default function LocationsScreen({ navigation }) {
               <Text style={styles.fieldLabel}>Описание (необязательно)</Text>
               <TextInput
                 style={styles.input}
+                color={colors.text}
                 value={modal.description}
                 onChangeText={v => setModal(m => ({ ...m, description: v }))}
                 placeholder="Дополнительная информация"
@@ -160,25 +192,41 @@ export default function LocationsScreen({ navigation }) {
             </ScrollView>
         )}
       </Sheet>
+
+      <TourGuide
+        visible={tourOpen}
+        onClose={() => { setTourOpen(false); markTourSeen('Locations'); }}
+        steps={tourSteps}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  inner: { padding: spacing.lg, paddingBottom: 20, maxWidth: 1100, width: '100%', alignSelf: 'center' },
-  hint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginBottom: 12, lineHeight: 18 },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
-  locName: { fontFamily: fonts.family, fontSize: 15, color: colors.text },
-  locNameActive: { color: colors.greenLight, fontFamily: fonts.familySemibold },
-  locDesc: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
-  editBtn: { padding: 8 },
+  inner: { padding: spacing.lg, paddingBottom: 20, maxWidth: 760, width: '100%', alignSelf: 'center' },
+
+  tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
+  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.orange },
+
+  labelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
+  sectionLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
+
+  addBtnBig:  { paddingVertical: 16, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center', marginBottom: 16 },
+  addBtnBigTxt: { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: '#fff' },
+
+  hint: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 10, lineHeight: 20 },
+
+  card: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.surface2, borderRadius: 16, borderWidth: 1, borderColor: colors.borderHi, padding: 16 },
+  cardActive: { borderColor: 'rgba(123,175,142,0.5)', backgroundColor: 'rgba(123,175,142,0.06)' },
+  statusDot: { width: 9, height: 9, borderRadius: 5 },
+  locName: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
+  locNameActive: { color: colors.greenLight },
+  locDesc: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 2 },
+  activeBadge: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.greenLight },
+  editBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface3, borderWidth: 1, borderColor: colors.border },
   editBtnText: { fontSize: 16, color: colors.muted },
-  modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  modalInner: { width: '55%', maxWidth: 480, backgroundColor: colors.surface, borderRadius: 20, padding: 24, borderWidth: 1, borderColor: colors.borderHi },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  modalTitle: { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text, flex: 1, marginRight: 12 },
-  modalClose: { fontSize: 18, color: colors.muted },
-  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 6, marginTop: 14 },
-  input: { padding: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 15, fontFamily: fonts.family, marginBottom: 4 },
+
+  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 6, marginTop: 14 },
+  input: { padding: 14, backgroundColor: colors.surface3, borderWidth: 1, borderColor: colors.borderHi, borderRadius: 12, color: colors.text, fontSize: 15, fontFamily: fonts.family, marginBottom: 4 },
 });
