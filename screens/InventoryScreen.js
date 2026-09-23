@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Animated, TextInput } from 'react-native';
 import TopBar from '../components/TopBar';
 import Sheet from '../components/Sheet';
@@ -6,10 +6,12 @@ import EmptyState from '../components/EmptyState';
 import { useResponsive } from '../hooks/useResponsive';
 import InfoTip from '../components/InfoTip';
 import { useFocusEffect } from '@react-navigation/native';
+import TourGuide from '../components/TourGuide';
+import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
 import {
   getInventoryActs, createInventoryAct, deleteInventoryAct,
   setInventoryItemActual, confirmInventoryAct,
-  getAllStock,
+  getAllStock, getBusinessProfile, markTourSeen,
 } from '../db/queries';
 import { getHomeRoute, goBackSmart } from '../db/session';
 import { colors, fonts, anim } from '../constants/theme';
@@ -29,6 +31,15 @@ const SCOPE_OPTIONS = [
   { key: 'manual',   label: 'Выборочно',     hint: 'Отметить конкретные позиции вручную' },
 ];
 
+// Демо-акт для тура — целиком в памяти, никогда не пишется в базу
+// (флаг __demo проверяется перед любым сохранением)
+const DEMO_ACT = { __demo: true, id: 'demo', scope: 'all', status: 'draft', created_at: new Date().toISOString() };
+const DEMO_ITEMS = [
+  { id: 'demo-1', stock_name: 'Молоко, 1 л',       unit: 'л',  expected: 10,  actual: 10 },
+  { id: 'demo-2', stock_name: 'Кофе (зерно)',      unit: 'кг', expected: 5,   actual: 3 },
+  { id: 'demo-3', stock_name: 'Сироп ваниль',      unit: 'мл', expected: 500, actual: 500 },
+];
+
 export default function InventoryScreen({ navigation }) {
   const { isLandscape } = useResponsive();
   const [acts, setActs]             = useState([]);
@@ -45,6 +56,50 @@ export default function InventoryScreen({ navigation }) {
   const slideAnim = useState(new Animated.Value(anim.slideFrom))[0];
 
   const [discrepancy, setDiscrepancy] = useState(0);
+  const [tourOpen, setTourOpen] = useState(false);
+  const activeTourKey = useTourActiveKey();
+  const addBtnHighlight  = useTourHighlight('inventory.addBtn');
+  const scopeHighlight   = useTourHighlight('inventory.scope');
+  const listHighlight    = useTourHighlight('inventory.list');
+  const fillHighlight    = useTourHighlight('inventory.fill');
+  const confirmHighlight = useTourHighlight('inventory.confirm');
+  const statsHighlight   = useTourHighlight('inventory.stats');
+
+  const tourSteps = [
+    { key: 'inventory.addBtn', title: '+ Новый акт', text: 'Отсюда начинается любая инвентаризация.' },
+    { key: 'inventory.scope',  title: 'Охват пересчёта', text: '«Весь склад» — все позиции разом. «По категории» — только один раздел товаров. «Выборочно» — отметьте вручную, что именно пересчитываете.' },
+    { key: 'inventory.list',   title: 'Список актов', text: 'Тап разворачивает карточку — видно позиции и расхождения. Оранжевый бейдж — сколько позиций разошлось с учётом.' },
+    { key: 'inventory.fill',   title: 'Заполнение остатков', text: 'Вводите то, что реально на складе. Поле подсвечивается оранжевым, если отличается от учётного значения.', cardPosition: 'top' },
+    { key: 'inventory.confirm', title: 'Подтверждение', text: 'Подтверждение необратимо переписывает остатки на складе введёнными значениями — как в жизни, пути назад нет.', cardPosition: 'top' },
+    { key: 'inventory.stats', title: 'Статистика', text: 'Расхождение план/факт в деньгах по завершённым актам, и сколько позиций уже мало на складе.' },
+  ];
+  const demoStepKeys = new Set(['inventory.fill', 'inventory.confirm']);
+
+  // Автозапуск при первом визите в раздел
+  useEffect(() => {
+    try {
+      const p = getBusinessProfile();
+      if (!p?.tours_seen?.Inventory) {
+        const t = setTimeout(() => setTourOpen(true), 500);
+        return () => clearTimeout(t);
+      }
+    } catch (_) {}
+  }, []);
+
+  // Шаг про охват сам открывает Sheet создания акта; шаги про заполнение
+  // и подтверждение сами открывают демо-акт, закрывают его при выходе
+  useEffect(() => {
+    if (activeTourKey === 'inventory.scope') setShowSetup(true);
+    else if (tourOpen && showSetup) setShowSetup(false);
+
+    if (demoStepKeys.has(activeTourKey)) {
+      setActiveAct(DEMO_ACT);
+      setActItems(DEMO_ITEMS);
+      setActVals({ 'demo-1': '10', 'demo-2': '3', 'demo-3': '500' });
+    } else if (tourOpen && activeAct?.__demo) {
+      setActiveAct(null);
+    }
+  }, [activeTourKey]);
 
   const load = useCallback(() => {
     try {
@@ -90,6 +145,7 @@ export default function InventoryScreen({ navigation }) {
   };
 
   const saveActItem = (itemId, val) => {
+    if (typeof itemId === 'string' && itemId.startsWith('demo-')) return; // демо — никогда не пишем в базу
     try {
       const num = parseFloat(val);
       if (!isNaN(num)) setInventoryItemActual(itemId, num);
@@ -100,15 +156,21 @@ export default function InventoryScreen({ navigation }) {
   // потеряло его — onBlur может не успеть отработать до закрытия) и
   // только потом закрывает экран — ничего введённого не теряется
   const handleBack = () => {
-    Object.entries(actVals).forEach(([id, val]) => {
-      const num = parseFloat(val);
-      if (!isNaN(num)) setInventoryItemActual(parseInt(id), num);
-    });
+    if (!activeAct?.__demo) {
+      Object.entries(actVals).forEach(([id, val]) => {
+        const num = parseFloat(val);
+        if (!isNaN(num)) setInventoryItemActual(parseInt(id), num);
+      });
+    }
     setActiveAct(null);
     load();
   };
 
   const handleConfirm = () => {
+    if (activeAct?.__demo) {
+      Alert.alert('Это пример', 'В реальном акте нажатие «Подтвердить» перезапишет остатки на складе.');
+      return;
+    }
     Alert.alert('Подтвердить инвентаризацию?', 'Фактические остатки будут применены к складу', [
       { text: 'Отмена' },
       { text: 'Подтвердить', onPress: () => {
@@ -159,12 +221,13 @@ export default function InventoryScreen({ navigation }) {
           <Text style={styles.fillPanelTitle}>Фактические остатки</Text>
           <Text style={styles.fillPanelSub}>{SCOPE_OPTIONS.find(s => s.key === activeAct.scope)?.label || 'Инвентаризация'}</Text>
         </View>
-        <Pressable style={styles.confirmBtn} onPress={handleConfirm}>
+        <Pressable style={[styles.confirmBtn, { position: 'relative' }, confirmHighlight.style]} onPress={handleConfirm}>
           <Text style={styles.confirmBtnTxt}>Подтвердить</Text>
+          {confirmHighlight.overlay}
         </Pressable>
       </View>
       <ScrollView keyboardShouldPersistTaps="handled" style={{ flex: 1 }}>
-        <View style={styles.fillCard}>
+        <View style={[styles.fillCard, { position: 'relative' }, fillHighlight.style]}>
           {actItems.map((item, idx) => {
             const changed = actVals[item.id] && parseFloat(actVals[item.id]) !== item.expected;
             return (
@@ -186,6 +249,7 @@ export default function InventoryScreen({ navigation }) {
               </View>
             );
           })}
+          {fillHighlight.overlay}
         </View>
       </ScrollView>
     </>
@@ -198,15 +262,22 @@ export default function InventoryScreen({ navigation }) {
         onBack={() => goBackSmart(navigation)}
         navigation={navigation}
         activeScreen="Inventory"
+        rightElement={
+          <Pressable style={styles.tourBtn} onPress={() => setTourOpen(true)} hitSlop={10} accessibilityLabel="Подсказка" accessibilityRole="button">
+            <Text style={styles.tourBtnTxt}>?</Text>
+          </Pressable>
+        }
       />
 
       <View key={isLandscape ? 'landscape' : 'portrait'} style={{ flex: 1, flexDirection: isLandscape ? 'row' : 'column' }}>
       <Animated.View style={[isLandscape ? styles.leftCol : { flex: 1 }, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
 
-        <Pressable style={styles.addBtnBig} onPress={() => setShowSetup(true)}>
+        <Pressable style={[styles.addBtnBig, { position: 'relative' }, addBtnHighlight.style]} onPress={() => setShowSetup(true)}>
           <Text style={styles.addBtnBigTxt}>+ Новый акт</Text>
+          {addBtnHighlight.overlay}
         </Pressable>
 
+        <View style={[{ flex: 1, position: 'relative' }, listHighlight.style]}>
         {acts.length === 0 ? (
           <EmptyState
             icon="📋"
@@ -288,6 +359,8 @@ export default function InventoryScreen({ navigation }) {
             })}
           </ScrollView>
         )}
+        {listHighlight.overlay}
+        </View>
 
         {!isLandscape && (
           <View style={[styles.infoCard, { marginTop: 16, marginHorizontal: 16, marginBottom: 16 }]}>
@@ -311,8 +384,8 @@ export default function InventoryScreen({ navigation }) {
                 </Text>
               </View>
 
-              {acts.length > 0 && (
-                <View style={{ width: '100%', maxWidth: 420, alignSelf: 'center' }}>
+              {(acts.length > 0 || activeTourKey === 'inventory.stats') && (
+                <View style={[{ width: '100%', maxWidth: 420, alignSelf: 'center', position: 'relative' }, statsHighlight.style]}>
                   <View style={styles.sideDivider} />
 
                   <Text style={styles.sideLabel}>Актов всего</Text>
@@ -337,6 +410,7 @@ export default function InventoryScreen({ navigation }) {
                   <Text style={styles.sideSub}>
                     {stock.filter(s => s['остаток'] <= (s.threshold || 0)).length} позиций ниже порога
                   </Text>
+                  {statsHighlight.overlay}
                 </View>
               )}
             </>
@@ -351,7 +425,7 @@ export default function InventoryScreen({ navigation }) {
           {activeAct && (
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20 }}>
               <Text style={styles.fillPanelSub}>{SCOPE_OPTIONS.find(s => s.key === activeAct.scope)?.label || 'Инвентаризация'}</Text>
-              <View style={[styles.fillCard, { marginTop: 12 }]}>
+              <View style={[styles.fillCard, { marginTop: 12, position: 'relative' }, fillHighlight.style]}>
                 {actItems.map((item, idx) => {
                   const changed = actVals[item.id] && parseFloat(actVals[item.id]) !== item.expected;
                   return (
@@ -373,9 +447,11 @@ export default function InventoryScreen({ navigation }) {
                     </View>
                   );
                 })}
+                {fillHighlight.overlay}
               </View>
-              <Pressable style={[styles.confirmBtn, { marginTop: 20, alignSelf: 'stretch', paddingVertical: 15 }]} onPress={handleConfirm}>
+              <Pressable style={[styles.confirmBtn, { marginTop: 20, alignSelf: 'stretch', paddingVertical: 15, position: 'relative' }, confirmHighlight.style]} onPress={handleConfirm}>
                 <Text style={[styles.confirmBtnTxt, { textAlign: 'center', fontSize: 16 }]}>Подтвердить</Text>
+                {confirmHighlight.overlay}
               </Pressable>
             </ScrollView>
           )}
@@ -387,7 +463,7 @@ export default function InventoryScreen({ navigation }) {
         <View style={{ padding: 20 }}>
             <Text style={styles.modalSub}>Выберите охват пересчёта</Text>
 
-            <View style={styles.scopeList}>
+            <View style={[styles.scopeList, { position: 'relative' }, scopeHighlight.style]}>
               {SCOPE_OPTIONS.map((s, idx) => (
                 <Pressable
                   key={s.key}
@@ -403,6 +479,7 @@ export default function InventoryScreen({ navigation }) {
                   </View>
                 </Pressable>
               ))}
+              {scopeHighlight.overlay}
             </View>
 
             {scope === 'category' && (
@@ -457,12 +534,25 @@ export default function InventoryScreen({ navigation }) {
             </Pressable>
         </View>
       </Sheet>
+
+      <TourGuide
+        visible={tourOpen}
+        onClose={() => {
+          setTourOpen(false);
+          markTourSeen('Inventory');
+          if (activeAct?.__demo) setActiveAct(null);
+          if (showSetup) setShowSetup(false);
+        }}
+        steps={tourSteps}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root:   { flex: 1, backgroundColor: colors.bg },
+  tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
+  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.orange },
 
   // ── Боковая панель сводки (альбомная) ──
   sidePanel:  { flex: 1, backgroundColor: colors.bg, margin: 12, marginLeft: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', padding: 20 },
