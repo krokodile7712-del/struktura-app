@@ -385,9 +385,7 @@ export default function InventoryScreen({ navigation }) {
               </View>
 
               {(acts.length > 0 || activeTourKey === 'inventory.stats') && (
-                <View style={[{ width: '100%', maxWidth: 420, alignSelf: 'center', position: 'relative' }, statsHighlight.style]}>
-                  <View style={styles.sideDivider} />
-
+                <View style={[{ width: '100%', maxWidth: 420, alignSelf: 'center', position: 'relative', marginTop: 16, padding: 12 }, statsHighlight.style]}>
                   <Text style={styles.sideLabel}>Актов всего</Text>
                   <Text style={styles.sideVal}>{acts.length}</Text>
                   <Text style={styles.sideSub}>
