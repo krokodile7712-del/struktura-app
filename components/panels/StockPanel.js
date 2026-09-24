@@ -462,7 +462,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
           </ScrollView>
         )}
 
-        <View style={[styles.searchWrap, stockSearchHighlight.style]}>
+        <View style={[styles.searchWrap, { position: 'relative' }, stockSearchHighlight.style]}>
           <TextInput
             style={[styles.searchInput, { flex: 1 }]}
             value={search}
@@ -475,7 +475,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
             <Text style={styles.addStockBtnText}>+ Позиция</Text>
           </Pressable>
           )}
-          <Pressable onPress={() => setLowStockSheetOpen(true)} hitSlop={8} style={[styles.catBtn, stockLowHighlight.style]}>
+          <Pressable onPress={() => setLowStockSheetOpen(true)} hitSlop={8} style={[styles.catBtn, { position: 'relative' }, stockLowHighlight.style]}>
             <Text style={styles.catBtnText}>⚠️</Text>
             {stockLowHighlight.overlay}
           </Pressable>

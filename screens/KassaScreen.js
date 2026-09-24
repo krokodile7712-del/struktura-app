@@ -948,7 +948,7 @@ export default function KassaScreen({ navigation, route }) {
               {/* Клиент */}
               <View style={{ flex: 1 }}>
                 {forClient ? (
-                  <View style={[styles.v2Client, styles.v2ClientFilled, styles.v2ClientDiscountBtn, clientRowHighlight.style]}>
+                  <View style={[styles.v2Client, styles.v2ClientFilled, styles.v2ClientDiscountBtn, { position: 'relative' }, clientRowHighlight.style]}>
                     <Pressable
                       style={{ flex: 1, justifyContent: 'center' }}
                       onPress={() => navigation.navigate('ClientCard', { clientId: forClient.id })}
@@ -966,7 +966,7 @@ export default function KassaScreen({ navigation, route }) {
                     {clientRowHighlight.overlay}
                   </View>
                 ) : (
-                  <Pressable style={[styles.v2Client, styles.v2ClientDiscountBtn, clientRowHighlight.style]} onPress={() => setClientPickerOpen(true)}>
+                  <Pressable style={[styles.v2Client, styles.v2ClientDiscountBtn, { position: 'relative' }, clientRowHighlight.style]} onPress={() => setClientPickerOpen(true)}>
                     <Text style={styles.v2ClientAdd} numberOfLines={1}>👤 Клиент</Text>
                     {clientRowHighlight.overlay}
                   </Pressable>
@@ -977,7 +977,7 @@ export default function KassaScreen({ navigation, route }) {
               {can('apply_discounts') && !(forClient?.discount_pct > 0) && !(loyaltyModel === 'discount' && forClient) && (
                 <View style={{ flex: 1 }}>
                   {appliedDiscount ? (
-                    <View style={[styles.v2Client, styles.v2ClientFilled, styles.v2ClientDiscountBtn, discountRowHighlight.style]}>
+                    <View style={[styles.v2Client, styles.v2ClientFilled, styles.v2ClientDiscountBtn, { position: 'relative' }, discountRowHighlight.style]}>
                       <Pressable style={{ flex: 1, justifyContent: 'center' }} onPress={() => setDiscountDropOpen(true)}>
                         <Text style={styles.v2ClientFilledName} numberOfLines={1}>🏷 {appliedDiscount.name}</Text>
                         {discountAmount > 0 && (
@@ -990,7 +990,7 @@ export default function KassaScreen({ navigation, route }) {
                       {discountRowHighlight.overlay}
                     </View>
                   ) : (
-                    <Pressable style={[styles.v2Client, styles.v2ClientDiscountBtn, discountRowHighlight.style]} onPress={() => setDiscountDropOpen(true)}>
+                    <Pressable style={[styles.v2Client, styles.v2ClientDiscountBtn, { position: 'relative' }, discountRowHighlight.style]} onPress={() => setDiscountDropOpen(true)}>
                       <Text style={styles.v2ClientAdd} numberOfLines={1}>🏷 Скидка</Text>
                       {discountRowHighlight.overlay}
                     </Pressable>
@@ -1000,7 +1000,7 @@ export default function KassaScreen({ navigation, route }) {
             </View>
 
             {/* Итого */}
-            <View style={[styles.v2Total, cartActionsHighlight.style]}>
+            <View style={[styles.v2Total, { position: 'relative' }, cartActionsHighlight.style]}>
               <Text style={styles.v2TotalLabel}>
                 {`${order.reduce((s,i)=>s+(i.quantity||1),0)} поз.`}
               </Text>
@@ -1009,7 +1009,7 @@ export default function KassaScreen({ navigation, route }) {
             </View>
 
             {/* Иконки-действия */}
-            <View style={[styles.v2Acts, cartActionsHighlight.style]}>
+            <View style={[styles.v2Acts, { position: 'relative' }, cartActionsHighlight.style]}>
               <Pressable style={styles.v2Act} onPress={() => setNoteModalOpen(true)}>
                 <Text style={styles.v2ActIco}>{orderNote ? '📝' : '✏️'}</Text>
                 <Text style={styles.v2ActLbl}>Заметка</Text>
@@ -1041,7 +1041,7 @@ export default function KassaScreen({ navigation, route }) {
 
             {/* Оплатить */}
             <Pressable
-              style={({pressed})=>[styles.v2Pay, order.length===0 && styles.v2PayOff, pressed && order.length>0 && {opacity:0.88}, payBtnHighlight.style]}
+              style={({pressed})=>[styles.v2Pay, order.length===0 && styles.v2PayOff, pressed && order.length>0 && {opacity:0.88}, { position: 'relative' }, payBtnHighlight.style]}
               onPress={()=>order.length>0 && openPrePay()}
               disabled={order.length===0}
             >
@@ -1074,7 +1074,7 @@ export default function KassaScreen({ navigation, route }) {
       <Animated.View style={[styles.layout, !isLandscape && { flexDirection: 'column' }, { opacity: fadeAnim }]}>
         {isLandscape ? (
           /* ── Вертикальная колонка категорий (альбомная) ── */
-          <View style={[styles.catRail, catRailHighlight.style]}>
+          <View style={[styles.catRail, { position: 'relative' }, catRailHighlight.style]}>
             {groups.map(group => {
               const isActive = activeCat === group && !searchQuery;
               return (
@@ -1094,7 +1094,7 @@ export default function KassaScreen({ navigation, route }) {
           </View>
         ) : (
           /* ── Горизонтальные чипы категорий (портрет) ── */
-          <View style={[styles.catChipsRow, catRailHighlight.style]}>
+          <View style={[styles.catChipsRow, { position: 'relative' }, catRailHighlight.style]}>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -1119,7 +1119,7 @@ export default function KassaScreen({ navigation, route }) {
         )}
 
         {/* ── Центр: поиск + сетка товаров ── */}
-        <View style={[styles.left, productGridHighlight.style]}>
+        <View style={[styles.left, { position: 'relative' }, productGridHighlight.style]}>
           <View style={styles.searchWrap}>
             <TextInput
               style={styles.searchInput}
@@ -1167,7 +1167,7 @@ export default function KassaScreen({ navigation, route }) {
         </View>
 
         {isLandscape ? (
-          <View style={[styles.orderPanel, cartHighlight.style]}>
+          <View style={[styles.orderPanel, { position: 'relative' }, cartHighlight.style]}>
             {renderCartContent()}
             {cartHighlight.overlay}
           </View>

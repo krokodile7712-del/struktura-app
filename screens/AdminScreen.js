@@ -112,7 +112,7 @@ export default function AdminScreen({ navigation }) {
             const demoCount = isDemo ? 2 : stats.lowStockCount;
             const demoItems = isDemo ? [{ name: 'Стаканы 250мл', 'остаток': 8, unit: 'шт' }, { name: 'Молоко', 'остаток': 1, unit: 'л' }] : (stats.lowStockItems || []);
             return (
-            <View style={stockBannerHighlight.style} onLayout={rememberY('admin.stockBanner')}>
+            <View style={[{ position: 'relative' }, stockBannerHighlight.style]} onLayout={rememberY('admin.stockBanner')}>
             <Pressable
               style={[styles.stockBanner, stockOpen && styles.stockBannerOpen]}
               onPress={() => setStockOpen(v => !v)}
@@ -149,12 +149,12 @@ export default function AdminScreen({ navigation }) {
             </View>
           </View>
 
-          <View style={nextStepsHighlight.style} onLayout={rememberY('admin.nextSteps')}>
+          <View style={[{ position: 'relative' }, nextStepsHighlight.style]} onLayout={rememberY('admin.nextSteps')}>
             <NextStepsCard navigation={navigation} forceVisible={tourOpen} />
             {nextStepsHighlight.overlay}
           </View>
 
-          <View style={[styles.statsGrid, statsGridHighlight.style]} onLayout={rememberY('admin.statsGrid')}>
+          <View style={[styles.statsGrid, { position: 'relative' }, statsGridHighlight.style]} onLayout={rememberY('admin.statsGrid')}>
             {[
               { label: 'Выручка', value: `${(stats.todayTotal || 0).toLocaleString('ru-RU')} ₽` },
               { label: 'Заказов', value: stats.todayOrders || 0 },
@@ -180,6 +180,7 @@ export default function AdminScreen({ navigation }) {
                 styles.statCard,
                 styles.shiftStatCard,
                 stats.shift ? styles.shiftStatCardOpen : styles.shiftStatCardClosed,
+                { position: 'relative' },
                 shiftActionHighlight.style,
                 pressed && { opacity: 0.85 },
               ]}

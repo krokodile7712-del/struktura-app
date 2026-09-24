@@ -29,11 +29,16 @@ export function useNextStepsProgress() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
+  const dismiss = useCallback(() => {
+    try { setSetting('next_steps_dismissed', '1'); } catch (_) {}
+    setDismissed(true); // сразу, не дожидаясь следующего фокуса экрана
+  }, []);
+
   const doneCount = NEXT_STEPS.filter(s => status[s.key]).length;
   const allDone = doneCount === NEXT_STEPS.length;
   const visible = !dismissed && !allDone;
 
-  return { status, doneCount, allDone, dismissed, visible, refresh: load };
+  return { status, doneCount, allDone, dismissed, visible, dismiss, refresh: load };
 }
 
 // Карусель шагов — одна карточка на экран (со скруглёнными краями и
@@ -42,7 +47,7 @@ export function useNextStepsProgress() {
 // вручную шаги не перескакивают обратно при обновлении статуса —
 // автопрокрутка на первый невыполненный срабатывает только один раз.
 export default function NextStepsCard({ navigation, forceVisible = false }) {
-  const { status, doneCount, visible } = useNextStepsProgress();
+  const { status, doneCount, visible, dismiss } = useNextStepsProgress();
   const [containerW, setContainerW] = useState(0);
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollRef = useRef(null);
@@ -62,8 +67,6 @@ export default function NextStepsCard({ navigation, forceVisible = false }) {
   }, [containerW, firstUnfinished]);
 
   if (!visible && !forceVisible) return null;
-
-  const dismiss = () => { try { setSetting('next_steps_dismissed', '1'); } catch (_) {} };
 
   const onScrollEnd = (e) => {
     if (!containerW) return;
@@ -114,14 +117,17 @@ export default function NextStepsCard({ navigation, forceVisible = false }) {
                       {done ? <Text style={styles.numberDoneTxt}>✓</Text> : <Text style={styles.numberTxt}>{i + 1}</Text>}
                     </View>
                     <Text style={styles.stepIcon}>{s.icon}</Text>
-                    <Text style={[styles.stepLabel, done && styles.stepLabelDone]}>{s.label}</Text>
-                    <Text style={styles.stepSub}>{s.sub}</Text>
-                    {!done && (
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.stepLabel, done && styles.stepLabelDone]}>{s.label}</Text>
+                      <Text style={styles.stepSub} numberOfLines={1}>{s.sub}</Text>
+                    </View>
+                    {!done ? (
                       <View style={styles.ctaBtn}>
                         <Text style={styles.ctaTxt}>Перейти</Text>
                       </View>
+                    ) : (
+                      <Text style={styles.doneLabel}>Готово</Text>
                     )}
-                    {done && <Text style={styles.doneLabel}>Готово</Text>}
                   </Pressable>
                 </View>
               );
@@ -156,20 +162,20 @@ const styles = StyleSheet.create({
   progressTrack: { height: 8, backgroundColor: colors.surface3, marginHorizontal: 16, borderRadius: 4, overflow: 'hidden', marginBottom: 16 },
   progressFill: { height: '100%', backgroundColor: colors.orange, borderRadius: 4 },
 
-  stepCard: { backgroundColor: colors.surface3, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 20, alignItems: 'center', minHeight: 180 },
-  numberBadge: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(240,160,80,0.12)', borderWidth: 1.5, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+  stepCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.surface3, borderRadius: 14, borderWidth: 1, borderColor: colors.border, padding: 14 },
+  numberBadge: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(240,160,80,0.12)', borderWidth: 1.5, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
   numberBadgeDone: { backgroundColor: colors.green, borderColor: colors.green },
-  numberTxt: { fontFamily: fonts.family, fontSize: 19, fontWeight: '800', color: colors.orange },
-  numberDoneTxt: { fontFamily: fonts.family, fontSize: 19, fontWeight: '800', color: '#fff' },
-  stepIcon: { fontSize: 26, marginBottom: 8 },
-  stepLabel: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text, textAlign: 'center' },
+  numberTxt: { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: colors.orange },
+  numberDoneTxt: { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: '#fff' },
+  stepIcon: { fontSize: 20 },
+  stepLabel: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
   stepLabelDone: { color: colors.muted, textDecorationLine: 'line-through' },
-  stepSub: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 6, textAlign: 'center', lineHeight: 19 },
-  ctaBtn: { marginTop: 14, backgroundColor: colors.orange, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 24 },
-  ctaTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: '#fff' },
-  doneLabel: { marginTop: 14, fontFamily: fonts.familySemibold, fontSize: 14, color: colors.green },
+  stepSub: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 2 },
+  ctaBtn: { backgroundColor: colors.orange, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 14 },
+  ctaTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: '#fff' },
+  doneLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.green },
 
-  dotsRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingVertical: 16 },
+  dotsRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingTop: 12, paddingBottom: 4 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.border },
   dotActive: { width: 22, backgroundColor: colors.orange },
   dotDone: { backgroundColor: colors.green },

@@ -339,14 +339,14 @@ export default function ExpensesPanel({ navigation }) {
   );
 
   const addBtn = can('add_expense') !== false && (
-    <Pressable style={[styles.addBtn, addBtnHighlight.style]} onPress={openModal}>
+    <Pressable style={[styles.addBtn, { position: 'relative' }, addBtnHighlight.style]} onPress={openModal}>
       <Text style={styles.addBtnTxt}>+ Добавить расход</Text>
       {addBtnHighlight.overlay}
     </Pressable>
   );
 
   const list = (
-    <View style={{ flex: 1, ...listHighlight.style }}>
+    <View style={{ flex: 1, position: 'relative' }}>
     <FlatList
       style={{ flex: 1 }}
       data={expenses}
@@ -476,7 +476,7 @@ export default function ExpensesPanel({ navigation }) {
               {/* Повторять каждый месяц — только при создании нового расхода */}
               {!editingId && (
                 <Pressable
-                  style={[styles.recurringRow, recurringToggleHighlight.style]}
+                  style={[styles.recurringRow, { position: 'relative' }, recurringToggleHighlight.style]}
                   onPress={() => setIsRecurring(v => !v)}
                   onLayout={rememberY('expenses.recurringToggle')}
                 >
@@ -494,7 +494,7 @@ export default function ExpensesPanel({ navigation }) {
               )}
 
               {/* Фото чека */}
-              <View style={photoAttachHighlight.style} onLayout={rememberY('expenses.photoAttach')}>
+              <View style={[{ position: 'relative' }, photoAttachHighlight.style]} onLayout={rememberY('expenses.photoAttach')}>
               <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Фото чека</Text>
               {photoUri ? (
                 <View style={styles.photoPreviewWrap}>
@@ -535,7 +535,7 @@ export default function ExpensesPanel({ navigation }) {
 
         {!isLandscape && (
           /* Портрет — компактная сводка сверху, по умолчанию свёрнута */
-          <Pressable style={[styles.stripWrap, summaryHighlight.style]} onPress={() => setSummaryExpanded(v => !v)}>
+          <Pressable style={[styles.stripWrap, { position: 'relative' }, summaryHighlight.style]} onPress={() => setSummaryExpanded(v => !v)}>
             <View style={styles.stripRow}>
               <View>
                 <Text style={styles.stripLabel}>Расходы за период</Text>
@@ -557,7 +557,7 @@ export default function ExpensesPanel({ navigation }) {
           {periodChips}
           <View style={{ paddingHorizontal: 16, paddingTop: 12, flexDirection: 'row', gap: 8 }}>
             <View style={{ flex: 1 }}>{addBtn}</View>
-            <Pressable style={[styles.recurringBtn, recurringBtnHighlight.style]} onPress={() => setRecurringModal(true)}>
+            <Pressable style={[styles.recurringBtn, { position: 'relative' }, recurringBtnHighlight.style]} onPress={() => setRecurringModal(true)}>
               <Text style={styles.recurringBtnTxt}>🔁 Повторы</Text>
               {recurringBtnHighlight.overlay}
             </Pressable>
@@ -583,7 +583,7 @@ export default function ExpensesPanel({ navigation }) {
                 </ScrollView>
               </>
             ) : (
-              <View style={[styles.sidePanelPad, summaryHighlight.style]}>
+              <View style={[styles.sidePanelPad, { position: 'relative' }, summaryHighlight.style]}>
                 <Text style={styles.sideLabel}>За период</Text>
                 <Animated.Text style={[styles.sideVal, { opacity: numAnim }]}>{fmt(total)} ₽</Animated.Text>
                 <Text style={styles.sideSub}>{expenses.length} расходов</Text>

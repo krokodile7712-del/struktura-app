@@ -838,7 +838,7 @@ export default function ProductsScreen({ navigation, route }) {
           {tab === 'products' && (
             <>
               {/* Поиск */}
-              <View style={[styles.searchWrap, { flexDirection: 'row', alignItems: 'center', gap: 8 }, listSearchHighlight.style]}>
+              <View style={[styles.searchWrap, { flexDirection: 'row', alignItems: 'center', gap: 8, position: 'relative' }, listSearchHighlight.style]}>
                 <TextInput style={[styles.searchInput, { flex: 1 }]} color={colors.text}
                   value={search} onChangeText={setSearch}
                   placeholder="Поиск товара..." placeholderTextColor={colors.muted} />

@@ -112,7 +112,7 @@ export default function AppNav({ navigation, activeScreen }) {
 
     return (
       <>
-        <Animated.View style={[styles.landscapeNav, { width: widthAnim, paddingTop: insets.top }, navPanelHighlight.style]}>
+        <Animated.View style={[styles.landscapeNav, { width: widthAnim, paddingTop: insets.top, position: 'relative' }, navPanelHighlight.style]}>
           <Animated.View style={{ flex: 1, opacity: contentFade }}>
             {renderWide ? (
               <>
@@ -205,7 +205,7 @@ export default function AppNav({ navigation, activeScreen }) {
 
   return (
     <>
-      <View style={[styles.nav, { flexDirection: 'row', paddingBottom: Math.max(insets.bottom, 8), borderTopWidth: 1 }, navPanelHighlight.style]}>
+      <View style={[styles.nav, { flexDirection: 'row', paddingBottom: Math.max(insets.bottom, 8), borderTopWidth: 1, position: 'relative' }, navPanelHighlight.style]}>
         {items.map(item => {
           const isActive = activeScreen === item.key;
           return (
