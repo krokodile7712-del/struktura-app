@@ -3072,7 +3072,7 @@ const styles = StyleSheet.create({
   twoCol: { flex: 1, flexDirection: 'row' },
 
   // Двухколоночный layout
-  leftPanelBase: { width: '38%', maxWidth: 480, paddingVertical: 12 },
+  leftPanelBase: { width: '30%', maxWidth: 340, paddingVertical: 12 },
   leftPanelCard: { margin: 12, marginRight: 0, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, overflow: 'hidden' },
   rightPanelBase: { flex: 1 },
   rightPanelCard: { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, margin: 12, marginLeft: 12, overflow: 'hidden' },
