@@ -77,7 +77,6 @@ export default function BookingsScreen({ navigation }) {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [expanded, setExpanded] = useState(null);
-  const [containerWidth, setContainerWidth] = useState(0);
   const [filter, setFilter]     = useState('all');
 
   const [tourOpen, setTourOpen] = useState(false);
@@ -405,6 +404,110 @@ export default function BookingsScreen({ navigation }) {
   // Портретная — форма через Sheet, как и раньше. Альбомная — форма
   // встроена прямо в правую колонку (см. ниже, заменяет собой
   // сводку/кнопку добавления, пока открыта)
+  // Фильтр по дню + сам список — общий для обеих ориентаций
+  const onlineListContent = (
+    <>
+      {selectedCalDate && (
+        <Pressable style={styles.dayFilterBar} onPress={() => setSelectedCalDate(null)}>
+          <Text style={styles.dayFilterTxt}>Показаны записи на {fmtDate(selectedCalDate)}</Text>
+          <Text style={styles.dayFilterClear}>✕ Показать все</Text>
+        </Pressable>
+      )}
+      {loading ? (
+        <View style={styles.centerWrap}>
+          <ActivityIndicator color={colors.orange} size="large" />
+          <Text style={styles.loadingTxt}>Загрузка записей...</Text>
+        </View>
+      ) : filtered.length === 0 ? (
+        <View style={styles.centerWrap}>
+          <Text style={styles.emptyTxt}>
+            {selectedCalDate ? `Нет записей на ${fmtDate(selectedCalDate)}` : filter === 'all' ? 'Нет записей' : `Нет записей в категории «${FILTERS.find(f=>f.key===filter)?.label}»`}
+          </Text>
+          {!selectedCalDate && (
+            <Text style={styles.emptyHint}>
+              Поделитесь QR-кодом из Настроек чтобы клиенты могли записаться
+            </Text>
+          )}
+        </View>
+      ) : (
+        <Animated.ScrollView
+          contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+          style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
+        >
+          {Object.entries(grouped)
+            .sort(([a],[b]) => a.localeCompare(b))
+            .map(([date, items]) => (
+              <View key={date} style={styles.group}>
+                <Text style={styles.groupDate}>{fmtDate(date)}</Text>
+                <View style={styles.groupCard}>
+                  {items.map((b, idx) => {
+                    const st = STATUS[b.status] || STATUS.pending;
+                    const isExp = expanded === b.id;
+                    return (
+                      <View key={b.id}>
+                        <Pressable
+                          style={({ pressed }) => [
+                            styles.bookingRow,
+                            idx < items.length - 1 && !isExp && styles.rowDiv,
+                            pressed && { backgroundColor: 'rgba(245,240,232,0.03)' },
+                          ]}
+                          onPress={() => setExpanded(isExp ? null : b.id)}
+                        >
+                          {/* Время */}
+                          <Text style={styles.bookingTime}>
+                            {b.time_start?.slice(0,5) || '—'}
+                          </Text>
+
+                          {/* Инфо */}
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.bookingName}>{b.client_name}</Text>
+                            <Text style={styles.bookingSub} numberOfLines={1}>
+                              {b.services?.name || 'Без услуги'}
+                              {b.client_phone ? ` · ${b.client_phone}` : ''}
+                            </Text>
+                            {b.note ? <Text style={styles.bookingNote}>💬 {b.note}</Text> : null}
+                          </View>
+
+                          {/* Статус */}
+                          <View style={[styles.statusBadge, { backgroundColor: st.bg }]}>
+                            <Text style={[styles.statusTxt, { color: st.color }]}>{st.label}</Text>
+                          </View>
+
+                          <Text style={[styles.chevron, isExp && styles.chevronOpen]}>›</Text>
+                        </Pressable>
+
+                        {/* Действия */}
+                        {isExp && can('edit_bookings') && (
+                          <View style={[styles.actionsPanel, idx < items.length - 1 && styles.rowDiv]}>
+                            {b.status !== 'confirmed' && (
+                              <Pressable style={styles.actionBtn} onPress={() => handleStatus(b.id, 'confirmed')}>
+                                <Text style={[styles.actionTxt, { color: colors.green }]}>✓ Подтвердить</Text>
+                              </Pressable>
+                            )}
+                            {b.status !== 'done' && b.status !== 'cancelled' && (
+                              <Pressable style={styles.actionBtn} onPress={() => handleStatus(b.id, 'done')}>
+                                <Text style={styles.actionTxt}>✔ Выполнено</Text>
+                              </Pressable>
+                            )}
+                            {b.status !== 'cancelled' && (
+                              <Pressable style={[styles.actionBtn, { borderColor: 'rgba(217,95,95,0.35)' }]}
+                                onPress={() => handleStatus(b.id, 'cancelled')}>
+                                <Text style={[styles.actionTxt, { color: colors.red }]}>✕ Отменить</Text>
+                              </Pressable>
+                            )}
+                          </View>
+                        )}
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            ))}
+        </Animated.ScrollView>
+      )}
+    </>
+  );
+
   const manualFormSheet = !isLandscape && (
     <Sheet
       visible={manualFormOpen}
@@ -465,63 +568,52 @@ export default function BookingsScreen({ navigation }) {
       </View>
 
       {mainTab === 'online' && (
-      <View style={[styles.layout, !isLandscape && { flexDirection: 'column' }]} onLayout={e => setContainerWidth(e.nativeEvent.layout.width)}>
+      <View style={[styles.layout, !isLandscape && { flexDirection: 'column' }]}>
 
-        {isLandscape ? (
-          <View style={[styles.left, containerWidth > 0 && { width: Math.min(480, containerWidth * 0.38) }, { position: 'relative' }, filtersHighlight.style]}>
-            <Text style={styles.sectionLabel}>Фильтр</Text>
-            {FILTERS.map(f => {
-              const count = f.key === 'all' ? bookings.length : (counts[f.key] || 0);
-              return (
-                <Pressable
-                  key={f.key}
-                  style={[styles.filterBtn, filter === f.key && styles.filterBtnActive]}
-                  onPress={() => setFilter(f.key)}
-                >
-                  {filter === f.key && <View style={styles.filterBar} />}
-                  <Text style={[styles.filterTxt, filter === f.key && styles.filterTxtActive]}>{f.label}</Text>
-                  {count > 0 && (
-                    <View style={[styles.countBadge, f.key === 'pending' && count > 0 && styles.countBadgeNew]}>
-                      <Text style={[styles.countTxt, f.key === 'pending' && count > 0 && styles.countTxtNew]}>{count}</Text>
-                    </View>
-                  )}
-                </Pressable>
-              );
-            })}
-
-            <View style={styles.divider} />
-
-            {/* Подсказка */}
-            <View style={styles.hintCard}>
-              <Text style={styles.hintTitle}>Онлайн запись</Text>
-              <Text style={styles.hintTxt}>
-                Клиенты записываются через форму по QR-коду. Новые записи появляются здесь автоматически.
-              </Text>
+        <View style={isLandscape ? styles.manualLeftLandscape : styles.manualLeftPortrait}>
+          {isLandscape ? (
+            <View style={[{ padding: 14, position: 'relative' }, filtersHighlight.style]}>
+              <Text style={styles.sectionLabel}>Фильтр</Text>
+              {FILTERS.map(f => {
+                const count = f.key === 'all' ? bookings.length : (counts[f.key] || 0);
+                return (
+                  <Pressable
+                    key={f.key}
+                    style={[styles.filterBtn, filter === f.key && styles.filterBtnActive]}
+                    onPress={() => setFilter(f.key)}
+                  >
+                    {filter === f.key && <View style={styles.filterBar} />}
+                    <Text style={[styles.filterTxt, filter === f.key && styles.filterTxtActive]}>{f.label}</Text>
+                    {count > 0 && (
+                      <View style={[styles.countBadge, f.key === 'pending' && count > 0 && styles.countBadgeNew]}>
+                        <Text style={[styles.countTxt, f.key === 'pending' && count > 0 && styles.countTxtNew]}>{count}</Text>
+                      </View>
+                    )}
+                  </Pressable>
+                );
+              })}
+              {filtersHighlight.overlay}
             </View>
-            {filtersHighlight.overlay}
-          </View>
-        ) : (
-          <View style={[styles.filterRowOuter, { position: 'relative' }, filtersHighlight.style]}>
-            {FILTERS.map(f => {
-              const count = f.key === 'all' ? bookings.length : (counts[f.key] || 0);
-              return (
-                <Pressable
-                  key={f.key}
-                  style={[styles.filterChip, filter === f.key && styles.filterChipActive]}
-                  onPress={() => setFilter(f.key)}
-                >
-                  <Text style={[styles.filterChipTxt, filter === f.key && styles.filterChipTxtActive]}>
-                    {f.label}{count > 0 ? ` · ${count}` : ''}
-                  </Text>
-                </Pressable>
-              );
-            })}
-            {filtersHighlight.overlay}
-          </View>
-        )}
+          ) : (
+            <View style={[styles.filterRowOuter, { position: 'relative' }, filtersHighlight.style]}>
+              {FILTERS.map(f => {
+                const count = f.key === 'all' ? bookings.length : (counts[f.key] || 0);
+                return (
+                  <Pressable
+                    key={f.key}
+                    style={[styles.filterChip, filter === f.key && styles.filterChipActive]}
+                    onPress={() => setFilter(f.key)}
+                  >
+                    <Text style={[styles.filterChipTxt, filter === f.key && styles.filterChipTxtActive]}>
+                      {f.label}{count > 0 ? ` · ${count}` : ''}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+              {filtersHighlight.overlay}
+            </View>
+          )}
 
-        {/* Правая панель */}
-        <View style={styles.right}>
           {isLandscape && (
             <View style={[styles.calEmbeddedWrap, { position: 'relative' }, calendarHighlight.style]}>
               <BookingsCalendar
@@ -535,106 +627,22 @@ export default function BookingsScreen({ navigation }) {
               {calendarHighlight.overlay}
             </View>
           )}
-          {selectedCalDate && (
-            <Pressable style={styles.dayFilterBar} onPress={() => setSelectedCalDate(null)}>
-              <Text style={styles.dayFilterTxt}>Показаны записи на {fmtDate(selectedCalDate)}</Text>
-              <Text style={styles.dayFilterClear}>✕ Показать все</Text>
-            </Pressable>
-          )}
-          {loading ? (
-            <View style={styles.centerWrap}>
-              <ActivityIndicator color={colors.orange} size="large" />
-              <Text style={styles.loadingTxt}>Загрузка записей...</Text>
-            </View>
-          ) : filtered.length === 0 ? (
-            <View style={styles.centerWrap}>
-              <Text style={styles.emptyTxt}>
-                {selectedCalDate ? `Нет записей на ${fmtDate(selectedCalDate)}` : filter === 'all' ? 'Нет записей' : `Нет записей в категории «${FILTERS.find(f=>f.key===filter)?.label}»`}
-              </Text>
-              {!selectedCalDate && (
-                <Text style={styles.emptyHint}>
-                  Поделитесь QR-кодом из Настроек чтобы клиенты могли записаться
-                </Text>
-              )}
-            </View>
-          ) : (
-            <Animated.ScrollView
-              contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
-              style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
-            >
-              {Object.entries(grouped)
-                .sort(([a],[b]) => a.localeCompare(b))
-                .map(([date, items]) => (
-                  <View key={date} style={styles.group}>
-                    <Text style={styles.groupDate}>{fmtDate(date)}</Text>
-                    <View style={styles.groupCard}>
-                      {items.map((b, idx) => {
-                        const st = STATUS[b.status] || STATUS.pending;
-                        const isExp = expanded === b.id;
-                        return (
-                          <View key={b.id}>
-                            <Pressable
-                              style={({ pressed }) => [
-                                styles.bookingRow,
-                                idx < items.length - 1 && !isExp && styles.rowDiv,
-                                pressed && { backgroundColor: 'rgba(245,240,232,0.03)' },
-                              ]}
-                              onPress={() => setExpanded(isExp ? null : b.id)}
-                            >
-                              {/* Время */}
-                              <Text style={styles.bookingTime}>
-                                {b.time_start?.slice(0,5) || '—'}
-                              </Text>
-
-                              {/* Инфо */}
-                              <View style={{ flex: 1 }}>
-                                <Text style={styles.bookingName}>{b.client_name}</Text>
-                                <Text style={styles.bookingSub} numberOfLines={1}>
-                                  {b.services?.name || 'Без услуги'}
-                                  {b.client_phone ? ` · ${b.client_phone}` : ''}
-                                </Text>
-                                {b.note ? <Text style={styles.bookingNote}>💬 {b.note}</Text> : null}
-                              </View>
-
-                              {/* Статус */}
-                              <View style={[styles.statusBadge, { backgroundColor: st.bg }]}>
-                                <Text style={[styles.statusTxt, { color: st.color }]}>{st.label}</Text>
-                              </View>
-
-                              <Text style={[styles.chevron, isExp && styles.chevronOpen]}>›</Text>
-                            </Pressable>
-
-                            {/* Действия */}
-                            {isExp && can('edit_bookings') && (
-                              <View style={[styles.actionsPanel, idx < items.length - 1 && styles.rowDiv]}>
-                                {b.status !== 'confirmed' && (
-                                  <Pressable style={styles.actionBtn} onPress={() => handleStatus(b.id, 'confirmed')}>
-                                    <Text style={[styles.actionTxt, { color: colors.green }]}>✓ Подтвердить</Text>
-                                  </Pressable>
-                                )}
-                                {b.status !== 'done' && b.status !== 'cancelled' && (
-                                  <Pressable style={styles.actionBtn} onPress={() => handleStatus(b.id, 'done')}>
-                                    <Text style={styles.actionTxt}>✔ Выполнено</Text>
-                                  </Pressable>
-                                )}
-                                {b.status !== 'cancelled' && (
-                                  <Pressable style={[styles.actionBtn, { borderColor: 'rgba(217,95,95,0.35)' }]}
-                                    onPress={() => handleStatus(b.id, 'cancelled')}>
-                                    <Text style={[styles.actionTxt, { color: colors.red }]}>✕ Отменить</Text>
-                                  </Pressable>
-                                )}
-                              </View>
-                            )}
-                          </View>
-                        );
-                      })}
-                    </View>
-                  </View>
-                ))}
-            </Animated.ScrollView>
-          )}
+          {onlineListContent}
         </View>
 
+        {/* Правая панель — подсказка (только альбомная) */}
+        {isLandscape && (
+          <View style={styles.right}>
+            <ScrollView contentContainerStyle={{ padding: 20 }}>
+              <View style={styles.hintCard}>
+                <Text style={styles.hintTitle}>Онлайн запись</Text>
+                <Text style={styles.hintTxt}>
+                  Клиенты записываются через форму по QR-коду. Новые записи появляются здесь автоматически.
+                </Text>
+              </View>
+            </ScrollView>
+          </View>
+        )}
       </View>
       )}
 
@@ -829,16 +837,16 @@ const styles = StyleSheet.create({
   countTxt:    { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
   countTxtNew: { color: colors.amber },
 
-  hintCard:  { backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 12 },
-  hintTitle: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.text, marginBottom: 6 },
-  hintTxt:   { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, lineHeight: 17 },
+  hintCard:  { backgroundColor: colors.surface3, borderRadius: 14, borderWidth: 1, borderColor: colors.borderHi, padding: 16 },
+  hintTitle: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text, marginBottom: 8 },
+  hintTxt:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, lineHeight: 20 },
 
   // Правая панель
-  right:      { flex: 1, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, margin: 12, marginLeft: 12, overflow: 'hidden' },
+  right:      { flex: 1, backgroundColor: colors.bg, borderRadius: 16, borderWidth: 1, borderColor: colors.border, margin: 12, marginLeft: 12, overflow: 'hidden' },
 
-  manualLeftLandscape: { width: '38%', maxWidth: 480, margin: 12, marginRight: 0, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, overflow: 'hidden' },
+  manualLeftLandscape: { width: '38%', maxWidth: 480, margin: 12, marginRight: 0, borderRadius: 16, borderWidth: 1, borderColor: colors.borderHi, backgroundColor: colors.surface2, overflow: 'hidden' },
   manualLeftPortrait:  { flex: 1, backgroundColor: colors.surface },
-  sidePanelManual: { flex: 1, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, margin: 12, marginLeft: 12, overflow: 'hidden' },
+  sidePanelManual: { flex: 1, backgroundColor: colors.bg, borderRadius: 16, borderWidth: 1, borderColor: colors.border, margin: 12, marginLeft: 12, overflow: 'hidden' },
   embeddedFormHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, paddingBottom: 0 },
   embeddedFormTitle: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, flex: 1 },
   embeddedFormClose: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
