@@ -527,14 +527,9 @@ export default function BookingsScreen({ navigation }) {
         navigation={navigation}
         activeScreen="Bookings"
         rightElement={
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-            <Pressable onPress={() => setTourOpen(true)} hitSlop={10} style={styles.tourBtn}>
-              <Text style={styles.tourBtnTxt}>?</Text>
-            </Pressable>
-            <Pressable onPress={load} hitSlop={12}>
-              <Text style={styles.refreshBtn}>↻</Text>
-            </Pressable>
-          </View>
+          <Pressable onPress={() => setTourOpen(true)} hitSlop={10} style={styles.tourBtn}>
+            <Text style={styles.tourBtnTxt}>?</Text>
+          </Pressable>
         }
       />
 
@@ -563,6 +558,9 @@ export default function BookingsScreen({ navigation }) {
         </Pressable>
         <Pressable style={[styles.mainTabBtn, mainTab === 'manual' && styles.mainTabBtnActive]} onPress={() => setMainTab('manual')}>
           <Text style={[styles.mainTabTxt, mainTab === 'manual' && styles.mainTabTxtActive]}>По телефону</Text>
+        </Pressable>
+        <Pressable onPress={load} hitSlop={12} style={styles.refreshBtnWrap} accessibilityLabel="Обновить" accessibilityRole="button">
+          <Text style={styles.refreshBtn}>↻</Text>
         </Pressable>
         {tabsHighlight.overlay}
       </View>
@@ -906,6 +904,7 @@ const styles = StyleSheet.create({
   actionTxt:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
 
   refreshBtn:  { fontSize: 20, color: colors.muted },
+  refreshBtnWrap: { paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
 
   dayFilterBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 16, marginTop: 12, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.3)' },
   dayFilterTxt: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.text, flex: 1 },

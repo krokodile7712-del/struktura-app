@@ -798,27 +798,15 @@ export default function ProductsScreen({ navigation, route }) {
         title="Товары"
         onBack={() => goBackSmart(navigation)}
         rightElement={
-          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-            <Pressable
-              style={styles.tourBtn}
-              onPress={() => { setTourFull(false); setTourOpen(true); }}
-              hitSlop={10}
-              accessibilityLabel="Подсказка"
-              accessibilityRole="button"
-            >
-              <Text style={styles.tourBtnTxt}>?</Text>
-            </Pressable>
-            {tab === 'products' && (
-              <Pressable style={styles.headerBtn} onPress={openCategoryMgmt} accessibilityLabel="Категории" accessibilityRole="button">
-                <Text style={styles.headerBtnTxt}>🏷</Text>
-              </Pressable>
-            )}
-            {tab === 'modifiers' && (
-              <Pressable style={styles.addBtn} onPress={() => setGroupModal({ name: '', mode: 'add' })}>
-                <Text style={styles.addBtnTxt}>+ Группа</Text>
-              </Pressable>
-            )}
-          </View>
+          <Pressable
+            style={styles.tourBtn}
+            onPress={() => { setTourFull(false); setTourOpen(true); }}
+            hitSlop={10}
+            accessibilityLabel="Подсказка"
+            accessibilityRole="button"
+          >
+            <Text style={styles.tourBtnTxt}>?</Text>
+          </Pressable>
         }
       />
 
@@ -861,6 +849,9 @@ export default function ProductsScreen({ navigation, route }) {
                 )}
                 <Pressable onPress={() => setCatModal(true)} hitSlop={8} style={styles.catBtn}>
                   <Text style={styles.catBtnText}>⚙</Text>
+                </Pressable>
+                <Pressable onPress={openCategoryMgmt} hitSlop={8} style={styles.catBtn} accessibilityLabel="Категории" accessibilityRole="button">
+                  <Text style={styles.catBtnText}>🏷</Text>
                 </Pressable>
                 {listSearchHighlight.overlay}
               </View>
@@ -924,6 +915,9 @@ export default function ProductsScreen({ navigation, route }) {
 
           {tab === 'modifiers' && (
             <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ padding: 12, gap: 10 }}>
+              <Pressable style={styles.addBtnBig} onPress={() => setGroupModal({ name: '', mode: 'add' })}>
+                <Text style={styles.addBtnBigTxt}>+ Группа</Text>
+              </Pressable>
               {modGroups.length === 0 ? (
                 <View style={styles.emptyWrap}>
                   <Text style={styles.emptyTxt}>Нет групп</Text>
@@ -1724,6 +1718,8 @@ const styles = StyleSheet.create({
   tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.orange },
   addBtn:     { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, backgroundColor: 'rgba(240,160,80,0.12)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)' },
   addBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
+  addBtnBig:  { paddingVertical: 15, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
+  addBtnBigTxt: { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: '#fff' },
 
   // Модалки
   modalOverlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 24 },
