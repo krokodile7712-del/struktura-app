@@ -2625,7 +2625,7 @@ export default function SettingsScreen({ navigation, route }) {
                   {empModal.role !== 'admin' && empModal.permissions && (
                     <>
                       <Text style={[styles.productFieldLabel, { marginTop: 20 }]}>Права доступа</Text>
-                      <Text style={{ fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginBottom: 10, lineHeight: 16 }}>
+                      <Text style={{ fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginBottom: 10, lineHeight: 19 }}>
                         Выберите что сотрудник может видеть и делать в приложении
                       </Text>
                       {[
@@ -2646,6 +2646,10 @@ export default function SettingsScreen({ navigation, route }) {
                           { key: 'view_stock',      label: 'Просматривать остатки' },
                           { key: 'edit_stock',      label: 'Закупки и списания' },
                           { key: 'edit_thresholds', label: 'Изменять пороги' },
+                        ]},
+                        { group: 'Товары', items: [
+                          { key: 'edit_products',   label: 'Редактировать товары' },
+                          { key: 'edit_cost_cards',  label: 'Себестоимость и техкарты' },
                         ]},
                         { group: 'Финансы', items: [
                           { key: 'view_reports', label: 'Отчётность и P&L' },
