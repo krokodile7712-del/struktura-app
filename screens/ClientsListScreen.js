@@ -386,14 +386,9 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
         navigation={navigation}
         activeScreen="ClientsList"
         rightElement={
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Pressable onPress={() => setTourOpen(true)} hitSlop={10} style={styles.tourBtn}>
-              <Text style={styles.tourBtnTxt}>?</Text>
-            </Pressable>
-            <Pressable style={styles.addBtn} onPress={() => navigation.navigate('Reg')} hitSlop={8}>
-              <Text style={styles.addBtnTxt}>＋</Text>
-            </Pressable>
-          </View>
+          <Pressable onPress={() => setTourOpen(true)} hitSlop={10} style={styles.tourBtn}>
+            <Text style={styles.tourBtnTxt}>?</Text>
+          </Pressable>
         }
       />
 
@@ -401,6 +396,10 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
         {/* Левая колонка — список */}
         <View style={[styles.listCol, !isLandscape && { width: undefined, maxWidth: undefined, flex: 1, margin: 0, borderRadius: 0, borderWidth: 0, borderRightWidth: 0 }]}>
           <View style={[{ position: 'relative' }, searchHighlight.style]}>
+          <Pressable style={styles.addBtnBig} onPress={() => navigation.navigate('Reg')}>
+            <Text style={styles.addBtnBigTxt}>+ Зарегистрировать клиента</Text>
+          </Pressable>
+
           <Pressable onPress={() => setLoyaltySummaryOpen(v => !v)} style={styles.loyaltyStrip}>
             <View>
               <Text style={styles.loyaltyStripLabel}>{MODEL_INFO[loyaltyModel]?.label || 'Лояльность'}</Text>
@@ -567,6 +566,8 @@ const styles = StyleSheet.create({
   searchInput:{ backgroundColor: colors.surface2, borderRadius: 10, paddingVertical: 11, paddingHorizontal: 12, fontFamily: fonts.familyRegular, fontSize: 16, color: colors.text },
   addBtn:     { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(240,160,80,0.15)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
   addBtnTxt:  { fontSize: 22, color: colors.orange, lineHeight: 28 },
+  addBtnBig:  { margin: 12, marginBottom: 0, paddingVertical: 15, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
+  addBtnBigTxt: { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: '#fff' },
 
   clientsCard:   { margin: 8, backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   clientRow:     { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12, position: 'relative' },
