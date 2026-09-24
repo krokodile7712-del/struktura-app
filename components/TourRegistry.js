@@ -70,14 +70,21 @@ export function useTourHighlight(key, radius = 12) {
   return {
     isActive,
     isDimmed,
-    style: isActive
-      ? {
-          // Переопределяем ВСЕ четыре стороны явно, не общим borderWidth —
-          // если у базового стиля элемента уже есть направленный бордер
-          // (borderRightWidth/borderLeftWidth, обычная серая линия-разделитель
-          // между колонками), он побеждает общий borderWidth на своей стороне
-          // независимо от порядка в массиве стилей. Именно из-за этого не
-          // подсвечивалась ровно та грань, где заранее был свой бордер.
+    // Рамка подсветки больше НЕ здесь — borderWidth на самом элементе
+    // физически увеличивает его размер в React Native (не как на вебе,
+    // box-sizing тут так не работает), из-за чего сосед сдвигался на
+    // 2-4px при каждой смене активного шага (особенно заметно, когда
+    // подряд подсвечивается несколько элементов в одном списке). Рамка
+    // теперь в overlay ниже — абсолютный слой, не участвует в раскладке.
+    style: null,
+    // Родителю нужен position:'relative' (или он и так borderRadius/overflow —
+    // почти у всех карточек уже есть), чтобы этот абсолютный слой лёг
+    // ровно поверх, а не поверх всего экрана. Вставлять последним ребёнком.
+    overlay: isActive ? (
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
           borderTopWidth: 2,
           borderRightWidth: 2,
           borderBottomWidth: 2,
@@ -87,19 +94,10 @@ export function useTourHighlight(key, radius = 12) {
           borderBottomColor: colors.orange,
           borderLeftColor: colors.orange,
           borderRadius: radius,
-          opacity: 1,
-          // Активный элемент должен побеждать соседей за общую границу —
-          // без этого сосед (стоящий позже в разметке) перекрывает именно
-          // ту грань рамки, что касается его самого. Только zIndex, без
-          // elevation — elevation на Android сама по себе рисует тень,
-          // это и было причиной непонятного пятна вокруг рамки раньше.
           zIndex: 10,
-        }
-      : null,
-    // Родителю нужен position:'relative' (или он и так borderRadius/overflow —
-    // почти у всех карточек уже есть), чтобы этот абсолютный слой лёг
-    // ровно поверх, а не поверх всего экрана. Вставлять последним ребёнком.
-    overlay: isDimmed ? (
+        }}
+      />
+    ) : isDimmed ? (
       <View
         pointerEvents="none"
         style={{

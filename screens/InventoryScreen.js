@@ -65,15 +65,18 @@ export default function InventoryScreen({ navigation }) {
   const confirmHighlightRaw = useTourHighlight('inventory.confirm');
   // Список позиций никогда не гасится на этих двух шагах — важно
   // продолжать видеть, что именно заполняешь/подтверждаешь. Рамку
-  // получает только тот элемент, чей шаг активен именно сейчас.
+  // получает только тот элемент, чей шаг активен именно сейчас — она
+  // тоже приходит через overlay (не через style, который больше не
+  // меняет размер элемента), поэтому пропускаем её как есть и гасим
+  // только явное затемнение на соседнем из этой пары шагов.
   const isFillOrConfirmStep = activeTourKey === 'inventory.fill' || activeTourKey === 'inventory.confirm';
   const fillHighlight = {
-    style: fillHighlightRaw.isActive ? fillHighlightRaw.style : null,
-    overlay: isFillOrConfirmStep ? null : fillHighlightRaw.overlay,
+    style: null,
+    overlay: (isFillOrConfirmStep && !fillHighlightRaw.isActive) ? null : fillHighlightRaw.overlay,
   };
   const confirmHighlight = {
-    style: confirmHighlightRaw.isActive ? confirmHighlightRaw.style : null,
-    overlay: null,
+    style: null,
+    overlay: confirmHighlightRaw.isActive ? confirmHighlightRaw.overlay : null,
   };
   const statsHighlight   = useTourHighlight('inventory.stats');
 

@@ -176,8 +176,7 @@ export default function ExpensesPanel({ navigation }) {
   useEffect(() => {
     const needsForm = activeTourKey === 'expenses.recurringToggle' || activeTourKey === 'expenses.photoAttach';
     if (needsForm) {
-      const t = setTimeout(openModal, 120);
-      return () => clearTimeout(t);
+      openModal();
     } else if (activeTourKey) {
       closeForm();
     }
