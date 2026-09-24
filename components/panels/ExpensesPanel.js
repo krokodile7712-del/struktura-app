@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
   TextInput, Animated, FlatList, Alert, Image, Modal,
@@ -38,7 +38,7 @@ const PERIODS = [
 // сворачиваемая полоска сверху (по умолчанию свёрнута — только итог), список
 // на всю ширину ниже неё. Строки списка — тонкие, без карточек-рамок, суммы
 // выровнены по правому краю в колонку.
-export default function ExpensesPanel({ navigation }) {
+function ExpensesPanel({ navigation }, ref) {
   const { isLandscape } = useResponsive();
   const [period, setPeriod]         = useState('week');
   const [expenses, setExpenses]     = useState([]);
@@ -53,6 +53,7 @@ export default function ExpensesPanel({ navigation }) {
   const [photoUri, setPhotoUri]     = useState('');
   const [photoViewUri, setPhotoViewUri] = useState(''); // полноэкранный просмотр — отдельно от формы
   const [tourOpen, setTourOpen] = useState(false);
+  useImperativeHandle(ref, () => ({ openTour: () => setTourOpen(true) }));
   const activeTourKey = useTourActiveKey();
   const listHighlight = useTourHighlight('expenses.list');
   const recurringBtnHighlight = useTourHighlight('expenses.recurringBtn', 12);
@@ -516,10 +517,6 @@ export default function ExpensesPanel({ navigation }) {
 
   return (
     <View style={styles.root}>
-      <Pressable onPress={() => setTourOpen(true)} hitSlop={10} style={styles.tourBtnFloat}>
-        <Text style={styles.tourBtnTxt}>?</Text>
-      </Pressable>
-
       <View key={isLandscape ? 'landscape' : 'portrait'} style={{ flex: 1, flexDirection: isLandscape ? 'row' : 'column' }}>
 
         {!isLandscape && (
@@ -790,3 +787,5 @@ const styles = StyleSheet.create({
   saveBtn:    { flex: 1, paddingVertical: 17, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
   saveTxt:    { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: '#fff' },
 });
+
+export default forwardRef(ExpensesPanel);

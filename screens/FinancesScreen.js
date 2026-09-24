@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
@@ -24,6 +24,7 @@ export default function FinancesScreen({ navigation, route }) {
   const isAdmin = getSession()?.role === 'admin';
   const [tab, setTab] = useState(isAdmin ? (route?.params?.initialTab || 'expenses') : 'expenses');
   const [summary, setSummary] = useState(null);
+  const expensesRef = useRef(null);
 
   const load = useCallback(() => {
     if (!isAdmin) return; // сводка по всем видам трат — дело администратора
@@ -47,7 +48,19 @@ export default function FinancesScreen({ navigation, route }) {
 
   return (
     <View style={styles.root}>
-      <TopBar title="Расходы" onBack={() => goBackSmart(navigation)} navigation={navigation} activeScreen="Finances" />
+      <TopBar
+        title="Расходы"
+        onBack={() => goBackSmart(navigation)}
+        navigation={navigation}
+        activeScreen="Finances"
+        rightElement={
+          tab === 'expenses' ? (
+            <Pressable onPress={() => expensesRef.current?.openTour()} hitSlop={10} style={styles.tourBtn} accessibilityLabel="Подсказка" accessibilityRole="button">
+              <Text style={styles.tourBtnTxt}>?</Text>
+            </Pressable>
+          ) : null
+        }
+      />
 
       {/* Компактная сводка за текущий месяц — только у администратора */}
       {isAdmin && summary && (
@@ -75,7 +88,7 @@ export default function FinancesScreen({ navigation, route }) {
       )}
 
       <View style={{ flex: 1 }}>
-        {tab === 'expenses'    && <ExpensesPanel navigation={navigation} />}
+        {tab === 'expenses'    && <ExpensesPanel ref={expensesRef} navigation={navigation} />}
         {isAdmin && tab === 'investments' && <InvestmentsPanel navigation={navigation} />}
       </View>
     </View>
@@ -84,6 +97,8 @@ export default function FinancesScreen({ navigation, route }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
+  tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
+  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.orange },
 
   summaryRow: { flexGrow: 0, borderBottomWidth: 1, borderBottomColor: colors.borderHi, backgroundColor: colors.surface2 },
   summaryRowInner: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingVertical: 10 },
