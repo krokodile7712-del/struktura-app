@@ -243,16 +243,9 @@ export default function ReportsScreen({ navigation }) {
         navigation={navigation}
         activeScreen="Reports"
         rightElement={
-          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-            <Pressable style={styles.tourBtn} onPress={() => setTourOpen(true)} hitSlop={10} accessibilityLabel="Подсказка" accessibilityRole="button">
-              <Text style={styles.tourBtnTxt}>?</Text>
-            </Pressable>
-            <Pressable style={styles.exportBtn} onPress={async () => {
-              try { const d = exportAllData(); await Share.share({ message: d, title: 'Отчёт СТРУКТУРА' }); } catch(_) {}
-            }}>
-              <Text style={styles.exportBtnTxt}>↑ Экспорт</Text>
-            </Pressable>
-          </View>
+          <Pressable style={styles.tourBtn} onPress={() => setTourOpen(true)} hitSlop={10} accessibilityLabel="Подсказка" accessibilityRole="button">
+            <Text style={styles.tourBtnTxt}>?</Text>
+          </Pressable>
         }
       />
 
@@ -276,6 +269,11 @@ export default function ReportsScreen({ navigation }) {
             <Pressable onPress={() => setFiltersOpen(true)} hitSlop={8} style={[styles.filtersBtn, { position: 'relative' }, filtersHighlight.style]}>
               <Text style={styles.filtersBtnTxt}>⚙ Период</Text>
               {filtersHighlight.overlay}
+            </Pressable>
+            <Pressable style={styles.exportBtn} onPress={async () => {
+              try { const d = exportAllData(); await Share.share({ message: d, title: 'Отчёт СТРУКТУРА' }); } catch(_) {}
+            }}>
+              <Text style={styles.exportBtnTxt}>↑ Экспорт</Text>
             </Pressable>
           </View>
 
@@ -588,7 +586,7 @@ const styles = StyleSheet.create({
   tabBarRow: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: colors.border },
   tabBar:  { flexDirection: 'row', flex: 1 },
   filtersBtn:  { paddingHorizontal: 12, paddingVertical: 9, marginRight: 10, borderRadius: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
-  filtersBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
+  filtersBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   tabBtn:  { flex: 1, paddingVertical: 14, alignItems: 'center' },
   tabBtnActive: { borderBottomWidth: 2, borderBottomColor: colors.orange },
   tabTxt:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
@@ -629,10 +627,10 @@ const styles = StyleSheet.create({
   heatLabel:   { fontFamily: fonts.familyRegular, fontSize: 8, color: colors.muted },
 
   // Экспорт
-  exportBtn:    { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', backgroundColor: 'rgba(240,160,80,0.08)' },
+  exportBtn:    { paddingVertical: 8, paddingHorizontal: 12, marginRight: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', backgroundColor: 'rgba(240,160,80,0.08)' },
   tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
   tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.orange },
-  exportBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.orange },
+  exportBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
 
   // Модалка
   modalRoot:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 24 },
