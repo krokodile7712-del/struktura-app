@@ -2234,7 +2234,7 @@ export default function SettingsScreen({ navigation, route }) {
 
                 {/* Столы — только если зона уже сохранена */}
                 {zoneModal.id ? (<>
-                  <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Столы в этой зоне ({(zoneModal.tables || []).length})</Text>
+                  <Text style={[styles.subLabel, { marginTop: 16 }]}>Столы в этой зоне ({(zoneModal.tables || []).length})</Text>
 
                   {/* Список столов */}
                   {(zoneModal.tables || []).length === 0 && (
@@ -3028,24 +3028,6 @@ const styles = StyleSheet.create({
   // Двухколоночный layout
   twoCol: { flex: 1, flexDirection: 'row' },
 
-  navArrow: { fontSize: 16, color: colors.muted },
-
-  // Правая панель
-  rightPanel: { flex: 1, backgroundColor: colors.bg },
-  rightInner: { padding: 24, paddingBottom: 48 },
-  sectionTitle: {
-    fontFamily: fonts.family,
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.text,
-    marginBottom: 18,
-    letterSpacing: -0.3,
-  },
-
-  // Телефон
-  phoneback: { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
-  phoneBackText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
-
   // Двухколоночный layout
   leftPanelBase: { width: '38%', maxWidth: 480, paddingVertical: 12 },
   leftPanelCard: { margin: 12, marginRight: 0, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, overflow: 'hidden' },
@@ -3240,11 +3222,11 @@ const styles = StyleSheet.create({
   menuCatLine: { flex: 1, height: 1, backgroundColor: 'rgba(64,60,55,0.25)' },
   menuCatName: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
   // Карточка товаров
-  menuCard: { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  menuCard: { backgroundColor: colors.surface2, borderRadius: 16, borderWidth: 1, borderColor: colors.borderHi, overflow: 'hidden' },
   menuRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, gap: 12 },
   menuRowDiv: { borderBottomWidth: 1, borderBottomColor: colors.border },
   menuItemName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, flex: 1, marginRight: 8 },
-  menuItemSub: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
+  menuItemSub: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 2 },
   menuItemPrice: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, marginRight: 8 },
   menuItemPriceNone: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, fontStyle: 'italic' },
   menuItemArrow: { fontSize: 18, color: colors.border, fontFamily: fonts.family },
@@ -3269,7 +3251,7 @@ const styles = StyleSheet.create({
   catChipLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
   unitChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, marginTop: 10 },
-  sectionTitle: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.text, textTransform: 'uppercase', letterSpacing: 1, marginTop: 16, marginBottom: 8 },
+  subLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, textTransform: 'uppercase', letterSpacing: 1, marginTop: 16, marginBottom: 8 },
   input: { padding: 13, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 14, fontFamily: fonts.familyRegular },
   modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center' },
   modalInner: { width: '55%', maxWidth: 540, backgroundColor: colors.surface, borderRadius: 20, padding: 24, borderWidth: 1, borderColor: colors.borderHi },
