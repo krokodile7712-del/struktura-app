@@ -35,7 +35,7 @@ export default function AdminScreen({ navigation }) {
   const stockBannerHighlight = useTourHighlight('admin.stockBanner');
   const nextStepsHighlight = useTourHighlight('admin.nextSteps', 18);
   const statsGridHighlight = useTourHighlight('admin.statsGrid');
-  const shiftActionHighlight = useTourHighlight('admin.shiftAction', 14);
+  const shiftActionHighlight = useTourHighlight('admin.statsGrid.shiftAction', 14);
   const activeTourKey = useTourActiveKey();
   const scrollRef = useRef(null);
   const sectionY = useRef({});
@@ -70,7 +70,7 @@ export default function AdminScreen({ navigation }) {
     { key: 'admin.stockBanner', title: 'Мало на складе', text: 'Появляется, когда на складе заканчивается что-то важное. Нажмите, чтобы развернуть список и перейти на склад.' },
     { key: 'admin.nextSteps', title: 'Что дальше', text: 'Чек-лист первоначальной настройки — добавить товары, способы оплаты, сотрудников и так далее. Можно скрыть крестиком, когда не нужен.', cardPosition: 'top' },
     { key: 'admin.statsGrid', title: 'Сводка за сегодня', text: 'Выручка, количество заказов, средний чек и разбивка по способам оплаты — всё за текущий день.', cardPosition: 'top' },
-    { key: 'admin.shiftAction', title: 'Смена', text: 'Здесь же — открыть смену, если она ещё не начата, или закрыть, когда рабочий день закончен.', cardPosition: 'top' },
+    { key: 'admin.statsGrid.shiftAction', title: 'Смена', text: 'Здесь же — открыть смену, если она ещё не начата, или закрыть, когда рабочий день закончен.', cardPosition: 'top' },
     { key: 'admin.navPanel', title: 'Разделы', text: 'Здесь все разделы приложения — переключайтесь между ними в любой момент. У некоторых из них есть и свой собственный тур — ищите кнопку «?» в шапке экрана.', cardPosition: 'top' },
   ];
 
@@ -185,7 +185,7 @@ export default function AdminScreen({ navigation }) {
                 pressed && { opacity: 0.85 },
               ]}
               onPress={() => navigation.navigate(stats.shift ? 'ShiftClose' : 'Shift')}
-              onLayout={rememberY('admin.shiftAction')}
+              onLayout={rememberY('admin.statsGrid.shiftAction')}
             >
               <View style={{ flex: 1 }}>
                 <Text style={styles.shiftStatVal}>{stats.shift ? (stats.shiftDuration || '—') : 'Не открыта'}</Text>
