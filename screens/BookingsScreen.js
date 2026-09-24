@@ -294,6 +294,119 @@ export default function BookingsScreen({ navigation }) {
     return acc;
   }, {});
 
+  const closeManualForm = () => { setManualFormOpen(false); setManualEditingId(null); setShowDatePicker(false); setShowTimePicker(false); };
+
+  const manualFormContent = (
+      <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
+        <Text style={styles.fieldLabel}>Имя клиента <Text style={{ color: colors.orange }}>*</Text></Text>
+        <TextInput style={styles.input} color={colors.text} value={mfName} onChangeText={setMfName}
+          placeholder="Как зовут клиента" placeholderTextColor={colors.muted} />
+
+        <Text style={styles.fieldLabel}>Телефон</Text>
+        <TextInput style={styles.input} color={colors.text} value={mfPhone} onChangeText={setMfPhone}
+          keyboardType="phone-pad" placeholder="Необязательно" placeholderTextColor={colors.muted} />
+
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.fieldLabel}>Дата <Text style={{ color: colors.orange }}>*</Text></Text>
+            <Pressable style={styles.input} onPress={() => setShowDatePicker(true)}>
+              <Text style={{ color: mfDate ? colors.text : colors.muted, fontFamily: fonts.familyRegular, fontSize: 14 }}>
+                {mfDate ? fmtDate(mfDate) : 'Выбрать дату'}
+              </Text>
+            </Pressable>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.fieldLabel}>Время <Text style={{ color: colors.orange }}>*</Text></Text>
+            <Pressable style={styles.input} onPress={() => setShowTimePicker(true)}>
+              <Text style={{ color: mfTime ? colors.text : colors.muted, fontFamily: fonts.familyRegular, fontSize: 14 }}>
+                {mfTime || 'Выбрать время'}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={mfDate ? new Date(mfDate + 'T00:00') : new Date()}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
+            onChange={(event, selectedDate) => {
+              setShowDatePicker(Platform.OS === 'ios'); // на iOS остаётся видимым до явного закрытия
+              if (event.type !== 'dismissed' && selectedDate) {
+                const y = selectedDate.getFullYear();
+                const m = String(selectedDate.getMonth() + 1).padStart(2, '0');
+                const d = String(selectedDate.getDate()).padStart(2, '0');
+                setMfDate(`${y}-${m}-${d}`);
+              }
+            }}
+          />
+        )}
+        {Platform.OS === 'ios' && showDatePicker && (
+          <Pressable style={styles.pickerDoneBtn} onPress={() => setShowDatePicker(false)}>
+            <Text style={styles.pickerDoneBtnTxt}>Готово</Text>
+          </Pressable>
+        )}
+
+        {showTimePicker && (
+          <DateTimePicker
+            value={(() => {
+              const d = new Date();
+              if (mfTime) {
+                const [h, mi] = mfTime.split(':').map(Number);
+                d.setHours(h || 0, mi || 0, 0, 0);
+              }
+              return d;
+            })()}
+            mode="time"
+            display="spinner"
+            is24Hour
+            onChange={(event, selectedDate) => {
+              setShowTimePicker(Platform.OS === 'ios');
+              if (event.type !== 'dismissed' && selectedDate) {
+                const h = String(selectedDate.getHours()).padStart(2, '0');
+                const mi = String(selectedDate.getMinutes()).padStart(2, '0');
+                setMfTime(`${h}:${mi}`);
+              }
+            }}
+          />
+        )}
+        {Platform.OS === 'ios' && showTimePicker && (
+          <Pressable style={styles.pickerDoneBtn} onPress={() => setShowTimePicker(false)}>
+            <Text style={styles.pickerDoneBtnTxt}>Готово</Text>
+          </Pressable>
+        )}
+
+        <Text style={styles.fieldLabel}>Услуга</Text>
+        <TextInput style={styles.input} color={colors.text} value={mfService} onChangeText={setMfService}
+          placeholder="Необязательно" placeholderTextColor={colors.muted} />
+
+        <Text style={styles.fieldLabel}>Стоимость</Text>
+        <TextInput style={styles.input} color={colors.text} value={mfPrice} onChangeText={setMfPrice}
+          keyboardType="numeric" placeholder="0" placeholderTextColor={colors.muted} />
+
+        <Text style={styles.fieldLabel}>Комментарий</Text>
+        <TextInput style={[styles.input, { minHeight: 60 }]} color={colors.text} value={mfComment} onChangeText={setMfComment}
+          placeholder="Необязательно" placeholderTextColor={colors.muted} multiline />
+
+        <Pressable style={styles.saveManualBtn} onPress={saveManualBooking}>
+          <Text style={styles.saveManualBtnTxt}>Сохранить</Text>
+        </Pressable>
+      </ScrollView>
+  );
+
+  // Портретная — форма через Sheet, как и раньше. Альбомная — форма
+  // встроена прямо в правую колонку (см. ниже, заменяет собой
+  // сводку/кнопку добавления, пока открыта)
+  const manualFormSheet = !isLandscape && (
+    <Sheet
+      visible={manualFormOpen}
+      onClose={closeManualForm}
+      title={manualEditingId ? 'Изменить запись' : 'Новая запись по телефону'}
+    >
+      {manualFormContent}
+    </Sheet>
+  );
+
   return (
     <>
     <View style={styles.root}>
@@ -611,16 +724,28 @@ export default function BookingsScreen({ navigation }) {
             const totalRevenue = manualBookings.reduce((s,b) => s + (b.service_price||0), 0);
             return (
               <View style={styles.sidePanelManual}>
-                {can('edit_bookings') && (
-                  <View style={{ padding: 16, paddingBottom: 0 }}>
-                    <Pressable style={[styles.addManualBtn, { margin: 0, position: 'relative' }, manualAddHighlight.style]} onPress={() => openManualForm(selectedCalDate)}>
-                      <Text style={styles.addManualBtnTxt}>{selectedCalDate ? `+ Добавить на ${fmtDate(selectedCalDate)}` : '+ Добавить запись'}</Text>
-                      {manualAddHighlight.overlay}
-                    </Pressable>
-                  </View>
-                )}
-                <ScrollView contentContainerStyle={{ padding: 20 }}>
-                  <Text style={styles.sideLabel}>Всего записей</Text>
+                {manualFormOpen ? (
+                  <>
+                    <View style={styles.embeddedFormHeader}>
+                      <Text style={styles.embeddedFormTitle}>{manualEditingId ? 'Изменить запись' : 'Новая запись по телефону'}</Text>
+                      <Pressable onPress={closeManualForm} hitSlop={10} style={styles.embeddedFormClose}>
+                        <Text style={styles.embeddedFormCloseTxt}>✕</Text>
+                      </Pressable>
+                    </View>
+                    {manualFormContent}
+                  </>
+                ) : (
+                  <>
+                    {can('edit_bookings') && (
+                      <View style={{ padding: 16, paddingBottom: 0 }}>
+                        <Pressable style={[styles.addManualBtn, { margin: 0, position: 'relative' }, manualAddHighlight.style]} onPress={() => openManualForm(selectedCalDate)}>
+                          <Text style={styles.addManualBtnTxt}>{selectedCalDate ? `+ Добавить на ${fmtDate(selectedCalDate)}` : '+ Добавить запись'}</Text>
+                          {manualAddHighlight.overlay}
+                        </Pressable>
+                      </View>
+                    )}
+                    <ScrollView contentContainerStyle={{ padding: 20 }}>
+                      <Text style={styles.sideLabel}>Всего записей</Text>
                   <Text style={styles.sideVal}>{manualBookings.length}</Text>
                   <View style={styles.sideDivider} />
 
@@ -650,6 +775,8 @@ export default function BookingsScreen({ navigation }) {
                     </>
                   )}
                 </ScrollView>
+                  </>
+                )}
               </View>
             );
           })()}
@@ -657,107 +784,7 @@ export default function BookingsScreen({ navigation }) {
       )}
     </View>
 
-    <Sheet
-      visible={manualFormOpen}
-      onClose={() => { setManualFormOpen(false); setManualEditingId(null); setShowDatePicker(false); setShowTimePicker(false); }}
-      title={manualEditingId ? 'Изменить запись' : 'Новая запись по телефону'}
-    >
-      <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
-        <Text style={styles.fieldLabel}>Имя клиента <Text style={{ color: colors.orange }}>*</Text></Text>
-        <TextInput style={styles.input} color={colors.text} value={mfName} onChangeText={setMfName}
-          placeholder="Как зовут клиента" placeholderTextColor={colors.muted} />
-
-        <Text style={styles.fieldLabel}>Телефон</Text>
-        <TextInput style={styles.input} color={colors.text} value={mfPhone} onChangeText={setMfPhone}
-          keyboardType="phone-pad" placeholder="Необязательно" placeholderTextColor={colors.muted} />
-
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.fieldLabel}>Дата <Text style={{ color: colors.orange }}>*</Text></Text>
-            <Pressable style={styles.input} onPress={() => setShowDatePicker(true)}>
-              <Text style={{ color: mfDate ? colors.text : colors.muted, fontFamily: fonts.familyRegular, fontSize: 14 }}>
-                {mfDate ? fmtDate(mfDate) : 'Выбрать дату'}
-              </Text>
-            </Pressable>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.fieldLabel}>Время <Text style={{ color: colors.orange }}>*</Text></Text>
-            <Pressable style={styles.input} onPress={() => setShowTimePicker(true)}>
-              <Text style={{ color: mfTime ? colors.text : colors.muted, fontFamily: fonts.familyRegular, fontSize: 14 }}>
-                {mfTime || 'Выбрать время'}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-
-        {showDatePicker && (
-          <DateTimePicker
-            value={mfDate ? new Date(mfDate + 'T00:00') : new Date()}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
-            onChange={(event, selectedDate) => {
-              setShowDatePicker(Platform.OS === 'ios'); // на iOS остаётся видимым до явного закрытия
-              if (event.type !== 'dismissed' && selectedDate) {
-                const y = selectedDate.getFullYear();
-                const m = String(selectedDate.getMonth() + 1).padStart(2, '0');
-                const d = String(selectedDate.getDate()).padStart(2, '0');
-                setMfDate(`${y}-${m}-${d}`);
-              }
-            }}
-          />
-        )}
-        {Platform.OS === 'ios' && showDatePicker && (
-          <Pressable style={styles.pickerDoneBtn} onPress={() => setShowDatePicker(false)}>
-            <Text style={styles.pickerDoneBtnTxt}>Готово</Text>
-          </Pressable>
-        )}
-
-        {showTimePicker && (
-          <DateTimePicker
-            value={(() => {
-              const d = new Date();
-              if (mfTime) {
-                const [h, mi] = mfTime.split(':').map(Number);
-                d.setHours(h || 0, mi || 0, 0, 0);
-              }
-              return d;
-            })()}
-            mode="time"
-            display="spinner"
-            is24Hour
-            onChange={(event, selectedDate) => {
-              setShowTimePicker(Platform.OS === 'ios');
-              if (event.type !== 'dismissed' && selectedDate) {
-                const h = String(selectedDate.getHours()).padStart(2, '0');
-                const mi = String(selectedDate.getMinutes()).padStart(2, '0');
-                setMfTime(`${h}:${mi}`);
-              }
-            }}
-          />
-        )}
-        {Platform.OS === 'ios' && showTimePicker && (
-          <Pressable style={styles.pickerDoneBtn} onPress={() => setShowTimePicker(false)}>
-            <Text style={styles.pickerDoneBtnTxt}>Готово</Text>
-          </Pressable>
-        )}
-
-        <Text style={styles.fieldLabel}>Услуга</Text>
-        <TextInput style={styles.input} color={colors.text} value={mfService} onChangeText={setMfService}
-          placeholder="Необязательно" placeholderTextColor={colors.muted} />
-
-        <Text style={styles.fieldLabel}>Стоимость</Text>
-        <TextInput style={styles.input} color={colors.text} value={mfPrice} onChangeText={setMfPrice}
-          keyboardType="numeric" placeholder="0" placeholderTextColor={colors.muted} />
-
-        <Text style={styles.fieldLabel}>Комментарий</Text>
-        <TextInput style={[styles.input, { minHeight: 60 }]} color={colors.text} value={mfComment} onChangeText={setMfComment}
-          placeholder="Необязательно" placeholderTextColor={colors.muted} multiline />
-
-        <Pressable style={styles.saveManualBtn} onPress={saveManualBooking}>
-          <Text style={styles.saveManualBtnTxt}>Сохранить</Text>
-        </Pressable>
-      </ScrollView>
-    </Sheet>
+    {manualFormSheet}
 
     <TourGuide
       visible={tourOpen}
@@ -804,6 +831,10 @@ const styles = StyleSheet.create({
   manualLeftLandscape: { width: '38%', maxWidth: 480, margin: 12, marginRight: 0, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, overflow: 'hidden' },
   manualLeftPortrait:  { flex: 1, backgroundColor: colors.surface },
   sidePanelManual: { flex: 1, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, margin: 12, marginLeft: 12, overflow: 'hidden' },
+  embeddedFormHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, paddingBottom: 0 },
+  embeddedFormTitle: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, flex: 1 },
+  embeddedFormClose: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  embeddedFormCloseTxt: { fontSize: 15, color: colors.muted, fontWeight: '700' },
   sideLabel:   { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
   sideVal:     { fontFamily: fonts.family, fontSize: 32, fontWeight: '800', color: colors.text, marginTop: 4 },
   sideDivider: { height: 1, backgroundColor: colors.border, marginVertical: 16 },
