@@ -81,11 +81,23 @@ export default function BookingsScreen({ navigation }) {
 
   const [tourOpen, setTourOpen] = useState(false);
   const [tourFull, setTourFull] = useState(true); // true — весь раздел (обе вкладки), false — только текущая
-  const tabsHighlight    = useTourHighlight('bookings.tabs');
+  const activeTourKey = useTourActiveKey();
+  const tabsHighlightRaw = useTourHighlight('bookings.tabs');
+  const mentionHighlightRaw = useTourHighlight('bookings.mention');
+  // Вкладки подсвечиваются и на своём шаге, и на шаге-мосте — он как раз
+  // про переход между ними, логично показать обе кнопки в этот момент
+  const tabsHighlight = {
+    style: null,
+    overlay: tabsHighlightRaw.isActive ? tabsHighlightRaw.overlay
+      : mentionHighlightRaw.isActive ? mentionHighlightRaw.overlay
+      : tabsHighlightRaw.overlay,
+  };
   const calendarHighlight = useTourHighlight('bookings.calendar');
   const filtersHighlight  = useTourHighlight('bookings.filters');
   const manualAddHighlight = useTourHighlight('bookings.manualAdd', 14);
-  const activeTourKey = useTourActiveKey();
+  const formClientHighlight  = useTourHighlight('bookings.form.client', 14);
+  const formWhenHighlight    = useTourHighlight('bookings.form.when', 14);
+  const formServiceHighlight = useTourHighlight('bookings.form.service', 14);
 
   // Тур раздела «Записи» — начинается со вкладки «Онлайн», затем шаг-мост
   // анонсирует «По телефону» (сам вкладку ещё не трогает, только
@@ -106,6 +118,9 @@ export default function BookingsScreen({ navigation }) {
   // своего шага остался бы необъяснённым — та самая ошибка.
   const manualOnlySteps = [
     { key: 'bookings.manualAdd', title: 'Запись по телефону', text: 'Клиент позвонил и записался сам? Добавьте запись здесь вручную — дата, время, услуга, стоимость.', cardPosition: 'top' },
+    { key: 'bookings.form.client',  title: 'Клиент', text: 'Так выглядит сама форма — на примере, ничего из этого не сохранится. Имя обязательно, телефон — нет, но пригодится, если понадобится перезвонить.', cardPosition: 'top' },
+    { key: 'bookings.form.when',    title: 'Когда', text: 'Дата и время — тоже обязательные, без них запись не сохранится.', cardPosition: 'top' },
+    { key: 'bookings.form.service', title: 'Услуга', text: 'Название и стоимость — по желанию, можно оставить пустыми и заполнить позже. «Сохранить» — запись сразу появится в списке слева.', cardPosition: 'top' },
   ];
   const manualTourSteps = [calendarStep, ...manualOnlySteps];
   const fullTourSteps = [...onlineTourSteps, mentionTourStep, ...manualOnlySteps];
@@ -317,8 +332,21 @@ export default function BookingsScreen({ navigation }) {
 
   const closeManualForm = () => { setManualFormOpen(false); setManualEditingId(null); setShowDatePicker(false); setShowTimePicker(false); };
 
+  // Три шага тура про саму форму — открывают её как обычную новую запись
+  // (ничего не предзаполнено, ничего не сохранится, если тур закрыть, не
+  // нажав «Сохранить») — закрывают при уходе на любой другой шаг тура
+  const formStepKeys = new Set(['bookings.form.client', 'bookings.form.when', 'bookings.form.service']);
+  useEffect(() => {
+    if (formStepKeys.has(activeTourKey)) {
+      if (!manualFormOpen) openManualForm();
+    } else if (activeTourKey && manualFormOpen) {
+      closeManualForm();
+    }
+  }, [activeTourKey]);
+
   const manualFormContent = (
       <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
+        <View style={[{ position: 'relative' }, formClientHighlight.style]}>
         <Text style={styles.sectionHeading}>Клиент</Text>
         <Text style={styles.fieldLabel}>Имя <Text style={{ color: colors.orange }}>*</Text></Text>
         <TextInput style={styles.inputBig} color={colors.text} value={mfName} onChangeText={setMfName}
@@ -327,9 +355,11 @@ export default function BookingsScreen({ navigation }) {
         <Text style={styles.fieldLabel}>📞 Телефон</Text>
         <TextInput style={[styles.input, styles.inputOptional]} color={colors.text} value={mfPhone} onChangeText={setMfPhone}
           keyboardType="phone-pad" placeholder="Необязательно" placeholderTextColor={colors.muted} />
+        {formClientHighlight.overlay}
+        </View>
 
         <Text style={[styles.sectionHeading, { marginTop: 20 }]}>Когда</Text>
-        <View style={styles.whenBox}>
+        <View style={[styles.whenBox, { position: 'relative' }, formWhenHighlight.style]}>
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <View style={{ flex: 1 }}>
               <Text style={styles.fieldLabel}>🗓 Дата <Text style={{ color: colors.orange }}>*</Text></Text>
@@ -399,9 +429,11 @@ export default function BookingsScreen({ navigation }) {
               <Text style={styles.pickerDoneBtnTxt}>Готово</Text>
             </Pressable>
           )}
+          {formWhenHighlight.overlay}
         </View>
 
-        <Text style={[styles.sectionHeading, { marginTop: 20 }]}>Услуга</Text>
+        <View style={[{ position: 'relative', marginTop: 20 }, formServiceHighlight.style]}>
+        <Text style={styles.sectionHeading}>Услуга</Text>
         <Text style={styles.fieldLabel}>✂️ Название</Text>
         <TextInput style={[styles.input, styles.inputOptional]} color={colors.text} value={mfService} onChangeText={setMfService}
           placeholder="Необязательно" placeholderTextColor={colors.muted} />
@@ -420,6 +452,8 @@ export default function BookingsScreen({ navigation }) {
         <Pressable style={styles.saveManualBtn} onPress={saveManualBooking}>
           <Text style={styles.saveManualBtnTxt}>Сохранить</Text>
         </Pressable>
+        {formServiceHighlight.overlay}
+        </View>
       </ScrollView>
   );
 
