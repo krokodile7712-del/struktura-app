@@ -47,7 +47,7 @@ export function useNextStepsProgress() {
 // вручную шаги не перескакивают обратно при обновлении статуса —
 // автопрокрутка на первый невыполненный срабатывает только один раз.
 export default function NextStepsCard({ navigation, forceVisible = false }) {
-  const { status, doneCount, visible, dismiss } = useNextStepsProgress();
+  const { status, doneCount, visible } = useNextStepsProgress();
   const [containerW, setContainerW] = useState(0);
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollRef = useRef(null);
@@ -86,9 +86,6 @@ export default function NextStepsCard({ navigation, forceVisible = false }) {
           <Text style={styles.title}>Что дальше</Text>
           <Text style={styles.sub}>Выполнено {doneCount} из {NEXT_STEPS.length}</Text>
         </View>
-        <Pressable onPress={dismiss} hitSlop={10} style={styles.closeBtn}>
-          <Text style={styles.closeTxt}>✕</Text>
-        </Pressable>
       </View>
 
       <View style={styles.progressTrack}>

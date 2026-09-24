@@ -36,6 +36,15 @@ export default function AdminScreen({ navigation }) {
   const nextStepsHighlight = useTourHighlight('admin.nextSteps', 18);
   const statsGridHighlight = useTourHighlight('admin.statsGrid');
   const shiftActionHighlight = useTourHighlight('admin.statsGrid.shiftAction', 14);
+  // По одной подсветке на каждую карточку сводки — без них на шаге «Смена»
+  // соседние карточки оставались обычными (не гасли), раз само затемнение
+  // сетки целиком отключилось, когда «Смена» стала дочерним шагом «Сводки»
+  const revenueHighlight  = useTourHighlight('admin.statsGrid.revenue', 14);
+  const ordersHighlight   = useTourHighlight('admin.statsGrid.orders', 14);
+  const avgCheckHighlight = useTourHighlight('admin.statsGrid.avgCheck', 14);
+  const cashHighlight     = useTourHighlight('admin.statsGrid.cash', 14);
+  const cardHighlight     = useTourHighlight('admin.statsGrid.card', 14);
+  const statCardHighlights = [revenueHighlight, ordersHighlight, avgCheckHighlight, cashHighlight, cardHighlight];
   const activeTourKey = useTourActiveKey();
   const scrollRef = useRef(null);
   const sectionY = useRef({});
@@ -68,7 +77,7 @@ export default function AdminScreen({ navigation }) {
 
   const tourSteps = [
     { key: 'admin.stockBanner', title: 'Мало на складе', text: 'Появляется, когда на складе заканчивается что-то важное. Нажмите, чтобы развернуть список и перейти на склад.' },
-    { key: 'admin.nextSteps', title: 'Что дальше', text: 'Чек-лист первоначальной настройки — добавить товары, способы оплаты, сотрудников и так далее. Можно скрыть крестиком, когда не нужен.', cardPosition: 'top' },
+    { key: 'admin.nextSteps', title: 'Что дальше', text: 'Чек-лист первоначальной настройки — добавить товары, способы оплаты, сотрудников и так далее. Пролистывайте карточки свайпом, каждая ведёт в свой раздел. Исчезнет сам, когда всё будет готово.', cardPosition: 'top' },
     { key: 'admin.statsGrid', title: 'Сводка за сегодня', text: 'Выручка, количество заказов, средний чек и разбивка по способам оплаты — всё за текущий день.', cardPosition: 'top' },
     { key: 'admin.statsGrid.shiftAction', title: 'Смена', text: 'Здесь же — открыть смену, если она ещё не начата, или закрыть, когда рабочий день закончен.', cardPosition: 'top' },
     { key: 'admin.navPanel', title: 'Разделы', text: 'Здесь все разделы приложения — переключайтесь между ними в любой момент. У некоторых из них есть и свой собственный тур — ищите кнопку «?» в шапке экрана.', cardPosition: 'top' },
@@ -162,9 +171,10 @@ export default function AdminScreen({ navigation }) {
               { label: 'Наличные', value: `${(stats.todayCash || 0).toLocaleString('ru-RU')} ₽` },
               { label: 'Карта', value: `${(stats.todayCard || 0).toLocaleString('ru-RU')} ₽` },
             ].map((s, i) => (
-              <View key={i} style={styles.statCard}>
+              <View key={i} style={[styles.statCard, { position: 'relative' }, statCardHighlights[i].style]}>
                 <Text style={styles.statVal}>{s.value}</Text>
                 <Text style={styles.statLbl}>{s.label}</Text>
+                {statCardHighlights[i].overlay}
               </View>
             ))}
 
