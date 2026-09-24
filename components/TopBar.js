@@ -62,10 +62,10 @@ export default function TopBar({ title, onBack, rightElement, syncPending, navig
           {syncPending > 0
             ? <Text style={styles.syncBadge}>↑{syncPending}</Text>
             : null}
+          {rightElement || null}
           <Pressable onPress={lockApp} style={styles.lockBtn} hitSlop={8} accessibilityLabel="Заблокировать" accessibilityRole="button">
             <Text style={styles.lockIcon}>🔒</Text>
           </Pressable>
-          {rightElement || null}
         </View>
       </View>
 
