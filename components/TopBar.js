@@ -111,17 +111,17 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   lockBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.surface2,
+    width: 50,
+    height: 50,
+    borderRadius: 14,
+    backgroundColor: 'rgba(217,95,95,0.12)',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(217,95,95,0.35)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   lockIcon: {
-    fontSize: 20,
+    fontSize: 22,
   },
   menuIcon: {
     fontSize: 20,
