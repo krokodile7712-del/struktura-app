@@ -2833,6 +2833,7 @@ export default function SettingsScreen({ navigation, route }) {
       <Modal visible={receiptPreview} transparent animationType="fade" onRequestClose={() => setReceiptPreview(false)}>
         <View style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setReceiptPreview(false)} />
+          {bizDraft && (
           <View style={styles.receiptBox}>
             <ScrollView contentContainerStyle={{ padding: 16 }}>
               <View style={styles.receiptPaper}>
@@ -2867,6 +2868,7 @@ export default function SettingsScreen({ navigation, route }) {
               <Text style={{ fontFamily: fonts.familySemibold, fontSize: 15, color: colors.orange }}>Закрыть</Text>
             </Pressable>
           </View>
+          )}
         </View>
       </Modal>
 
