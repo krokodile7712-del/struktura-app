@@ -286,7 +286,7 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
 }
 
 const styles = StyleSheet.create({
-  root: { padding: 14 },
+  root: { paddingHorizontal: 10, paddingTop: 10, paddingBottom: 4 },
   rootCard: { backgroundColor: colors.surface2, borderRadius: 16, borderWidth: 1, borderColor: colors.borderHi },
 
   collapseBtn: { position: 'absolute', top: 10, right: 10, zIndex: 2, width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surface3, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
