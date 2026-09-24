@@ -18,11 +18,11 @@ function buildMonthCells(year, month, onlineDates, manualDates) {
   const firstOfMonth = new Date(year, month, 1);
   const startOffset = mondayIndex(firstOfMonth.getDay());
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  // Всегда 6 строк (42 ячейки), не 5 или 6 в зависимости от месяца — иначе
-  // высота карточки меняется при переходе на месяц с другим числом строк,
-  // и всё, что находится под календарём (список, сводка), заметно
-  // сдвигается уже после того, как сама анимация перехода закончилась
-  const totalCells = 42;
+  // Раньше здесь всегда было 42 ячейки (6 строк) — чтобы высота карточки
+  // не менялась между месяцами. Теперь наоборот, важнее компактность —
+  // ровно столько строк (35 или 42 ячейки), сколько реально нужно этому
+  // месяцу, без лишней пустой строки внизу
+  const totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7;
   const result = [];
   for (let i = 0; i < totalCells; i++) {
     const dayNum = i - startOffset + 1;
@@ -260,6 +260,7 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
           {...panResponder.panHandlers}
           style={{
             flexDirection: 'row',
+            alignItems: 'flex-start',
             width: containerW * 3,
             marginLeft: -containerW,
             transform: [{ translateX: slideAnim }],

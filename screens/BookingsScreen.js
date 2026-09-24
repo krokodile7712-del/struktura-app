@@ -520,7 +520,7 @@ export default function BookingsScreen({ navigation }) {
       {mainTab === 'manual' && (
         <View style={[styles.layout, !isLandscape && { flexDirection: 'column' }]}>
           <View style={isLandscape ? styles.manualLeftLandscape : styles.manualLeftPortrait}>
-            {can('edit_bookings') && (
+            {can('edit_bookings') && !isLandscape && (
               <Pressable style={[styles.addManualBtn, { position: 'relative' }, manualAddHighlight.style]} onPress={() => openManualForm(selectedCalDate)}>
                 <Text style={styles.addManualBtnTxt}>{selectedCalDate ? `+ Добавить на ${fmtDate(selectedCalDate)}` : '+ Добавить запись'}</Text>
                 {manualAddHighlight.overlay}
@@ -528,7 +528,7 @@ export default function BookingsScreen({ navigation }) {
             )}
 
             {isLandscape && (
-              <View style={[styles.calEmbeddedWrap, { position: 'relative' }, calendarHighlight.style]}>
+              <View style={[styles.calEmbeddedWrap, { position: 'relative', marginTop: 16 }, calendarHighlight.style]}>
                 <BookingsCalendar
                   onlineDates={calOnlineDates}
                   manualDates={calManualDates}
@@ -611,6 +611,14 @@ export default function BookingsScreen({ navigation }) {
             const totalRevenue = manualBookings.reduce((s,b) => s + (b.service_price||0), 0);
             return (
               <View style={styles.sidePanelManual}>
+                {can('edit_bookings') && (
+                  <View style={{ padding: 16, paddingBottom: 0 }}>
+                    <Pressable style={[styles.addManualBtn, { margin: 0, position: 'relative' }, manualAddHighlight.style]} onPress={() => openManualForm(selectedCalDate)}>
+                      <Text style={styles.addManualBtnTxt}>{selectedCalDate ? `+ Добавить на ${fmtDate(selectedCalDate)}` : '+ Добавить запись'}</Text>
+                      {manualAddHighlight.overlay}
+                    </Pressable>
+                  </View>
+                )}
                 <ScrollView contentContainerStyle={{ padding: 20 }}>
                   <Text style={styles.sideLabel}>Всего записей</Text>
                   <Text style={styles.sideVal}>{manualBookings.length}</Text>
