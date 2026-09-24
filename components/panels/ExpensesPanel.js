@@ -77,6 +77,9 @@ export default function ExpensesPanel({ navigation }) {
   const [expenseDate, setExpenseDate] = useState(todayStr());
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const amountRef = useRef(null);
+  const scrollRef = useRef(null);
+  const sectionY = useRef({});
+  const rememberY = (key) => (e) => { sectionY.current[key] = e.nativeEvent.layout.y; };
 
   // Анимации
   const fadeAnim  = useState(new Animated.Value(0))[0];
@@ -173,10 +176,30 @@ export default function ExpensesPanel({ navigation }) {
   useEffect(() => {
     const needsForm = activeTourKey === 'expenses.recurringToggle' || activeTourKey === 'expenses.photoAttach';
     if (needsForm) {
-      openModal();
+      const t = setTimeout(openModal, 120);
+      return () => clearTimeout(t);
     } else if (activeTourKey) {
       closeForm();
     }
+  }, [activeTourKey]);
+
+  // Карточка тура закреплена внизу и может закрыть собой поле, что ещё не
+  // поднято в видимую область формы — сама подводим нужное поле к видимой
+  // части при смене активного шага, тот же приём, что уже в Товарах
+  useEffect(() => {
+    if (!activeTourKey) return;
+    let attempts = 0, t;
+    const tryScroll = () => {
+      const y = sectionY.current[activeTourKey];
+      if (y != null) {
+        scrollRef.current?.scrollTo({ y: Math.max(0, y - 280), animated: true });
+      } else if (attempts < 10) {
+        attempts++;
+        t = setTimeout(tryScroll, 60);
+      }
+    };
+    tryScroll();
+    return () => clearTimeout(t);
   }, [activeTourKey]);
 
   const pickPhoto = () => {
@@ -456,6 +479,7 @@ export default function ExpensesPanel({ navigation }) {
                 <Pressable
                   style={[styles.recurringRow, recurringToggleHighlight.style]}
                   onPress={() => setIsRecurring(v => !v)}
+                  onLayout={rememberY('expenses.recurringToggle')}
                 >
                   <View style={[styles.recurringCheckbox, isRecurring && styles.recurringCheckboxActive]}>
                     {isRecurring && <Text style={styles.recurringCheckMark}>✓</Text>}
@@ -471,7 +495,7 @@ export default function ExpensesPanel({ navigation }) {
               )}
 
               {/* Фото чека */}
-              <View style={photoAttachHighlight.style}>
+              <View style={photoAttachHighlight.style} onLayout={rememberY('expenses.photoAttach')}>
               <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Фото чека</Text>
               {photoUri ? (
                 <View style={styles.photoPreviewWrap}>
@@ -555,7 +579,7 @@ export default function ExpensesPanel({ navigation }) {
                     <Text style={styles.editorCloseTxt}>✕</Text>
                   </Pressable>
                 </View>
-                <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
+                <ScrollView ref={isLandscape ? scrollRef : null} style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
                   {formBody}
                 </ScrollView>
               </>
@@ -575,7 +599,7 @@ export default function ExpensesPanel({ navigation }) {
 
       {/* Модалка добавления */}
       <Sheet visible={addModal} onClose={closeForm} title={editingId ? 'Изменить расход' : 'Новый расход'}>
-        <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
+        <ScrollView ref={!isLandscape ? scrollRef : null} contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
           {formBody}
         </ScrollView>
       </Sheet>
