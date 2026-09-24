@@ -91,11 +91,19 @@ function DayCell({ cell, isToday, isSelected, onPress, onEmptyPress }) {
 // (предыдущий/текущий/следующий), все смонтированы одновременно, поэтому
 // при свайпе соседний месяц со своим названием и рамкой сразу виден и
 // едет вместе с пальцем, а не появляется только после отпускания.
-function MonthPanel({ width, year, month, cells, todayKey, selectedDate, onSelectDay, onEmptyPress }) {
+function MonthPanel({ width, year, month, cells, todayKey, selectedDate, onSelectDay, onEmptyPress, onPrev, onNext }) {
   return (
     <View style={{ width, paddingHorizontal: 4 }}>
       <View style={styles.monthCard}>
-        <Text style={styles.monthLabel}>{MONTH_LABELS[month]} {year}</Text>
+        <View style={styles.monthHeader}>
+          <Pressable onPress={onPrev} hitSlop={10} style={styles.monthArrowBtn}>
+            <Text style={styles.monthArrow}>‹</Text>
+          </Pressable>
+          <Text style={styles.monthLabel}>{MONTH_LABELS[month]} {year}</Text>
+          <Pressable onPress={onNext} hitSlop={10} style={styles.monthArrowBtn}>
+            <Text style={styles.monthArrow}>›</Text>
+          </Pressable>
+        </View>
         <View style={styles.weekRow}>
           {WEEKDAY_LABELS.map(w => (
             <Text key={w} style={styles.weekdayLabel}>{w}</Text>
@@ -268,9 +276,9 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
         >
           {expanded ? (
             <>
-              <MonthPanel width={containerW} year={prevYear} month={prevMonth} cells={prevCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} onEmptyPress={clearSelection} />
-              <MonthPanel width={containerW} year={viewYear} month={viewMonth} cells={curCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} onEmptyPress={clearSelection} />
-              <MonthPanel width={containerW} year={nextYear} month={nextMonth} cells={nextCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} onEmptyPress={clearSelection} />
+              <MonthPanel width={containerW} year={prevYear} month={prevMonth} cells={prevCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} onEmptyPress={clearSelection} onPrev={() => commitChange(-1)} onNext={() => commitChange(1)} />
+              <MonthPanel width={containerW} year={viewYear} month={viewMonth} cells={curCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} onEmptyPress={clearSelection} onPrev={() => commitChange(-1)} onNext={() => commitChange(1)} />
+              <MonthPanel width={containerW} year={nextYear} month={nextMonth} cells={nextCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} onEmptyPress={clearSelection} onPrev={() => commitChange(-1)} onNext={() => commitChange(1)} />
             </>
           ) : (
             <>
@@ -295,7 +303,10 @@ const styles = StyleSheet.create({
   // Рамка и название теперь принадлежат каждой отдельной месячной панели —
   // едут вместе с её датами, а не остаются позади неподвижным заголовком
   monthCard: { borderRadius: 12, borderWidth: 1, borderColor: colors.borderHi, padding: 8, backgroundColor: colors.surface3 },
-  monthLabel: { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.text, textAlign: 'center', marginBottom: 6 },
+  monthHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  monthArrowBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  monthArrow: { fontSize: 16, color: colors.muted, fontWeight: '700' },
+  monthLabel: { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.text, textAlign: 'center', flex: 1 },
 
   weekRow: { flexDirection: 'row' },
   weekdayLabel: { flex: 1, textAlign: 'center', fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, paddingVertical: 3 },
