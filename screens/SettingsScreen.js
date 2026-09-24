@@ -1468,7 +1468,7 @@ export default function SettingsScreen({ navigation, route }) {
             {/* Статус подключения */}
             <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
               <Text style={styles.bizFieldLabel}>Статус</Text>
-              <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: bookingConnected ? colors.orange : colors.muted }}>
+              <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: bookingConnected ? colors.orange : colors.muted }}>
                 {bookingConnected ? '● Подключено' : '○ Не подключено'}
               </Text>
             </View>
@@ -1482,7 +1482,7 @@ export default function SettingsScreen({ navigation, route }) {
                     Alert.alert('Скопировано', link);
                   }}>
                   <Text style={styles.bizFieldLabel}>Ссылка</Text>
-                  <Text style={{ fontFamily: fonts.familyRegular, fontSize: 11, color: colors.orange, flex: 1, textAlign: 'right' }} numberOfLines={1}>
+                  <Text style={{ fontFamily: fonts.familyRegular, fontSize: 13, color: colors.orange, flex: 1, textAlign: 'right' }} numberOfLines={1}>
                     .../{bookingSlug} 📋
                   </Text>
                 </TouchableOpacity>
@@ -1490,25 +1490,25 @@ export default function SettingsScreen({ navigation, route }) {
                   <Pressable
                     style={{ flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: 'rgba(240,160,80,0.08)', alignItems: 'center' }}
                     onPress={() => setQrModal(true)}>
-                    <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange }}>📷 QR код</Text>
+                    <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange }}>📷 QR код</Text>
                   </Pressable>
                   <TouchableOpacity
                     activeOpacity={0.7}
                     style={{ flex: 1, marginLeft: 8, paddingVertical: 10, borderRadius: 10, backgroundColor: colors.borderLo, alignItems: 'center' }}
                     onPress={() => syncMenu()}>
-                    <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted }}>{syncing ? '⏳...' : '🔄 Обновить'}</Text>
+                    <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted }}>{syncing ? '⏳...' : '🔄 Обновить'}</Text>
                   </TouchableOpacity>
                   <Pressable
                     style={{ flex: 1, marginLeft: 8, paddingVertical: 10, borderRadius: 10, backgroundColor: 'rgba(200,50,50,0.12)', alignItems: 'center' }}
                     onPress={() => { setBookingConnected(false); setBookingSlug(''); }}>
-                    <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.red }}>↺ Сбросить</Text>
+                    <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red }}>↺ Сбросить</Text>
                   </Pressable>
                 </View>
                 <TouchableOpacity
                   activeOpacity={0.7}
                   style={[styles.bizFieldRow, styles.menuRowDiv, { justifyContent: 'center', paddingVertical: 12 }]}
                   onPress={openPositionsModal}>
-                  <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange }}>🧾 Позиции для записи</Text>
+                  <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange }}>🧾 Позиции для записи</Text>
                 </TouchableOpacity>
               </>
             ) : null}
@@ -1538,7 +1538,7 @@ export default function SettingsScreen({ navigation, route }) {
 
           {!bookingConnected && (
             <>
-              <Text style={{ fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 8, lineHeight: 18 }}>
+              <Text style={{ fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 8, lineHeight: 19 }}>
                 После подключения клиенты смогут записываться через форму по QR-коду. Ссылка генерируется автоматически из названия бизнеса — никаких ручных настроек.
               </Text>
               <TouchableOpacity
@@ -1546,7 +1546,7 @@ export default function SettingsScreen({ navigation, route }) {
                 style={{ marginTop: 10, paddingVertical: 15, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' }}
                 onPress={() => connectBooking()}>
                 <Text style={{ fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff' }}>Подключить онлайн запись</Text>
-                <Text style={{ fontFamily: fonts.familyRegular, fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>Займёт секунду — ссылка создаётся автоматически</Text>
+                <Text style={{ fontFamily: fonts.familyRegular, fontSize: 14, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>Займёт секунду — ссылка создаётся автоматически</Text>
               </TouchableOpacity>
             </>
           )}
@@ -1813,7 +1813,7 @@ export default function SettingsScreen({ navigation, route }) {
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 {['DD.MM.YYYY','MM/DD/YYYY','YYYY-MM-DD'].map(fmt => (
                   <Pressable key={fmt} style={[styles.bizCurrencyChip, bizDraft.dateFormat === fmt && styles.bizCurrencyChipActive]} onPress={() => setBizDraft(d => ({ ...d, dateFormat: fmt }))}>
-                    <Text style={[{ fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted }, bizDraft.dateFormat === fmt && { color: colors.orange }]}>{fmt}</Text>
+                    <Text style={[{ fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted }, bizDraft.dateFormat === fmt && { color: colors.orange }]}>{fmt}</Text>
                   </Pressable>
                 ))}
               </View>
@@ -2746,11 +2746,11 @@ export default function SettingsScreen({ navigation, route }) {
                       />
                     </View>
                     <Pressable onPress={() => setShowPin(v => !v)} style={{ marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={{ fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted }}>
+                      <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted }}>
                         {showPin ? '🙈 Скрыть PIN' : '👁 Показать PIN'}
                       </Text>
                     </Pressable>
-                    <Text style={{ fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 4, lineHeight: 16 }}>
+                    <Text style={{ fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 4, lineHeight: 19 }}>
                       Минимум 4 цифры. Оставьте пустым чтобы не менять.
                     </Text>
 
@@ -2769,7 +2769,7 @@ export default function SettingsScreen({ navigation, route }) {
                         </Pressable>
                       ))}
                     </View>
-                    <Text style={{ fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 6, lineHeight: 16 }}>
+                    <Text style={{ fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 6, lineHeight: 19 }}>
                       {empModal.role === 'admin' ? 'Полный доступ: настройки, отчёты, все разделы' : 'Базовый доступ: касса, клиенты. Права настраиваются справа'}
                     </Text>
 
@@ -2841,7 +2841,7 @@ export default function SettingsScreen({ navigation, route }) {
               style={{ width: 260, height: 260 }}
             />
           </View>
-          <Text style={{ fontFamily: fonts.familyRegular, fontSize: 13, color: 'rgba(255,255,255,0.6)', textAlign: 'center' }}>
+          <Text style={{ fontFamily: fonts.familyRegular, fontSize: 14, color: 'rgba(255,255,255,0.6)', textAlign: 'center' }}>
             struktura-crm.github.io/.../{bookingSlug}
           </Text>
           <Pressable
