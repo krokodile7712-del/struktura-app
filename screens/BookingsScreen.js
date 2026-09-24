@@ -921,7 +921,7 @@ const styles = StyleSheet.create({
   addManualBtn: { margin: 16, marginBottom: 8, paddingVertical: 13, borderRadius: 12, backgroundColor: colors.orange, alignItems: 'center' },
   addManualBtnTxt: { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: '#fff' },
 
-  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, marginTop: 14, marginBottom: 6 },
+  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, marginTop: 14, marginBottom: 6 },
   sectionHeading: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange, textTransform: 'uppercase', letterSpacing: 1.5 },
   input: { backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 13, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 14 },
   inputBig: { backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.borderHi, padding: 14, color: colors.text, fontFamily: fonts.family, fontWeight: '700', fontSize: 18 },
@@ -933,7 +933,7 @@ const styles = StyleSheet.create({
   saveManualBtn: { marginTop: 24, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.orange, alignItems: 'center' },
   saveManualBtnTxt: { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: '#fff' },
   pickerDoneBtn: { marginTop: 8, paddingVertical: 10, borderRadius: 10, backgroundColor: colors.surface2, alignItems: 'center' },
-  pickerDoneBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
+  pickerDoneBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
   centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
   loadingTxt: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 12 },
   emptyTxt:   { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted, textAlign: 'center' },
