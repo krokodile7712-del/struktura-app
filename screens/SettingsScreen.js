@@ -2829,6 +2829,47 @@ export default function SettingsScreen({ navigation, route }) {
       </Modal>
 
       {/* QR Модалка */}
+      {/* Модалка «Предпросмотр чека» */}
+      <Modal visible={receiptPreview} transparent animationType="fade" onRequestClose={() => setReceiptPreview(false)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setReceiptPreview(false)} />
+          <View style={styles.receiptBox}>
+            <ScrollView contentContainerStyle={{ padding: 16 }}>
+              <View style={styles.receiptPaper}>
+                <Text style={styles.receiptBizName}>{bizDraft.receiptName || bizDraft.businessName || 'Название бизнеса'}</Text>
+                {!!bizDraft.address && <Text style={styles.receiptBizSub}>{bizDraft.address}</Text>}
+
+                <View style={styles.receiptDivider} />
+                <Text style={styles.receiptMeta}>Чек №0001 · {new Date().toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</Text>
+
+                <View style={styles.receiptDivider} />
+                <View style={styles.receiptRow}>
+                  <Text style={styles.receiptItem}>Капучино</Text>
+                  <Text style={styles.receiptItem}>250 ₽</Text>
+                </View>
+                <View style={styles.receiptRow}>
+                  <Text style={styles.receiptItem}>Круассан</Text>
+                  <Text style={styles.receiptItem}>180 ₽</Text>
+                </View>
+
+                <View style={styles.receiptDivider} />
+                <View style={styles.receiptRow}>
+                  <Text style={styles.receiptTotal}>Итого</Text>
+                  <Text style={styles.receiptTotal}>430 ₽</Text>
+                </View>
+
+                {!!bizDraft.receiptFooter && (
+                  <Text style={styles.receiptFooter}>{bizDraft.receiptFooter}</Text>
+                )}
+              </View>
+            </ScrollView>
+            <Pressable style={{ padding: 16, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border }} onPress={() => setReceiptPreview(false)}>
+              <Text style={{ fontFamily: fonts.familySemibold, fontSize: 15, color: colors.orange }}>Закрыть</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={qrModal} transparent animationType="fade" onRequestClose={() => setQrModal(false)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center', gap: 24 }}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setQrModal(false)} />

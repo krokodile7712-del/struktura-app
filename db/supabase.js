@@ -49,8 +49,8 @@ export async function claimBusiness(slug, name, type, settings, secret) {
     if (error) throw error;
     return data ? { id: data } : null;
   } catch (e) {
-    console.error('[Supabase] claimBusiness error:', e);
-    return null;
+    console.error('[Supabase] claimBusiness error:', e?.message || e, e?.code ? `(код: ${e.code})` : '', e?.details || '', e?.hint || '');
+    throw e; // пробрасываем дальше — вызывающий код (SettingsScreen.js) покажет подробности пользователю
   }
 }
 
