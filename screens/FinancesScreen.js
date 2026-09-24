@@ -1,10 +1,12 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
-import ExpensesPanel from '../components/panels/ExpensesPanel';
-import InvestmentsPanel from '../components/panels/InvestmentsPanel';
-import { getFinancesSummary } from '../db/queries';
+import ExpensesPanel, { EXPENSES_TOUR_STEPS } from '../components/panels/ExpensesPanel';
+import InvestmentsPanel, { INVESTMENTS_TOUR_STEPS } from '../components/panels/InvestmentsPanel';
+import TourGuide from '../components/TourGuide';
+import { useTourActiveKey } from '../components/TourRegistry';
+import { getFinancesSummary, getBusinessProfile, markTourSeen } from '../db/queries';
 import { goBackSmart, getSession } from '../db/session';
 import { colors, fonts } from '../constants/theme';
 
@@ -24,7 +26,9 @@ export default function FinancesScreen({ navigation, route }) {
   const isAdmin = getSession()?.role === 'admin';
   const [tab, setTab] = useState(isAdmin ? (route?.params?.initialTab || 'expenses') : 'expenses');
   const [summary, setSummary] = useState(null);
-  const expensesRef = useRef(null);
+  const [tourOpen, setTourOpen] = useState(false);
+  const [tourFull, setTourFull] = useState(true); // true — весь раздел (обе вкладки), false — только текущая
+  const activeTourKey = useTourActiveKey();
 
   const load = useCallback(() => {
     if (!isAdmin) return; // сводка по всем видам трат — дело администратора
@@ -46,6 +50,33 @@ export default function FinancesScreen({ navigation, route }) {
     }
   }, [route?.params?.initialTab, isAdmin]);
 
+  // Тур раздела «Расходы» — начинается с вкладки «Ежедневные», затем сам
+  // переключает на «Крупные покупки» и продолжает уже там. При первом
+  // визите — весь тур целиком (tourFull=true). При повторном запуске
+  // через «?» — только шаги той вкладки, на которой сейчас находишься.
+  const fullTourSteps = isAdmin ? [...EXPENSES_TOUR_STEPS, ...INVESTMENTS_TOUR_STEPS] : EXPENSES_TOUR_STEPS;
+  const tourStepsToShow = tourFull ? fullTourSteps : (tab === 'expenses' ? EXPENSES_TOUR_STEPS : INVESTMENTS_TOUR_STEPS);
+  const expensesStepKeys = new Set(EXPENSES_TOUR_STEPS.map(s => s.key));
+  const investmentsStepKeys = new Set(INVESTMENTS_TOUR_STEPS.map(s => s.key));
+
+  // Автозапуск при первом визите в раздел — весь тур целиком
+  useEffect(() => {
+    try {
+      const p = getBusinessProfile();
+      if (!p?.tours_seen?.Finances) {
+        const t = setTimeout(() => { setTab('expenses'); setTourFull(true); setTourOpen(true); }, 500);
+        return () => clearTimeout(t);
+      }
+    } catch (_) {}
+  }, []);
+
+  // Шаги про Расходы держат вкладку «Ежедневные», шаги про Крупные покупки
+  // переключают на «Крупные покупки»
+  useEffect(() => {
+    if (expensesStepKeys.has(activeTourKey)) setTab('expenses');
+    else if (investmentsStepKeys.has(activeTourKey)) setTab('investments');
+  }, [activeTourKey]);
+
   return (
     <View style={styles.root}>
       <TopBar
@@ -54,11 +85,9 @@ export default function FinancesScreen({ navigation, route }) {
         navigation={navigation}
         activeScreen="Finances"
         rightElement={
-          tab === 'expenses' ? (
-            <Pressable onPress={() => expensesRef.current?.openTour()} hitSlop={10} style={styles.tourBtn} accessibilityLabel="Подсказка" accessibilityRole="button">
-              <Text style={styles.tourBtnTxt}>?</Text>
-            </Pressable>
-          ) : null
+          <Pressable onPress={() => { setTourFull(false); setTourOpen(true); }} hitSlop={10} style={styles.tourBtn} accessibilityLabel="Подсказка" accessibilityRole="button">
+            <Text style={styles.tourBtnTxt}>?</Text>
+          </Pressable>
         }
       />
 
@@ -88,9 +117,15 @@ export default function FinancesScreen({ navigation, route }) {
       )}
 
       <View style={{ flex: 1 }}>
-        {tab === 'expenses'    && <ExpensesPanel ref={expensesRef} navigation={navigation} />}
+        {tab === 'expenses'    && <ExpensesPanel navigation={navigation} />}
         {isAdmin && tab === 'investments' && <InvestmentsPanel navigation={navigation} />}
       </View>
+
+      <TourGuide
+        visible={tourOpen}
+        onClose={() => { setTourOpen(false); if (tourFull) markTourSeen('Finances'); }}
+        steps={tourStepsToShow}
+      />
     </View>
   );
 }

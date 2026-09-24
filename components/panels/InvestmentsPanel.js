@@ -7,6 +7,7 @@ import DatePicker from '../../components/DatePicker';
 import { useFocusEffect } from '@react-navigation/native';
 import { getInvestments, addInvestment, updateInvestment, deleteInvestment, getInvestmentSummary } from '../../db/queries';
 import { colors, fonts, anim } from '../../constants/theme';
+import { useTourHighlight } from '../../components/TourRegistry';
 
 const CATEGORIES = [
   { key: 'equipment',  label: 'Оборудование' },
@@ -20,6 +21,14 @@ const EMPTY = { name: '', amount: '', invest_date: '', amort_months: '', categor
 const fmt = n => Math.round(n||0).toLocaleString('ru-RU');
 const fmtDate = s => s ? s.split('-').reverse().join('.') : '—';
 
+// Шаги тура — собираются и запускаются из родителя (FinancesScreen.js),
+// вместе с шагами вкладки «Расходы», тот же принцип, что и в ExpensesPanel.js
+export const INVESTMENTS_TOUR_STEPS = [
+  { key: 'investments.addBtn', title: '+ Добавить инвестицию', text: 'Крупные разовые вложения в бизнес — оборудование, ремонт, реклама.' },
+  { key: 'investments.summary', title: 'Сводка', text: 'Сколько вложено всего, и сколько из этого списывается постепенно (амортизация) против разовых сумм.' },
+  { key: 'investments.list', title: 'Список вложений', text: 'Тап по строке открывает редактирование — можно растянуть списание по месяцам вместо одного дня.', cardPosition: 'top' },
+];
+
 export default function InvestmentsPanel({ navigation }) {
   const { isLandscape } = useResponsive();
   const [items, setItems]       = useState([]);
@@ -31,6 +40,9 @@ export default function InvestmentsPanel({ navigation }) {
 
   const fadeAnim  = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(20))[0];
+  const addBtnHighlight = useTourHighlight('investments.addBtn');
+  const summaryHighlight = useTourHighlight('investments.summary');
+  const listHighlight = useTourHighlight('investments.list');
 
   const load = useCallback(() => {
     try {
@@ -91,12 +103,13 @@ export default function InvestmentsPanel({ navigation }) {
 
         {/* Левая панель */}
         <View style={[styles.left, !isLandscape && { width: undefined, maxWidth: undefined, flex: 1, margin: 0, borderRadius: 0, borderWidth: 0, borderRightWidth: 0 }]}>
-          <Pressable style={styles.addBtnBig} onPress={openNew}>
+          <Pressable style={[styles.addBtnBig, { position: 'relative' }, addBtnHighlight.style]} onPress={openNew}>
             <Text style={styles.addBtnBigTxt}>+ Добавить инвестицию</Text>
+            {addBtnHighlight.overlay}
           </Pressable>
           {/* Сводка */}
           {summary && (
-            <View style={styles.summaryCard}>
+            <View style={[styles.summaryCard, { position: 'relative' }, summaryHighlight.style]}>
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Вложено всего</Text>
                 <Text style={styles.summaryVal}>{fmt(summary.totalInvested)} ₽</Text>
@@ -135,11 +148,13 @@ export default function InvestmentsPanel({ navigation }) {
                   <Text style={[styles.summaryVal, { color: colors.orange }]}>≈ {fmt(summary.monthlyLoad)} ₽/мес</Text>
                 </View>
               )}
+              {summaryHighlight.overlay}
             </View>
           )}
 
           {/* Список */}
           <Text style={styles.listHint}>Нажмите чтобы редактировать</Text>
+          <View style={[{ flex: 1, position: 'relative' }, listHighlight.style]}>
           <ScrollView showsVerticalScrollIndicator={false}>
             {items.length === 0 ? (
               <View style={styles.emptyWrap}>
@@ -174,6 +189,8 @@ export default function InvestmentsPanel({ navigation }) {
               </View>
             )}
           </ScrollView>
+          {listHighlight.overlay}
+          </View>
         </View>
 
 

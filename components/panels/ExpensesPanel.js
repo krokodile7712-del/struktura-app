@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
   TextInput, Animated, FlatList, Alert, Image, Modal,
@@ -7,14 +7,13 @@ import * as ImagePicker from 'expo-image-picker';
 import Sheet from '../../components/Sheet';
 import DatePicker from '../../components/DatePicker';
 import SwipeableRow from '../../components/SwipeableRow';
-import TourGuide from '../../components/TourGuide';
 import { useTourHighlight, useTourActiveKey } from '../../components/TourRegistry';
 import { useResponsive } from '../../hooks/useResponsive';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   getAllExpenses, insertExpense, deleteExpense, updateExpense,
   getRecurringExpenses, insertRecurringExpense, deactivateRecurringExpense, ensureRecurringExpenses,
-  getBusinessProfile, markTourSeen, getAllStock,
+  getAllStock,
   getOverheadItems, deleteOverheadItem,
 } from '../../db/queries';
 import { can, getCurrentLocationId } from '../../db/session';
@@ -33,12 +32,24 @@ const PERIODS = [
   { key: 'month', label: 'Месяц',   from: monthAgoStr, to: todayStr },
 ];
 
+// Шаги тура — экспортируются, т.к. общий тур раздела «Расходы» (обе
+// вкладки, Ежедневные + Крупные покупки) собирается и запускается из
+// родителя (FinancesScreen.js), не отсюда. Сама панель только
+// подсвечивает элементы (useTourHighlight) — читает общий activeTourKey.
+export const EXPENSES_TOUR_STEPS = [
+  { key: 'expenses.list', title: 'Список расходов', text: 'Тап по строке открывает редактирование. Свайп влево — удалить. У расходов с прикреплённым фото свайп влево также открывает само фото.', cardPosition: 'top' },
+  { key: 'expenses.recurringBtn', title: 'Повторяющиеся расходы', text: 'Здесь список всех настроенных повторов — аренда, зарплата, подписки. Можно отключить любой, если он больше не нужен.' },
+  { key: 'expenses.recurringToggle', title: 'Повторять каждый месяц', text: 'При создании нового расхода включите этот переключатель — и такой же расход будет создаваться автоматически каждый месяц, без ручного ввода заново.', cardPosition: 'top' },
+  { key: 'expenses.photoAttach', title: 'Фото чека', text: 'Прикрепите фото чека прямо к расходу — камерой или из галереи. Позже можно посмотреть его на весь экран.', cardPosition: 'top' },
+  { key: 'expenses.summary', title: 'Сводка', text: 'Итог за выбранный период и разбивка по категориям — всегда под рукой.' },
+];
+
 // Экран Расходов — список↔сводка. В альбомной ориентации список сужается
 // до колонки, сводка постоянно видна справа. В портрете сводка — компактная
 // сворачиваемая полоска сверху (по умолчанию свёрнута — только итог), список
 // на всю ширину ниже неё. Строки списка — тонкие, без карточек-рамок, суммы
 // выровнены по правому краю в колонку.
-function ExpensesPanel({ navigation }, ref) {
+export default function ExpensesPanel({ navigation }) {
   const { isLandscape } = useResponsive();
   const [period, setPeriod]         = useState('week');
   const [expenses, setExpenses]     = useState([]);
@@ -52,8 +63,6 @@ function ExpensesPanel({ navigation }, ref) {
   const [overheadList, setOverheadList] = useState([]);
   const [photoUri, setPhotoUri]     = useState('');
   const [photoViewUri, setPhotoViewUri] = useState(''); // полноэкранный просмотр — отдельно от формы
-  const [tourOpen, setTourOpen] = useState(false);
-  useImperativeHandle(ref, () => ({ openTour: () => setTourOpen(true) }));
   const activeTourKey = useTourActiveKey();
   const listHighlight = useTourHighlight('expenses.list');
   const recurringBtnHighlight = useTourHighlight('expenses.recurringBtn', 12);
@@ -165,7 +174,7 @@ function ExpensesPanel({ navigation }, ref) {
     const needsForm = activeTourKey === 'expenses.recurringToggle' || activeTourKey === 'expenses.photoAttach';
     if (needsForm) {
       openModal();
-    } else if (tourOpen) {
+    } else if (activeTourKey) {
       closeForm();
     }
   }, [activeTourKey]);
@@ -496,24 +505,6 @@ function ExpensesPanel({ navigation }, ref) {
     </>
   );
 
-  // Автозапуск тура при первом заходе на Расходы
-  useEffect(() => {
-    try {
-      const p = getBusinessProfile();
-      if (!p?.tours_seen?.Expenses) {
-        const t = setTimeout(() => setTourOpen(true), 500);
-        return () => clearTimeout(t);
-      }
-    } catch (_) {}
-  }, []);
-
-  const tourSteps = [
-    { key: 'expenses.list', title: 'Список расходов', text: 'Тап по строке открывает редактирование. Свайп влево — удалить. У расходов с прикреплённым фото свайп влево также открывает само фото.', cardPosition: 'top' },
-    { key: 'expenses.recurringBtn', title: 'Повторяющиеся расходы', text: 'Здесь список всех настроенных повторов — аренда, зарплата, подписки. Можно отключить любой, если он больше не нужен.' },
-    { key: 'expenses.recurringToggle', title: 'Повторять каждый месяц', text: 'При создании нового расхода включите этот переключатель — и такой же расход будет создаваться автоматически каждый месяц, без ручного ввода заново.', cardPosition: 'top' },
-    { key: 'expenses.photoAttach', title: 'Фото чека', text: 'Прикрепите фото чека прямо к расходу — камерой или из галереи. Позже можно посмотреть его на весь экран.', cardPosition: 'top' },
-    { key: 'expenses.summary', title: 'Сводка', text: 'Итог за выбранный период и разбивка по категориям — всегда под рукой.' },
-  ];
 
   return (
     <View style={styles.root}>
@@ -662,11 +653,6 @@ function ExpensesPanel({ navigation }, ref) {
         onClose={() => setDatePickerOpen(false)}
       />
 
-      <TourGuide
-        visible={tourOpen}
-        onClose={() => { setTourOpen(false); markTourSeen('Expenses'); closeForm(); }}
-        steps={tourSteps}
-      />
     </View>
   );
 }
@@ -787,5 +773,3 @@ const styles = StyleSheet.create({
   saveBtn:    { flex: 1, paddingVertical: 17, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
   saveTxt:    { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: '#fff' },
 });
-
-export default forwardRef(ExpensesPanel);
