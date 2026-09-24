@@ -80,36 +80,51 @@ export default function BookingsScreen({ navigation }) {
   const [filter, setFilter]     = useState('all');
 
   const [tourOpen, setTourOpen] = useState(false);
+  const [tourFull, setTourFull] = useState(true); // true — весь раздел (обе вкладки), false — только текущая
   const tabsHighlight    = useTourHighlight('bookings.tabs');
   const calendarHighlight = useTourHighlight('bookings.calendar');
   const filtersHighlight  = useTourHighlight('bookings.filters');
   const manualAddHighlight = useTourHighlight('bookings.manualAdd', 14);
   const activeTourKey = useTourActiveKey();
 
-  // Автозапуск тура при первом заходе в раздел
+  // Тур раздела «Записи» — начинается со вкладки «Онлайн», затем шаг-мост
+  // анонсирует «По телефону» (сам вкладку ещё не трогает, только
+  // предупреждает) и следующий шаг уже переключает и продолжает там —
+  // тот же приём, что и в Товарах (mentionTourStep), чтобы переключение
+  // никогда не происходило молча посреди объяснения.
+  const onlineTourSteps = [
+    { key: 'bookings.tabs',      title: 'Онлайн и по телефону', text: 'Два независимых источника записей: онлайн — через форму по QR-коду, по телефону — вносите вручную, когда клиент звонит сам.' },
+    { key: 'bookings.calendar',  title: 'Календарь', text: 'Точки под датой — есть ли записи в этот день (оранжевая — онлайн, фиолетовая — по телефону). Тап по дню фильтрует список ниже; повторный тап на тот же день снимает фильтр.', cardPosition: 'top' },
+    { key: 'bookings.filters',   title: 'Фильтр по статусу', text: 'Новые, подтверждённые, выполненные, отменённые — фильтруйте онлайн-записи по статусу.' },
+  ];
+  const mentionTourStep = { key: 'bookings.mention', title: 'А ещё — «По телефону»', text: 'Рядом есть вторая вкладка — для записей, которые приняли сами, без интернета.' };
+  const manualTourSteps = [
+    { key: 'bookings.manualAdd', title: 'Запись по телефону', text: 'Клиент позвонил и записался сам? Добавьте запись здесь вручную — дата, время, услуга, стоимость.', cardPosition: 'top' },
+  ];
+  const fullTourSteps = [...onlineTourSteps, mentionTourStep, ...manualTourSteps];
+  const tourStepsToShow = tourFull ? fullTourSteps : (mainTab === 'online' ? onlineTourSteps : manualTourSteps);
+
+  // Автозапуск тура при первом заходе в раздел — весь тур целиком,
+  // начиная со вкладки «Онлайн» независимо от того, какая была открыта
   useEffect(() => {
     try {
       const p = getBusinessProfile();
       if (!p?.tours_seen?.Bookings) {
-        const t = setTimeout(() => setTourOpen(true), 500);
+        const t = setTimeout(() => { setMainTab('online'); setTourFull(true); setTourOpen(true); }, 500);
         return () => clearTimeout(t);
       }
     } catch (_) {}
   }, []);
 
-  // Шаги тура «Фильтр» и «Онлайн» требуют вкладку Онлайн, «Добавление записи»
-  // требует вкладку По телефону — тур сам переключает нужную на своём шаге
+  // Шаги про Онлайн держат вкладку «Онлайн», шаги про По телефону
+  // переключают на «По телефону» — шаг-мост (bookings.mention) вкладку
+  // не трогает, остаётся там, где тур сейчас идёт, просто анонсирует
+  const onlineStepKeys = new Set(onlineTourSteps.map(s => s.key));
+  const manualStepKeys = new Set(manualTourSteps.map(s => s.key));
   useEffect(() => {
-    if (activeTourKey === 'bookings.filters') setMainTab('online');
-    if (activeTourKey === 'bookings.manualAdd') setMainTab('manual');
+    if (onlineStepKeys.has(activeTourKey)) setMainTab('online');
+    else if (manualStepKeys.has(activeTourKey)) setMainTab('manual');
   }, [activeTourKey]);
-
-  const tourSteps = [
-    { key: 'bookings.tabs',      title: 'Онлайн и по телефону', text: 'Два независимых источника записей: онлайн — через форму по QR-коду, по телефону — вносите вручную, когда клиент звонит сам.' },
-    { key: 'bookings.calendar',  title: 'Календарь', text: 'Точки под датой — есть ли записи в этот день (оранжевая — онлайн, фиолетовая — по телефону). Тап по дню фильтрует список ниже; повторный тап на тот же день снимает фильтр.', cardPosition: 'top' },
-    { key: 'bookings.filters',   title: 'Фильтр по статусу', text: 'Новые, подтверждённые, выполненные, отменённые — фильтруйте онлайн-записи по статусу.' },
-    { key: 'bookings.manualAdd', title: 'Запись по телефону', text: 'Клиент позвонил и записался сам? Добавьте запись здесь вручную — дата, время, услуга, стоимость.', cardPosition: 'top' },
-  ];
 
   // Календарь — общий для обеих вкладок, не зависит от того, какая активна
   const [calOnlineDates, setCalOnlineDates] = useState(new Set());
@@ -527,7 +542,7 @@ export default function BookingsScreen({ navigation }) {
         navigation={navigation}
         activeScreen="Bookings"
         rightElement={
-          <Pressable onPress={() => setTourOpen(true)} hitSlop={10} style={styles.tourBtn}>
+          <Pressable onPress={() => { setTourFull(false); setTourOpen(true); }} hitSlop={10} style={styles.tourBtn}>
             <Text style={styles.tourBtnTxt}>?</Text>
           </Pressable>
         }
@@ -802,8 +817,8 @@ export default function BookingsScreen({ navigation }) {
 
     <TourGuide
       visible={tourOpen}
-      onClose={() => { setTourOpen(false); markTourSeen('Bookings'); }}
-      steps={tourSteps}
+      onClose={() => { setTourOpen(false); if (tourFull) markTourSeen('Bookings'); }}
+      steps={tourStepsToShow}
     />
     </>
   );
