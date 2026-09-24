@@ -48,17 +48,30 @@ export default function TourGuide({ visible, onClose, steps = [], remountSignal 
     if (visible) setStepIndex(0);
   }, [visible]);
 
+  // safeIndex — до эффекта: steps может стать короче, пока тур открыт (в
+  // Товарах переключение вкладки на лету меняет набор шагов), а stepIndex
+  // остаётся прежним — без подстраховки был бы выход за границы массива.
+  const safeIndex = Math.min(stepIndex, Math.max(0, steps.length - 1));
+  const resolvedKey = visible ? (steps[safeIndex]?.key || null) : null;
+
+  // Зависим от самого ключа (примитив), а не от массива steps по ссылке —
+  // экраны вроде FinancesScreen.js строят массив шагов прямо в теле
+  // компонента, заново на каждый рендер; тот компонент сам подписан на
+  // activeKey (useTourActiveKey), поэтому при каждой смене подсветки
+  // получал бы новую ссылку на steps → эффект перезапускался бы со своей
+  // очисткой (setActiveKey(null)) → сброс и восстановление подсветки по
+  // кругу — снаружи это выглядело как секундная вспышка рамки и
+  // затемнения, тут же пропадающая.
   useEffect(() => {
-    const safe = Math.min(stepIndex, Math.max(0, steps.length - 1));
-    setActiveKey(visible ? (steps[safe]?.key || null) : null);
+    setActiveKey(resolvedKey);
     return () => setActiveKey(null);
-  }, [visible, stepIndex, steps, setActiveKey]);
+  }, [resolvedKey, setActiveKey]);
 
   // steps может измениться на более короткий список, пока тур ещё открыт
   // (в Товарах — переключение вкладки на лету меняет набор шагов), а
   // stepIndex остаётся прежним — без подстраховки был бы выход за границы
-  // массива и падение при обращении к step.title
-  const safeIndex = Math.min(stepIndex, Math.max(0, steps.length - 1));
+  // массива и падение при обращении к step.title (safeIndex уже вычислен
+  // выше, для эффекта — переиспользуем)
   const step = steps[safeIndex];
   const cardPosition = step?.cardPosition || 'bottom'; // 'top' | 'bottom'
 
