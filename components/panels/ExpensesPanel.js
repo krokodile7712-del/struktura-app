@@ -177,7 +177,7 @@ export default function ExpensesPanel({ navigation }) {
     const needsForm = activeTourKey === 'expenses.recurringToggle' || activeTourKey === 'expenses.photoAttach';
     if (needsForm) {
       openModal();
-    } else if (activeTourKey) {
+    } else if (activeTourKey?.startsWith('expenses.')) {
       closeForm();
     }
   }, [activeTourKey]);
@@ -186,7 +186,7 @@ export default function ExpensesPanel({ navigation }) {
   // поднято в видимую область формы — сама подводим нужное поле к видимой
   // части при смене активного шага, тот же приём, что уже в Товарах
   useEffect(() => {
-    if (!activeTourKey) return;
+    if (activeTourKey !== 'expenses.recurringToggle' && activeTourKey !== 'expenses.photoAttach') return;
     let attempts = 0, t;
     const tryScroll = () => {
       const y = sectionY.current[activeTourKey];
