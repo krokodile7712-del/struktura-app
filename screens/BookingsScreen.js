@@ -92,16 +92,23 @@ export default function BookingsScreen({ navigation }) {
   // предупреждает) и следующий шаг уже переключает и продолжает там —
   // тот же приём, что и в Товарах (mentionTourStep), чтобы переключение
   // никогда не происходило молча посреди объяснения.
+  const calendarStep = { key: 'bookings.calendar', title: 'Календарь', text: 'Точки под датой — есть ли записи в этот день (оранжевая — онлайн, фиолетовая — по телефону). Тап по дню фильтрует список ниже; повторный тап на тот же день снимает фильтр.', cardPosition: 'top' };
   const onlineTourSteps = [
     { key: 'bookings.tabs',      title: 'Онлайн и по телефону', text: 'Два независимых источника записей: онлайн — через форму по QR-коду, по телефону — вносите вручную, когда клиент звонит сам.' },
-    { key: 'bookings.calendar',  title: 'Календарь', text: 'Точки под датой — есть ли записи в этот день (оранжевая — онлайн, фиолетовая — по телефону). Тап по дню фильтрует список ниже; повторный тап на тот же день снимает фильтр.', cardPosition: 'top' },
+    calendarStep,
     { key: 'bookings.filters',   title: 'Фильтр по статусу', text: 'Новые, подтверждённые, выполненные, отменённые — фильтруйте онлайн-записи по статусу.' },
   ];
   const mentionTourStep = { key: 'bookings.mention', title: 'А ещё — «По телефону»', text: 'Рядом есть вторая вкладка — для записей, которые приняли сами, без интернета.' };
-  const manualTourSteps = [
+  // Отдельно от manualOnlySteps (используется в общем туре, где календарь
+  // уже был показан на шагах про Онлайн) — при раздельном повторе именно
+  // на вкладке «По телефону» тур запускается заново, без предыстории,
+  // и календарь (общий для обеих вкладок, стоит прямо здесь же) без
+  // своего шага остался бы необъяснённым — та самая ошибка.
+  const manualOnlySteps = [
     { key: 'bookings.manualAdd', title: 'Запись по телефону', text: 'Клиент позвонил и записался сам? Добавьте запись здесь вручную — дата, время, услуга, стоимость.', cardPosition: 'top' },
   ];
-  const fullTourSteps = [...onlineTourSteps, mentionTourStep, ...manualTourSteps];
+  const manualTourSteps = [calendarStep, ...manualOnlySteps];
+  const fullTourSteps = [...onlineTourSteps, mentionTourStep, ...manualOnlySteps];
   const tourStepsToShow = tourFull ? fullTourSteps : (mainTab === 'online' ? onlineTourSteps : manualTourSteps);
 
   // Автозапуск тура при первом заходе в раздел — весь тур целиком,
@@ -120,7 +127,7 @@ export default function BookingsScreen({ navigation }) {
   // переключают на «По телефону» — шаг-мост (bookings.mention) вкладку
   // не трогает, остаётся там, где тур сейчас идёт, просто анонсирует
   const onlineStepKeys = new Set(onlineTourSteps.map(s => s.key));
-  const manualStepKeys = new Set(manualTourSteps.map(s => s.key));
+  const manualStepKeys = new Set(manualOnlySteps.map(s => s.key));
   useEffect(() => {
     if (onlineStepKeys.has(activeTourKey)) setMainTab('online');
     else if (manualStepKeys.has(activeTourKey)) setMainTab('manual');
