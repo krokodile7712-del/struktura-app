@@ -29,7 +29,7 @@ import {
   getUnlinkedCostCards,
   getBusinessProfile, updateBusinessProfile, applyBusinessPreset, BUSINESS_PRESETS,
   getTerms, getRoleNames, pluralizeRu, genitivePluralRu, genitiveSingularRu,
-  exportAllData, importAllData, BACKUP_TABLES_INFO, resetDatabase,
+  exportAllData, importAllData, BACKUP_TABLES_INFO, resetDatabase, resetAllTours,
 } from '../db/queries';
 import { canConvert, conversionFactor } from '../constants/units';
 import { getDb } from '../db/database';
@@ -1944,6 +1944,23 @@ export default function SettingsScreen({ navigation, route }) {
               <View style={{ flex: 1 }}>
                 <Text style={styles.menuItemName}>Сменить аккаунт</Text>
                 <Text style={styles.menuItemSub}>Выйти и войти под другим PIN</Text>
+              </View>
+              <Text style={styles.menuItemArrow}>›</Text>
+            </Pressable>
+
+            <Pressable
+              style={({ pressed }) => [styles.menuRow, styles.menuRowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
+              onPress={() => {
+                Alert.alert('Показать подсказки заново?', 'На каждом разделе при следующем заходе снова автоматически откроется вводный тур — как будто заходите в первый раз. Ничего из данных при этом не сотрётся.', [
+                  { text: 'Отмена', style: 'cancel' },
+                  { text: 'Показать заново', onPress: () => { resetAllTours(); toast.show('Готово — туры покажутся заново'); } },
+                ]);
+              }}
+            >
+              <Text style={{ fontSize: 20, marginRight: 12 }}>💡</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.menuItemName}>Показать подсказки заново</Text>
+                <Text style={styles.menuItemSub}>Вводный тур снова откроется на каждом разделе автоматически</Text>
               </View>
               <Text style={styles.menuItemArrow}>›</Text>
             </Pressable>

@@ -86,6 +86,18 @@ export function markTourSeen(screenKey) {
   } catch (e) { console.error('[markTourSeen]', e); }
 }
 
+// Сбрасывает все отметки «тур уже показан» — на каждом разделе снова
+// сработает автозапуск, как при самом первом заходе, без необходимости
+// заводить новый аккаунт/бизнес заново
+export function resetAllTours() {
+  try {
+    const db = getDb();
+    const row = db.getFirstSync(`SELECT id FROM business_profile ORDER BY id LIMIT 1`);
+    if (!row) return;
+    db.runSync(`UPDATE business_profile SET tours_seen = '{}' WHERE id = ?`, [row.id]);
+  } catch (e) { console.error('[resetAllTours]', e); }
+}
+
 const DEFAULT_TERMS = { item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' };
 const DEFAULT_ROLES = { barista: 'Сотрудник', admin: 'Администратор' };
 
