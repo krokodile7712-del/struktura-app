@@ -293,22 +293,22 @@ const styles = StyleSheet.create({
 
   // Рамка и название теперь принадлежат каждой отдельной месячной панели —
   // едут вместе с её датами, а не остаются позади неподвижным заголовком
-  monthCard: { borderRadius: 12, borderWidth: 1, borderColor: colors.borderHi, padding: 10, backgroundColor: colors.surface3 },
-  monthLabel: { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text, textAlign: 'center', marginBottom: 10 },
+  monthCard: { borderRadius: 12, borderWidth: 1, borderColor: colors.borderHi, padding: 8, backgroundColor: colors.surface3 },
+  monthLabel: { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.text, textAlign: 'center', marginBottom: 6 },
 
   weekRow: { flexDirection: 'row' },
-  weekdayLabel: { flex: 1, textAlign: 'center', fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, paddingVertical: 6 },
+  weekdayLabel: { flex: 1, textAlign: 'center', fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, paddingVertical: 3 },
 
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
-  cell: { width: `${100 / 7}%`, alignItems: 'center', paddingVertical: 4 },
+  cell: { width: `${100 / 7}%`, alignItems: 'center', paddingVertical: 1 },
 
-  dayCircle: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  dayCircle: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   dayCircleToday: { borderWidth: 1.5, borderColor: colors.orange },
   dayCircleSelected: { backgroundColor: colors.orange },
   dayNum: { fontFamily: fonts.familyRegular, fontSize: 15, color: colors.text },
   dayNumToday: { color: colors.orange, fontFamily: fonts.familySemibold },
   dayNumSelected: { color: '#fff', fontFamily: fonts.familySemibold },
 
-  dotsRow: { flexDirection: 'row', gap: 3, height: 7, marginTop: 3 },
+  dotsRow: { flexDirection: 'row', gap: 3, height: 6, marginTop: 1 },
   dot: { width: 6, height: 6, borderRadius: 3 },
 });
