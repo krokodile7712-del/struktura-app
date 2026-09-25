@@ -271,9 +271,11 @@ export default function WorkJournalScreen({ navigation }) {
         <Pressable style={[styles.mainTabBtn, mainTab === 'shifts' && styles.mainTabBtnActive]} onPress={() => setMainTab('shifts')}>
           <Text style={[styles.mainTabTxt, mainTab === 'shifts' && styles.mainTabTxtActive]}>Смены</Text>
         </Pressable>
-        <Pressable style={[styles.mainTabBtn, mainTab === 'salary' && styles.mainTabBtnActive]} onPress={() => setMainTab('salary')}>
-          <Text style={[styles.mainTabTxt, mainTab === 'salary' && styles.mainTabTxtActive]}>Зарплата</Text>
-        </Pressable>
+        {getSession()?.role === 'admin' && (
+          <Pressable style={[styles.mainTabBtn, mainTab === 'salary' && styles.mainTabBtnActive]} onPress={() => setMainTab('salary')}>
+            <Text style={[styles.mainTabTxt, mainTab === 'salary' && styles.mainTabTxtActive]}>Зарплата</Text>
+          </Pressable>
+        )}
       </View>
 
       {mainTab === 'shifts' && (
@@ -462,7 +464,7 @@ export default function WorkJournalScreen({ navigation }) {
       </View>
       )}
 
-      {mainTab === 'salary' && (
+      {mainTab === 'salary' && getSession()?.role === 'admin' && (
       <View key={isLandscape ? 'landscape-salary' : 'portrait-salary'} style={{ flex: 1, flexDirection: isLandscape ? 'row' : 'column' }}>
         <View style={{ flex: 1 }}>
           {(!isLandscape && selectedEmp) ? (
