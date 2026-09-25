@@ -749,7 +749,6 @@ export default function SettingsScreen({ navigation, route }) {
     key: `settings.section.${s.key}`,
     title: s.label,
     text: SECTION_TOUR_TEXT[s.key] || '',
-    cardPosition: 'top',
   }));
   const tourSteps = [
     { key: 'settings.nav', title: 'Разделы настроек', text: 'Слева — список разделов, справа — содержимое выбранного. На узком экране список и содержимое меняются местами — сначала список, тап открывает раздел на весь экран.' },
@@ -2265,6 +2264,8 @@ export default function SettingsScreen({ navigation, route }) {
                   style={({ pressed }) => [
                     styles.navItem,
                     selectedSection === s.key && styles.navItemActive,
+                    { position: 'relative' },
+                    sectionHighlights[s.key].style,
                     pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
                   ]}
                   onPress={() => setSelectedSection(s.key)}
@@ -2275,6 +2276,7 @@ export default function SettingsScreen({ navigation, route }) {
                   </Text>
                   {selectedSection === s.key && !isPhone && <View style={styles.navActiveBar} />}
                   {isPhone && <Text style={styles.navArrow}>›</Text>}
+                  {sectionHighlights[s.key].overlay}
                 </Pressable>
               ))}
             </ScrollView>
