@@ -1190,6 +1190,25 @@ export function closeShift(shift_id) {
   try { ensureRecurringExpenses(); } catch (e) { console.error('[closeShift] Ошибка повторяющихся расходов:', e); }
 }
 
+// Ручная правка времени закрытия смены администратором — для случая,
+// когда сотрудник ушёл, не закрыв смену в приложении. closedAt — строка
+// ISO. Помечает hours_edited=1, чтобы в детализации зарплаты было видно,
+// что часы восстановлены вручную, а не взяты как есть.
+export function updateShiftHours(shiftId, closedAt) {
+  const db = getDb();
+  const shift = db.getFirstSync(`SELECT * FROM shifts WHERE id = ?`, [shiftId]);
+  if (!shift) return;
+  if (shift.status === 'open') {
+    // Смена ещё открыта — закрываем её тем же путём, что и обычное
+    // закрытие (считает выручку по заказам), просто с заданным временем
+    closeShift(shiftId);
+    db.runSync(`UPDATE shifts SET closed_at = ?, hours_edited = 1 WHERE id = ?`, [closedAt, shiftId]);
+  } else {
+    db.runSync(`UPDATE shifts SET closed_at = ?, hours_edited = 1 WHERE id = ?`, [closedAt, shiftId]);
+  }
+}
+
+
 // Открытая смена конкретного сотрудника (по умолчанию — текущего залогиненного).
 // Если userId не передан — старое поведение (последняя открытая вообще),
 // как аварийный запасной вариант для мест, где сессии ещё нет.
@@ -1759,11 +1778,88 @@ export function getEmployeeStats(userId, dateFrom, dateTo) {
     orderCount: orders.length,
     shiftCount: shifts.length,
     hours,
+    shifts, // список самих смен — для детализации по сменам (Зарплата)
     byLocation,
     returningClients,
     kpi,
     orders, // список чеков — для перехода в детали
   };
+}
+
+// ─── Раздел «Зарплата» ───────────────────────────────────────────────────
+// Начисление конкретному сотруднику за период — в отличие от
+// calcShiftSalaryCost/getPnLFull (те считают суммарную СТОИМОСТЬ фонда
+// оплаты для P&L, одной строкой по всем сотрудникам), эта функция — для
+// самого сотрудника: сколько часов, сколько начислено, разбивка по сменам.
+export function calcEmployeeSalary(userId, dateFrom, dateTo) {
+  const stats = getEmployeeStats(userId, dateFrom, dateTo);
+  if (!stats) return null;
+  const { user, hours, shifts, kpi, revenue } = stats;
+
+  const days = Math.max(1, Math.round((new Date(dateTo) - new Date(dateFrom)) / 86400000) + 1);
+  const amt = user.salary_amount || 0;
+  let base = 0;
+  switch (user.salary_type) {
+    case 'shift':       base = amt * shifts.filter(s => s.closed_at).length; break;
+    case 'hourly':      base = amt * hours; break;
+    case 'monthly':     base = amt * (days / 30); break; // пропорционально дням периода — тот же приём, что и накладные расходы в getPnLFull
+    case 'revenue_pct': base = revenue * amt / 100; break;
+    case 'profit_pct':  base = revenue * amt / 100; break; // упрощённо от выручки, как и в calcSingleSalary
+    default:            base = amt;
+  }
+  base = Math.round(base * 100) / 100;
+
+  // Премия за KPI — только если явно включена для этого сотрудника, и
+  // только у него вообще настроен KPI. Пропорционально проценту выполнения
+  // плана, с потолком в 100% (перевыполнение не даёт премию больше номинала)
+  let kpiBonus = 0;
+  if (user.kpi_in_salary && kpi) {
+    const cappedPct = Math.min(100, kpi.pct);
+    kpiBonus = Math.round((user.kpi_bonus_amount || 0) * cappedPct / 100 * 100) / 100;
+  }
+
+  // Разбивка по сменам — только закрытые дают точные часы и начисление;
+  // открытая смена показана отдельно, без суммы (ещё не закончена)
+  const shiftBreakdown = shifts.map(s => {
+    const shiftHours = s.closed_at ? Math.round((new Date(s.closed_at) - new Date(s.opened_at)) / 3600000 * 10) / 10 : null;
+    let shiftPay = null;
+    if (s.closed_at) {
+      switch (user.salary_type) {
+        case 'shift':  shiftPay = amt; break;
+        case 'hourly': shiftPay = Math.round(amt * shiftHours * 100) / 100; break;
+        default:       shiftPay = null; // оклад/проценты не разбиваются по отдельным сменам, только итог за период
+      }
+    }
+    return {
+      id: s.id,
+      opened_at: s.opened_at,
+      closed_at: s.closed_at,
+      hours: shiftHours,
+      pay: shiftPay,
+      hoursEdited: !!s.hours_edited,
+    };
+  });
+
+  return {
+    user,
+    hours,
+    base,
+    kpiBonus,
+    total: Math.round((base + kpiBonus) * 100) / 100,
+    shiftBreakdown,
+  };
+}
+
+// Зарплата всех активных сотрудников за период разом — для списка на
+// вкладке «Зарплата». Каждый — тот же расчёт, что и calcEmployeeSalary,
+// но без детализации по сменам (та не нужна в списке, только при переходе
+// в конкретного сотрудника).
+export function getAllEmployeesSalary(dateFrom, dateTo) {
+  const db = getDb();
+  const users = db.getAllSync(`SELECT id FROM users WHERE active != 0 ORDER BY name`);
+  return users
+    .map(u => calcEmployeeSalary(u.id, dateFrom, dateTo))
+    .filter(Boolean);
 }
 
 // ─── Редактирование/удаление заказов (только админ) ─────────────────────
