@@ -1241,6 +1241,93 @@ export function getShiftEditLog(shiftId) {
   return db.getAllSync(`SELECT * FROM shift_edit_log WHERE shift_id = ? ORDER BY edited_at DESC`, [shiftId]);
 }
 
+// Смена задним числом — сотрудник фактически работал, но не открывал её
+// в приложении. created_manually=1 отличает от обычного openShift/closeShift.
+// Не проверяет пересечение с другими сменами того же сотрудника — админ
+// сам отвечает за корректность введённых времён.
+export function createManualShift(userId, employeeName, openedAt, closedAt, locationId = null) {
+  const db = getDb();
+  const status = closedAt ? 'closed' : 'open';
+  const id = db.runSync(
+    `INSERT INTO shifts (opened_at, closed_at, status, user_id, employee_name, location_id, created_manually) VALUES (?, ?, ?, ?, ?, ?, 1)`,
+    [openedAt, closedAt || null, status, userId || null, employeeName || '', locationId || null]
+  ).lastInsertRowId;
+  const editedBy = getSession()?.name || '';
+  db.runSync(
+    `INSERT INTO shift_edit_log (shift_id, field, old_value, new_value, reason, edited_by, edited_at) VALUES (?, 'created', '', ?, 'Смена создана задним числом', ?, ?)`,
+    [id, employeeName || '', editedBy, new Date().toISOString()]
+  );
+  return id;
+}
+
+// Удаление смены. Заказы, если есть, НЕ удаляются вместе с ней — просто
+// остаются с shift_id, указывающим на несуществующую смену (та же логика,
+// что и раньше у удалённых категорий/локаций в этом проекте — история
+// продаж важнее строгой ссылочной целостности). Вызывающий код обязан
+// сам показать администратору, сколько заказов затронуто, ПЕРЕД вызовом.
+export function deleteShift(shiftId) {
+  const db = getDb();
+  db.runSync(`DELETE FROM shifts WHERE id = ?`, [shiftId]);
+  db.runSync(`DELETE FROM shift_edit_log WHERE shift_id = ?`, [shiftId]);
+}
+
+// Заказы, попадающие во временной промежуток смены, но числящиеся за
+// ДРУГОЙ сменой (или ни за какой) — кандидаты на перенос, когда весь день
+// продавали под чужим открытым PIN, а настоящего исполнителя заводят
+// смену задним числом. Не включает заказы, уже принадлежащие этой самой
+// смене — тем переносить некуда, они уже здесь.
+export function getTransferableOrders(shiftId) {
+  const db = getDb();
+  const shift = db.getFirstSync(`SELECT * FROM shifts WHERE id = ?`, [shiftId]);
+  if (!shift) return [];
+  const to = shift.closed_at || new Date().toISOString();
+  return db.getAllSync(
+    `SELECT o.*, s.employee_name as current_shift_employee
+     FROM orders o
+     LEFT JOIN shifts s ON s.id = o.shift_id
+     WHERE o.created_at >= ? AND o.created_at <= ? AND (o.shift_id IS NULL OR o.shift_id != ?)
+     ORDER BY o.created_at`,
+    [shift.opened_at, to, shiftId]
+  );
+}
+
+// Переносит выбранные заказы в целевую смену — пересчитывает итоги и у
+// целевой смены, и у всех смен-доноров (чтобы их отчётность осталась
+// верной, не задвоилась). orderIds — массив id заказов, все должны
+// существовать, иначе просто пропускаются.
+export function transferOrdersToShift(orderIds, targetShiftId) {
+  if (!orderIds || orderIds.length === 0) return;
+  const db = getDb();
+  const donorShiftIds = new Set();
+  for (const orderId of orderIds) {
+    const order = db.getFirstSync(`SELECT shift_id FROM orders WHERE id = ?`, [orderId]);
+    if (!order) continue;
+    if (order.shift_id) donorShiftIds.add(order.shift_id);
+    db.runSync(`UPDATE orders SET shift_id = ? WHERE id = ?`, [targetShiftId, orderId]);
+  }
+  recalcShiftTotals(targetShiftId);
+  for (const donorId of donorShiftIds) recalcShiftTotals(donorId);
+
+  const editedBy = getSession()?.name || '';
+  db.runSync(
+    `INSERT INTO shift_edit_log (shift_id, field, old_value, new_value, reason, edited_by, edited_at) VALUES (?, 'orders_transferred', ?, ?, '', ?, ?)`,
+    [targetShiftId, '', String(orderIds.length), editedBy, new Date().toISOString()]
+  );
+}
+
+// Ручная доплата/удержание по смене — amount может быть отрицательным
+// (удержание). Прибавляется к начислению сотрудника в calcEmployeeSalary.
+export function setShiftAdjustment(shiftId, amount, reason) {
+  const db = getDb();
+  const shift = db.getFirstSync(`SELECT adjustment_amount FROM shifts WHERE id = ?`, [shiftId]);
+  const editedBy = getSession()?.name || '';
+  db.runSync(`UPDATE shifts SET adjustment_amount = ?, adjustment_reason = ? WHERE id = ?`, [amount || 0, reason || '', shiftId]);
+  db.runSync(
+    `INSERT INTO shift_edit_log (shift_id, field, old_value, new_value, reason, edited_by, edited_at) VALUES (?, 'adjustment_amount', ?, ?, ?, ?, ?)`,
+    [shiftId, String(shift?.adjustment_amount || 0), String(amount || 0), reason || '', editedBy, new Date().toISOString()]
+  );
+}
+
 
 // Открытая смена конкретного сотрудника (по умолчанию — текущего залогиненного).
 // Если userId не передан — старое поведение (последняя открытая вообще),
@@ -1842,6 +1929,10 @@ export function calcEmployeeSalary(userId, dateFrom, dateTo) {
   }
   base = Math.round(base * 100) / 100;
 
+  // Ручные доплаты/удержания по сменам за период — сумма может быть
+  // отрицательной (удержание), складываются все смены в периоде разом
+  const adjustments = Math.round(shifts.reduce((s, sh) => s + (sh.adjustment_amount || 0), 0) * 100) / 100;
+
   // Премия за KPI — только если явно включена для этого сотрудника, и
   // только у него вообще настроен KPI. Пропорционально проценту выполнения
   // плана, с потолком в 100% (перевыполнение не даёт премию больше номинала)
@@ -1870,6 +1961,10 @@ export function calcEmployeeSalary(userId, dateFrom, dateTo) {
       hours: shiftHours,
       pay: shiftPay,
       hoursEdited: !!s.hours_edited,
+      editReason: s.edit_reason || '',
+      adjustmentAmount: s.adjustment_amount || 0,
+      adjustmentReason: s.adjustment_reason || '',
+      createdManually: !!s.created_manually,
     };
   });
 
@@ -1878,7 +1973,8 @@ export function calcEmployeeSalary(userId, dateFrom, dateTo) {
     hours,
     base,
     kpiBonus,
-    total: Math.round((base + kpiBonus) * 100) / 100,
+    adjustments,
+    total: Math.round((base + kpiBonus + adjustments) * 100) / 100,
     shiftBreakdown,
   };
 }
