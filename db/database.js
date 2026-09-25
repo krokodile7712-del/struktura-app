@@ -392,6 +392,17 @@ export function initDatabase() {
     `ALTER TABLE users ADD COLUMN kpi_type   TEXT DEFAULT ''`,   // '' | revenue | orders | avg_check | services | returning_clients
     `ALTER TABLE users ADD COLUMN kpi_amount REAL DEFAULT 0`,
     `ALTER TABLE users ADD COLUMN kpi_period TEXT DEFAULT 'month'`, // shift | week | month
+
+    // Раздел «Зарплата»: премия за выполнение KPI — отдельно от kpi_amount
+    // (тот план/цель, не сумма денег) — и переключатель, засчитывать ли её
+    // в начисление вообще. По умолчанию выключен, чтобы не менять суммы
+    // существующим сотрудникам молча при обновлении.
+    `ALTER TABLE users ADD COLUMN kpi_bonus_amount REAL DEFAULT 0`,
+    `ALTER TABLE users ADD COLUMN kpi_in_salary INTEGER DEFAULT 0`,
+    // Метка, что часы смены скорректированы вручную (не голое время
+    // открытия/закрытия) — видно в детализации зарплаты, что это
+    // не обычная смена, а восстановленная администратором задним числом
+    `ALTER TABLE shifts ADD COLUMN hours_edited INTEGER DEFAULT 0`,
   ];
   for (const sql of migrations) {
     try { db.execSync(sql); } catch (_) {}
