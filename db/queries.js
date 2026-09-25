@@ -1,4 +1,5 @@
 import { getDb } from './database';
+import { getSession } from './session';
 
 // ─── Профиль бизнеса ────────────────────────────────────────────────────────
 
@@ -1161,10 +1162,11 @@ export function openShift(cashOpen = 0, userId = null, employeeName = '', locati
   return id;
 }
 
-export function closeShift(shift_id) {
+// Пересчитывает cash_total/card_total смены по её текущим заказам — не
+// трогает closed_at/status. Нужна отдельно от closeShift, чтобы пересчитать
+// смену ПОСЛЕ переноса заказов в неё или из неё (см. transferOrdersToShift)
+function recalcShiftTotals(shiftId) {
   const db = getDb();
-  const now = new Date().toISOString();
-  // Считаем по method_type (новые заказы) + fallback по method (старые)
   const totals = db.getFirstSync(
     `SELECT
        SUM(CASE
@@ -1176,36 +1178,67 @@ export function closeShift(shift_id) {
          WHEN method_type = 'card' THEN total
          WHEN (method_type IS NULL OR method_type = '') AND (method != 'Наличные') THEN total
          WHEN method_type = 'mixed' THEN COALESCE(card_amount, 0)
-         ELSE 0 END) as card_total,
-       SUM(total) as total_revenue,
-       COUNT(*) as order_count
+         ELSE 0 END) as card_total
      FROM orders WHERE shift_id = ? AND (status IS NULL OR status != 'returned')`,
-    [shift_id]
+    [shiftId]
   );
-  db.runSync(
-    `UPDATE shifts SET closed_at=?, cash_total=?, card_total=?, status='closed' WHERE id=?`,
-    [now, totals?.cash_total || 0, totals?.card_total || 0, shift_id]
-  );
+  db.runSync(`UPDATE shifts SET cash_total = ?, card_total = ? WHERE id = ?`, [totals?.cash_total || 0, totals?.card_total || 0, shiftId]);
+}
+
+export function closeShift(shift_id) {
+  const db = getDb();
+  const now = new Date().toISOString();
+  db.runSync(`UPDATE shifts SET closed_at=?, status='closed' WHERE id=?`, [now, shift_id]);
+  recalcShiftTotals(shift_id);
   try { ensureDailyDepreciationExpense(); } catch (e) { console.error('[closeShift] Ошибка автосчёта расходов:', e); }
   try { ensureRecurringExpenses(); } catch (e) { console.error('[closeShift] Ошибка повторяющихся расходов:', e); }
 }
 
-// Ручная правка времени закрытия смены администратором — для случая,
-// когда сотрудник ушёл, не закрыв смену в приложении. closedAt — строка
-// ISO. Помечает hours_edited=1, чтобы в детализации зарплаты было видно,
-// что часы восстановлены вручную, а не взяты как есть.
-export function updateShiftHours(shiftId, closedAt) {
+// Ручная правка времени открытия/закрытия смены администратором — для
+// случая, когда сотрудник ушёл, не закрыв смену в приложении, или указал
+// неверное время начала. opts.openedAt/opts.closedAt — строки ISO,
+// передавать нужно только то, что реально меняется. opts.reason —
+// свободный текст, попадает и в edit_reason смены, и в журнал изменений.
+// Каждое реально изменившееся поле — отдельная запись в shift_edit_log.
+export function updateShiftHours(shiftId, { openedAt, closedAt, reason = '' } = {}) {
   const db = getDb();
   const shift = db.getFirstSync(`SELECT * FROM shifts WHERE id = ?`, [shiftId]);
   if (!shift) return;
-  if (shift.status === 'open') {
-    // Смена ещё открыта — закрываем её тем же путём, что и обычное
-    // закрытие (считает выручку по заказам), просто с заданным временем
-    closeShift(shiftId);
-    db.runSync(`UPDATE shifts SET closed_at = ?, hours_edited = 1 WHERE id = ?`, [closedAt, shiftId]);
-  } else {
-    db.runSync(`UPDATE shifts SET closed_at = ?, hours_edited = 1 WHERE id = ?`, [closedAt, shiftId]);
+  const editedBy = getSession()?.name || '';
+  const now = new Date().toISOString();
+
+  const logChange = (field, oldValue, newValue) => {
+    db.runSync(
+      `INSERT INTO shift_edit_log (shift_id, field, old_value, new_value, reason, edited_by, edited_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [shiftId, field, oldValue || '', newValue || '', reason, editedBy, now]
+    );
+  };
+
+  if (openedAt && openedAt !== shift.opened_at) {
+    logChange('opened_at', shift.opened_at, openedAt);
+    db.runSync(`UPDATE shifts SET opened_at = ? WHERE id = ?`, [openedAt, shiftId]);
   }
+
+  if (closedAt) {
+    const wasOpen = shift.status === 'open';
+    if (wasOpen) {
+      // Смена ещё открыта — закрываем её тем же путём, что и обычное
+      // закрытие (считает выручку по заказам), потом проставляем заданное
+      // время поверх — closeShift сама ставит now(), это его переопределяет
+      closeShift(shiftId);
+    }
+    if (closedAt !== shift.closed_at) {
+      logChange('closed_at', wasOpen ? '(не была закрыта)' : shift.closed_at, closedAt);
+    }
+    db.runSync(`UPDATE shifts SET closed_at = ?, hours_edited = 1, edit_reason = ? WHERE id = ?`, [closedAt, reason, shiftId]);
+  }
+}
+
+// История правок конкретной смены — для кнопки «История изменений»
+// в детализации
+export function getShiftEditLog(shiftId) {
+  const db = getDb();
+  return db.getAllSync(`SELECT * FROM shift_edit_log WHERE shift_id = ? ORDER BY edited_at DESC`, [shiftId]);
 }
 
 
