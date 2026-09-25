@@ -4,6 +4,7 @@ import TopBar from '../components/TopBar';
 import EmptyState from '../components/EmptyState';
 import Sheet from '../components/Sheet';
 import EmployeeStatsSheet from '../components/EmployeeStatsSheet';
+import Toggle from '../components/Toggle';
 import { useResponsive } from '../hooks/useResponsive';
 import { getAllUsers, addUser, updateUser, toggleUserActive, getRoleNames, deleteUser } from '../db/queries';
 import { useToast } from '../components/Toast';
@@ -33,7 +34,7 @@ const KPI_PERIODS = [
   { key: 'month', label: 'За месяц' },
 ];
 
-const empty = { id: null, name: '', pin: '', pinConfirm: '', role: 'barista', active: 1, salary_type: 'shift', salary_amount: '', kpi_type: '', kpi_amount: '', kpi_period: 'month' };
+const empty = { id: null, name: '', pin: '', pinConfirm: '', role: 'barista', active: 1, salary_type: 'shift', salary_amount: '', kpi_type: '', kpi_amount: '', kpi_period: 'month', kpi_bonus_amount: '', kpi_in_salary: 0 };
 
 export default function EmployeesScreen({ navigation }) {
   const { isLandscape } = useResponsive();
@@ -100,6 +101,8 @@ export default function EmployeesScreen({ navigation }) {
         kpiAmount: parseFloat(draft.kpi_amount) || 0,
         kpiPeriod: draft.kpi_period || 'month',
         locationId: draft.location_id || null,
+        kpiBonusAmount: parseFloat(draft.kpi_bonus_amount) || 0,
+        kpiInSalary: draft.kpi_in_salary ? 1 : 0,
       };
       if (isNew) {
         addUser(draft.name.trim(), draft.pin, draft.role, data.salary_type, data.salary_amount, extra);
@@ -350,6 +353,25 @@ export default function EmployeesScreen({ navigation }) {
                         </Pressable>
                       ))}
                     </View>
+
+                    <Text style={styles.fieldLabel}>Премия за выполнение</Text>
+                    <TextInput
+                      style={styles.input}
+                      color={colors.text}
+                      value={draft.kpi_bonus_amount}
+                      onChangeText={v => setDraft(d => ({ ...d, kpi_bonus_amount: v }))}
+                      keyboardType="numeric"
+                      placeholder="0 ₽"
+                      placeholderTextColor={colors.muted}
+                    />
+
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
+                      <View style={{ flex: 1, marginRight: 12 }}>
+                        <Text style={[styles.fieldLabel, { marginTop: 0 }]}>Включить в зарплату</Text>
+                        <Text style={styles.roleHint}>Премия добавится к начислению — пропорционально проценту выполнения плана</Text>
+                      </View>
+                      <Toggle value={!!draft.kpi_in_salary} onValueChange={v => setDraft(d => ({ ...d, kpi_in_salary: v ? 1 : 0 }))} />
+                    </View>
                   </>
                 )}
 
@@ -535,6 +557,25 @@ export default function EmployeesScreen({ navigation }) {
                           <Text style={[styles.chipTxt, draft.kpi_period === kp.key && styles.chipTxtActive]}>{kp.label}</Text>
                         </Pressable>
                       ))}
+                    </View>
+
+                    <Text style={styles.fieldLabel}>Премия за выполнение</Text>
+                    <TextInput
+                      style={styles.input}
+                      color={colors.text}
+                      value={draft.kpi_bonus_amount}
+                      onChangeText={v => setDraft(d => ({ ...d, kpi_bonus_amount: v }))}
+                      keyboardType="numeric"
+                      placeholder="0 ₽"
+                      placeholderTextColor={colors.muted}
+                    />
+
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
+                      <View style={{ flex: 1, marginRight: 12 }}>
+                        <Text style={[styles.fieldLabel, { marginTop: 0 }]}>Включить в зарплату</Text>
+                        <Text style={styles.roleHint}>Премия добавится к начислению — пропорционально проценту выполнения плана</Text>
+                      </View>
+                      <Toggle value={!!draft.kpi_in_salary} onValueChange={v => setDraft(d => ({ ...d, kpi_in_salary: v ? 1 : 0 }))} />
                     </View>
                   </>
                 )}

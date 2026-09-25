@@ -682,10 +682,10 @@ export function addUser(name, pin, role, salaryType = 'shift', salaryAmount = 0,
   if (!pin?.trim() || pin.trim().length < 4) return { ok: false, error: 'PIN — минимум 4 цифры' };
   const exists = db.getFirstSync(`SELECT id FROM users WHERE pin = ?`, [pin.trim()]);
   if (exists) return { ok: false, error: 'Этот PIN уже используется' };
-  const { kpiType = '', kpiAmount = 0, kpiPeriod = 'month', locationId = null } = extra;
+  const { kpiType = '', kpiAmount = 0, kpiPeriod = 'month', locationId = null, kpiBonusAmount = 0, kpiInSalary = 0 } = extra;
   db.runSync(
-    `INSERT INTO users (name, pin, role, active, salary_type, salary_amount, kpi_type, kpi_amount, kpi_period, location_id) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?)`,
-    [name.trim(), pin.trim(), role, salaryType, salaryAmount, kpiType, kpiAmount, kpiPeriod, locationId]
+    `INSERT INTO users (name, pin, role, active, salary_type, salary_amount, kpi_type, kpi_amount, kpi_period, location_id, kpi_bonus_amount, kpi_in_salary) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [name.trim(), pin.trim(), role, salaryType, salaryAmount, kpiType, kpiAmount, kpiPeriod, locationId, kpiBonusAmount, kpiInSalary]
   );
   return { ok: true };
 }
@@ -697,10 +697,10 @@ export function updateUser(id, name, pin, role, salaryType = 'shift', salaryAmou
   if (!pin?.trim() || pin.trim().length < 4) return { ok: false, error: 'PIN — минимум 4 цифры' };
   const exists = db.getFirstSync(`SELECT id FROM users WHERE pin = ? AND id != ?`, [pin.trim(), id]);
   if (exists) return { ok: false, error: 'Этот PIN уже занят другим сотрудником' };
-  const { kpiType = '', kpiAmount = 0, kpiPeriod = 'month', locationId = null } = extra;
+  const { kpiType = '', kpiAmount = 0, kpiPeriod = 'month', locationId = null, kpiBonusAmount = 0, kpiInSalary = 0 } = extra;
   db.runSync(
-    `UPDATE users SET name = ?, pin = ?, role = ?, salary_type = ?, salary_amount = ?, kpi_type = ?, kpi_amount = ?, kpi_period = ?, location_id = ? WHERE id = ?`,
-    [name.trim(), pin.trim(), role, salaryType, salaryAmount, kpiType, kpiAmount, kpiPeriod, locationId, id]
+    `UPDATE users SET name = ?, pin = ?, role = ?, salary_type = ?, salary_amount = ?, kpi_type = ?, kpi_amount = ?, kpi_period = ?, location_id = ?, kpi_bonus_amount = ?, kpi_in_salary = ? WHERE id = ?`,
+    [name.trim(), pin.trim(), role, salaryType, salaryAmount, kpiType, kpiAmount, kpiPeriod, locationId, kpiBonusAmount, kpiInSalary, id]
   );
   return { ok: true };
 }
