@@ -58,10 +58,11 @@ export default function WorkJournalScreen({ navigation }) {
   const [salaryList, setSalaryList] = useState([]);
   const [selectedEmp, setSelectedEmp] = useState(null); // выбранный сотрудник (детализация)
   const [empDetail, setEmpDetail] = useState(null); // calcEmployeeSalary(selectedEmp.user.id, ...)
-  const [editingShiftId, setEditingShiftId] = useState(null); // id смены, для которой сейчас правим часы
-  const [editDate, setEditDate] = useState(new Date());
-  const [showEditDatePicker, setShowEditDatePicker] = useState(false);
-  const [showEditTimePicker, setShowEditTimePicker] = useState(false);
+  const [editingShiftId, setEditingShiftId] = useState(null); // id смены, для которой сейчас правим часы — раскрытая строка в альбомной, открытая Sheet в портрете
+  const [editOpenedAt, setEditOpenedAt] = useState(new Date());
+  const [editClosedAt, setEditClosedAt] = useState(new Date());
+  const [editReason, setEditReason] = useState('');
+  const [activePicker, setActivePicker] = useState(null); // 'opened-date' | 'opened-time' | 'closed-date' | 'closed-time' | null
 
   const fadeAnim = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(anim.slideFrom))[0];
@@ -139,17 +140,27 @@ export default function WorkJournalScreen({ navigation }) {
     } catch (e) { console.error(e); }
   };
 
-  const startEditShift = (shiftId, currentClosedAt) => {
-    setEditingShiftId(shiftId);
-    setEditDate(currentClosedAt ? new Date(currentClosedAt) : new Date());
+  const startEditShift = (s) => {
+    setEditingShiftId(s.id);
+    setEditOpenedAt(new Date(s.opened_at));
+    setEditClosedAt(s.closed_at ? new Date(s.closed_at) : new Date());
+    setEditReason('');
+    setActivePicker(null);
   };
+
+  const cancelEditShift = () => { setEditingShiftId(null); setActivePicker(null); };
 
   const saveShiftEdit = () => {
     if (!editingShiftId) return;
     try {
-      updateShiftHours(editingShiftId, editDate.toISOString());
+      updateShiftHours(editingShiftId, {
+        openedAt: editOpenedAt.toISOString(),
+        closedAt: editClosedAt.toISOString(),
+        reason: editReason.trim(),
+      });
       toast.show('Часы смены обновлены');
       setEditingShiftId(null);
+      setActivePicker(null);
       refreshEmpDetail();
     } catch (e) { console.error(e); toast.show('Ошибка сохранения', 'warn'); }
   };
@@ -231,24 +242,139 @@ export default function WorkJournalScreen({ navigation }) {
       {empDetail.shiftBreakdown.length === 0 ? (
         <Text style={styles.cardUser}>Смен за этот период нет</Text>
       ) : (
-        empDetail.shiftBreakdown.map((s, ii, arr) => (
-          <View key={s.id} style={[styles.shiftEditRow, ii < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.orderName}>{fmtDate(s.opened_at)}</Text>
-              <Text style={styles.orderQty}>
-                {s.closed_at ? `→ ${fmtDate(s.closed_at)}` : 'ещё открыта'}
-                {s.hoursEdited ? ' · часы скорректированы' : ''}
-              </Text>
-            </View>
-            <View style={{ alignItems: 'flex-end' }}>
-              <Text style={styles.orderAmt}>{s.hours != null ? `${s.hours} ч` : '—'}</Text>
-              {s.pay != null && <Text style={styles.orderQty}>{fmt(s.pay)} ₽</Text>}
-            </View>
-            <Pressable style={styles.editHoursBtn} onPress={() => startEditShift(s.id, s.closed_at)} hitSlop={8}>
-              <Text style={styles.editHoursBtnTxt}>✎</Text>
+        empDetail.shiftBreakdown.map((s, ii, arr) => {
+          const isEditingThis = editingShiftId === s.id;
+          return (
+          <View key={s.id} style={[ii < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
+            <Pressable
+              style={styles.shiftEditRow}
+              onPress={() => isLandscape && (isEditingThis ? cancelEditShift() : startEditShift(s))}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.orderName}>
+                  {s.createdManually ? '📝 ' : ''}{fmtDate(s.opened_at)}
+                </Text>
+                <Text style={styles.orderQty}>
+                  {s.closed_at ? `→ ${fmtDate(s.closed_at)}` : 'ещё открыта'}
+                  {s.hoursEdited ? ' · часы скорректированы' : ''}
+                </Text>
+              </View>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={styles.orderAmt}>{s.hours != null ? `${s.hours} ч` : '—'}</Text>
+                {s.pay != null && <Text style={styles.orderQty}>{fmt(s.pay)} ₽</Text>}
+                {!!s.adjustmentAmount && (
+                  <Text style={[styles.orderQty, { color: s.adjustmentAmount > 0 ? colors.green : colors.red }]}>
+                    {s.adjustmentAmount > 0 ? '+' : ''}{fmt(s.adjustmentAmount)} ₽
+                  </Text>
+                )}
+              </View>
+              <Pressable
+                style={styles.editHoursBtn}
+                onPress={() => isLandscape ? (isEditingThis ? cancelEditShift() : startEditShift(s)) : startEditShift(s)}
+                hitSlop={8}
+              >
+                <Text style={styles.editHoursBtnTxt}>{isLandscape && isEditingThis ? '✕' : '✎'}</Text>
+              </Pressable>
             </Pressable>
+
+            {/* Раскрытие прямо в строке — только альбомная. В портрете тот же
+                startEditShift открывает Sheet ниже, места на инлайн-форму нет */}
+            {isLandscape && isEditingThis && (
+              <View style={styles.inlineEditBox}>
+                <Text style={styles.fieldLabel}>Открыта</Text>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <Pressable style={[styles.editInput, { flex: 1 }]} onPress={() => setActivePicker(activePicker === 'opened-date' ? null : 'opened-date')}>
+                    <Text style={styles.editInputTxt}>{editOpenedAt.toLocaleDateString('ru-RU')}</Text>
+                  </Pressable>
+                  <Pressable style={[styles.editInput, { flex: 1 }]} onPress={() => setActivePicker(activePicker === 'opened-time' ? null : 'opened-time')}>
+                    <Text style={styles.editInputTxt}>{editOpenedAt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</Text>
+                  </Pressable>
+                </View>
+                {activePicker === 'opened-date' && (
+                  <DateTimePicker value={editOpenedAt} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
+                    onChange={(event, selectedDate) => {
+                      if (Platform.OS !== 'ios') setActivePicker(null);
+                      if (event.type !== 'dismissed' && selectedDate) {
+                        setEditOpenedAt(d => { const nd = new Date(d); nd.setFullYear(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate()); return nd; });
+                      }
+                    }}
+                  />
+                )}
+                {activePicker === 'opened-time' && (
+                  <DateTimePicker value={editOpenedAt} mode="time" display="spinner" is24Hour
+                    onChange={(event, selectedDate) => {
+                      if (Platform.OS !== 'ios') setActivePicker(null);
+                      if (event.type !== 'dismissed' && selectedDate) {
+                        setEditOpenedAt(d => { const nd = new Date(d); nd.setHours(selectedDate.getHours(), selectedDate.getMinutes(), 0, 0); return nd; });
+                      }
+                    }}
+                  />
+                )}
+                {Platform.OS === 'ios' && (activePicker === 'opened-date' || activePicker === 'opened-time') && (
+                  <Pressable style={styles.pickerDoneBtn} onPress={() => setActivePicker(null)}>
+                    <Text style={styles.pickerDoneBtnTxt}>Готово</Text>
+                  </Pressable>
+                )}
+
+                <Text style={styles.fieldLabel}>Закрыта</Text>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <Pressable style={[styles.editInput, { flex: 1 }]} onPress={() => setActivePicker(activePicker === 'closed-date' ? null : 'closed-date')}>
+                    <Text style={styles.editInputTxt}>{editClosedAt.toLocaleDateString('ru-RU')}</Text>
+                  </Pressable>
+                  <Pressable style={[styles.editInput, { flex: 1 }]} onPress={() => setActivePicker(activePicker === 'closed-time' ? null : 'closed-time')}>
+                    <Text style={styles.editInputTxt}>{editClosedAt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</Text>
+                  </Pressable>
+                </View>
+                {activePicker === 'closed-date' && (
+                  <DateTimePicker value={editClosedAt} mode="date" display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
+                    onChange={(event, selectedDate) => {
+                      if (Platform.OS !== 'ios') setActivePicker(null);
+                      if (event.type !== 'dismissed' && selectedDate) {
+                        setEditClosedAt(d => { const nd = new Date(d); nd.setFullYear(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate()); return nd; });
+                      }
+                    }}
+                  />
+                )}
+                {activePicker === 'closed-time' && (
+                  <DateTimePicker value={editClosedAt} mode="time" display="spinner" is24Hour
+                    onChange={(event, selectedDate) => {
+                      if (Platform.OS !== 'ios') setActivePicker(null);
+                      if (event.type !== 'dismissed' && selectedDate) {
+                        setEditClosedAt(d => { const nd = new Date(d); nd.setHours(selectedDate.getHours(), selectedDate.getMinutes(), 0, 0); return nd; });
+                      }
+                    }}
+                  />
+                )}
+                {Platform.OS === 'ios' && (activePicker === 'closed-date' || activePicker === 'closed-time') && (
+                  <Pressable style={styles.pickerDoneBtn} onPress={() => setActivePicker(null)}>
+                    <Text style={styles.pickerDoneBtnTxt}>Готово</Text>
+                  </Pressable>
+                )}
+
+                <Text style={styles.fieldLabel}>Причина правки</Text>
+                <TextInput
+                  style={[styles.editInput, { minHeight: 44 }]}
+                  color={colors.text}
+                  value={editReason}
+                  onChangeText={setEditReason}
+                  placeholder="Например: забыл закрыть, ушёл в 18:00"
+                  placeholderTextColor={colors.muted}
+                  multiline
+                />
+
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+                  <Pressable style={[styles.saveEditBtn, { flex: 1, marginTop: 0, backgroundColor: colors.surface3, borderWidth: 1, borderColor: colors.border }]} onPress={cancelEditShift}>
+                    <Text style={[styles.saveEditBtnTxt, { color: colors.muted }]}>Отмена</Text>
+                  </Pressable>
+                  <Pressable style={[styles.saveEditBtn, { flex: 1, marginTop: 0 }]} onPress={saveShiftEdit}>
+                    <Text style={styles.saveEditBtnTxt}>Сохранить</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
           </View>
-        ))
+          );
+        })
       )}
     </ScrollView>
   );
@@ -525,71 +651,80 @@ export default function WorkJournalScreen({ navigation }) {
       )}
 
       <Sheet
-        visible={!!editingShiftId}
-        onClose={() => setEditingShiftId(null)}
-        title="Время закрытия смены"
+        visible={!isLandscape && !!editingShiftId}
+        onClose={cancelEditShift}
+        title="Правка часов смены"
       >
         <View style={{ padding: 20 }}>
           <Text style={styles.editHint}>
-            Для случаев, когда сотрудник ушёл, не закрыв смену в приложении — укажите, когда смена реально закончилась.
+            Для случаев, когда сотрудник ушёл, не закрыв смену в приложении — укажите, когда смена реально началась и закончилась.
           </Text>
 
-          <Text style={styles.fieldLabel}>Дата</Text>
-          <Pressable style={styles.editInput} onPress={() => setShowEditDatePicker(true)}>
-            <Text style={styles.editInputTxt}>{editDate.toLocaleDateString('ru-RU')}</Text>
+          <Text style={styles.fieldLabel}>Открыта — дата</Text>
+          <Pressable style={styles.editInput} onPress={() => setActivePicker('opened-date')}>
+            <Text style={styles.editInputTxt}>{editOpenedAt.toLocaleDateString('ru-RU')}</Text>
+          </Pressable>
+          <Text style={styles.fieldLabel}>Открыта — время</Text>
+          <Pressable style={styles.editInput} onPress={() => setActivePicker('opened-time')}>
+            <Text style={styles.editInputTxt}>{editOpenedAt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</Text>
           </Pressable>
 
-          <Text style={styles.fieldLabel}>Время</Text>
-          <Pressable style={styles.editInput} onPress={() => setShowEditTimePicker(true)}>
-            <Text style={styles.editInputTxt}>{editDate.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</Text>
+          <Text style={styles.fieldLabel}>Закрыта — дата</Text>
+          <Pressable style={styles.editInput} onPress={() => setActivePicker('closed-date')}>
+            <Text style={styles.editInputTxt}>{editClosedAt.toLocaleDateString('ru-RU')}</Text>
+          </Pressable>
+          <Text style={styles.fieldLabel}>Закрыта — время</Text>
+          <Pressable style={styles.editInput} onPress={() => setActivePicker('closed-time')}>
+            <Text style={styles.editInputTxt}>{editClosedAt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</Text>
           </Pressable>
 
-          {showEditDatePicker && (
+          {(activePicker === 'opened-date' || activePicker === 'closed-date') && (
             <DateTimePicker
-              value={editDate}
+              value={activePicker === 'opened-date' ? editOpenedAt : editClosedAt}
               mode="date"
               display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
               onChange={(event, selectedDate) => {
-                setShowEditDatePicker(Platform.OS === 'ios');
+                const field = activePicker;
+                if (Platform.OS !== 'ios') setActivePicker(null);
                 if (event.type !== 'dismissed' && selectedDate) {
-                  setEditDate(d => {
-                    const nd = new Date(d);
-                    nd.setFullYear(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
-                    return nd;
-                  });
+                  const setter = field === 'opened-date' ? setEditOpenedAt : setEditClosedAt;
+                  setter(d => { const nd = new Date(d); nd.setFullYear(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate()); return nd; });
                 }
               }}
             />
           )}
-          {Platform.OS === 'ios' && showEditDatePicker && (
-            <Pressable style={styles.pickerDoneBtn} onPress={() => setShowEditDatePicker(false)}>
-              <Text style={styles.pickerDoneBtnTxt}>Готово</Text>
-            </Pressable>
-          )}
-
-          {showEditTimePicker && (
+          {(activePicker === 'opened-time' || activePicker === 'closed-time') && (
             <DateTimePicker
-              value={editDate}
+              value={activePicker === 'opened-time' ? editOpenedAt : editClosedAt}
               mode="time"
               display="spinner"
               is24Hour
               onChange={(event, selectedDate) => {
-                setShowEditTimePicker(Platform.OS === 'ios');
+                const field = activePicker;
+                if (Platform.OS !== 'ios') setActivePicker(null);
                 if (event.type !== 'dismissed' && selectedDate) {
-                  setEditDate(d => {
-                    const nd = new Date(d);
-                    nd.setHours(selectedDate.getHours(), selectedDate.getMinutes(), 0, 0);
-                    return nd;
-                  });
+                  const setter = field === 'opened-time' ? setEditOpenedAt : setEditClosedAt;
+                  setter(d => { const nd = new Date(d); nd.setHours(selectedDate.getHours(), selectedDate.getMinutes(), 0, 0); return nd; });
                 }
               }}
             />
           )}
-          {Platform.OS === 'ios' && showEditTimePicker && (
-            <Pressable style={styles.pickerDoneBtn} onPress={() => setShowEditTimePicker(false)}>
+          {Platform.OS === 'ios' && !!activePicker && (
+            <Pressable style={styles.pickerDoneBtn} onPress={() => setActivePicker(null)}>
               <Text style={styles.pickerDoneBtnTxt}>Готово</Text>
             </Pressable>
           )}
+
+          <Text style={styles.fieldLabel}>Причина правки</Text>
+          <TextInput
+            style={[styles.editInput, { minHeight: 44 }]}
+            color={colors.text}
+            value={editReason}
+            onChangeText={setEditReason}
+            placeholder="Например: забыл закрыть, ушёл в 18:00"
+            placeholderTextColor={colors.muted}
+            multiline
+          />
 
           <Pressable style={styles.saveEditBtn} onPress={saveShiftEdit}>
             <Text style={styles.saveEditBtnTxt}>Сохранить</Text>
@@ -683,6 +818,7 @@ const styles = StyleSheet.create({
   shiftToggleBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
 
   shiftEditRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, gap: 10 },
+  inlineEditBox: { backgroundColor: colors.surface3, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 14, marginBottom: 12 },
   editHoursBtn: { width: 34, height: 34, borderRadius: 10, backgroundColor: colors.surface3, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   editHoursBtnTxt: { fontSize: 15, color: colors.muted },
 
