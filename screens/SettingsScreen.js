@@ -7,6 +7,8 @@ import * as Sharing from 'expo-sharing';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
+import TourGuide from '../components/TourGuide';
+import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
 import { useResponsive } from '../hooks/useResponsive';
 import {
   getAllProductsAdmin, insertProduct, setProductActive, getOrCreateBookingSecret,
@@ -29,7 +31,7 @@ import {
   getUnlinkedCostCards,
   getBusinessProfile, updateBusinessProfile, applyBusinessPreset, BUSINESS_PRESETS,
   getTerms, getRoleNames, pluralizeRu, genitivePluralRu, genitiveSingularRu,
-  exportAllData, importAllData, BACKUP_TABLES_INFO, resetDatabase, resetAllTours,
+  exportAllData, importAllData, BACKUP_TABLES_INFO, resetDatabase, resetAllTours, markTourSeen,
 } from '../db/queries';
 import { canConvert, conversionFactor } from '../constants/units';
 import { getDb } from '../db/database';
@@ -726,6 +728,66 @@ export default function SettingsScreen({ navigation, route }) {
     if (s.key === 'loyalty' && modules.loyalty === false) return false;
     return true;
   });
+
+  // Тур раздела «Настройки» — по шагам: список разделов слева, затем по
+  // одному шагу на каждый раздел (переключает выбранный раздел по ходу,
+  // тот же принцип, что и в других многовкладочных турах). Высокоуровневый
+  // обзор, не разбор каждого поля — раздел слишком большой для этого.
+  const [tourOpen, setTourOpen] = useState(false);
+  const activeTourKey = useTourActiveKey();
+  const navHighlight = useTourHighlight('settings.nav', 16);
+  const SECTION_TOUR_TEXT = {
+    employees: 'Сотрудники, их PIN-коды и права доступа — что каждый может видеть и делать в приложении.',
+    loyalty:   'Модель лояльности — баллы или скидки, настройка начислений и списаний.',
+    payment:   'Способы оплаты, налоговый режим, автоматическая фискализация чеков.',
+    discounts: 'Скидка на товар (общий процент) и скидка на заказ (личная скидка клиента, ручная скидка кассира) — раздельно, с приоритетом между ними.',
+    stock:     'Пороги допустимого остатка и связанные с ним настройки склада.',
+    business:  'Название, адрес, тип бизнеса (подставляет термины и разделы под конкретную отрасль), онлайн-запись, вид чека.',
+    system:    'Резервное копирование, смена аккаунта, сброс приложения — и кнопка показать все подсказки заново.',
+  };
+  const sectionTourSteps = visibleSections.map(s => ({
+    key: `settings.section.${s.key}`,
+    title: s.label,
+    text: SECTION_TOUR_TEXT[s.key] || '',
+    cardPosition: 'top',
+  }));
+  const tourSteps = [
+    { key: 'settings.nav', title: 'Разделы настроек', text: 'Слева — список разделов, справа — содержимое выбранного. На узком экране список и содержимое меняются местами — сначала список, тап открывает раздел на весь экран.' },
+    ...sectionTourSteps,
+  ];
+  const sectionHighlights = {
+    employees: useTourHighlight('settings.section.employees', 16),
+    loyalty:   useTourHighlight('settings.section.loyalty', 16),
+    payment:   useTourHighlight('settings.section.payment', 16),
+    discounts: useTourHighlight('settings.section.discounts', 16),
+    stock:     useTourHighlight('settings.section.stock', 16),
+    business:  useTourHighlight('settings.section.business', 16),
+    system:    useTourHighlight('settings.section.system', 16),
+  };
+  const activeSectionHighlight = Object.values(sectionHighlights).find(h => h.isActive);
+  const rightPanelHighlight = {
+    style: null,
+    overlay: activeSectionHighlight ? activeSectionHighlight.overlay : sectionHighlights.employees.overlay,
+  };
+
+  // Автозапуск при первом визите в раздел
+  useEffect(() => {
+    try {
+      const p = getBusinessProfile();
+      if (!p?.tours_seen?.Settings) {
+        const t = setTimeout(() => setTourOpen(true), 500);
+        return () => clearTimeout(t);
+      }
+    } catch (_) {}
+  }, []);
+
+  // Шаг про конкретный раздел переключает на него — та же логика, что и тап
+  // по пункту навигации вручную
+  useEffect(() => {
+    if (typeof activeTourKey === 'string' && activeTourKey.startsWith('settings.section.')) {
+      setSelectedSection(activeTourKey.replace('settings.section.', ''));
+    }
+  }, [activeTourKey]);
 
   const rightPanel = (
     <>
@@ -2180,12 +2242,22 @@ export default function SettingsScreen({ navigation, route }) {
 
   return (
     <View style={{ flex: 1 }}>
-      <TopBar title="Настройки" onBack={() => navigation.navigate('Admin')} navigation={navigation} activeScreen="Settings" />
+      <TopBar
+        title="Настройки"
+        onBack={() => navigation.navigate('Admin')}
+        navigation={navigation}
+        activeScreen="Settings"
+        rightElement={
+          <Pressable onPress={() => setTourOpen(true)} hitSlop={10} style={styles.tourBtn}>
+            <Text style={styles.tourBtnTxt}>?</Text>
+          </Pressable>
+        }
+      />
       <View style={styles.twoCol}>
 
         {/* Левая панель навигации */}
         {(!isPhone || !selectedSection) && (
-          <View style={[styles.leftPanelBase, isPhone && { width: undefined, maxWidth: undefined, flex: 1 }, !isPhone && styles.leftPanelCard]}>
+          <View style={[styles.leftPanelBase, isPhone && { width: undefined, maxWidth: undefined, flex: 1 }, !isPhone && styles.leftPanelCard, { position: 'relative' }, navHighlight.style]}>
             <ScrollView showsVerticalScrollIndicator={false}>
               {visibleSections.map(s => (
                 <Pressable
@@ -2206,12 +2278,13 @@ export default function SettingsScreen({ navigation, route }) {
                 </Pressable>
               ))}
             </ScrollView>
+            {navHighlight.overlay}
           </View>
         )}
 
         {/* Правая панель */}
         {(!isPhone || selectedSection) && (
-          <View style={[styles.rightPanelBase, !isPhone && styles.rightPanelCard]}>
+          <View style={[styles.rightPanelBase, !isPhone && styles.rightPanelCard, { position: 'relative' }, rightPanelHighlight.style]}>
             {isPhone && (
               <Pressable style={styles.phoneback} onPress={() => setSelectedSection(null)}>
                 <Text style={styles.phoneBackText}>
@@ -2222,6 +2295,7 @@ export default function SettingsScreen({ navigation, route }) {
             <Animated.View key={selectedSection} style={{ flex: 1, opacity: sectionFadeAnim }}>
               {rightPanel}
             </Animated.View>
+            {rightPanelHighlight.overlay}
           </View>
         )}
 
@@ -3071,11 +3145,19 @@ export default function SettingsScreen({ navigation, route }) {
           )}
         </View>
       </Modal>
+
+      <TourGuide
+        visible={tourOpen}
+        onClose={() => { setTourOpen(false); markTourSeen('Settings'); }}
+        steps={tourSteps}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  tourBtn:    { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
+  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.orange },
   presetCard: { borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 16, marginBottom: 10, gap: 8 },
   presetCardActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.06)' },
   presetHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
