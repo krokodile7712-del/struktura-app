@@ -746,7 +746,7 @@ export default function SettingsScreen({ navigation, route }) {
     system:    'Резервное копирование, смена аккаунта, сброс приложения — и кнопка показать все подсказки заново.',
   };
   const sectionTourSteps = visibleSections.map(s => ({
-    key: `settings.section.${s.key}`,
+    key: `settings.nav.${s.key}`,
     title: s.label,
     text: SECTION_TOUR_TEXT[s.key] || '',
   }));
@@ -755,13 +755,13 @@ export default function SettingsScreen({ navigation, route }) {
     ...sectionTourSteps,
   ];
   const sectionHighlights = {
-    employees: useTourHighlight('settings.section.employees', 16),
-    loyalty:   useTourHighlight('settings.section.loyalty', 16),
-    payment:   useTourHighlight('settings.section.payment', 16),
-    discounts: useTourHighlight('settings.section.discounts', 16),
-    stock:     useTourHighlight('settings.section.stock', 16),
-    business:  useTourHighlight('settings.section.business', 16),
-    system:    useTourHighlight('settings.section.system', 16),
+    employees: useTourHighlight('settings.nav.employees', 16),
+    loyalty:   useTourHighlight('settings.nav.loyalty', 16),
+    payment:   useTourHighlight('settings.nav.payment', 16),
+    discounts: useTourHighlight('settings.nav.discounts', 16),
+    stock:     useTourHighlight('settings.nav.stock', 16),
+    business:  useTourHighlight('settings.nav.business', 16),
+    system:    useTourHighlight('settings.nav.system', 16),
   };
   const activeSectionHighlight = Object.values(sectionHighlights).find(h => h.isActive);
   const rightPanelHighlight = {
@@ -783,8 +783,8 @@ export default function SettingsScreen({ navigation, route }) {
   // Шаг про конкретный раздел переключает на него — та же логика, что и тап
   // по пункту навигации вручную
   useEffect(() => {
-    if (typeof activeTourKey === 'string' && activeTourKey.startsWith('settings.section.')) {
-      setSelectedSection(activeTourKey.replace('settings.section.', ''));
+    if (typeof activeTourKey === 'string' && activeTourKey.startsWith('settings.nav.')) {
+      setSelectedSection(activeTourKey.replace('settings.nav.', ''));
     }
   }, [activeTourKey]);
 
