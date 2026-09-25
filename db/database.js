@@ -403,6 +403,29 @@ export function initDatabase() {
     // открытия/закрытия) — видно в детализации зарплаты, что это
     // не обычная смена, а восстановленная администратором задним числом
     `ALTER TABLE shifts ADD COLUMN hours_edited INTEGER DEFAULT 0`,
+
+    // Расширенный редактор смены: причина правки часов, ручная
+    // доплата/удержание (может быть отрицательным) со своей причиной
+    `ALTER TABLE shifts ADD COLUMN edit_reason TEXT DEFAULT ''`,
+    `ALTER TABLE shifts ADD COLUMN adjustment_amount REAL DEFAULT 0`,
+    `ALTER TABLE shifts ADD COLUMN adjustment_reason TEXT DEFAULT ''`,
+    // Смена, созданная задним числом администратором (не через обычное
+    // открытие/закрытие) — отдельно от hours_edited (та про КОРРЕКЦИЮ уже
+    // существующей смены, эта — про смену, которой вообще не было)
+    `ALTER TABLE shifts ADD COLUMN created_manually INTEGER DEFAULT 0`,
+
+    // Журнал изменений смены — кто, когда, что именно поменял, было/стало.
+    // Отдельная таблица, не колонка — правок может быть несколько подряд
+    `CREATE TABLE IF NOT EXISTS shift_edit_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      shift_id INTEGER NOT NULL,
+      field TEXT NOT NULL,
+      old_value TEXT DEFAULT '',
+      new_value TEXT DEFAULT '',
+      reason TEXT DEFAULT '',
+      edited_by TEXT DEFAULT '',
+      edited_at TEXT NOT NULL
+    )`,
   ];
   for (const sql of migrations) {
     try { db.execSync(sql); } catch (_) {}
