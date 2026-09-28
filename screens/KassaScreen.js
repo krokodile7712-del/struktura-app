@@ -14,6 +14,8 @@ import TopBar from '../components/TopBar';
 import ShiftBanner from '../components/ShiftBanner';
 import InfoTip from '../components/InfoTip';
 import { matchesClientQuery } from '../utils/phone';
+import { maxSpendablePoints } from '../utils/points';
+import PointsSpendPanel from '../components/PointsSpendPanel';
 import WelcomeBonusBlock from '../components/WelcomeBonusBlock';
 import { syncLoyaltySignups } from '../db/loyaltySync';
 import { getAllProducts, getAllClients, getCategories, getCategoryOrder, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, getAllVariantsWithSku, getZones, getOrderTemplates, saveOrderTemplate, deleteOrderTemplate, applyPendingPriceSchedules, createOrder, getOpenShift, getClientById, getWelcomeBonusInfo, addClientVisit, getBusinessProfile, getTerms, getLoyaltyConfig, spendPoints, checkSubscriptionBalance, getCostCardForVariant, getAllStock, markTourSeen, setClientDiscountPct, addClientBalance } from '../db/queries';
@@ -685,15 +687,25 @@ export default function KassaScreen({ navigation, route }) {
   const maxSpendRub = loyaltyModel === 'points' && loyaltyConfig.allow_spend
     ? Math.round(rawTotal * (loyaltyConfig.max_spend_pct ?? 100) / 100)
     : 0;
-  const pointsDiscount = loyaltyModel === 'points' && loyaltyConfig.allow_spend
+  // Скидка баллами есть только у выбранного клиента и не больше того, что у него на карте
+  // (иначе число, оставшееся в заказе от прежнего клиента, давало бы скидку без списания)
+  const pointsDiscount = loyaltyModel === 'points' && loyaltyConfig.allow_spend && forClient
     ? Math.min(
-        Math.round((parseFloat(pointsToSpend) || 0) * (loyaltyConfig.point_value || 1)),
+        Math.round(Math.min(parseFloat(pointsToSpend) || 0, Math.floor(forClient.balance || 0)) * (loyaltyConfig.point_value || 1)),
         maxSpendRub,
         Math.max(0, rawTotal - discountAmount) // нельзя уйти ниже нуля с учётом уже применённой скидки
       )
     : 0;
 
   const total = Math.max(0, rawTotal - discountAmount - pointsDiscount);
+
+  // Сколько баллов можно списать в этом заказе (баланс, лимит, остаток суммы) — для панели списания
+  const maxPointsAllowed = (loyaltyModel === 'points' && loyaltyConfig.allow_spend && forClient)
+    ? maxSpendablePoints({
+        balance: forClient.balance, rawTotal, discountAmount,
+        maxSpendPct: loyaltyConfig.max_spend_pct, pointValue: loyaltyConfig.point_value,
+      })
+    : 0;
 
   // ─── Оплата ──────────────────────────────────────────────────────────────
 
@@ -757,6 +769,12 @@ export default function KassaScreen({ navigation, route }) {
     }
     try {
       const currentUser = getSession();
+      // Баллы, которые реально пошли в скидку после лимитов (а не введённое число) —
+      // при вводе «500» и лимите на 110 ₽ клиент не должен потерять лишние 390
+      const pvNow = loyaltyConfig.point_value || 1;
+      const pointsUsed = (forClient?.id && loyaltyModel === 'points' && loyaltyConfig.allow_spend && pointsDiscount > 0)
+        ? Math.min(Math.floor(parseFloat(pointsToSpend) || 0), Math.ceil(pointsDiscount / pvNow))
+        : 0;
       const { stockWarnings } = createOrder({
         total, method: payMethod, methodType: selectedMethod.type, methodId: selectedMethod.id,
         shift_id: currentShift?.id || null,
@@ -768,18 +786,11 @@ export default function KassaScreen({ navigation, route }) {
         locationId: getCurrentLocationId(),
         note: orderNote,
         zone: activeZone ? (activeTable ? `${activeZone.name} · ${activeTable.name}` : activeZone.name) : '',
+        pointsSpent: pointsUsed,
+        pointsDiscount: pointsUsed > 0 ? pointsDiscount : 0,
       });
       if (forClient?.id) {
-        if (loyaltyModel === 'points' && loyaltyConfig.allow_spend && pointsToSpend) {
-          // Списываем ровно те баллы, что реально пошли в скидку после
-          // лимитов (max_spend_pct, сумма чека), а не введённое число —
-          // иначе при вводе «500» и лимите на 110 ₽ клиент терял бы 390 лишних
-          const typed = parseFloat(pointsToSpend) || 0;
-          const pv = loyaltyConfig.point_value || 1;
-          const applied = pointsDiscount > 0 ? Math.ceil(pointsDiscount / pv) : 0;
-          const pts = Math.min(typed, applied);
-          if (pts > 0) spendPoints(forClient.id, pts);
-        }
+        if (pointsUsed > 0) spendPoints(forClient.id, pointsUsed);
         const visitResult = addClientVisit(forClient.id, total); // total = после скидки
       }
       setExpandedCartId(null);
@@ -977,7 +988,7 @@ export default function KassaScreen({ navigation, route }) {
                         <Text style={styles.v2ClientBal}>🏷 −{discountAmount} ₽</Text>
                       ) : null}
                     </Pressable>
-                    <Pressable onPress={() => updateSlot({ forClient: null })} hitSlop={10}>
+                    <Pressable onPress={() => updateSlot({ forClient: null, pointsToSpend: '' })} hitSlop={10}>
                       <Text style={styles.v2ClientX}>✕</Text>
                     </Pressable>
                     {clientRowHighlight.overlay}
@@ -1333,23 +1344,17 @@ export default function KassaScreen({ navigation, route }) {
 
               <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
-              {/* Баллы */}
+              {/* Баллы: раскрывающаяся строка управления списанием */}
               {loyaltyModel === 'points' && loyaltyConfig.allow_spend && forClient && (forClient.balance||0) > 0 && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <View style={[styles.payPointsRow, { flex: 1 }]}>
-                    <Text style={styles.payInfoIcon}>★</Text>
-                    <TextInput
-                      style={styles.payPointsInput}
-                      keyboardType="numeric"
-                      value={pointsToSpend}
-                      onChangeText={v => setPointsToSpend(v)}
-                      placeholder={`0 из ${forClient.balance}`}
-                      placeholderTextColor={colors.muted}
-                    />
-                    {pointsDiscount > 0 && <Text style={[styles.payInfoSub, { color: colors.green }]}>−{pointsDiscount} ₽</Text>}
-                  </View>
-                  <InfoTip title="Оплата баллами" text="Клиент может списать часть баллов в счёт покупки. Сумма списания ограничена настройками программы лояльности — если ввести больше, чем разрешено, система применит максимально допустимую сумму." />
-                </View>
+                <PointsSpendPanel
+                  balance={Math.floor(forClient.balance || 0)}
+                  maxPoints={maxPointsAllowed}
+                  limitPct={loyaltyConfig.max_spend_pct}
+                  value={pointsToSpend}
+                  onChange={setPointsToSpend}
+                  pointsDiscount={pointsDiscount}
+                  total={total}
+                />
               )}
 
               {/* Способ оплаты */}
@@ -1433,7 +1438,7 @@ export default function KassaScreen({ navigation, route }) {
                   <Pressable
                     key={`cpick-${cl.id}`}
                     style={({ pressed }) => [styles.clientDropdownItem, { flexDirection: 'row', alignItems: 'center' }, pressed && { backgroundColor: 'rgba(255,255,255,0.04)' }]}
-                    onPress={() => { updateSlot({ forClient: cl }); setClientPickerOpen(false); setClientSearch(''); }}
+                    onPress={() => { updateSlot({ forClient: cl, pointsToSpend: '' }); setClientPickerOpen(false); setClientSearch(''); }}
                   >
                     <View style={{ flex: 1 }}>
                       <Text style={styles.clientDropdownName}>{cl.fio}</Text>

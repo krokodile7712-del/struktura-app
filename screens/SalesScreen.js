@@ -320,6 +320,9 @@ export default function SalesScreen({ navigation }) {
                                   ? items.slice(0,3).map(i => `${i.name}${i.size?` ${i.size}`:''}${i.quantity>1?` ×${i.quantity}`:''}`).join(' · ') + (items.length > 3 ? ` +${items.length-3}` : '')
                                   : '—'}
                               </Text>
+                              {order.points_spent > 0 && (
+                                <Text style={styles.orderMeta}>★ Списано баллов: {fmt(order.points_spent)} (−{fmt(order.points_discount)} ₽)</Text>
+                              )}
                               {(order.cashier_name || order.client_name) && (
                                 <View style={{ flexDirection: 'row', gap: 10 }}>
                                   {order.cashier_name && <Text style={styles.orderMeta}>👤 {order.cashier_name}</Text>}

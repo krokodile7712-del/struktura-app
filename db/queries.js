@@ -936,7 +936,7 @@ export function deleteModifier(id) {
 
 // ─── Заказы ───────────────────────────────────────────────────────────────
 
-export function createOrder({ total, method, methodType, methodId, shift_id, client_id, cashier_id, items, cashAmount, cardAmount, discountPct, locationId, note, zone }) {
+export function createOrder({ total, method, methodType, methodId, shift_id, client_id, cashier_id, items, cashAmount, cardAmount, discountPct, locationId, note, zone, pointsSpent, pointsDiscount }) {
   const db = getDb();
   const now = new Date().toISOString();
 
@@ -946,9 +946,9 @@ export function createOrder({ total, method, methodType, methodId, shift_id, cli
   try { db.execSync(`ALTER TABLE orders ADD COLUMN cashier_id INTEGER DEFAULT NULL`); } catch (_) {}
 
   const result = db.runSync(
-    `INSERT INTO orders (created_at, total, method, method_type, method_id, shift_id, client_id, cashier_id, cash_amount, card_amount, discount_pct, note, zone, location_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [now, total, method, methodType || '', methodId != null ? String(methodId) : '', shift_id || null, client_id || null, cashier_id || null, cashAmount || 0, cardAmount || 0, discountPct || 0, note || '', zone || '', locationId || null]
+    `INSERT INTO orders (created_at, total, method, method_type, method_id, shift_id, client_id, cashier_id, cash_amount, card_amount, discount_pct, note, zone, location_id, points_spent, points_discount)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [now, total, method, methodType || '', methodId != null ? String(methodId) : '', shift_id || null, client_id || null, cashier_id || null, cashAmount || 0, cardAmount || 0, discountPct || 0, note || '', zone || '', locationId || null, pointsSpent || 0, pointsDiscount || 0]
   );
   const orderId = result.lastInsertRowId;
 

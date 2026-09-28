@@ -442,6 +442,11 @@ export function initDatabase() {
     `ALTER TABLE clients ADD COLUMN welcome_bonus_activated_at TEXT DEFAULT ''`,
     `ALTER TABLE clients ADD COLUMN welcome_bonus_activated_by TEXT DEFAULT ''`,
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_clients_signup_id ON clients(signup_id) WHERE signup_id != ''`,
+
+    // Оплата баллами: сколько баллов списано в заказе и на какую сумму в ₽ они уменьшили чек.
+    // Нужно, чтобы в «Продажах» было видно списание, а при ручном возврате — сколько вернуть.
+    `ALTER TABLE orders ADD COLUMN points_spent REAL DEFAULT 0`,
+    `ALTER TABLE orders ADD COLUMN points_discount REAL DEFAULT 0`,
   ];
   for (const sql of migrations) {
     try { db.execSync(sql); } catch (_) {}
