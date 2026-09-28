@@ -14,7 +14,7 @@ import {
 import { getHomeRoute, goBackSmart, can, getSession } from '../db/session';
 import { colors, fonts, anim } from '../constants/theme';
 import TourGuide from '../components/TourGuide';
-import { useTourHighlight } from '../components/TourRegistry';
+import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
 import { useToast } from '../components/Toast';
 
 const fmt = n => Math.round(n||0).toLocaleString('ru-RU');
@@ -68,22 +68,60 @@ export default function WorkJournalScreen({ navigation }) {
   const listHighlight   = useTourHighlight('workjournal.list');
   const statsHighlight  = useTourHighlight('workjournal.stats');
 
-  const tourSteps = [
+  // Подсветки вкладки «Зарплата» (только администратор): каждая — свой элемент, не вложенный в другой
+  const tabsHighlight          = useTourHighlight('workjournal.tabs', 14);
+  const salaryPeriodHighlight  = useTourHighlight('workjournal.salary.period', 14);
+  const salaryListHighlight    = useTourHighlight('workjournal.salary.list', 14);
+  const salaryTotalsHighlight  = useTourHighlight('workjournal.salary.totals', 14);
+  const salaryControlsHighlight = useTourHighlight('workjournal.salary.controls', 14);
+  const salaryShiftsHighlight  = useTourHighlight('workjournal.salary.shifts', 14);
+  const activeTourKey = useTourActiveKey();
+
+  const isAdmin = getSession()?.role === 'admin';
+  // Шаги про «Смены» — как раньше; шаги про «Зарплату» — администратору (вкладка ему одному видна)
+  const SHIFT_STEPS = [
     { key: 'workjournal.search', title: 'Поиск', text: 'Найдите смену по имени сотрудника или по дате.' },
     { key: 'workjournal.list',   title: 'История смен', text: 'Тап по карточке показывает подробности — количество заказов, оплаты, сами позиции. Зелёная точка — смена закрыта, оранжевая — ещё открыта.' },
     { key: 'workjournal.stats',  title: 'Сводка', text: 'Общая выручка за все смены в списке и сравнение по сотрудникам.' },
   ];
+  const TABS_STEP = { key: 'workjournal.tabs', title: 'А ещё — «Зарплата»', text: 'Рядом со «Сменами» вторая вкладка: расчёт зарплаты по каждому сотруднику. Её видит только администратор.' };
+  const SALARY_STEPS = [
+    { key: 'workjournal.salary.period',   title: 'Период', text: 'За какой период считать: этот месяц, неделя или сегодня.' },
+    { key: 'workjournal.salary.list',     title: 'Кто сколько заработал', text: 'У каждого сотрудника — отработанные часы, премия KPI и итог к выплате. Тап открывает подробности.' },
+    { key: 'workjournal.salary.totals',   title: 'Из чего складывается сумма', text: 'База по ставке сотрудника (за смену, за час, оклад или процент), премия за KPI, если она включена в карточке сотрудника, и доплаты или удержания по сменам. Итог — справа.' },
+    { key: 'workjournal.salary.controls', title: 'Смена без отметки', text: 'Сотрудник ушёл и не закрыл смену? Закройте её отсюда. Работал, но смену не открывал? Добавьте её задним числом — приложение предложит перенести на него продажи, которые пробивали под чужим входом.', cardPosition: 'top' },
+    { key: 'workjournal.salary.shifts',   title: 'Правка смены', text: 'Тап по смене раскрывает панель: время открытия и закрытия, доплата или удержание, перенос заказов, история и удаление. Каждое изменение сохраняется в истории — кто, когда и почему.', cardPosition: 'top' },
+  ];
+  // full — первый заход в раздел, всё по порядку; shifts / salary — повтор через «?» на своей вкладке
+  const [tourMode, setTourMode] = useState('full');
+  const tourSteps = tourMode === 'salary' ? SALARY_STEPS
+    : tourMode === 'shifts' || !isAdmin ? SHIFT_STEPS
+    : [...SHIFT_STEPS, TABS_STEP, ...SALARY_STEPS];
+  const tourAutoSelected = React.useRef(false); // сотрудника открыл сам тур — по окончании вернём список
 
   // Автозапуск при первом визите в раздел
   useEffect(() => {
     try {
       const p = getBusinessProfile();
       if (!p?.tours_seen?.WorkJournal) {
-        const t = setTimeout(() => setTourOpen(true), 500);
+        const t = setTimeout(() => { setTourMode('full'); setTourOpen(true); }, 500);
         return () => clearTimeout(t);
       }
     } catch (_) {}
   }, []);
+
+  // Вкладка «Зарплата» объясняется сама, когда администратор впервые её открывает
+  // (даже если общий тур раздела он уже проходил раньше — вкладка появилась позже)
+  useEffect(() => {
+    if (mainTab !== 'salary' || !isAdmin) return;
+    try {
+      const p = getBusinessProfile();
+      if (!p?.tours_seen?.WorkJournalSalary && !tourOpen) {
+        const t = setTimeout(() => { setTourMode('salary'); setTourOpen(true); }, 600);
+        return () => clearTimeout(t);
+      }
+    } catch (_) {}
+  }, [mainTab]);
 
   const load = useCallback(() => {
     try {
@@ -122,6 +160,32 @@ export default function WorkJournalScreen({ navigation }) {
   useEffect(() => {
     if (mainTab === 'salary') loadSalary();
   }, [mainTab, salaryPeriod]);
+
+  // Шаг тура переносит на нужную вкладку и нужное состояние: шаги про «Смены» — на «Смены»,
+  // про «Зарплату» — на «Зарплату»; период и список — без открытого сотрудника (в портрете
+  // детализация заменяет список), остальное — с открытым сотрудником, у которого есть смены
+  useEffect(() => {
+    const k = activeTourKey;
+    if (!k || typeof k !== 'string') return;
+    if (k === 'workjournal.search' || k === 'workjournal.list' || k === 'workjournal.stats') { setMainTab('shifts'); return; }
+    if (!k.startsWith('workjournal.salary.')) return;
+    setMainTab('salary');
+    if (k === 'workjournal.salary.period' || k === 'workjournal.salary.list') {
+      // в портрете открытый сотрудник заменяет собой период и список — их не было бы видно
+      tourAutoSelected.current = false;
+      if (selectedEmp) backToSalaryList();
+      return;
+    }
+    if (!selectedEmp) {
+      // список мог ещё не загрузиться (вкладку только что открыл сам шаг) — считаем напрямую
+      let list = salaryList;
+      if (!list.length) { try { list = getAllEmployeesSalary(salaryFrom, salaryTo); } catch (_) { list = []; } }
+      if (list.length) {
+        tourAutoSelected.current = true;
+        selectEmployee(list.find(x => x.hours > 0) || list[0]);
+      }
+    }
+  }, [activeTourKey]);
 
   const selectEmployee = (row) => {
     setOpenShiftId(null); setAddShiftOpen(false);
@@ -189,7 +253,7 @@ export default function WorkJournalScreen({ navigation }) {
       <Text style={styles.sideShiftDate}>{selectedEmp.user.name}</Text>
       <Text style={styles.sideShiftUser}>{empDetail.hours} ч за период</Text>
 
-      <View style={[styles.statsRow, { marginTop: 16 }]}>
+      <View style={[styles.statsRow, { marginTop: 16, position: 'relative' }, salaryTotalsHighlight.style]}>
         <View style={styles.statBox}>
           <Text style={styles.statVal}>{fmt(empDetail.base)} ₽</Text>
           <Text style={styles.statLbl}>База</Text>
@@ -210,18 +274,16 @@ export default function WorkJournalScreen({ navigation }) {
           <Text style={[styles.statVal, { color: colors.orange }]}>{fmt(empDetail.total)} ₽</Text>
           <Text style={styles.statLbl}>Итого</Text>
         </View>
+        {salaryTotalsHighlight.overlay}
       </View>
 
       {getSession()?.role === 'admin' && (
-        <Pressable style={styles.shiftToggleBtn} onPress={() => toggleShiftForEmployee(selectedEmp)}>
-          <Text style={styles.shiftToggleBtnTxt}>
-            {getOpenShift(selectedEmp.user.id) ? '⏹ Закрыть смену сейчас' : '▶ Открыть смену сейчас'}
-          </Text>
-        </Pressable>
-      )}
-
-      {getSession()?.role === 'admin' && (
-        <>
+        <View style={[{ position: 'relative' }, salaryControlsHighlight.style]}>
+          <Pressable style={styles.shiftToggleBtn} onPress={() => toggleShiftForEmployee(selectedEmp)}>
+            <Text style={styles.shiftToggleBtnTxt}>
+              {getOpenShift(selectedEmp.user.id) ? '⏹ Закрыть смену сейчас' : '▶ Открыть смену сейчас'}
+            </Text>
+          </Pressable>
           <Pressable style={[styles.shiftToggleBtn, { marginTop: 10 }]} onPress={() => setAddShiftOpen(v => !v)}>
             <Text style={styles.shiftToggleBtnTxt}>{addShiftOpen ? '✕ Закрыть форму' : '＋ Смена задним числом'}</Text>
           </Pressable>
@@ -237,9 +299,11 @@ export default function WorkJournalScreen({ navigation }) {
               }}
             />
           )}
-        </>
+          {salaryControlsHighlight.overlay}
+        </View>
       )}
 
+      <View style={[{ position: 'relative' }, salaryShiftsHighlight.style]}>
       <Text style={styles.ordersTitle}>Смены за период</Text>
       {empDetail.shiftBreakdown.length === 0 ? (
         <Text style={styles.cardUser}>Смен за этот период нет</Text>
@@ -289,6 +353,8 @@ export default function WorkJournalScreen({ navigation }) {
           );
         })
       )}
+        {salaryShiftsHighlight.overlay}
+      </View>
     </ScrollView>
   );
 
@@ -300,13 +366,13 @@ export default function WorkJournalScreen({ navigation }) {
         navigation={navigation}
         activeScreen="WorkJournal"
         rightElement={
-          <Pressable style={styles.tourBtn} onPress={() => setTourOpen(true)} hitSlop={10} accessibilityLabel="Подсказка" accessibilityRole="button">
+          <Pressable style={styles.tourBtn} onPress={() => { setTourMode(mainTab === 'salary' ? 'salary' : 'shifts'); setTourOpen(true); }} hitSlop={10} accessibilityLabel="Подсказка" accessibilityRole="button">
             <Text style={styles.tourBtnTxt}>?</Text>
           </Pressable>
         }
       />
 
-      <View style={styles.mainTabBar}>
+      <View style={[styles.mainTabBar, { position: 'relative' }, tabsHighlight.style]}>
         <Pressable style={[styles.mainTabBtn, mainTab === 'shifts' && styles.mainTabBtnActive]} onPress={() => setMainTab('shifts')}>
           <Text style={[styles.mainTabTxt, mainTab === 'shifts' && styles.mainTabTxtActive]}>Смены</Text>
         </Pressable>
@@ -315,6 +381,7 @@ export default function WorkJournalScreen({ navigation }) {
             <Text style={[styles.mainTabTxt, mainTab === 'salary' && styles.mainTabTxtActive]}>Зарплата</Text>
           </Pressable>
         )}
+        {tabsHighlight.overlay}
       </View>
 
       {mainTab === 'shifts' && (
@@ -510,7 +577,7 @@ export default function WorkJournalScreen({ navigation }) {
             empDetailContent
           ) : (
             <>
-              <View style={styles.periodRow}>
+              <View style={[styles.periodRow, { position: 'relative' }, salaryPeriodHighlight.style]}>
                 {SALARY_PERIODS.map(p => (
                   <Pressable
                     key={p.key}
@@ -520,8 +587,10 @@ export default function WorkJournalScreen({ navigation }) {
                     <Text style={[styles.periodTxt, salaryPeriod === p.key && styles.periodTxtActive]}>{p.label}</Text>
                   </Pressable>
                 ))}
+                {salaryPeriodHighlight.overlay}
               </View>
 
+              <View style={{ flex: 1, position: 'relative' }}>
               {salaryList.length === 0 ? (
                 <EmptyState icon="💰" title="Нет активных сотрудников" text="Добавьте сотрудников в разделе «Сотрудники»" />
               ) : (
@@ -549,6 +618,8 @@ export default function WorkJournalScreen({ navigation }) {
                   ))}
                 </ScrollView>
               )}
+              {salaryListHighlight.overlay}
+              </View>
             </>
           )}
         </View>
@@ -565,7 +636,12 @@ export default function WorkJournalScreen({ navigation }) {
 
       <TourGuide
         visible={tourOpen}
-        onClose={() => { setTourOpen(false); markTourSeen('WorkJournal'); }}
+        onClose={() => {
+          setTourOpen(false);
+          if (tourMode === 'full' || tourMode === 'shifts') markTourSeen('WorkJournal');
+          if (isAdmin && (tourMode === 'full' || tourMode === 'salary')) markTourSeen('WorkJournalSalary');
+          if (tourAutoSelected.current) { tourAutoSelected.current = false; backToSalaryList(); }
+        }}
         steps={tourSteps}
       />
     </View>
