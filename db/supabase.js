@@ -153,3 +153,26 @@ export async function updateBookingStatus(bookingId, secret, status) {
     return false;
   }
 }
+
+// ── Регистрация клиентов по QR (таблица loyalty_signups) ──
+// Гость регистрируется на публичной странице; заявки читаются и закрываются
+// только по секрету бизнеса — там имена и телефоны.
+
+// Новые (ещё не забранные приложением) заявки бизнеса.
+// Строка: { id, name, phone, bonus, valid_until, created_at, marketing_consent }
+export async function getLoyaltySignups(businessId, secret) {
+  const { data, error } = await supabase.rpc('get_loyalty_signups_secure', {
+    p_business_id: businessId, p_secret: secret,
+  });
+  if (error) throw error;
+  return data || [];
+}
+
+// Помечает заявки забранными — они больше не вернутся при следующей загрузке
+export async function markLoyaltySignupsImported(businessId, secret, ids) {
+  const { error } = await supabase.rpc('mark_loyalty_signups_imported_secure', {
+    p_business_id: businessId, p_secret: secret, p_ids: ids,
+  });
+  if (error) throw error;
+  return true;
+}

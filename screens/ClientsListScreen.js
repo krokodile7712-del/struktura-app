@@ -9,7 +9,9 @@ import Sheet from '../components/Sheet';
 import { useFocusEffect } from '@react-navigation/native';
 import { getAllClients, searchClients, getClientOrders, getTerms, pluralizeRu, countRu,
          getLoyaltyConfig, updateClientNote, getClientById, getBusinessProfile, markTourSeen } from '../db/queries';
-import { updateClient, findClientByPhone, getSetting, setSetting } from '../db/queries';
+import { updateClient, findClientByPhone, getSetting, setSetting, expireWelcomeBonuses } from '../db/queries';
+import WelcomeBonusBlock from '../components/WelcomeBonusBlock';
+import { syncLoyaltySignups } from '../db/loyaltySync';
 import PhoneInput from '../components/PhoneInput';
 import { isPhoneOkOrEmpty, isNonStandardPhone, toStoredPhone, PHONE_ERROR } from '../utils/phone';
 import { getHomeRoute, goBackSmart, getSession, can } from '../db/session';
@@ -58,6 +60,7 @@ function ClientCard({ client, onNewOrder, onSaved, loyaltyModel, loyaltyConfig }
   const [birthDate, setBirthDate] = useState(client.birth_date || '');
   const [notes, setNotes]       = useState(client.notes || '');
   const [editingNote, setEditingNote] = useState(false);
+  const [, setTick] = useState(0); // перерисовать блок бонуса после активации
   const isAdmin = getSession()?.role === 'admin';
   const cardHighlight = useTourHighlight('clients.card', 18);
 
@@ -139,6 +142,17 @@ function ClientCard({ client, onNewOrder, onSaved, loyaltyModel, loyaltyConfig }
       </View>
       {cardHighlight.overlay}
       </View>
+
+      {/* Приветственный бонус за регистрацию по QR */}
+      <WelcomeBonusBlock
+        client={client}
+        onActivated={(fresh) => {
+          Object.assign(client, fresh);
+          setBalance(String(fresh.balance || 0));
+          setTick(t => t + 1);
+          onSaved?.();
+        }}
+      />
 
       {/* Статистика */}
       <View style={styles.statsRow}>
@@ -366,6 +380,7 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
 
   const load = useCallback(() => {
     try {
+      try { expireWelcomeBonuses(); } catch (_) {}
       const all = getAllClients();
       setClients(all);
       if (initialClientId) {
@@ -400,7 +415,22 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
     } catch (_) {}
   }, []);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(useCallback(() => {
+    load();
+    // Новые регистрации по QR — при заходе (не чаще раза в полминуты)
+    syncLoyaltySignups().then(r => { if (r && r.imported > 0) load(); });
+  }, [load]));
+
+  const refreshSignups = async () => {
+    const r = await syncLoyaltySignups({ force: true });
+    if (r === null) {
+      Alert.alert('Регистрации по QR', 'Не удалось загрузить: нет связи или онлайн-запись не подключена.');
+      return;
+    }
+    if (r.imported > 0) load();
+    Alert.alert('Регистрации по QR',
+      r.imported > 0 ? `Новых клиентов: ${r.imported}` : 'Новых регистраций нет' + (r.skipped ? ` (пропущено: ${r.skipped} — номер уже есть в базе)` : ''));
+  };
 
   const filteredRaw = query.length >= 1 ? searchClients(query) : clients;
   const filtered = [...filteredRaw].sort((a, b) => {
@@ -478,6 +508,9 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
             </Pressable>
             <Pressable style={[styles.sortChip, sortMode === 'added' && styles.sortChipActive]} onPress={() => setSortMode('added')}>
               <Text style={[styles.sortChipTxt, sortMode === 'added' && styles.sortChipTxtActive]}>Сначала новые</Text>
+            </Pressable>
+            <Pressable style={styles.sortChip} onPress={refreshSignups}>
+              <Text style={styles.sortChipTxt}>↻ QR-регистрации</Text>
             </Pressable>
           </View>
           {searchHighlight.overlay}
@@ -596,7 +629,7 @@ const styles = StyleSheet.create({
   loyaltyStatLbl:    { fontFamily: fonts.familyRegular, fontSize: 9, color: colors.muted, textAlign: 'center', marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
 
   searchWrap: { padding: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.2)' },
-  sortRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.2)' },
+  sortRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.2)' },
   sortChip: { paddingVertical: 13, paddingHorizontal: 16, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
   sortChipActive: { backgroundColor: 'rgba(240,160,80,0.14)', borderColor: colors.orange },
   sortChipTxt: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted },

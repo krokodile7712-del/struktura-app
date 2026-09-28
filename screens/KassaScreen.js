@@ -14,7 +14,9 @@ import TopBar from '../components/TopBar';
 import ShiftBanner from '../components/ShiftBanner';
 import InfoTip from '../components/InfoTip';
 import { matchesClientQuery } from '../utils/phone';
-import { getAllProducts, getAllClients, getCategories, getCategoryOrder, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, getAllVariantsWithSku, getZones, getOrderTemplates, saveOrderTemplate, deleteOrderTemplate, applyPendingPriceSchedules, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms, getLoyaltyConfig, spendPoints, checkSubscriptionBalance, getCostCardForVariant, getAllStock, markTourSeen, setClientDiscountPct, addClientBalance } from '../db/queries';
+import WelcomeBonusBlock from '../components/WelcomeBonusBlock';
+import { syncLoyaltySignups } from '../db/loyaltySync';
+import { getAllProducts, getAllClients, getCategories, getCategoryOrder, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, getAllVariantsWithSku, getZones, getOrderTemplates, saveOrderTemplate, deleteOrderTemplate, applyPendingPriceSchedules, createOrder, getOpenShift, getClientById, getWelcomeBonusInfo, addClientVisit, getBusinessProfile, getTerms, getLoyaltyConfig, spendPoints, checkSubscriptionBalance, getCostCardForVariant, getAllStock, markTourSeen, setClientDiscountPct, addClientBalance } from '../db/queries';
 import { subscribe } from '../db/events';
 import Sheet from '../components/Sheet';
 import TourGuide from '../components/TourGuide';
@@ -84,7 +86,9 @@ export default function KassaScreen({ navigation, route }) {
   const [slots, setSlots] = useState(() => {
     if (route?.params?.forClient) {
       cartStore.slots = cartStore.slots.map(s =>
-        s.id === cartStore.activeSlotId ? { ...s, forClient: route.params.forClient } : s
+        // из карточки клиента приходит урезанный объект (id, имя, код) — без баланса
+        // поле списания баллов не показывалось; берём полную запись из базы
+        s.id === cartStore.activeSlotId ? { ...s, forClient: (getClientById(route.params.forClient.id) || route.params.forClient) } : s
       );
     }
     return cartStore.slots;
@@ -118,6 +122,12 @@ export default function KassaScreen({ navigation, route }) {
   const [prePayOpen, setPrePayOpen]       = useState(false);
   const [discountDropOpen, setDiscountDropOpen] = useState(false);
   const [clientPickerOpen, setClientPickerOpen]   = useState(false);
+  // При открытии выбора клиента подтягиваем новые регистрации по QR
+  // (не чаще раза в полминуты, без блокировки окна)
+  useEffect(() => {
+    if (!clientPickerOpen) return;
+    syncLoyaltySignups().then(r => { if (r && r.imported > 0) { try { setClientsList(getAllClients()); } catch (_) {} } });
+  }, [clientPickerOpen]);
   const [clientEditModal, setClientEditModal]     = useState(null); // { client, discountPct, pointsToAdd }
   const [clientSearch, setClientSearch]   = useState('');
   const [clientsList, setClientsList]     = useState([]);
@@ -1430,6 +1440,7 @@ export default function KassaScreen({ navigation, route }) {
                       <Text style={styles.clientDropdownSub}>
                         {cl.phone ? `${cl.phone}  ` : ''}
                         {loyaltyModel === 'points' ? `★ ${cl.balance || 0} балл.` : `${cl.discount_pct || 0}%`}
+                        {getWelcomeBonusInfo(cl).status === 'reserved' ? `   🎁 бонус ${Math.round(cl.welcome_bonus || 0)} ₽` : ''}
                       </Text>
                     </View>
                     <Pressable
@@ -1462,6 +1473,19 @@ export default function KassaScreen({ navigation, route }) {
                   <Text style={styles.itemModalCloseText}>✕</Text>
                 </Pressable>
               </View>
+
+              <WelcomeBonusBlock
+                client={clientEditModal.client}
+                onActivated={(fresh) => {
+                  // Бонус зачислен: клиент подставляется в заказ, к списанию — максимум,
+                  // реально применится в пределах лимита (см. расчёт скидки баллами)
+                  try { setClientsList(getAllClients()); } catch (_) {}
+                  updateSlot({ forClient: fresh, pointsToSpend: String(Math.floor(fresh.balance || 0)) });
+                  setClientEditModal(null);
+                  setClientPickerOpen(false);
+                  setClientSearch('');
+                }}
+              />
 
               <Text style={[styles.menuItemSub, { marginTop: 14, marginBottom: 6 }]}>Личная скидка, %</Text>
               <TextInput

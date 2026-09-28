@@ -426,6 +426,22 @@ export function initDatabase() {
       edited_by TEXT DEFAULT '',
       edited_at TEXT NOT NULL
     )`,
+
+    // Саморегистрация клиента по QR и приветственный бонус
+    // signup_id — id заявки в облаке: по нему повторная загрузка той же заявки
+    // ничего не дублирует. welcome_bonus — сумма, положенная за регистрацию
+    // (остаётся в карточке и после активации), status: '' нет | reserved |
+    // activated | expired, until — до какого момента можно активировать.
+    `ALTER TABLE clients ADD COLUMN signup_source TEXT DEFAULT ''`,
+    `ALTER TABLE clients ADD COLUMN signup_id TEXT DEFAULT ''`,
+    `ALTER TABLE clients ADD COLUMN signup_at TEXT DEFAULT ''`,
+    `ALTER TABLE clients ADD COLUMN marketing_consent INTEGER DEFAULT 0`,
+    `ALTER TABLE clients ADD COLUMN welcome_bonus REAL DEFAULT 0`,
+    `ALTER TABLE clients ADD COLUMN welcome_bonus_status TEXT DEFAULT ''`,
+    `ALTER TABLE clients ADD COLUMN welcome_bonus_until TEXT DEFAULT ''`,
+    `ALTER TABLE clients ADD COLUMN welcome_bonus_activated_at TEXT DEFAULT ''`,
+    `ALTER TABLE clients ADD COLUMN welcome_bonus_activated_by TEXT DEFAULT ''`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_clients_signup_id ON clients(signup_id) WHERE signup_id != ''`,
   ];
   for (const sql of migrations) {
     try { db.execSync(sql); } catch (_) {}

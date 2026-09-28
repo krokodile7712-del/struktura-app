@@ -1089,6 +1089,93 @@ export function findClientByPhone(phone, excludeId = null) {
   ) || null;
 }
 
+// ─── Саморегистрация по QR и приветственный бонус ─────────────────────────
+
+function generateClientCode() {
+  let code;
+  do { code = 'CLI-' + String(Math.floor(Math.random() * 9000) + 1000); }
+  while (getClientByCode(code));
+  return code;
+}
+
+// Состояние приветственного бонуса клиента без записи в базу: если резерв
+// ещё не активирован, но срок вышел, считается истёкшим.
+// status: 'none' | 'reserved' | 'activated' | 'expired'
+export function getWelcomeBonusInfo(client) {
+  const st = client?.welcome_bonus_status || '';
+  if (!st) return { status: 'none', amount: 0 };
+  const amount = client.welcome_bonus || 0;
+  const until = client.welcome_bonus_until || '';
+  if (st === 'reserved' && until && new Date(until).getTime() < Date.now()) {
+    return { status: 'expired', amount, until };
+  }
+  return {
+    status: st, amount, until,
+    activatedAt: client.welcome_bonus_activated_at || '',
+    activatedBy: client.welcome_bonus_activated_by || '',
+  };
+}
+
+// Помечает в базе бонусы с вышедшим сроком — чтобы состояние не зависело
+// от того, кто и когда смотрит карточку
+export function expireWelcomeBonuses() {
+  const db = getDb();
+  db.runSync(
+    `UPDATE clients SET welcome_bonus_status = 'expired'
+     WHERE welcome_bonus_status = 'reserved' AND welcome_bonus_until != '' AND welcome_bonus_until < ?`,
+    [new Date().toISOString()]
+  );
+}
+
+// Активирует резерв: сумма зачисляется на баланс клиента. Срабатывает один
+// раз — повторное нажатие или истёкший срок вернут { ok:false }.
+export function activateWelcomeBonus(clientId) {
+  const db = getDb();
+  const client = db.getFirstSync(`SELECT * FROM clients WHERE id = ?`, [clientId]);
+  const info = getWelcomeBonusInfo(client);
+  if (info.status !== 'reserved') return { ok: false, reason: info.status };
+  const by = getSession()?.name || '';
+  const res = db.runSync(
+    `UPDATE clients SET balance = balance + ?, welcome_bonus_status = 'activated',
+       welcome_bonus_activated_at = ?, welcome_bonus_activated_by = ?
+     WHERE id = ? AND welcome_bonus_status = 'reserved'`,
+    [info.amount, new Date().toISOString(), by, clientId]
+  );
+  if (!res.changes) return { ok: false, reason: 'already' };
+  const fresh = db.getFirstSync(`SELECT * FROM clients WHERE id = ?`, [clientId]);
+  return { ok: true, amount: info.amount, client: fresh };
+}
+
+// Создаёт клиента из заявки, пришедшей из облака. row: { id, name, phone,
+// bonus, valid_until, created_at, marketing_consent }. Возвращает
+// { status: 'imported' | 'already' | 'phone_exists' | 'bad_phone' }.
+// Уже существующему клиенту с тем же номером бонус не даём — заявка просто
+// закрывается. Повторная загрузка той же заявки (по signup_id) ничего не дублирует.
+export function importLoyaltySignup(row) {
+  const db = getDb();
+  const signupId = String(row.id);
+  if (db.getFirstSync(`SELECT id FROM clients WHERE signup_id = ?`, [signupId])) return { status: 'already' };
+  const phone = normalizeLegacyPhone(row.phone);
+  if (!phone) return { status: 'bad_phone' };
+  const exists = findClientByPhone(phone);
+  if (exists) return { status: 'phone_exists', clientId: exists.id };
+  // Даты из облака приводим к одному виду (ISO, UTC) — срок сравнивается как строка
+  const toIso = (v) => { try { return v ? new Date(v).toISOString() : ''; } catch (_) { return ''; } };
+  const created = toIso(row.created_at) || new Date().toISOString();
+  const validUntil = toIso(row.valid_until);
+  const bonus = Number(row.bonus) || 0;
+  const clientId = db.runSync(
+    `INSERT INTO clients (fio, phone, code, balance, visits, total_sum, created_at,
+       signup_source, signup_id, signup_at, marketing_consent,
+       welcome_bonus, welcome_bonus_status, welcome_bonus_until)
+     VALUES (?, ?, ?, 0, 0, 0, ?, 'qr', ?, ?, ?, ?, ?, ?)`,
+    [String(row.name || '').trim() || 'Гость', phone, generateClientCode(), created,
+     signupId, created, row.marketing_consent ? 1 : 0,
+     bonus, bonus > 0 ? 'reserved' : '', bonus > 0 ? validUntil : '']
+  ).lastInsertRowId;
+  return { status: 'imported', clientId };
+}
+
 // Разовое приведение номеров существующих клиентов к формату
 // +7 (9XX) XXX-XX-XX. Что привести нельзя (городской, обрезанный, мусор)
 // остаётся как есть — в карточке такой номер помечается ⚠. Прежние значения
