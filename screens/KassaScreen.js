@@ -760,7 +760,13 @@ export default function KassaScreen({ navigation, route }) {
       });
       if (forClient?.id) {
         if (loyaltyModel === 'points' && loyaltyConfig.allow_spend && pointsToSpend) {
-          const pts = parseFloat(pointsToSpend) || 0;
+          // Списываем ровно те баллы, что реально пошли в скидку после
+          // лимитов (max_spend_pct, сумма чека), а не введённое число —
+          // иначе при вводе «500» и лимите на 110 ₽ клиент терял бы 390 лишних
+          const typed = parseFloat(pointsToSpend) || 0;
+          const pv = loyaltyConfig.point_value || 1;
+          const applied = pointsDiscount > 0 ? Math.ceil(pointsDiscount / pv) : 0;
+          const pts = Math.min(typed, applied);
           if (pts > 0) spendPoints(forClient.id, pts);
         }
         const visitResult = addClientVisit(forClient.id, total); // total = после скидки
