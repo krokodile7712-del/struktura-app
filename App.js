@@ -19,7 +19,7 @@ import AppBackground from './components/AppBackground';
 import { ToastProvider } from './components/Toast';
 import { TourRegistryProvider } from './components/TourRegistry';
 import OnboardingScreen from './screens/OnboardingScreen';
-import { getSetting } from './db/queries';
+import { getSetting, migrateClientPhones } from './db/queries';
 import { initDatabase } from './db/database';
 import { startAutoSync } from './db/sync';
 
@@ -91,6 +91,9 @@ export default function App() {
   useEffect(() => {
     try {
       initDatabase();
+      // Разовое приведение номеров клиентов к формату +7 (9XX) XXX-XX-XX —
+      // сбой миграции не должен мешать запуску приложения
+      try { migrateClientPhones(); } catch (e) { console.error('[phones] миграция не выполнена:', e); }
       startAutoSync(30 * 1000);
       // Показываем онбординг только если: флаг не установлен И нет ни одного пользователя
       const done = getSetting('onboarding_done');

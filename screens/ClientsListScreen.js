@@ -9,7 +9,9 @@ import Sheet from '../components/Sheet';
 import { useFocusEffect } from '@react-navigation/native';
 import { getAllClients, searchClients, getClientOrders, getTerms, pluralizeRu, countRu,
          getLoyaltyConfig, updateClientNote, getClientById, getBusinessProfile, markTourSeen } from '../db/queries';
-import { updateClient } from '../db/queries';
+import { updateClient, findClientByPhone, getSetting, setSetting } from '../db/queries';
+import PhoneInput from '../components/PhoneInput';
+import { isPhoneOkOrEmpty, isNonStandardPhone, toStoredPhone, PHONE_ERROR } from '../utils/phone';
 import { getHomeRoute, goBackSmart, getSession, can } from '../db/session';
 import { colors, fonts } from '../constants/theme';
 
@@ -78,9 +80,22 @@ function ClientCard({ client, onNewOrder, onSaved, loyaltyModel, loyaltyConfig }
     ? Math.round(orders.reduce((s, o) => s + o.total, 0) / orders.length) : 0;
 
   const handleSave = () => {
+    // Номер проверяем, только если его меняли: у клиента со старым номером
+    // (например, городским) остальные данные должны сохраняться как раньше
+    if (phone.trim() !== (client.phone || '').trim()) {
+      if (!isPhoneOkOrEmpty(phone)) {
+        Alert.alert('Номер телефона', PHONE_ERROR + ' — или очистите поле.');
+        return;
+      }
+      const dup = phone.trim() ? findClientByPhone(phone, client.id) : null;
+      if (dup) {
+        Alert.alert('Номер уже занят', `Этот номер записан на клиента «${dup.fio}».`);
+        return;
+      }
+    }
     try {
       updateClient(client.id, { fio: fio.trim(), phone: phone.trim(), balance: parseFloat(balance)||0, discount_pct: parseFloat(discountPct)||0, birth_date: birthDate.trim() });
-      client.fio = fio.trim(); client.phone = phone.trim();
+      client.fio = fio.trim(); client.phone = toStoredPhone(phone);
       client.balance = parseFloat(balance)||0; client.discount_pct = parseFloat(discountPct)||0;
       client.birth_date = birthDate.trim();
       setEditing(false);
@@ -161,7 +176,9 @@ function ClientCard({ client, onNewOrder, onSaved, loyaltyModel, loyaltyConfig }
           }}
         >
           <Text style={styles.infoIcon}>📞</Text>
-          <Text style={[styles.infoTxt, { color: colors.indigo }]}>{client.phone}</Text>
+          <Text style={[styles.infoTxt, { color: colors.indigo }]}>
+            {client.phone}{isNonStandardPhone(client.phone) ? '   ⚠ старый формат — поправьте в «Редактировать»' : ''}
+          </Text>
         </Pressable>
       ) : null}
       {client.birth_date ? (
@@ -229,15 +246,20 @@ function ClientCard({ client, onNewOrder, onSaved, loyaltyModel, loyaltyConfig }
         <View style={styles.editBox}>
           {[
             { label: 'ФИО', val: fio, set: setFio, kb: 'default' },
-            { label: 'Телефон', val: phone, set: setPhone, kb: 'phone-pad' },
+            { label: 'Телефон', val: phone, set: setPhone, kb: 'phone-pad', isPhone: true },
             ...(can('manage_loyalty') ? [{ label: loyaltyModel === 'subscription' ? 'Визитов' : 'Баллов', val: balance, set: setBalance, kb: 'numeric' }] : []),
             { label: 'Личная скидка %', val: discountPct, set: setDiscountPct, kb: 'numeric' },
             { label: 'Дата рождения', val: birthDate, set: setBirthDate, kb: 'numbers-and-punctuation', placeholder: '01.01.1990' },
           ].map(f => (
             <View key={f.label}>
               <Text style={styles.fieldLbl}>{f.label}</Text>
-              <TextInput color={colors.text} style={styles.input} value={f.val} onChangeText={f.set}
-                keyboardType={f.kb} placeholder={f.placeholder} placeholderTextColor={colors.muted} />
+              {f.isPhone ? (
+                <PhoneInput color={colors.text} style={styles.input} value={f.val} onChangeText={f.set}
+                  placeholderTextColor={colors.muted} />
+              ) : (
+                <TextInput color={colors.text} style={styles.input} value={f.val} onChangeText={f.set}
+                  keyboardType={f.kb} placeholder={f.placeholder} placeholderTextColor={colors.muted} />
+              )}
             </View>
           ))}
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
@@ -359,6 +381,22 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
       const lc = getLoyaltyConfig();
       setLoyaltyModel(lc.model);
       setLoyaltyConfig(lc.config);
+    } catch (_) {}
+    // Один раз после обновления — итог приведения номеров к единому формату
+    try {
+      const rep = getSetting('phones_migration_report');
+      if (rep && !getSetting('phones_report_shown')) {
+        setSetting('phones_report_shown', '1');
+        const { fixed, left } = JSON.parse(rep);
+        if (fixed > 0 || left > 0) {
+          Alert.alert(
+            'Номера телефонов',
+            `Номера приведены к единому виду +7 (9XX) XXX-XX-XX: исправлено ${fixed}.` +
+            (left > 0 ? `\n\nНе удалось привести автоматически: ${left} — у таких клиентов в карточке стоит пометка ⚠, поправьте вручную.` : '') +
+            '\n\nПрежние значения сохранены во внутренней копии.'
+          );
+        }
+      }
     } catch (_) {}
   }, []);
 

@@ -1,5 +1,6 @@
 import { getDb } from './database';
 import { getSession } from './session';
+import { toStoredPhone, normalizeLegacyPhone, phoneSearchVariants } from '../utils/phone';
 
 // ─── Профиль бизнеса ────────────────────────────────────────────────────────
 
@@ -1055,12 +1056,67 @@ export function setClientDiscountPct(clientId, pct) {
   db.runSync(`UPDATE clients SET discount_pct = ? WHERE id = ?`, [pct || 0, clientId]);
 }
 
+// Поиск по имени, коду и цифрам телефона. Телефон сравнивается без знаков
+// маски, ведущая «8» считается «7» — «123-45», «1234567» и «8 999 123»
+// находят одного и того же клиента (см. utils/phone.js)
 export function searchClients(query) {
   const db = getDb();
+  const q = String(query ?? '').trim();
+  const variants = phoneSearchVariants(q);
+  const stripped = `REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone,'+',''),' ',''),'(',''),')',''),'-','')`;
+  if (variants.length) {
+    const phoneConds = variants.map(() => `${stripped} LIKE ?`).join(' OR ');
+    return db.getAllSync(
+      `SELECT * FROM clients WHERE fio LIKE ? OR code LIKE ? OR ${phoneConds} ORDER BY fio`,
+      [`%${q}%`, `%${q}%`, ...variants.map(v => `%${v}%`)]
+    );
+  }
   return db.getAllSync(
-    `SELECT * FROM clients WHERE fio LIKE ? OR code LIKE ? OR phone LIKE ? ORDER BY fio`,
-    [`%${query}%`, `%${query}%`, `%${query}%`]
+    `SELECT * FROM clients WHERE fio LIKE ? OR code LIKE ? ORDER BY fio`,
+    [`%${q}%`, `%${q}%`]
   );
+}
+
+// Клиент с таким же номером (для проверки дубля при регистрации/правке).
+// excludeId — не считать самого редактируемого клиента.
+export function findClientByPhone(phone, excludeId = null) {
+  const stored = toStoredPhone(phone);
+  if (!stored) return null;
+  const db = getDb();
+  return db.getFirstSync(
+    `SELECT id, fio FROM clients WHERE phone = ? AND (? IS NULL OR id != ?)`,
+    [stored, excludeId, excludeId]
+  ) || null;
+}
+
+// Разовое приведение номеров существующих клиентов к формату
+// +7 (9XX) XXX-XX-XX. Что привести нельзя (городской, обрезанный, мусор)
+// остаётся как есть — в карточке такой номер помечается ⚠. Прежние значения
+// изменённых номеров сохраняются в app_settings (phones_backup_v1), итог —
+// в phones_migration_report (один раз показывается в «Клиентах»).
+export function migrateClientPhones() {
+  if (getSetting('phones_migrated_v1')) return null;
+  const db = getDb();
+  const rows = db.getAllSync(`SELECT id, phone FROM clients WHERE phone IS NOT NULL AND TRIM(phone) != ''`);
+  const backup = {};
+  let fixed = 0, left = 0;
+  for (const r of rows) {
+    const norm = normalizeLegacyPhone(r.phone);
+    if (norm) {
+      if (norm !== r.phone) {
+        backup[r.id] = r.phone;
+        db.runSync(`UPDATE clients SET phone = ? WHERE id = ?`, [norm, r.id]);
+        fixed++;
+      }
+    } else {
+      left++;
+    }
+  }
+  const report = { fixed, left, total: rows.length };
+  setSetting('phones_backup_v1', JSON.stringify(backup));
+  setSetting('phones_migration_report', JSON.stringify(report));
+  setSetting('phones_migrated_v1', '1');
+  return report;
 }
 
 export function getClientByCode(code) {
@@ -1073,7 +1129,7 @@ export function insertClient({ fio, phone, code, birth_date }) {
   const now = new Date().toISOString();
   const id = db.runSync(
     `INSERT INTO clients (fio, phone, code, balance, visits, total_sum, created_at) VALUES (?, ?, ?, 0, 0, 0, ?)`,
-    [fio, phone || '', code, now]
+    [fio, toStoredPhone(phone), code, now]
   ).lastInsertRowId;
   // birth_date сохраняем отдельным UPDATE (на случай если колонки ещё нет)
   if (birth_date) {
@@ -1086,7 +1142,7 @@ export function updateClient(id, { fio, phone, balance, discount_pct, birth_date
   const db = getDb();
   db.runSync(
     `UPDATE clients SET fio = ?, phone = ?, balance = ?, discount_pct = ?, birth_date = ? WHERE id = ?`,
-    [fio, phone, balance, discount_pct ?? 0, birth_date || '', id]
+    [fio, toStoredPhone(phone), balance, discount_pct ?? 0, birth_date || '', id]
   );
 }
 

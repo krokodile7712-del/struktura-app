@@ -13,6 +13,7 @@ import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import ShiftBanner from '../components/ShiftBanner';
 import InfoTip from '../components/InfoTip';
+import { matchesClientQuery } from '../utils/phone';
 import { getAllProducts, getAllClients, getCategories, getCategoryOrder, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, getAllVariantsWithSku, getZones, getOrderTemplates, saveOrderTemplate, deleteOrderTemplate, applyPendingPriceSchedules, createOrder, getOpenShift, addClientVisit, getBusinessProfile, getTerms, getLoyaltyConfig, spendPoints, checkSubscriptionBalance, getCostCardForVariant, getAllStock, markTourSeen, setClientDiscountPct, addClientBalance } from '../db/queries';
 import { subscribe } from '../db/events';
 import Sheet from '../components/Sheet';
@@ -1410,17 +1411,13 @@ export default function KassaScreen({ navigation, route }) {
               style={styles.input}
               value={clientSearch}
               onChangeText={setClientSearch}
-              placeholder="Поиск по имени или телефону..."
+              placeholder="Имя или цифры телефона…"
               placeholderTextColor={colors.muted}
               autoFocus
             />
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="always" style={{ marginTop: 8 }}>
               {clientsList
-                .filter(cl =>
-                  !clientSearch.trim() ||
-                  cl.fio?.toLowerCase().includes(clientSearch.toLowerCase()) ||
-                  (cl.phone || '').includes(clientSearch)
-                )
+                .filter(cl => matchesClientQuery(cl, clientSearch))
                 .slice(0, 30)
                 .map(cl => (
                   <Pressable
@@ -1445,11 +1442,7 @@ export default function KassaScreen({ navigation, route }) {
                   </Pressable>
                 ))
               }
-              {clientsList.filter(cl =>
-                !clientSearch.trim() ||
-                cl.fio?.toLowerCase().includes(clientSearch.toLowerCase()) ||
-                (cl.phone || '').includes(clientSearch)
-              ).length === 0 && (
+              {clientsList.filter(cl => matchesClientQuery(cl, clientSearch)).length === 0 && (
                 <Text style={[styles.prePaySummaryMore, { padding: 14 }]}>Клиенты не найдены</Text>
               )}
             </ScrollView>

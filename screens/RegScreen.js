@@ -2,7 +2,9 @@ import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform, Animated } from 'react-native';
 import TopBar from '../components/TopBar';
 import AppNav from '../components/AppNav';
-import { insertClient, getClientByCode, getTerms } from '../db/queries';
+import { insertClient, getClientByCode, getTerms, findClientByPhone } from '../db/queries';
+import PhoneInput from '../components/PhoneInput';
+import { isPhoneOkOrEmpty, PHONE_ERROR } from '../utils/phone';
 import { goBackSmart } from '../db/session';
 import { useToast } from '../components/Toast';
 import { colors, fonts } from '../constants/theme';
@@ -10,7 +12,7 @@ import { colors, fonts } from '../constants/theme';
 export default function RegScreen({ navigation }) {
   const toast    = useToast();
   const [fio, setFio]           = useState('');
-  const [phone, setPhone]       = useState('+7 ');
+  const [phone, setPhone]       = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [error, setError]       = useState('');
 
@@ -30,6 +32,9 @@ export default function RegScreen({ navigation }) {
 
   const handleReg = () => {
     if (!fio.trim()) { setError('Введите имя клиента'); return; }
+    if (!isPhoneOkOrEmpty(phone)) { setError(PHONE_ERROR + ' — или оставьте поле пустым'); return; }
+    const dup = phone.trim() ? findClientByPhone(phone) : null;
+    if (dup) { setError(`Этот номер уже записан на клиента «${dup.fio}»`); return; }
     const code = generateUniqueCode();
     const bd = birthDate.trim().replace(/[^0-9.\-]/g, '');
     let clientId;
@@ -84,19 +89,17 @@ export default function RegScreen({ navigation }) {
           {/* Телефон */}
           <View style={styles.fieldWrap}>
             <Text style={styles.label}>Телефон</Text>
-            <TextInput
+            <PhoneInput
               ref={phoneRef}
               style={styles.input}
               color={colors.text}
-              placeholder="+7 900 000-00-00"
               placeholderTextColor={colors.muted}
-              keyboardType="phone-pad"
               value={phone}
-              onChangeText={setPhone}
+              onChangeText={v => { setPhone(v); setError(''); }}
               returnKeyType="next"
               onSubmitEditing={() => birthRef.current?.focus()}
             />
-            <Text style={styles.hint}>Для поиска и уведомлений — необязательно</Text>
+            <Text style={styles.hint}>По этому номеру клиента найдут на кассе — необязательно</Text>
           </View>
 
           <View style={styles.divider} />

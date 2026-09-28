@@ -6,6 +6,8 @@ import TopBar from '../components/TopBar';
 import TourGuide from '../components/TourGuide';
 import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
 import Sheet from '../components/Sheet';
+import PhoneInput from '../components/PhoneInput';
+import { isPhoneOkOrEmpty, toStoredPhone, PHONE_ERROR } from '../utils/phone';
 import SwipeableRow from '../components/SwipeableRow';
 import BookingsCalendar from '../components/BookingsCalendar';
 import { useResponsive } from '../hooks/useResponsive';
@@ -161,6 +163,7 @@ export default function BookingsScreen({ navigation }) {
   const [mfTime, setMfTime]     = useState('');
   const [mfName, setMfName]     = useState('');
   const [mfPhone, setMfPhone]   = useState('');
+  const [manualPhoneOriginal, setManualPhoneOriginal] = useState(''); // номер записи в момент открытия на правку — не меняли, значит не проверяем
   const [mfService, setMfService] = useState('');
   const [mfPrice, setMfPrice]   = useState('');
   const [mfComment, setMfComment] = useState('');
@@ -245,6 +248,7 @@ export default function BookingsScreen({ navigation }) {
     setMfTime('');
     setMfName('');
     setMfPhone('');
+    setManualPhoneOriginal('');
     setMfService('');
     setMfPrice('');
     setMfComment('');
@@ -259,6 +263,7 @@ export default function BookingsScreen({ navigation }) {
     setMfTime(b.time_start);
     setMfName(b.client_name);
     setMfPhone(b.client_phone || '');
+    setManualPhoneOriginal((b.client_phone || '').trim());
     setMfService(b.service_name || '');
     setMfPrice(b.service_price ? String(b.service_price) : '');
     setMfComment(b.comment || '');
@@ -272,12 +277,16 @@ export default function BookingsScreen({ navigation }) {
       Alert.alert('Заполните обязательные поля', 'Имя клиента, дата и время нужны обязательно');
       return;
     }
+    if (mfPhone.trim() !== manualPhoneOriginal && !isPhoneOkOrEmpty(mfPhone)) {
+      Alert.alert('Номер телефона', PHONE_ERROR + ' — или оставьте поле пустым.');
+      return;
+    }
     try {
       const payload = {
         date: mfDate,
         time_start: mfTime,
         client_name: mfName.trim(),
-        client_phone: mfPhone.trim(),
+        client_phone: toStoredPhone(mfPhone),
         service_name: mfService.trim(),
         service_price: parseFloat(mfPrice) || 0,
         comment: mfComment.trim(),
@@ -353,8 +362,8 @@ export default function BookingsScreen({ navigation }) {
           placeholder="Как зовут клиента" placeholderTextColor={colors.muted} />
 
         <Text style={styles.fieldLabel}>📞 Телефон</Text>
-        <TextInput style={[styles.input, styles.inputOptional]} color={colors.text} value={mfPhone} onChangeText={setMfPhone}
-          keyboardType="phone-pad" placeholder="Необязательно" placeholderTextColor={colors.muted} />
+        <PhoneInput style={[styles.input, styles.inputOptional]} color={colors.text} value={mfPhone} onChangeText={setMfPhone}
+          placeholderTextColor={colors.muted} />
         {formClientHighlight.overlay}
         </View>
 
