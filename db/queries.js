@@ -1381,14 +1381,14 @@ export function updateShiftHours(shiftId, { openedAt, closedAt, reason = '' } = 
 // в детализации
 export function getShiftEditLog(shiftId) {
   const db = getDb();
-  return db.getAllSync(`SELECT * FROM shift_edit_log WHERE shift_id = ? ORDER BY edited_at DESC`, [shiftId]);
+  return db.getAllSync(`SELECT * FROM shift_edit_log WHERE shift_id = ? ORDER BY edited_at DESC, id DESC`, [shiftId]);
 }
 
 // Смена задним числом — сотрудник фактически работал, но не открывал её
 // в приложении. created_manually=1 отличает от обычного openShift/closeShift.
 // Не проверяет пересечение с другими сменами того же сотрудника — админ
 // сам отвечает за корректность введённых времён.
-export function createManualShift(userId, employeeName, openedAt, closedAt, locationId = null) {
+export function createManualShift(userId, employeeName, openedAt, closedAt, locationId = null, reason = '') {
   const db = getDb();
   const status = closedAt ? 'closed' : 'open';
   const id = db.runSync(
@@ -1397,8 +1397,8 @@ export function createManualShift(userId, employeeName, openedAt, closedAt, loca
   ).lastInsertRowId;
   const editedBy = getSession()?.name || '';
   db.runSync(
-    `INSERT INTO shift_edit_log (shift_id, field, old_value, new_value, reason, edited_by, edited_at) VALUES (?, 'created', '', ?, 'Смена создана задним числом', ?, ?)`,
-    [id, employeeName || '', editedBy, new Date().toISOString()]
+    `INSERT INTO shift_edit_log (shift_id, field, old_value, new_value, reason, edited_by, edited_at) VALUES (?, 'created', '', ?, ?, ?, ?)`,
+    [id, employeeName || '', reason || 'Смена создана задним числом', editedBy, new Date().toISOString()]
   );
   return id;
 }
@@ -1429,6 +1429,7 @@ export function getTransferableOrders(shiftId) {
      FROM orders o
      LEFT JOIN shifts s ON s.id = o.shift_id
      WHERE o.created_at >= ? AND o.created_at <= ? AND (o.shift_id IS NULL OR o.shift_id != ?)
+       AND (o.status IS NULL OR o.status != 'returned')
      ORDER BY o.created_at`,
     [shift.opened_at, to, shiftId]
   );
@@ -1442,11 +1443,14 @@ export function transferOrdersToShift(orderIds, targetShiftId) {
   if (!orderIds || orderIds.length === 0) return;
   const db = getDb();
   const donorShiftIds = new Set();
+  // Продажа числится за тем, кто работал в этой смене: в «Продажах» и отчётах по
+  // сотрудникам имя берётся из кассира заказа, поэтому меняем и его
+  const target = db.getFirstSync(`SELECT user_id FROM shifts WHERE id = ?`, [targetShiftId]);
   for (const orderId of orderIds) {
     const order = db.getFirstSync(`SELECT shift_id FROM orders WHERE id = ?`, [orderId]);
     if (!order) continue;
     if (order.shift_id) donorShiftIds.add(order.shift_id);
-    db.runSync(`UPDATE orders SET shift_id = ? WHERE id = ?`, [targetShiftId, orderId]);
+    db.runSync(`UPDATE orders SET shift_id = ?, cashier_id = COALESCE(?, cashier_id) WHERE id = ?`, [targetShiftId, target?.user_id ?? null, orderId]);
   }
   recalcShiftTotals(targetShiftId);
   for (const donorId of donorShiftIds) recalcShiftTotals(donorId);
@@ -1456,6 +1460,16 @@ export function transferOrdersToShift(orderIds, targetShiftId) {
     `INSERT INTO shift_edit_log (shift_id, field, old_value, new_value, reason, edited_by, edited_at) VALUES (?, 'orders_transferred', ?, ?, '', ?, ?)`,
     [targetShiftId, '', String(orderIds.length), editedBy, new Date().toISOString()]
   );
+}
+
+// Сколько заказов и на какую сумму в смене — предупреждение перед удалением смены
+export function getShiftOrdersInfo(shiftId) {
+  const db = getDb();
+  const r = db.getFirstSync(
+    `SELECT COUNT(*) as count, COALESCE(SUM(total), 0) as total FROM orders WHERE shift_id = ? AND (status IS NULL OR status != 'returned')`,
+    [shiftId]
+  );
+  return { count: r?.count || 0, total: r?.total || 0 };
 }
 
 // Ручная доплата/удержание по смене — amount может быть отрицательным
