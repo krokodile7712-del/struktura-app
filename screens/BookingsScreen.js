@@ -81,6 +81,7 @@ export default function BookingsScreen({ navigation }) {
   const [loading, setLoading]   = useState(true);
   const [expanded, setExpanded] = useState(null);
   const [filter, setFilter]     = useState('all');
+  const [filterMenuOpen, setFilterMenuOpen] = useState(false); // компактная кнопка-фильтр (альбомная Онлайн)
 
   const [tourOpen, setTourOpen] = useState(false);
   const [tourFull, setTourFull] = useState(true); // true — весь раздел (обе вкладки), false — только текущая
@@ -658,28 +659,54 @@ export default function BookingsScreen({ navigation }) {
 
         <View style={isLandscape ? styles.manualLeftLandscape : styles.manualLeftPortrait}>
           {isLandscape ? (
-            <View style={[{ padding: 14, position: 'relative' }, filtersHighlight.style]}>
-              <Text style={styles.sectionLabel}>Фильтр</Text>
-              {FILTERS.map(f => {
-                const count = f.key === 'all' ? bookings.length : (counts[f.key] || 0);
-                return (
-                  <Pressable
-                    key={f.key}
-                    style={[styles.filterBtn, filter === f.key && styles.filterBtnActive]}
-                    onPress={() => setFilter(f.key)}
-                  >
-                    {filter === f.key && <View style={styles.filterBar} />}
-                    <Text style={[styles.filterTxt, filter === f.key && styles.filterTxtActive]}>{f.label}</Text>
-                    {count > 0 && (
-                      <View style={[styles.countBadge, f.key === 'pending' && count > 0 && styles.countBadgeNew]}>
-                        <Text style={[styles.countTxt, f.key === 'pending' && count > 0 && styles.countTxtNew]}>{count}</Text>
-                      </View>
-                    )}
-                  </Pressable>
-                );
-              })}
-              {filtersHighlight.overlay}
-            </View>
+            <>
+              <View style={[styles.calEmbeddedWrap, { position: 'relative', marginTop: 16 }, calendarHighlight.style]}>
+                <BookingsCalendar
+                  onlineDates={calOnlineDates}
+                  manualDates={calManualDates}
+                  selectedDate={selectedCalDate}
+                  onSelectDay={onSelectCalDay}
+                  onMonthChange={loadCalendarMonth}
+                  embedded
+                />
+                {calendarHighlight.overlay}
+              </View>
+
+              <Pressable
+                style={[styles.filterCompactBtn, { position: 'relative' }, filtersHighlight.style]}
+                onPress={() => setFilterMenuOpen(true)}
+              >
+                <Text style={styles.filterCompactTxt}>
+                  {FILTERS.find(f => f.key === filter)?.label}
+                  {filter !== 'all' && counts[filter] > 0 ? ` · ${counts[filter]}` : ''}
+                </Text>
+                <Text style={styles.filterCompactChevron}>⌄</Text>
+                {filtersHighlight.overlay}
+              </Pressable>
+
+              <Sheet visible={filterMenuOpen} onClose={() => setFilterMenuOpen(false)} title="Фильтр">
+                <View style={{ padding: 14 }}>
+                  {FILTERS.map(f => {
+                    const count = f.key === 'all' ? bookings.length : (counts[f.key] || 0);
+                    return (
+                      <Pressable
+                        key={f.key}
+                        style={[styles.filterBtn, filter === f.key && styles.filterBtnActive]}
+                        onPress={() => { setFilter(f.key); setFilterMenuOpen(false); }}
+                      >
+                        {filter === f.key && <View style={styles.filterBar} />}
+                        <Text style={[styles.filterTxt, filter === f.key && styles.filterTxtActive]}>{f.label}</Text>
+                        {count > 0 && (
+                          <View style={[styles.countBadge, f.key === 'pending' && count > 0 && styles.countBadgeNew]}>
+                            <Text style={[styles.countTxt, f.key === 'pending' && count > 0 && styles.countTxtNew]}>{count}</Text>
+                          </View>
+                        )}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </Sheet>
+            </>
           ) : (
             <View style={[styles.filterRowOuter, { position: 'relative' }, filtersHighlight.style]}>
               {FILTERS.map(f => {
@@ -700,19 +727,6 @@ export default function BookingsScreen({ navigation }) {
             </View>
           )}
 
-          {isLandscape && (
-            <View style={[styles.calEmbeddedWrap, { position: 'relative' }, calendarHighlight.style]}>
-              <BookingsCalendar
-                onlineDates={calOnlineDates}
-                manualDates={calManualDates}
-                selectedDate={selectedCalDate}
-                onSelectDay={onSelectCalDay}
-                onMonthChange={loadCalendarMonth}
-                embedded
-              />
-              {calendarHighlight.overlay}
-            </View>
-          )}
           {onlineListContent}
         </View>
 
@@ -911,6 +925,9 @@ const styles = StyleSheet.create({
   filterChipTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
   filterChipTxtActive: { color: colors.orange },
   sectionLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8 },
+  filterCompactBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginHorizontal: 16, marginTop: 12, paddingVertical: 9, paddingHorizontal: 14, borderRadius: 12, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignSelf: 'flex-start' },
+  filterCompactTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
+  filterCompactChevron: { fontSize: 14, color: colors.muted },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 12 },
 
   filterBtn:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, paddingHorizontal: 14, borderRadius: 12, position: 'relative', gap: 8 },
