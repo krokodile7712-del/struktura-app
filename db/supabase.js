@@ -176,3 +176,13 @@ export async function markLoyaltySignupsImported(businessId, secret, ids) {
   if (error) throw error;
   return true;
 }
+
+// Удаляет из облака регистрацию по QR с этим номером (отзыв согласия / удаление клиента).
+// Возвращает, сколько строк удалено (0 — такого номера в облаке не было).
+export async function deleteLoyaltySignupByPhone(businessId, secret, phone) {
+  const { data, error } = await supabase.rpc('delete_loyalty_signup_secure', {
+    p_business_id: businessId, p_secret: secret, p_phone: phone,
+  });
+  if (error) throw error;
+  return Number(data) || 0;
+}

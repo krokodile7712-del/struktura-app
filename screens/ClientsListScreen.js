@@ -11,7 +11,8 @@ import { getAllClients, searchClients, getClientOrders, getTerms, pluralizeRu, c
          getLoyaltyConfig, updateClientNote, getClientById, getBusinessProfile, markTourSeen } from '../db/queries';
 import { updateClient, findClientByPhone, getSetting, setSetting, expireWelcomeBonuses } from '../db/queries';
 import WelcomeBonusBlock from '../components/WelcomeBonusBlock';
-import { syncLoyaltySignups } from '../db/loyaltySync';
+import { syncLoyaltySignups, deleteClientEverywhere } from '../db/loyaltySync';
+import { useToast } from '../components/Toast';
 import PhoneInput from '../components/PhoneInput';
 import { isPhoneOkOrEmpty, isNonStandardPhone, toStoredPhone, PHONE_ERROR } from '../utils/phone';
 import { getHomeRoute, goBackSmart, getSession, can } from '../db/session';
@@ -49,7 +50,7 @@ function daysSince(iso) {
   return Math.floor(diff / 86400000);
 }
 
-function ClientCard({ client, onNewOrder, onSaved, loyaltyModel, loyaltyConfig }) {
+function ClientCard({ client, onNewOrder, onSaved, onDeleted, loyaltyModel, loyaltyConfig }) {
   const [orders, setOrders]     = useState([]);
   const [expanded, setExpanded] = useState(null);
   const [editing, setEditing]   = useState(false);
@@ -62,6 +63,28 @@ function ClientCard({ client, onNewOrder, onSaved, loyaltyModel, loyaltyConfig }
   const [editingNote, setEditingNote] = useState(false);
   const [, setTick] = useState(0); // перерисовать блок бонуса после активации
   const isAdmin = getSession()?.role === 'admin';
+  const [deleting, setDeleting] = useState(false);
+
+  // Удаление клиента: из приложения и, если он регистрировался по QR, копии в облаке
+  const askDelete = () => {
+    let hasCloud = false;
+    try { hasCloud = !!(client.phone && getBusinessProfile()?.booking_slug); } catch (_) {}
+    const bal = Math.floor(client.balance || 0);
+    Alert.alert(
+      'Удалить клиента?',
+      `${client.fio}\n\nКарточка${bal > 0 ? `, ${bal} баллов на счёте` : ''} и приветственный бонус будут удалены безвозвратно. ` +
+      'Заказы останутся в продажах, но без привязки к клиенту.' +
+      (hasCloud ? '\n\nКопия его регистрации в облаке тоже будет стёрта.' : ''),
+      [
+        { text: 'Отмена', style: 'cancel' },
+        { text: 'Удалить', style: 'destructive', onPress: async () => {
+          setDeleting(true);
+          try { onDeleted?.(await deleteClientEverywhere(client.id)); }
+          catch (e) { console.error(e); Alert.alert('Не удалось удалить клиента'); setDeleting(false); }
+        } },
+      ]
+    );
+  };
   const cardHighlight = useTourHighlight('clients.card', 18);
 
   React.useEffect(() => {
@@ -325,6 +348,12 @@ function ClientCard({ client, onNewOrder, onSaved, loyaltyModel, loyaltyConfig }
         )}
       </View>
 
+      {isAdmin && (
+        <Pressable style={[styles.delBtn, deleting && { opacity: 0.4 }]} disabled={deleting} onPress={askDelete}>
+          <Text style={styles.delBtnTxt}>{deleting ? 'Удаляем…' : 'Удалить клиента'}</Text>
+        </Pressable>
+      )}
+
     </ScrollView>
   );
 }
@@ -427,6 +456,17 @@ export default function ClientsListScreen({ navigation, route, initialClientId }
     // Новые регистрации по QR — при заходе (не чаще раза в полминуты)
     syncLoyaltySignups().then(r => { if (r && r.imported > 0) load(); });
   }, [load]));
+
+  const toast = useToast();
+  const onClientDeleted = (res) => {
+    setSelected(null);
+    load();
+    if (res?.cloud === 'queued') {
+      Alert.alert('Клиент удалён', 'Копия его регистрации в облаке будет стёрта, как только появится связь.');
+    } else {
+      toast.show('Клиент удалён');
+    }
+  };
 
   const refreshSignups = async () => {
     const r = await syncLoyaltySignups({ force: true });
@@ -577,6 +617,7 @@ export default function ClientsListScreen({ navigation, route, initialClientId }
                   loyaltyConfig={loyaltyConfig}
                   onNewOrder={(c) => navigation.navigate('Kassa', { forClient: { id: c.id, fio: c.fio, code: c.code } })}
                   onSaved={() => load()}
+                  onDeleted={onClientDeleted}
                 />
               </Animated.View>
             ) : (
@@ -603,6 +644,7 @@ export default function ClientsListScreen({ navigation, route, initialClientId }
                 loyaltyConfig={loyaltyConfig}
                 onNewOrder={(c) => navigation.navigate('Kassa', { forClient: { id: c.id, fio: c.fio, code: c.code } })}
                 onSaved={() => load()}
+                onDeleted={onClientDeleted}
               />
             )}
           </Sheet>
@@ -692,6 +734,8 @@ const styles = StyleSheet.create({
 
   btn:        { paddingVertical: 18, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
   btnTxt:     { fontFamily: fonts.family, fontSize: 16, fontWeight: '700', color: '#fff' },
+  delBtn:     { marginTop: 28, marginBottom: 12, paddingVertical: 15, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(217,95,95,0.35)', alignItems: 'center' },
+  delBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.red },
   btnSec:     { paddingVertical: 18, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.borderHi, alignItems: 'center' },
   btnSecTxt:  { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.textDim },
 

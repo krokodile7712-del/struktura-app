@@ -1235,8 +1235,12 @@ export function updateClient(id, { fio, phone, balance, discount_pct, birth_date
 
 // Удаляет клиента. История его прошлых заказов сохраняется (orders.client_id
 // просто перестаёт указывать на существующую карточку) — сами продажи не теряются.
+// Удаляет клиента из приложения. Его заказы остаются в продажах (выручка не меняется),
+// но перестают быть связаны с человеком — персональных данных в них нет.
+// Копию регистрации по QR в облаке удаляет deleteClientEverywhere (db/loyaltySync.js).
 export function deleteClient(id) {
   const db = getDb();
+  db.runSync(`UPDATE orders SET client_id = NULL WHERE client_id = ?`, [id]);
   db.runSync(`DELETE FROM clients WHERE id = ?`, [id]);
 }
 
