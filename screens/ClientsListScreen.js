@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, FlatList, Animated, Linking, Alert } from 'react-native';
 import TopBar from '../components/TopBar';
 import TourGuide from '../components/TourGuide';
@@ -329,8 +329,11 @@ function ClientCard({ client, onNewOrder, onSaved, loyaltyModel, loyaltyConfig }
   );
 }
 
-export default function ClientsListScreen({ navigation, initialClientId }) {
+export default function ClientsListScreen({ navigation, route, initialClientId }) {
   const { isLandscape } = useResponsive();
+  // load — useCallback без зависимостей, поэтому свежие параметры перехода читаем через ref
+  const routeRef = useRef(route);
+  routeRef.current = route;
   const [query, setQuery]       = useState('');
   const [sortMode, setSortMode] = useState('name'); // name | added
   const [clients, setClients]   = useState([]);
@@ -383,8 +386,12 @@ export default function ClientsListScreen({ navigation, initialClientId }) {
       try { expireWelcomeBonuses(); } catch (_) {}
       const all = getAllClients();
       setClients(all);
-      if (initialClientId) {
-        const found = all.find(c => c.id === Number(initialClientId));
+      // Открыть конкретного клиента: из Кассы (тап по имени), поиска и результата регистрации
+      const routeClientId = routeRef.current?.params?.clientId;
+      const targetId = routeClientId ?? initialClientId;
+      if (targetId) {
+        const found = all.find(c => c.id === Number(targetId));
+        if (routeClientId) { try { navigation.setParams({ clientId: undefined }); } catch (_) {} } // один раз, не при каждом возврате на экран
         if (found) {
           setSelected(found);
           // Сразу показываем карточку без анимации при первой загрузке

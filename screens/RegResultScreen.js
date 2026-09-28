@@ -99,7 +99,7 @@ export default function RegResultScreen({ route, navigation }) {
           {/* Быстрые действия */}
           <Pressable
             style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.88 }]}
-            onPress={() => clientId && navigation.navigate('ClientCard', { clientId })}
+            onPress={() => clientId && navigation.navigate('ClientsList', { clientId })}
           >
             <Text style={styles.primaryBtnText}>Открыть карточку {genitiveSingularRu(terms.client || 'Клиент').toLowerCase()}</Text>
           </Pressable>

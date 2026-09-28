@@ -968,7 +968,7 @@ export default function KassaScreen({ navigation, route }) {
                   <View style={[styles.v2Client, styles.v2ClientFilled, styles.v2ClientDiscountBtn, { position: 'relative' }, clientRowHighlight.style]}>
                     <Pressable
                       style={{ flex: 1, justifyContent: 'center' }}
-                      onPress={() => navigation.navigate('ClientCard', { clientId: forClient.id })}
+                      onPress={() => navigation.navigate('ClientsList', { clientId: forClient.id })}
                     >
                       <Text style={styles.v2ClientFilledName} numberOfLines={1}>{forClient.fio}</Text>
                       {loyaltyModel === 'points' ? (
