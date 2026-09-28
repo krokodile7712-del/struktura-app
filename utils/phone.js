@@ -4,6 +4,7 @@
 // «1234567» и «+7 (999) 123-45-67» находят одного и того же клиента.
 
 export const PHONE_PLACEHOLDER = '+7 (9XX) XXX-XX-XX';
+export const PHONE_PREFIX = '+7 (';
 export const PHONE_ERROR = 'Введите номер полностью: +7 (9XX) XXX-XX-XX';
 
 export const digitsOf = (s) => String(s ?? '').replace(/\D/g, '');
@@ -12,7 +13,9 @@ export const digitsOf = (s) => String(s ?? '').replace(/\D/g, '');
 // «7999…», «+7 999…» приводится к «999…». Первая цифра обязана быть 9 —
 // иначе ввод отбрасывается целиком (городские и чужие номера не проходят).
 export function nationalDigits(input) {
-  let d = digitsOf(input);
+  // Постоянный префикс поля («+7 (») — не введённые цифры: убираем его целиком,
+  // где бы он ни оказался (курсор могли поставить левее и набрать 9 перед ним)
+  let d = digitsOf(String(input ?? '').replace('+7 (', ''));
   if (d.length > 0 && (d[0] === '7' || d[0] === '8')) d = d.slice(1);
   if (d.length > 0 && d[0] !== '9') return '';
   return d.slice(0, 10);

@@ -99,7 +99,7 @@ export default function RegScreen({ navigation }) {
               returnKeyType="next"
               onSubmitEditing={() => birthRef.current?.focus()}
             />
-            <Text style={styles.hint}>По этому номеру клиента найдут на кассе — необязательно</Text>
+            <Text style={styles.hint}>Номер начинается с 9 — «+7» уже стоит. По нему клиента найдут на кассе. Необязательно</Text>
           </View>
 
           <View style={styles.divider} />
