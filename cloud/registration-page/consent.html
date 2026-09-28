@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#1B1B1D">
+<title>Согласие на обработку персональных данных</title>
+<style>
+  :root{ --gray:#1B1B1D; --sand:#EADFC8; --sand-dim:#CFC3AC; --emerald:#066022; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--gray); color:var(--sand-dim);
+        font:16px/1.65 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; }
+  main{ max-width:720px; margin:0 auto; padding:28px 22px 64px; }
+  h1{ margin:0 0 6px; font-size:26px; line-height:1.25; color:var(--sand); }
+  h2{ margin:34px 0 8px; font-size:18px; color:var(--sand); }
+  p, li{ margin:8px 0; }
+  ul, ol{ padding-left:22px; }
+  .meta{ margin:0 0 22px; font-size:14px; color:#9C927F; }
+  .back{ margin:0 0 22px; color:#9C927F; font-size:14px; }
+  a{ color:var(--sand); text-underline-offset:3px; }
+  mark.todo{ background:#F2D23C; color:#1B1B1D; padding:1px 5px; border-radius:3px; font-weight:600; }
+  .banner{ margin:0 0 24px; padding:14px 16px; background:#F2D23C; color:#1B1B1D; font-weight:600; font-size:15px; line-height:1.5; }
+  .box{ margin:22px 0; padding:14px 16px; background:rgba(255,255,255,.06); border-left:3px solid var(--emerald); font-size:15px; }
+</style>
+</head>
+<body>
+<main>
+<p class="back">Чтобы вернуться к регистрации, закройте эту вкладку.</p>
+<div class="banner" id="banner" hidden></div>
+
+<h1>Согласие на обработку персональных данных</h1>
+<p class="meta">Редакция от <span data-cfg="consentDate"></span> · версия <span data-cfg="consentVersion"></span></p>
+
+<p>Я, заполняя регистрационную форму на странице регистрации карты гостя, свободно, своей волей и в своём интересе даю согласие
+<strong data-cfg="operator.name"></strong>, ИНН <span data-cfg="operator.inn"></span>, адрес: <span data-cfg="operator.address"></span>
+(далее — Оператор), на обработку моих персональных данных на следующих условиях.</p>
+
+<h2>1. Цели обработки</h2>
+<ul>
+  <li>регистрация меня как участника программы лояльности Оператора и ведение моей карточки клиента;</li>
+  <li>моя идентификация при покупке по номеру телефона;</li>
+  <li>начисление и учёт бонусов, в том числе приветственного бонуса за регистрацию;</li>
+  <li>защита от повторной и недобросовестной регистрации.</li>
+</ul>
+
+<h2>2. Перечень персональных данных</h2>
+<p>Имя; номер мобильного телефона; сведения о моих покупках и остатке бонусов в программе лояльности;
+технические данные отправки формы: дата и время, отметки о согласиях, хэш IP-адреса (сам IP-адрес не сохраняется).</p>
+
+<h2>3. Действия с данными</h2>
+<p>Сбор, запись, систематизация, накопление, хранение, уточнение (обновление, изменение), извлечение, использование,
+блокирование, удаление, уничтожение. Обработка осуществляется с использованием средств автоматизации.</p>
+
+<h2>4. Передача другим лицам</h2>
+<p>Данные передаются лицу, которое по поручению Оператора обеспечивает работу программы лояльности:
+<span data-cfg="processor.name"></span> (ИНН <span data-cfg="processor.inn"></span>), а также хранятся у хостинг-провайдера:
+<span data-cfg="hosting"></span>. Иным лицам данные не передаются, за исключением случаев, предусмотренных законом.</p>
+
+<h2>5. Срок действия согласия</h2>
+<p>Согласие действует в течение всего срока моего участия в программе лояльности и <span data-cfg="retention"></span> после моего
+последнего обращения к Оператору, если ранее не отозвано.</p>
+
+<h2>6. Отзыв согласия</h2>
+<p>Я вправе отозвать согласие в любой момент, направив заявление Оператору на адрес <span data-cfg="operator.email"></span>
+или обратившись к Оператору лично. После получения отзыва Оператор прекращает обработку и уничтожает мои данные в срок,
+установленный законом (не более 30 дней), за исключением данных, хранение которых обязательно по закону.</p>
+<p>Мне понятно, что после отзыва согласия остаток бонусов в программе лояльности аннулируется.</p>
+
+<h2>7. Приветственный бонус</h2>
+<p>Приветственный бонус резервируется на моей карте при регистрации, активируется кассиром при первой покупке при назывании
+номера телефона, действует ограниченный срок и может быть потрачен на оплату части чека. Условия указаны на странице регистрации.</p>
+
+<h2>8. Рекламные сообщения — отдельное согласие</h2>
+<p>Согласие на получение рекламных сообщений даётся отдельной необязательной отметкой в форме. Оно не является условием
+участия в программе лояльности и получения приветственного бонуса. Отозвать его можно так же, как основное согласие.</p>
+
+<div class="box">Отметка в форме («Даю согласие…») подтверждает, что я ознакомился(ась) с настоящим документом. Мне исполнилось 18 лет.
+Дата и время отметки сохраняются вместе с версией этого текста.</div>
+
+</main>
+<script src="loyalty-config.js"></script>
+<script>
+  // Подстановка реквизитов из loyalty-config.js. Незаполненное подсвечивается жёлтым.
+  (function(){
+    var cfg = window.STRUKTURA_LOYALTY || {};
+    var labels = {
+      'operator.name': 'наименование оператора', 'operator.inn': 'ИНН оператора',
+      'operator.address': 'адрес оператора', 'operator.email': 'e-mail для обращений',
+      'operator.phone': 'телефон для обращений', 'processor.name': 'обработчик данных',
+      'processor.inn': 'ИНН обработчика', 'hosting': 'место хранения данных'
+    };
+    var required = { 'operator.name':1, 'operator.inn':1, 'operator.address':1, 'operator.email':1, 'processor.name':1, 'hosting':1 };
+    function get(path){
+      var v = path.split('.').reduce(function(o, k){ return o == null ? o : o[k]; }, cfg);
+      return (v == null ? '' : String(v)).trim();
+    }
+    var missing = [];
+    document.querySelectorAll('[data-cfg]').forEach(function(el){
+      var key = el.getAttribute('data-cfg'), v = get(key);
+      if (v){ el.textContent = v; return; }
+      var mark = document.createElement('mark');
+      mark.className = 'todo';
+      mark.textContent = '[заполнить: ' + (labels[key] || key) + ']';
+      el.textContent = '';
+      el.appendChild(mark);
+      if (required[key] && missing.indexOf(key) === -1) missing.push(key);
+    });
+    var banner = document.getElementById('banner');
+    if (missing.length){
+      banner.textContent = 'ТЕСТОВАЯ ВЕРСИЯ. Не заполнены реквизиты в файле loyalty-config.js: ' +
+        missing.map(function(k){ return labels[k]; }).join(', ') +
+        '. Пока они пустые, QR-код гостям раздавать нельзя.';
+      banner.hidden = false;
+    }
+  })();
+</script>
+</body>
+</html>

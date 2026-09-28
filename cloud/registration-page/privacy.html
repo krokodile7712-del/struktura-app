@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#1B1B1D">
+<title>Политика обработки персональных данных</title>
+<style>
+  :root{ --gray:#1B1B1D; --sand:#EADFC8; --sand-dim:#CFC3AC; --emerald:#066022; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--gray); color:var(--sand-dim);
+        font:16px/1.65 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; }
+  main{ max-width:720px; margin:0 auto; padding:28px 22px 64px; }
+  h1{ margin:0 0 6px; font-size:26px; line-height:1.25; color:var(--sand); }
+  h2{ margin:34px 0 8px; font-size:18px; color:var(--sand); }
+  p, li{ margin:8px 0; }
+  ul, ol{ padding-left:22px; }
+  .meta{ margin:0 0 22px; font-size:14px; color:#9C927F; }
+  .back{ margin:0 0 22px; color:#9C927F; font-size:14px; }
+  a{ color:var(--sand); text-underline-offset:3px; }
+  mark.todo{ background:#F2D23C; color:#1B1B1D; padding:1px 5px; border-radius:3px; font-weight:600; }
+  .banner{ margin:0 0 24px; padding:14px 16px; background:#F2D23C; color:#1B1B1D; font-weight:600; font-size:15px; line-height:1.5; }
+  .box{ margin:22px 0; padding:14px 16px; background:rgba(255,255,255,.06); border-left:3px solid var(--emerald); font-size:15px; }
+</style>
+</head>
+<body>
+<main>
+<p class="back">Чтобы вернуться к регистрации, закройте эту вкладку.</p>
+<div class="banner" id="banner" hidden></div>
+
+<h1>Политика в отношении обработки персональных данных</h1>
+<p class="meta">Действует с <span data-cfg="consentDate"></span> · версия <span data-cfg="consentVersion"></span></p>
+
+<h2>1. Общие положения</h2>
+<p>Политика разработана в соответствии с Федеральным законом от 27.07.2006 № 152-ФЗ «О персональных данных» и определяет порядок
+обработки персональных данных участников программы лояльности. Оператор: <strong data-cfg="operator.name"></strong>,
+ИНН <span data-cfg="operator.inn"></span>, адрес: <span data-cfg="operator.address"></span>.</p>
+
+<h2>2. Правовые основания</h2>
+<p>Обработка осуществляется на основании согласия субъекта персональных данных, которое даётся отдельной отметкой в форме
+регистрации (<a href="consent.html">текст согласия</a>).</p>
+
+<h2>3. Цели, категории субъектов и состав данных</h2>
+<ul>
+  <li><strong>Субъекты:</strong> клиенты Оператора, регистрирующиеся в программе лояльности.</li>
+  <li><strong>Данные:</strong> имя, номер мобильного телефона, сведения о покупках и остатке бонусов, дата и время регистрации,
+  отметки о согласиях, хэш IP-адреса.</li>
+  <li><strong>Цели:</strong> регистрация в программе лояльности, идентификация при покупке по номеру телефона, начисление и учёт
+  бонусов, защита от повторной и недобросовестной регистрации.</li>
+  <li>Специальные категории персональных данных и биометрические данные <strong>не обрабатываются</strong>.</li>
+</ul>
+
+<h2>4. Порядок и условия обработки</h2>
+<ul>
+  <li>Обработка — с использованием средств автоматизации.</li>
+  <li>Доступ к данным имеют сотрудники Оператора, которым он необходим для работы с клиентами (кассиры, администраторы).</li>
+  <li>Оператор поручает хранение и техническое обеспечение обработки: <span data-cfg="processor.name"></span>
+  (ИНН <span data-cfg="processor.inn"></span>). Данные хранятся у хостинг-провайдера: <span data-cfg="hosting"></span>.</li>
+</ul>
+
+<h2>5. Сроки хранения</h2>
+<p>Данные хранятся в течение участия в программе лояльности и <span data-cfg="retention"></span> после последнего обращения клиента.
+После отзыва согласия или достижения целей обработки данные удаляются в срок, установленный законом.</p>
+
+<h2>6. Права субъекта</h2>
+<p>Вы вправе получить информацию об обработке ваших данных, потребовать их уточнения, блокирования или удаления, отозвать согласие
+и обжаловать действия Оператора в Роскомнадзор или в суд. Обращения принимаются по адресу <span data-cfg="operator.email"></span>
+<span data-cfg="operator.phone"></span> и рассматриваются в сроки, установленные законом.</p>
+
+<h2>7. Меры защиты</h2>
+<ul>
+  <li>доступ к базе клиентов ограничен по ролям и защищён секретным ключом;</li>
+  <li>канал передачи данных шифруется;</li>
+  <li>форма регистрации ограничивает частоту обращений и защищена от автоматической отправки;</li>
+  <li>IP-адрес не сохраняется — используется только хэш для ограничения частоты обращений;</li>
+  <li>файлы cookie формой регистрации не используются.</li>
+</ul>
+
+<h2>8. Инциденты</h2>
+<p>О факте утечки персональных данных Оператор уведомляет Роскомнадзор в порядке и сроки, установленные законом.</p>
+
+<h2>9. Изменения политики</h2>
+<p>Новая редакция публикуется на этой странице. Версия текста, с которой согласился клиент, сохраняется вместе с его согласием.</p>
+
+<h2>10. Контакты</h2>
+<p>Ответственный за организацию обработки персональных данных: <span data-cfg="operator.name"></span>,
+<span data-cfg="operator.email"></span> <span data-cfg="operator.phone"></span>.</p>
+
+</main>
+<script src="loyalty-config.js"></script>
+<script>
+  // Подстановка реквизитов из loyalty-config.js. Незаполненное подсвечивается жёлтым.
+  (function(){
+    var cfg = window.STRUKTURA_LOYALTY || {};
+    var labels = {
+      'operator.name': 'наименование оператора', 'operator.inn': 'ИНН оператора',
+      'operator.address': 'адрес оператора', 'operator.email': 'e-mail для обращений',
+      'operator.phone': 'телефон для обращений', 'processor.name': 'обработчик данных',
+      'processor.inn': 'ИНН обработчика', 'hosting': 'место хранения данных'
+    };
+    var required = { 'operator.name':1, 'operator.inn':1, 'operator.address':1, 'operator.email':1, 'processor.name':1, 'hosting':1 };
+    function get(path){
+      var v = path.split('.').reduce(function(o, k){ return o == null ? o : o[k]; }, cfg);
+      return (v == null ? '' : String(v)).trim();
+    }
+    var missing = [];
+    document.querySelectorAll('[data-cfg]').forEach(function(el){
+      var key = el.getAttribute('data-cfg'), v = get(key);
+      if (v){ el.textContent = v; return; }
+      var mark = document.createElement('mark');
+      mark.className = 'todo';
+      mark.textContent = '[заполнить: ' + (labels[key] || key) + ']';
+      el.textContent = '';
+      el.appendChild(mark);
+      if (required[key] && missing.indexOf(key) === -1) missing.push(key);
+    });
+    var banner = document.getElementById('banner');
+    if (missing.length){
+      banner.textContent = 'ТЕСТОВАЯ ВЕРСИЯ. Не заполнены реквизиты в файле loyalty-config.js: ' +
+        missing.map(function(k){ return labels[k]; }).join(', ') +
+        '. Пока они пустые, QR-код гостям раздавать нельзя.';
+      banner.hidden = false;
+    }
+  })();
+</script>
+</body>
+</html>
