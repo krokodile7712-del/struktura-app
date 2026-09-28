@@ -516,7 +516,7 @@ export default function BookingsScreen({ navigation }) {
       ) : (
         <Animated.ScrollView
           contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
-          style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
+          style={{ flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
         >
           {Object.entries(grouped)
             .sort(([a],[b]) => a.localeCompare(b))
@@ -773,7 +773,7 @@ export default function BookingsScreen({ navigation }) {
                 <Text style={styles.emptyTxt}>Нет записей на {fmtDate(selectedCalDate)}</Text>
               </View>
             ) : (
-              <Animated.ScrollView contentContainerStyle={{ padding: 16 }}>
+              <Animated.ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
                 {Object.keys(manualGrouped).sort().map(date => (
                   <View key={date} style={{ marginBottom: 20 }}>
                     <Text style={styles.groupDate}>{fmtDate(date)}</Text>
