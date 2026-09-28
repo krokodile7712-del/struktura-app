@@ -186,3 +186,24 @@ export async function deleteLoyaltySignupByPhone(businessId, secret, phone) {
   if (error) throw error;
   return Number(data) || 0;
 }
+
+// Удаляет одну онлайн-запись из облака (её персональные данные — имя и телефон).
+// Возвращает, сколько строк удалено (0 — такой записи в облаке уже нет).
+export async function deleteBookingCloud(businessId, secret, bookingId) {
+  const { data, error } = await supabase.rpc('delete_booking_secure', {
+    p_business_id: businessId, p_secret: secret, p_booking_id: bookingId,
+  });
+  if (error) throw error;
+  return Number(data) || 0;
+}
+
+// Полная очистка бизнеса в облаке — всё, что он когда-либо туда клал: записи,
+// заявки на регистрацию по QR, настройки, сам бизнес. Только для «Начать заново» —
+// после нет способа отменить.
+export async function wipeBusinessCloudData(businessId, secret) {
+  const { data, error } = await supabase.rpc('wipe_business_cloud_data_secure', {
+    p_business_id: businessId, p_secret: secret,
+  });
+  if (error) throw error;
+  return data || {};
+}

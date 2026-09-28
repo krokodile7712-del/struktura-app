@@ -2,7 +2,10 @@
 // Не фоновая: вызывается при заходе в «Клиенты», при открытии выбора клиента
 // в Кассе и по кнопке обновления. Весь обмен с облаком — через db/supabase.js,
 // при переезде на свой сервер меняются только эти вызовы.
-import { getBusinessIdBySlug, getLoyaltySignups, markLoyaltySignupsImported, deleteLoyaltySignupByPhone } from './supabase';
+import {
+  getBusinessIdBySlug, getLoyaltySignups, markLoyaltySignupsImported, deleteLoyaltySignupByPhone,
+  deleteBookingCloud, wipeBusinessCloudData,
+} from './supabase';
 import {
   getBusinessProfile, getOrCreateBookingSecret, importLoyaltySignup, expireWelcomeBonuses,
   getSetting, setSetting, getClientById, deleteClient,
@@ -110,4 +113,36 @@ export async function deleteClientEverywhere(clientId) {
   if (!queue.includes(phone)) writeQueue([...queue, phone]);
   const res = await flushCloudDeletions();
   return { ok: true, cloud: res.pending > 0 ? 'queued' : 'done', deleted: res.deleted };
+}
+
+// ─── Удаление одной онлайн-записи вместе с облаком ───────────────────────
+// Локальную часть (manual_bookings) экран не трогает — это для записей из
+// источника 'online', у которых личные данные только в облаке.
+export async function deleteBookingEverywhere(businessId, bookingId) {
+  const secret = getOrCreateBookingSecret();
+  if (!secret) return { ok: false };
+  await deleteBookingCloud(businessId, secret, bookingId);
+  return { ok: true };
+}
+
+// ─── Полная очистка бизнеса в облаке перед «Начать заново» ──────────────
+// Вызывать ДО того, как приложение сотрёт свою локальную базу — код и секрет
+// бизнеса нужны, чтобы достучаться до облака, а после сброса их уже не будет.
+// Не критично, если не получится (нет связи, облако не подключалось) —
+// возвращает { ok:false }, вызывающий код просто предупреждает об этом.
+export async function wipeCloudBeforeReset() {
+  try {
+    const profile = getBusinessProfile();
+    const slug = profile?.booking_slug;
+    if (!slug) return { ok: true, skipped: true }; // облако не подключалось — стирать нечего
+    const secret = getOrCreateBookingSecret();
+    if (!secret) return { ok: false };
+    const businessId = await getBusinessIdBySlug(slug);
+    if (!businessId) return { ok: false };
+    const res = await wipeBusinessCloudData(businessId, secret);
+    return { ok: true, ...res };
+  } catch (e) {
+    console.error('[loyaltySync] очистка облака перед сбросом не удалась:', e?.message || e);
+    return { ok: false };
+  }
 }

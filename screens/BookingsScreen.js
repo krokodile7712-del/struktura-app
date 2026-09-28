@@ -12,7 +12,8 @@ import SwipeableRow from '../components/SwipeableRow';
 import BookingsCalendar from '../components/BookingsCalendar';
 import { useResponsive } from '../hooks/useResponsive';
 import { getHomeRoute, goBackSmart, can } from '../db/session';
-import { getBookings, updateBookingStatus } from '../db/supabase';
+import { getBookings, updateBookingStatus, getBusinessIdBySlug } from '../db/supabase';
+import { deleteBookingEverywhere } from '../db/loyaltySync';
 import {
   getBusinessProfile, getManualBookings, getManualBookingsInRange, insertManualBooking,
   updateManualBooking, updateManualBookingStatus, deleteManualBooking, markTourSeen, getOrCreateBookingSecret,
@@ -311,6 +312,24 @@ export default function BookingsScreen({ navigation }) {
     } catch(e) { Alert.alert('Ошибка', e.message); }
   };
 
+  // Удаление онлайн-записи — её персональные данные (имя, телефон) хранятся
+  // только в облаке, локальной копии для этого источника нет
+  const handleDeleteOnline = (b) => {
+    Alert.alert('Удалить запись?', `${b.client_name} · ${b.time_start?.slice(0, 5) || ''}`, [
+      { text: 'Отмена', style: 'cancel' },
+      { text: 'Удалить', style: 'destructive', onPress: async () => {
+        try {
+          const slug = getBusinessProfile()?.booking_slug;
+          const businessId = slug ? await getBusinessIdBySlug(slug) : null;
+          if (!businessId) throw new Error('Нет связи с облаком');
+          await deleteBookingEverywhere(businessId, b.id);
+          setBookings(prev => prev.filter(x => x.id !== b.id));
+          setExpanded(null);
+        } catch (e) { Alert.alert('Не удалось удалить', e.message); }
+      } },
+    ]);
+  };
+
   const filtered = bookings
     .filter(b => filter === 'all' || b.status === filter)
     .filter(b => !selectedCalDate || b.date === selectedCalDate);
@@ -560,6 +579,10 @@ export default function BookingsScreen({ navigation }) {
                                 <Text style={[styles.actionTxt, { color: colors.red }]}>✕ Отменить</Text>
                               </Pressable>
                             )}
+                            <Pressable style={[styles.actionBtn, { borderColor: 'rgba(217,95,95,0.35)' }]}
+                              onPress={() => handleDeleteOnline(b)}>
+                              <Text style={[styles.actionTxt, { color: colors.red }]}>🗑 Удалить</Text>
+                            </Pressable>
                           </View>
                         )}
                       </View>

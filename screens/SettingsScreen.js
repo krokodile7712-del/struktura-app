@@ -7,6 +7,7 @@ import * as Sharing from 'expo-sharing';
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
+import { wipeCloudBeforeReset } from '../db/loyaltySync';
 import TourGuide from '../components/TourGuide';
 import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
 import { useResponsive } from '../hooks/useResponsive';
@@ -1958,13 +1959,20 @@ export default function SettingsScreen({ navigation, route }) {
                     { text: 'Отмена', style: 'cancel' },
                     {
                       text: 'Стереть всё и начать заново', style: 'destructive',
-                      onPress: () => {
+                      onPress: async () => {
                         try {
+                          // Сначала облако — код и секрет бизнеса нужны, чтобы до него достучаться,
+                          // а после сброса локальной базы их уже не будет. Не критично, если не выйдет
+                          // (нет связи, облако не подключалось) — предупредим и всё равно сотрём локально.
+                          const cloudRes = await wipeCloudBeforeReset();
                           const res = resetDatabase(true); // true — стереть и сотрудников тоже
                           resetKassaCart();
                           clearSession();
                           if (res && res.ok === false) {
                             console.error('[Начать заново] Не все таблицы удалились:', res.errors);
+                          }
+                          if (cloudRes && cloudRes.ok === false) {
+                            toast.show('Локальные данные стёрты. Не удалось очистить облако (записи, QR-регистрации) — проверьте связь и повторите позже вручную.', 'warn');
                           }
                           setTimeout(() => {
                             try {

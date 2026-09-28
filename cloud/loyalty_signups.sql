@@ -339,3 +339,81 @@ grant execute on function public.delete_loyalty_signup_secure(public.businesses.
 
 -- Обновить кэш облачного API, чтобы новые функции стали видны сразу
 notify pgrst, 'reload schema';
+
+
+-- ════════════════════════════════════════════════════════════════════════
+-- ДОБАВЛЕНО ПОЗЖЕ: удаление персональных данных (152-ФЗ)
+-- Безопасно выполнять этот файл повторно целиком — весь блок выше не трогает
+-- существующие данные, только создаёт недостающее.
+-- ════════════════════════════════════════════════════════════════════════
+
+-- ── 8. Проверка окружения для этого блока ──────────────────────────────
+-- Таблица bookings (онлайн-записи) создавалась не этим файлом — структуру
+-- предполагаем по тому, что читает приложение (client_name, client_phone,
+-- business_id). Если её нет или поля другие — точно узнаем это здесь,
+-- а не получим молча неработающее удаление.
+do $$
+begin
+  if to_regclass('public.bookings') is null then
+    raise exception 'Нет таблицы public.bookings — пришлите результат: select table_name, column_name, data_type from information_schema.columns where table_schema=''public'' and table_name=''bookings'' order by ordinal_position;';
+  end if;
+  if not exists (select 1 from information_schema.columns where table_schema='public' and table_name='bookings' and column_name='business_id') then
+    raise exception 'В bookings нет колонки business_id — пришлите ту же диагностику, что выше';
+  end if;
+  if not exists (select 1 from information_schema.columns where table_schema='public' and table_name='bookings' and column_name='client_phone') then
+    raise exception 'В bookings нет колонки client_phone — пришлите ту же диагностику, что выше';
+  end if;
+end $$;
+
+-- ── 9. Удаление одной онлайн-записи (кнопка «Удалить» в приложении) ────
+create or replace function public.delete_booking_secure(
+  p_business_id public.businesses.id%type, p_secret text, p_booking_id public.bookings.id%type)
+returns int
+language plpgsql security definer set search_path = public
+as $$
+declare v_n int;
+begin
+  if not public.loyalty_secret_ok(p_business_id, p_secret) then
+    raise exception 'invalid_secret' using errcode = '28000';
+  end if;
+  delete from public.bookings where id = p_booking_id and business_id = p_business_id;
+  get diagnostics v_n = row_count;
+  return v_n;
+end;
+$$;
+revoke all on function public.delete_booking_secure(public.businesses.id%type, text, public.bookings.id%type) from public;
+grant execute on function public.delete_booking_secure(public.businesses.id%type, text, public.bookings.id%type) to anon, authenticated;
+
+-- ── 10. Полная очистка бизнеса в облаке — для «Начать заново» ──────────
+-- Стирает всё, что этот бизнес когда-либо клал в облако: онлайн-записи
+-- (имена и телефоны гостей), заявки на регистрацию по QR, настройки
+-- лояльности и саму строку бизнеса. Вызывается ДО того, как приложение
+-- сотрёт свою локальную базу (иначе стирать будет нечем — код и секрет
+-- бизнеса исчезнут вместе с локальными данными).
+create or replace function public.wipe_business_cloud_data_secure(
+  p_business_id public.businesses.id%type, p_secret text)
+returns jsonb
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_bookings int; v_signups int; v_attempts int;
+begin
+  if not public.loyalty_secret_ok(p_business_id, p_secret) then
+    raise exception 'invalid_secret' using errcode = '28000';
+  end if;
+  delete from public.bookings where business_id = p_business_id;
+  get diagnostics v_bookings = row_count;
+  delete from public.loyalty_signups where business_id = p_business_id;
+  get diagnostics v_signups = row_count;
+  delete from public.loyalty_signup_attempts where business_id = p_business_id;
+  get diagnostics v_attempts = row_count;
+  delete from public.loyalty_config where business_id = p_business_id;
+  delete from public.business_secrets where business_id = p_business_id;
+  delete from public.businesses where id = p_business_id;
+  return jsonb_build_object('bookings', v_bookings, 'signups', v_signups, 'attempts', v_attempts);
+end;
+$$;
+revoke all on function public.wipe_business_cloud_data_secure(public.businesses.id%type, text) from public;
+grant execute on function public.wipe_business_cloud_data_secure(public.businesses.id%type, text) to anon, authenticated;
+
+notify pgrst, 'reload schema';
