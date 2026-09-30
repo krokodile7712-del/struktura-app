@@ -183,15 +183,15 @@ export default function AdminScreen({ navigation }) {
             </View>
 
             {[
-              { label: 'Заказов', value: stats.todayOrders || 0, icon: '🧾', color: colors.indigo },
-              { label: 'Средний чек', value: `${stats.todayOrders > 0 ? Math.round((stats.todayTotal||0) / stats.todayOrders).toLocaleString('ru-RU') : 0} ₽`, icon: '📊', color: colors.orange },
-              { label: 'Наличные', value: `${(stats.todayCash || 0).toLocaleString('ru-RU')} ₽`, icon: '💵', color: colors.green },
-              { label: 'Карта', value: `${(stats.todayCard || 0).toLocaleString('ru-RU')} ₽`, icon: '💳', color: colors.indigo },
+              { label: 'Заказов', value: stats.todayOrders || 0, color: colors.indigo },
+              { label: 'Средний чек', value: `${stats.todayOrders > 0 ? Math.round((stats.todayTotal||0) / stats.todayOrders).toLocaleString('ru-RU') : 0} ₽`, color: colors.orange },
+              { label: 'Наличные', value: `${(stats.todayCash || 0).toLocaleString('ru-RU')} ₽`, color: colors.green },
+              { label: 'Карта', value: `${(stats.todayCard || 0).toLocaleString('ru-RU')} ₽`, color: colors.indigo },
             ].map((s, i) => (
               <View key={i} style={[{ flex: 1, minWidth: '44%', position: 'relative' }, statCardHighlights[i + 1].style]}>
                 <GlassCard style={styles.statGlassCard} radius={14} intensity={35}>
-                  <GlowIcon color={s.color} size={30} style={{ marginBottom: 10 }}>
-                    <Text style={{ fontSize: 14 }}>{s.icon}</Text>
+                  <GlowIcon color={s.color} size={22} style={{ marginBottom: 12 }}>
+                    <View style={[styles.statDot, { backgroundColor: s.color }]} />
                   </GlowIcon>
                   <Text style={styles.statVal}>{s.value}</Text>
                   <Text style={styles.statLbl}>{s.label}</Text>
@@ -260,6 +260,7 @@ const styles = StyleSheet.create({
   revenueLbl:  { fontFamily: fonts.familyBold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: 'rgba(36,23,8,0.6)', marginBottom: 8 },
   revenueVal:  { fontFamily: fonts.display, fontSize: 34, color: '#241708' },
   statGlassCard: { minHeight: 96 },
+  statDot: { width: 8, height: 8, borderRadius: 4 },
   shiftDot:    { width: 10, height: 10, borderRadius: 5 },
   statCard:    { flex: 1, minWidth: '44%', backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.borderHi, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 10, elevation: 3 },
   statVal:     { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.text, marginBottom: 2 },

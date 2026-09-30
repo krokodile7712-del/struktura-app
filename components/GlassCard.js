@@ -26,10 +26,14 @@ export default function GlassCard({ children, style, intensity = 40, radius: r =
         intensity={intensity}
         tint="dark"
         style={StyleSheet.absoluteFill}
-        // На Android expo-blur исторически слабее/непредсказуемее, чем на iOS —
-        // если размытие не тянет, снизу всё равно есть тонирующий градиент ниже,
-        // карточка не станет просто прозрачной дырой.
-        experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : undefined}
+        // На этой версии expo-blur настоящий блюр на Android требует
+        // отдельной привязки (blurTarget — ссылка на то, что именно
+        // размывать, отдельным слоем) — для karточек такого размера
+        // визуально давало бы немного (под ними просто ровный фон, размывать
+        // особо нечего), а сложность добавляет ощутимую. 'none' — честно,
+        // без предупреждений в консоли; стеклянность несут градиент и
+        // светлая кромка ниже, не буквальное размытие
+        blurMethod={Platform.OS === 'android' ? 'none' : undefined}
       />
       <LinearGradient
         colors={['rgba(255,255,255,0.09)', 'rgba(255,255,255,0.02)']}
