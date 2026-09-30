@@ -100,6 +100,17 @@ export const fonts = {
   displaySemibold: 'Unbounded_600SemiBold',
 };
 
+// ─── ПОМОЩНИКИ ───────────────────────────────────────────────────────────────
+// Прозрачная версия любого hex-цвета из палитры — для точечного свечения
+// за иконками (GlowIcon) и мягких подложек под акцентные бейджи.
+export function withOpacity(hex, alpha) {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 // ─── ТЕНИ ────────────────────────────────────────────────────────────────────
 export const shadows = {
   card: {
