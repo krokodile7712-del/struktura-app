@@ -6,11 +6,13 @@ import NextStepsCard from '../components/NextStepsCard';
 import EmployeeStatsSheet from '../components/EmployeeStatsSheet';
 import TourGuide from '../components/TourGuide';
 import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
+import GoldCard from '../components/GoldCard';
+import GlowIcon from '../components/GlowIcon';
 import {
   getOpenShift, getBusinessProfile, getDashboardStats, getRoleNames, markTourSeen,
 } from '../db/queries';
 import { getSession } from '../db/session';
-import { colors, fonts } from '../constants/theme';
+import { colors, fonts, withOpacity } from '../constants/theme';
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -153,7 +155,7 @@ export default function AdminScreen({ navigation }) {
               <Text style={styles.avatarTxt}>{(sessionName || '?').charAt(0).toUpperCase()}</Text>
             </Pressable>
             <View style={{ flex: 1 }}>
-              <Text style={styles.panelGreeting}>{getGreeting()}{sessionName ? `, ${sessionName}` : ''}</Text>
+              <Text style={styles.panelGreeting}>{getGreeting()}{sessionName ? <Text style={styles.panelGreetingName}>{`, ${sessionName}`}</Text> : ''}</Text>
               <Text style={styles.panelSub}>{profile?.business_name || 'Сводка за сегодня'}</Text>
             </View>
           </View>
@@ -164,17 +166,29 @@ export default function AdminScreen({ navigation }) {
           </View>
 
           <View style={[styles.statsGrid, { position: 'relative' }, statsGridHighlight.style]} onLayout={rememberY('admin.statsGrid')}>
+
+            {/* Выручка — единственная золотая карточка на экране: то, что
+                действительно главное сегодня. Остальные карточки остаются
+                обычными — если золотым будет всё, оно перестанет что-то
+                значить (тот же принцип, что и в MetalButton/GoldCard). */}
+            <View style={[{ width: '100%', position: 'relative' }, statCardHighlights[0].style]}>
+              <GoldCard style={styles.revenueCard}>
+                <Text style={styles.revenueLbl}>Выручка сегодня</Text>
+                <Text style={styles.revenueVal}>{(stats.todayTotal || 0).toLocaleString('ru-RU')} ₽</Text>
+              </GoldCard>
+              {statCardHighlights[0].overlay}
+            </View>
+
             {[
-              { label: 'Выручка', value: `${(stats.todayTotal || 0).toLocaleString('ru-RU')} ₽` },
               { label: 'Заказов', value: stats.todayOrders || 0 },
               { label: 'Средний чек', value: `${stats.todayOrders > 0 ? Math.round((stats.todayTotal||0) / stats.todayOrders).toLocaleString('ru-RU') : 0} ₽` },
               { label: 'Наличные', value: `${(stats.todayCash || 0).toLocaleString('ru-RU')} ₽` },
               { label: 'Карта', value: `${(stats.todayCard || 0).toLocaleString('ru-RU')} ₽` },
             ].map((s, i) => (
-              <View key={i} style={[styles.statCard, { position: 'relative' }, statCardHighlights[i].style]}>
+              <View key={i} style={[styles.statCard, { position: 'relative' }, statCardHighlights[i + 1].style]}>
                 <Text style={styles.statVal}>{s.value}</Text>
                 <Text style={styles.statLbl}>{s.label}</Text>
-                {statCardHighlights[i].overlay}
+                {statCardHighlights[i + 1].overlay}
               </View>
             ))}
 
@@ -197,6 +211,9 @@ export default function AdminScreen({ navigation }) {
               onPress={() => navigation.navigate(stats.shift ? 'ShiftClose' : 'Shift')}
               onLayout={rememberY('admin.statsGrid.shiftAction')}
             >
+              <GlowIcon color={stats.shift ? colors.green : colors.red} size={34} style={{ marginRight: 12 }}>
+                <View style={[styles.shiftDot, { backgroundColor: stats.shift ? colors.green : colors.red }]} />
+              </GlowIcon>
               <View style={{ flex: 1 }}>
                 <Text style={styles.shiftStatVal}>{stats.shift ? (stats.shiftDuration || '—') : 'Не открыта'}</Text>
                 <Text style={styles.statLbl}>{stats.shift ? 'Смена открыта' : 'Смена закрыта'}</Text>
@@ -226,22 +243,27 @@ const styles = StyleSheet.create({
   root:        { flex: 1, backgroundColor: colors.bg },
 
   panelContent:{ padding: 24, paddingBottom: 40 },
-  panelGreeting:{ fontFamily: fonts.family, fontSize: 24, fontWeight: '800', color: colors.text, marginBottom: 4 },
+  panelGreeting:{ fontFamily: fonts.familyRegular, fontSize: 15, color: colors.textDim, marginBottom: 4 },
+  panelGreetingName: { fontFamily: fonts.display, fontSize: 24, color: colors.text },
   panelSub:    { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginBottom: 24 },
 
   statsGrid:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
+  revenueCard: { marginBottom: 2 },
+  revenueLbl:  { fontFamily: fonts.familyBold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: 'rgba(36,23,8,0.6)', marginBottom: 8 },
+  revenueVal:  { fontFamily: fonts.display, fontSize: 34, color: '#241708' },
+  shiftDot:    { width: 10, height: 10, borderRadius: 5 },
   statCard:    { flex: 1, minWidth: '44%', backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.borderHi, padding: 16 },
   statVal:     { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.text, marginBottom: 2 },
   statLbl:     { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
 
   shiftStatCard:       { flexDirection: 'row', alignItems: 'center', borderWidth: 2 },
   shiftStatVal:        { fontFamily: fonts.familySemibold, fontSize: 17, color: colors.text, marginBottom: 2 },
-  shiftStatCardClosed: { borderColor: colors.red, backgroundColor: 'rgba(217,95,95,0.09)' },
-  shiftStatCardOpen:   { borderColor: colors.green, backgroundColor: 'rgba(123,175,142,0.1)' },
+  shiftStatCardClosed: { borderColor: colors.red, backgroundColor: withOpacity(colors.red, 0.09) },
+  shiftStatCardOpen:   { borderColor: colors.green, backgroundColor: withOpacity(colors.green, 0.1) },
   shiftStatChevron:    { fontSize: 24, fontWeight: '800' },
 
-  stockBanner:     { backgroundColor: 'rgba(217,95,95,0.06)', borderWidth: 1, borderColor: 'rgba(217,95,95,0.25)', borderRadius: 12, padding: 10, paddingHorizontal: 16, marginBottom: 16 },
-  stockBannerOpen: { backgroundColor: 'rgba(217,95,95,0.09)' },
+  stockBanner:     { backgroundColor: withOpacity(colors.red, 0.06), borderWidth: 1, borderColor: withOpacity(colors.red, 0.25), borderRadius: 12, padding: 10, paddingHorizontal: 16, marginBottom: 16 },
+  stockBannerOpen: { backgroundColor: withOpacity(colors.red, 0.09) },
   stockBannerRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   stockBannerTxt:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.red },
   stockBannerChevron: { fontSize: 10, color: colors.red, opacity: 0.7 },
@@ -249,12 +271,12 @@ const styles = StyleSheet.create({
   stockBannerLink: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.red, marginTop: 8, textDecorationLine: 'underline' },
 
   shiftSep:    { height: 1, backgroundColor: colors.border, marginVertical: 16 },
-  shiftCloseBtn: { backgroundColor: 'rgba(217,95,95,0.07)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(217,95,95,0.3)', padding: 16, marginTop: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  shiftCloseBtn: { backgroundColor: withOpacity(colors.red, 0.07), borderRadius: 14, borderWidth: 1, borderColor: withOpacity(colors.red, 0.3), padding: 16, marginTop: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   shiftCloseTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red, marginBottom: 3 },
   shiftCloseSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
-  shiftOpenBtn: { backgroundColor: 'rgba(123,175,142,0.08)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(123,175,142,0.3)', padding: 16, marginTop: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  shiftOpenBtn: { backgroundColor: withOpacity(colors.green, 0.08), borderRadius: 14, borderWidth: 1, borderColor: withOpacity(colors.green, 0.3), padding: 16, marginTop: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   shiftOpenTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.green, marginBottom: 3 },
   shiftOpenSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
-  tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
+  tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: withOpacity(colors.orange, 0.1), borderWidth: 1, borderColor: withOpacity(colors.orange, 0.4), alignItems: 'center', justifyContent: 'center' },
   tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.orange },
 });
