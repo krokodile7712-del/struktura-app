@@ -7,13 +7,18 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNav from './components/AppNav';
 import { useResponsive } from './hooks/useResponsive';
+import { useFonts } from 'expo-font';
 import {
-  useFonts,
-  AnekDevanagari_400Regular,
-  AnekDevanagari_600SemiBold,
-  AnekDevanagari_700Bold,
-  AnekDevanagari_800ExtraBold,
-} from '@expo-google-fonts/anek-devanagari';
+  Unbounded_600SemiBold,
+  Unbounded_700Bold,
+} from '@expo-google-fonts/unbounded';
+import {
+  Manrope_400Regular,
+  Manrope_500Medium,
+  Manrope_600SemiBold,
+  Manrope_700Bold,
+  Manrope_800ExtraBold,
+} from '@expo-google-fonts/manrope';
 
 import AppBackground from './components/AppBackground';
 import { ToastProvider } from './components/Toast';
@@ -78,10 +83,13 @@ export default function App() {
   const NAV_SCREENS = ['Products', 'Admin', 'Dashboard', 'Sales', 'ClientsList', 'Reports', 'Expenses', 'Finances', 'Locations', 'Inventory', 'Kassa', 'Equipment', 'Investments', 'Overheads', 'WorkJournal', 'Bookings', 'Employees', 'Settings'];
 
   const [fontsLoaded] = useFonts({
-    AnekDevanagari_400Regular,
-    AnekDevanagari_600SemiBold,
-    AnekDevanagari_700Bold,
-    AnekDevanagari_800ExtraBold,
+    Unbounded_600SemiBold,
+    Unbounded_700Bold,
+    Manrope_400Regular,
+    Manrope_500Medium,
+    Manrope_600SemiBold,
+    Manrope_700Bold,
+    Manrope_800ExtraBold,
   });
 
   const [dbReady, setDbReady] = useState(false);

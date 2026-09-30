@@ -2171,8 +2171,8 @@ export default function SettingsScreen({ navigation, route }) {
       <TopBar title="Настройки" onBack={() => goBackSmart(navigation)} navigation={navigation} activeScreen="Settings" />
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
         <Text style={{ fontSize: 32, marginBottom: 16 }}>🔒</Text>
-        <Text style={{ fontFamily: 'AnekDevanagari_700Bold', fontSize: 18, color: colors.text, textAlign: 'center' }}>Нет доступа</Text>
-        <Text style={{ fontFamily: 'AnekDevanagari_400Regular', fontSize: 14, color: colors.muted, textAlign: 'center', marginTop: 8 }}>Обратитесь к администратору, чтобы получить доступ к этому разделу.</Text>
+        <Text style={{ fontFamily: 'Unbounded_700Bold', fontSize: 18, color: colors.text, textAlign: 'center' }}>Нет доступа</Text>
+        <Text style={{ fontFamily: 'Manrope_400Regular', fontSize: 14, color: colors.muted, textAlign: 'center', marginTop: 8 }}>Обратитесь к администратору, чтобы получить доступ к этому разделу.</Text>
       </View>
     </View>
   );

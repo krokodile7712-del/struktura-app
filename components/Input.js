@@ -29,7 +29,7 @@ export const inputStyle = {
   borderRadius: radius.sm,
   color: colors.text,
   fontSize: 15,
-  fontFamily: 'AnekDevanagari_400Regular',
+  fontFamily: 'Manrope_400Regular',
   marginBottom: 4,
 };
 
