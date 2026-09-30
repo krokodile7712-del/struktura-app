@@ -8,6 +8,7 @@ import TourGuide from '../components/TourGuide';
 import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
 import GoldCard from '../components/GoldCard';
 import GlowIcon from '../components/GlowIcon';
+import ScreenGlow from '../components/ScreenGlow';
 import {
   getOpenShift, getBusinessProfile, getDashboardStats, getRoleNames, markTourSeen,
 } from '../db/queries';
@@ -104,6 +105,7 @@ export default function AdminScreen({ navigation }) {
 
   return (
     <View style={styles.root}>
+      <ScreenGlow />
       <TopBar
         title={roleNames.admin || 'Администратор'}
         navigation={navigation}
@@ -240,7 +242,7 @@ export default function AdminScreen({ navigation }) {
 const styles = StyleSheet.create({
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   avatarTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.orange },
-  root:        { flex: 1 }, // без своего backgroundColor — сквозь экран должно быть видно атмосферное свечение AppBackground под ним
+  root:        { flex: 1, backgroundColor: colors.bg, overflow: 'hidden' },
 
   panelContent:{ padding: 24, paddingBottom: 40 },
   panelGreeting:{ fontFamily: fonts.familyRegular, fontSize: 15, color: colors.textDim, marginBottom: 4 },
