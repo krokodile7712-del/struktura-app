@@ -14,7 +14,8 @@ import {
   getOpenShift, getBusinessProfile, getDashboardStats, getRoleNames, markTourSeen,
 } from '../db/queries';
 import { getSession } from '../db/session';
-import { colors, fonts, withOpacity } from '../constants/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { colors, fonts, withOpacity, gradients } from '../constants/theme';
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -155,6 +156,13 @@ export default function AdminScreen({ navigation }) {
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <Pressable style={styles.avatar} onPress={() => setMeOpen(true)} hitSlop={8}>
+              <LinearGradient
+                colors={gradients.metalGold}
+                locations={gradients.metalGoldLocations}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
               <Text style={styles.avatarTxt}>{(sessionName || '?').charAt(0).toUpperCase()}</Text>
             </Pressable>
             <View style={{ flex: 1 }}>
@@ -209,7 +217,6 @@ export default function AdminScreen({ navigation }) {
                 показывался статус смены. */}
             <Pressable
               style={({ pressed }) => [
-                styles.statCard,
                 styles.shiftStatCard,
                 stats.shift ? styles.shiftStatCardOpen : styles.shiftStatCardClosed,
                 { position: 'relative' },
@@ -219,6 +226,14 @@ export default function AdminScreen({ navigation }) {
               onPress={() => navigation.navigate(stats.shift ? 'ShiftClose' : 'Shift')}
               onLayout={rememberY('admin.statsGrid.shiftAction')}
             >
+              <LinearGradient
+                colors={stats.shift
+                  ? [withOpacity(colors.green, 0.14), withOpacity(colors.green, 0.03)]
+                  : [withOpacity(colors.red, 0.14), withOpacity(colors.red, 0.03)]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
               <GlowIcon color={stats.shift ? colors.green : colors.red} size={34} style={{ marginRight: 12 }}>
                 <View style={[styles.shiftDot, { backgroundColor: stats.shift ? colors.green : colors.red }]} />
               </GlowIcon>
@@ -246,8 +261,7 @@ export default function AdminScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  avatarTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.orange },
+  avatarTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: '#241708' },
   root:        { flex: 1, backgroundColor: colors.bg, overflow: 'hidden' },
 
   panelContent:{ padding: 24, paddingBottom: 40 },
@@ -263,13 +277,18 @@ const styles = StyleSheet.create({
   statDot: { width: 8, height: 8, borderRadius: 4 },
   shiftDot:    { width: 10, height: 10, borderRadius: 5 },
   statCard:    { flex: 1, minWidth: '44%', backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.borderHi, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 10, elevation: 3 },
+  avatar: { width: 44, height: 44, borderRadius: 22, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   statVal:     { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.text, marginBottom: 2 },
   statLbl:     { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
 
-  shiftStatCard:       { flexDirection: 'row', alignItems: 'center', borderWidth: 2 },
+  shiftStatCard: {
+    flex: 1, minWidth: '44%', flexDirection: 'row', alignItems: 'center',
+    borderRadius: 12, borderWidth: 2, padding: 16, overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 18, elevation: 6,
+  },
   shiftStatVal:        { fontFamily: fonts.familySemibold, fontSize: 17, color: colors.text, marginBottom: 2 },
-  shiftStatCardClosed: { borderColor: colors.red, backgroundColor: withOpacity(colors.red, 0.09) },
-  shiftStatCardOpen:   { borderColor: colors.green, backgroundColor: withOpacity(colors.green, 0.1) },
+  shiftStatCardClosed: { borderColor: colors.red },
+  shiftStatCardOpen:   { borderColor: colors.green },
   shiftStatChevron:    { fontSize: 24, fontWeight: '800' },
 
   stockBanner:     { backgroundColor: withOpacity(colors.red, 0.06), borderWidth: 1, borderColor: withOpacity(colors.red, 0.25), borderRadius: 12, padding: 10, paddingHorizontal: 16, marginBottom: 16 },
