@@ -240,7 +240,7 @@ export default function AdminScreen({ navigation }) {
 const styles = StyleSheet.create({
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   avatarTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.orange },
-  root:        { flex: 1, backgroundColor: colors.bg },
+  root:        { flex: 1 }, // без своего backgroundColor — сквозь экран должно быть видно атмосферное свечение AppBackground под ним
 
   panelContent:{ padding: 24, paddingBottom: 40 },
   panelGreeting:{ fontFamily: fonts.familyRegular, fontSize: 15, color: colors.textDim, marginBottom: 4 },
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
   revenueLbl:  { fontFamily: fonts.familyBold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: 'rgba(36,23,8,0.6)', marginBottom: 8 },
   revenueVal:  { fontFamily: fonts.display, fontSize: 34, color: '#241708' },
   shiftDot:    { width: 10, height: 10, borderRadius: 5 },
-  statCard:    { flex: 1, minWidth: '44%', backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.borderHi, padding: 16 },
+  statCard:    { flex: 1, minWidth: '44%', backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.borderHi, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 10, elevation: 3 },
   statVal:     { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.text, marginBottom: 2 },
   statLbl:     { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
 
