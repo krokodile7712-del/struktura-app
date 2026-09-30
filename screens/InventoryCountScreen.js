@@ -9,6 +9,7 @@ import {
 } from '../db/queries';
 import { useToast } from '../components/Toast';
 import { colors, fonts, spacing } from '../constants/theme';
+import FitView from '../components/FitView';
 
 function fmtDate(iso) {
   if (!iso) return '';
@@ -234,7 +235,7 @@ export default function InventoryCountScreen({ navigation, route }) {
       <Modal visible={reviewModal} transparent animationType="fade" onRequestClose={() => setReviewModal(false)}>
         <View style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setReviewModal(false)} />
-          <View style={[styles.modalInner, { maxHeight: '80%' }]}>
+          <FitView style={[styles.modalInner, { maxHeight: '80%' }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Итоги инвентаризации</Text>
               <Pressable onPress={() => setReviewModal(false)} hitSlop={12}>
@@ -300,7 +301,7 @@ export default function InventoryCountScreen({ navigation, route }) {
               <MetalButton title="← Вернуться" variant="back" onPress={() => setReviewModal(false)} style={{ flex: 1 }} />
               <MetalButton title="✓ Подтвердить" variant="success" onPress={handleConfirm} style={{ flex: 1 }} />
             </View>
-          </View>
+          </FitView>
         </View>
       </Modal>
     </View>

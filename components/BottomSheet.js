@@ -1,11 +1,10 @@
 import React, { useRef, useEffect } from 'react';
 import {
   Modal, View, Text, StyleSheet, Pressable,
-  Animated, ScrollView, Dimensions,
+  Animated, ScrollView, useWindowDimensions,
 } from 'react-native';
 import { colors, fonts, radius } from '../constants/theme';
 
-const { height: SCREEN_H } = Dimensions.get('window');
 
 /**
  * Bottom Sheet — панель снизу экрана с пружинным открытием.
@@ -29,8 +28,11 @@ export default function BottomSheet({
   onClose,
   title,
   children,
-  maxHeight = SCREEN_H * 0.65,
+  maxHeight: maxHeightProp,
 }) {
+  // Высота считается живо — при повороте экрана лист не остаётся со старым лимитом
+  const { height: screenH } = useWindowDimensions();
+  const maxHeight = maxHeightProp ?? screenH * 0.65;
   const translateY = useRef(new Animated.Value(maxHeight)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
 

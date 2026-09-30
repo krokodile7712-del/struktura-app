@@ -48,6 +48,8 @@ import {
   getBusinessIdBySlug, getCustomServices, addCustomService, updateCustomService, deleteCustomService,
 } from '../db/supabase';
 import { useToast } from '../components/Toast';
+import FitView from '../components/FitView';
+import KeyboardSafe from '../components/KeyboardSafe';
 
 // SectionAccordion — в 2-колоночном layout просто передаёт children
 // Тип бизнеса — та же логика, что раньше была в мастере настройки (Онбординг),
@@ -2313,10 +2315,10 @@ export default function SettingsScreen({ navigation, route }) {
 
 
       <Modal visible={!!zoneModal} transparent animationType="fade" onRequestClose={() => setZoneModal(null)}>
-        <View style={styles.modalRoot}>
+        <KeyboardSafe style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setZoneModal(null)} />
           {zoneModal && (
-            <View style={[styles.modalInner, { width: '55%', maxWidth: 500, maxHeight: '88%' }]}>
+            <FitView style={[styles.modalInner, { width: '55%', maxWidth: 500, maxHeight: '88%' }]}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>{zoneModal.id ? `Зона: ${zoneModal.name}` : 'Новая зона'}</Text>
                 <Pressable onPress={() => setZoneModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
@@ -2409,17 +2411,17 @@ export default function SettingsScreen({ navigation, route }) {
                   <Hint>После создания вы сможете добавить столы к этой зоне.</Hint>
                 )}
               </ScrollView>
-            </View>
+            </FitView>
           )}
-        </View>
+        </KeyboardSafe>
       </Modal>
 
       {/* Модалка скидки */}
       <Modal visible={!!discountModal} transparent animationType="fade" onRequestClose={() => setDiscountModal(null)}>
-        <View style={styles.modalRoot}>
+        <KeyboardSafe style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setDiscountModal(null)} />
           {discountModal && (
-            <View style={styles.modalInner}>
+            <FitView style={styles.modalInner}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>{discountModal.index === -1 ? 'Новая скидка' : 'Изменить скидку'}</Text>
                 <Pressable onPress={() => setDiscountModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
@@ -2438,16 +2440,16 @@ export default function SettingsScreen({ navigation, route }) {
                   </Pressable>
                 )}
               </View>
-            </View>
+            </FitView>
           )}
-        </View>
+        </KeyboardSafe>
       </Modal>
 
       {/* Пикер добавления товара в скидку на товар */}
       <Modal visible={discAddProductOpen} transparent animationType="fade" onRequestClose={() => setDiscAddProductOpen(false)}>
         <View style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setDiscAddProductOpen(false)} />
-          <View style={[styles.modalInner, { maxHeight: '70%' }]}>
+          <FitView style={[styles.modalInner, { maxHeight: '70%' }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Добавить товар</Text>
               <Pressable onPress={() => setDiscAddProductOpen(false)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
@@ -2475,7 +2477,7 @@ export default function SettingsScreen({ navigation, route }) {
                 ))
               )}
             </ScrollView>
-          </View>
+          </FitView>
         </View>
       </Modal>
 
@@ -2483,7 +2485,7 @@ export default function SettingsScreen({ navigation, route }) {
       <Modal visible={discAddClientOpen} transparent animationType="fade" onRequestClose={() => setDiscAddClientOpen(false)}>
         <View style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setDiscAddClientOpen(false)} />
-          <View style={[styles.modalInner, { maxHeight: '70%' }]}>
+          <FitView style={[styles.modalInner, { maxHeight: '70%' }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Выбрать клиента</Text>
               <Pressable onPress={() => setDiscAddClientOpen(false)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
@@ -2511,16 +2513,16 @@ export default function SettingsScreen({ navigation, route }) {
                 ))
               )}
             </ScrollView>
-          </View>
+          </FitView>
         </View>
       </Modal>
 
       {/* Ввод процента личной скидки для выбранного клиента */}
       <Modal visible={!!discClientPctModal} transparent animationType="fade" onRequestClose={() => setDiscClientPctModal(null)}>
-        <View style={styles.modalRoot}>
+        <KeyboardSafe style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setDiscClientPctModal(null)} />
           {discClientPctModal && (
-            <View style={styles.modalInner}>
+            <FitView style={styles.modalInner}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>{discClientPctModal.client.fio}</Text>
                 <Pressable onPress={() => setDiscClientPctModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
@@ -2539,17 +2541,17 @@ export default function SettingsScreen({ navigation, route }) {
               <Pressable style={({ pressed }) => [styles.discSaveBtn, { marginTop: 12 }, pressed && { opacity: 0.85 }]} onPress={saveClientDiscountPct}>
                 <Text style={styles.discSaveBtnTxt}>Сохранить</Text>
               </Pressable>
-            </View>
+            </FitView>
           )}
-        </View>
+        </KeyboardSafe>
       </Modal>
 
       {/* Модалка способа оплаты */}
       <Modal visible={!!payMethodModal} transparent animationType="fade" onRequestClose={() => setPayMethodModal(null)}>
-        <View style={styles.modalRoot}>
+        <KeyboardSafe style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setPayMethodModal(null)} />
           {payMethodModal && (
-            <View style={styles.modalInner}>
+            <FitView style={styles.modalInner}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>{payMethodModal.index === -1 ? 'Новый способ оплаты' : 'Изменить способ оплаты'}</Text>
                 <Pressable onPress={() => setPayMethodModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
@@ -2602,17 +2604,17 @@ export default function SettingsScreen({ navigation, route }) {
                   <MetalButton title="Удалить" variant="danger" onPress={deletePayMethod} style={{ flex: 1 }} />
                 )}
               </View>
-            </View>
+            </FitView>
           )}
-        </View>
+        </KeyboardSafe>
       </Modal>
 
 
       <Modal visible={!!empModal} transparent animationType="fade" onRequestClose={() => setEmpModal(null)}>
-        <View style={styles.prodModalRoot}>
+        <KeyboardSafe style={styles.prodModalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setEmpModal(null)} />
           {empModal && (
-            <View style={styles.empModalBox}>
+            <FitView style={styles.empModalBox}>
               {/* Шапка */}
               <View style={styles.prodModalHeader}>
                 <Text style={styles.prodModalTitle}>{empModal.id ? 'Редактировать сотрудника' : 'Новый сотрудник'}</Text>
@@ -2928,9 +2930,9 @@ export default function SettingsScreen({ navigation, route }) {
 
 
               </View>
-            </View>
+            </FitView>
           )}
-        </View>
+        </KeyboardSafe>
       </Modal>
 
       {/* QR Модалка */}
@@ -2939,7 +2941,7 @@ export default function SettingsScreen({ navigation, route }) {
         <View style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setReceiptPreview(false)} />
           {bizDraft && (
-          <View style={styles.receiptBox}>
+          <FitView style={styles.receiptBox}>
             <ScrollView contentContainerStyle={{ padding: 16 }}>
               <View style={styles.receiptPaper}>
                 <Text style={styles.receiptBizName}>{bizDraft.receiptName || bizDraft.businessName || 'Название бизнеса'}</Text>
@@ -2972,7 +2974,7 @@ export default function SettingsScreen({ navigation, route }) {
             <Pressable style={{ padding: 16, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border }} onPress={() => setReceiptPreview(false)}>
               <Text style={{ fontFamily: fonts.familySemibold, fontSize: 15, color: colors.orange }}>Закрыть</Text>
             </Pressable>
-          </View>
+          </FitView>
           )}
         </View>
       </Modal>
@@ -3007,7 +3009,7 @@ export default function SettingsScreen({ navigation, route }) {
       <Modal visible={positionsModal} transparent animationType="fade" onRequestClose={() => setPositionsModal(false)}>
         <View style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setPositionsModal(false)} />
-          <View style={[styles.modalInner, { maxHeight: '85%' }]}>
+          <FitView style={[styles.modalInner, { maxHeight: '85%' }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Позиции для записи</Text>
               <Pressable onPress={() => setPositionsModal(false)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
@@ -3077,16 +3079,16 @@ export default function SettingsScreen({ navigation, route }) {
                 </View>
               )}
             </ScrollView>
-          </View>
+          </FitView>
         </View>
       </Modal>
 
       {/* Модалка описания товара из меню — только для страницы записи */}
       <Modal visible={!!menuDescModal} transparent animationType="fade" onRequestClose={() => setMenuDescModal(null)}>
-        <View style={styles.modalRoot}>
+        <KeyboardSafe style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setMenuDescModal(null)} />
           {menuDescModal && (
-            <View style={styles.modalInner}>
+            <FitView style={styles.modalInner}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>{menuDescModal.name}</Text>
                 <Pressable onPress={() => setMenuDescModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
@@ -3103,17 +3105,17 @@ export default function SettingsScreen({ navigation, route }) {
               <Pressable style={[styles.discSaveBtn, { marginTop: 8 }]} onPress={saveMenuDescModal}>
                 <Text style={styles.discSaveBtnTxt}>Сохранить</Text>
               </Pressable>
-            </View>
+            </FitView>
           )}
-        </View>
+        </KeyboardSafe>
       </Modal>
 
       {/* Модалка своей позиции для записи */}
       <Modal visible={!!customItemModal} transparent animationType="fade" onRequestClose={() => setCustomItemModal(null)}>
-        <View style={styles.modalRoot}>
+        <KeyboardSafe style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCustomItemModal(null)} />
           {customItemModal && (
-            <View style={styles.modalInner}>
+            <FitView style={styles.modalInner}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>{customItemModal.id ? 'Изменить позицию' : 'Новая позиция'}</Text>
                 <Pressable onPress={() => setCustomItemModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
@@ -3151,9 +3153,9 @@ export default function SettingsScreen({ navigation, route }) {
                   </Pressable>
                 )}
               </View>
-            </View>
+            </FitView>
           )}
-        </View>
+        </KeyboardSafe>
       </Modal>
 
       <TourGuide

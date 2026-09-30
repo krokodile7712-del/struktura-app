@@ -38,22 +38,26 @@ export default function Sheet({ visible, onClose, onBack, title, children, sideW
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
-  const closeThreshold = isBottom ? 110 : 90;
+  // PanResponder создаётся один раз и замыкает первый рендер — поэтому актуальное
+  // положение (снизу/сбоку) читаем из ref, иначе после поворота экрана при открытом
+  // окне жест закрытия работал бы в старую сторону.
+  const isBottomRef = useRef(isBottom);
+  isBottomRef.current = isBottom;
   const pan = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
       onStartShouldSetPanResponderCapture: () => false,
       onMoveShouldSetPanResponder: (_, g) =>
-        isBottom ? g.dy > 4 && Math.abs(g.dy) > Math.abs(g.dx) : g.dx > 4 && Math.abs(g.dx) > Math.abs(g.dy),
+        isBottomRef.current ? g.dy > 4 && Math.abs(g.dy) > Math.abs(g.dx) : g.dx > 4 && Math.abs(g.dx) > Math.abs(g.dy),
       onMoveShouldSetPanResponderCapture: (_, g) =>
-        isBottom ? g.dy > 4 && Math.abs(g.dy) > Math.abs(g.dx) : g.dx > 4 && Math.abs(g.dx) > Math.abs(g.dy),
+        isBottomRef.current ? g.dy > 4 && Math.abs(g.dy) > Math.abs(g.dx) : g.dx > 4 && Math.abs(g.dx) > Math.abs(g.dy),
       onPanResponderMove: (_, g) => {
-        const delta = isBottom ? g.dy : g.dx;
+        const delta = isBottomRef.current ? g.dy : g.dx;
         if (delta > 0) translateAnim.setValue(delta);
       },
       onPanResponderRelease: (_, g) => {
-        const delta = isBottom ? g.dy : g.dx;
-        if (delta > closeThreshold) {
+        const delta = isBottomRef.current ? g.dy : g.dx;
+        if (delta > (isBottomRef.current ? 110 : 90)) {
           onClose?.();
         } else {
           Animated.spring(translateAnim, { toValue: 0, useNativeDriver: true, tension: 65, friction: 12 }).start();

@@ -20,6 +20,8 @@ import { useResponsive } from '../../hooks/useResponsive';
 import { useTourHighlight } from '../TourRegistry';
 import InfoTip from '../InfoTip';
 import UnitPicker from '../UnitPicker';
+import FitView from '../FitView';
+import KeyboardSafe from '../KeyboardSafe';
 
 function updateStockLocal(itemId, newValue) {
   const db = getDb();
@@ -587,7 +589,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
       <Modal visible={!!deletePrompt} transparent animationType="fade" onRequestClose={() => setDeletePrompt(null)}>
         <View style={styles.modalOverlay}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setDeletePrompt(null)} />
-          <View style={[styles.catModalBox, { maxHeight: '70%' }]}>
+          <FitView style={[styles.catModalBox, { maxHeight: '70%' }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Удалить «{deletePrompt?.name}»?</Text>
               <Pressable onPress={() => setDeletePrompt(null)} hitSlop={14} style={styles.modalClose}>
@@ -631,7 +633,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
                 </>
               )}
             </ScrollView>
-          </View>
+          </FitView>
         </View>
       </Modal>
 
@@ -793,7 +795,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
       <Modal visible={catModal} transparent animationType="fade" onRequestClose={() => setCatModal(false)}>
         <View style={styles.modalOverlay}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCatModal(false)} />
-          <View style={styles.catModalBox}>
+          <FitView style={styles.catModalBox}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Категории склада</Text>
               <Pressable onPress={() => setCatModal(false)} hitSlop={14} style={styles.modalClose}>
@@ -823,15 +825,15 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
                 })}
               </View>
             </ScrollView>
-          </View>
+          </FitView>
         </View>
       </Modal>
 
       {/* Переименование / удаление категории */}
       <Modal visible={!!catModal2} transparent animationType="fade" onRequestClose={() => setCatModal2(null)}>
-        <View style={styles.modalOverlay}>
+        <KeyboardSafe style={styles.modalOverlay}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCatModal2(null)} />
-          <View style={[styles.catModalBox, { maxHeight: '70%' }]}>
+          <FitView style={[styles.catModalBox, { maxHeight: '70%' }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{catModal2?.oldName}</Text>
               <Pressable onPress={() => setCatModal2(null)} hitSlop={14} style={styles.modalClose}>
@@ -889,15 +891,15 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
                 );
               })()}
             </ScrollView>
-          </View>
-        </View>
+          </FitView>
+        </KeyboardSafe>
       </Modal>
 
       {/* Удаление категории — перенос позиций в другую */}
       <Modal visible={!!catDeletePrompt} transparent animationType="fade" onRequestClose={() => setCatDeletePrompt(null)}>
         <View style={styles.modalOverlay}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCatDeletePrompt(null)} />
-          <View style={[styles.catModalBox, { maxHeight: '60%' }]}>
+          <FitView style={[styles.catModalBox, { maxHeight: '60%' }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Куда перенести позиции?</Text>
               <Pressable onPress={() => setCatDeletePrompt(null)} hitSlop={14} style={styles.modalClose}>
@@ -944,7 +946,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
                 <Text style={styles.catDeleteTxt}>Перенести и удалить категорию</Text>
               </Pressable>
             </ScrollView>
-          </View>
+          </FitView>
         </View>
       </Modal>
     </View>

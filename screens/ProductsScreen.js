@@ -33,6 +33,8 @@ import { getHomeRoute, goBackSmart, can } from '../db/session';
 import { colors, fonts, anim } from '../constants/theme';
 import TourGuide from '../components/TourGuide';
 import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
+import FitView from '../components/FitView';
+import KeyboardSafe from '../components/KeyboardSafe';
 
 const fmt = n => (n||0).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
@@ -1218,7 +1220,7 @@ export default function ProductsScreen({ navigation, route }) {
       <Modal visible={!!deletePrompt} transparent animationType="fade" onRequestClose={() => setDeletePrompt(null)}>
         <View style={styles.modalOverlay}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setDeletePrompt(null)} />
-          <View style={styles.modalBoxSm}>
+          <FitView style={styles.modalBoxSm}>
             <Text style={styles.orderModalTitle}>Перенести товары</Text>
             <Text style={styles.orderModalHint}>
               В категории «{deletePrompt?.name}» ещё {deletePrompt?.count} {pluralizeProducts(deletePrompt?.count)}. Выберите, куда их перенести перед удалением.
@@ -1246,7 +1248,7 @@ export default function ProductsScreen({ navigation, route }) {
                 <Text style={styles.catDeleteTxt}>Удалить</Text>
               </Pressable>
             </View>
-          </View>
+          </FitView>
         </View>
       </Modal>
 
@@ -1265,7 +1267,7 @@ export default function ProductsScreen({ navigation, route }) {
       <Modal visible={catModal} transparent animationType="fade" onRequestClose={() => setCatModal(false)}>
         <View style={styles.modalOverlay}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCatModal(false)} />
-          <View style={styles.catModalBox}>
+          <FitView style={styles.catModalBox}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Категории товаров</Text>
               <Pressable onPress={() => setCatModal(false)} hitSlop={14} style={styles.modalClose}>
@@ -1295,15 +1297,15 @@ export default function ProductsScreen({ navigation, route }) {
                 })}
               </View>
             </ScrollView>
-          </View>
+          </FitView>
         </View>
       </Modal>
 
       {/* Переименование / удаление категории */}
       <Modal visible={!!catModal2} transparent animationType="fade" onRequestClose={() => setCatModal2(null)}>
-        <View style={styles.modalOverlay}>
+        <KeyboardSafe style={styles.modalOverlay}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCatModal2(null)} />
-          <View style={[styles.catModalBox, { maxHeight: '70%' }]}>
+          <FitView style={[styles.catModalBox, { maxHeight: '70%' }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{catModal2?.oldName}</Text>
               <Pressable onPress={() => setCatModal2(null)} hitSlop={14} style={styles.modalClose}>
@@ -1359,15 +1361,15 @@ export default function ProductsScreen({ navigation, route }) {
                 );
               })()}
             </ScrollView>
-          </View>
-        </View>
+          </FitView>
+        </KeyboardSafe>
       </Modal>
 
       {/* Удаление категории — перенос товаров в другую */}
       <Modal visible={!!catDeletePrompt} transparent animationType="fade" onRequestClose={() => setCatDeletePrompt(null)}>
         <View style={styles.modalOverlay}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCatDeletePrompt(null)} />
-          <View style={[styles.catModalBox, { maxHeight: '60%' }]}>
+          <FitView style={[styles.catModalBox, { maxHeight: '60%' }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Куда перенести товары?</Text>
               <Pressable onPress={() => setCatDeletePrompt(null)} hitSlop={14} style={styles.modalClose}>
@@ -1406,7 +1408,7 @@ export default function ProductsScreen({ navigation, route }) {
                 <Text style={styles.catMgmtDeleteTxt}>Перенести и удалить</Text>
               </Pressable>
             </ScrollView>
-          </View>
+          </FitView>
         </View>
       </Modal>
 

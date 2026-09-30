@@ -26,11 +26,13 @@ import { useTourHighlight } from '../components/TourRegistry';
 import { useResponsive } from '../hooks/useResponsive';
 import { cartStore } from '../db/cartStore';
 import { colors, fonts, spacing, anim } from '../constants/theme';
+import FitView from '../components/FitView';
+import KeyboardSafe from '../components/KeyboardSafe';
 
 export default function KassaScreen({ navigation, route }) {
   const loading2 = false; // placeholder
   const toast = useToast();
-  const { isLandscape } = useResponsive();
+  const { isLandscape, isNarrow } = useResponsive();
   const [cartExpanded, setCartExpanded] = useState(false);
 
   // ── Интерактивный тур по разделу ──
@@ -1294,12 +1296,12 @@ export default function KassaScreen({ navigation, route }) {
 
       {/* ── Предмодалка оплаты — клиент / скидка / баллы ── */}
       <Modal visible={prePayOpen} transparent animationType="fade" onRequestClose={() => setPrePayOpen(false)}>
-        <View style={styles.paySheetRoot}>
+        <KeyboardSafe style={styles.paySheetRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setPrePayOpen(false)} />
-          <View style={styles.paySheet}>
+          <FitView style={styles.paySheet} phoneStyle={{ flexDirection: 'column', height: '92%' }}>
 
             {/* ══ ЛЕВАЯ КОЛОНКА: Состав заказа ══ */}
-            <View style={styles.payLeft}>
+            <View style={[styles.payLeft, isNarrow && { flex: 4, padding: 16, borderRightWidth: 0, borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.2)' }]}>
               <View style={styles.payLeftHead}>
                 <Text style={styles.paySheetTitle}>Заказ</Text>
                 <Text style={styles.paySheetSub}>{order.reduce((s,i)=>s+(i.quantity||1),0)} позиций</Text>
@@ -1331,10 +1333,10 @@ export default function KassaScreen({ navigation, route }) {
             </View>
 
             {/* Разделитель */}
-            <View style={styles.payDivider} />
+            {!isNarrow && <View style={styles.payDivider} />}
 
             {/* ══ ПРАВАЯ КОЛОНКА: Оплата ══ */}
-            <View style={styles.payRight}>
+            <View style={[styles.payRight, isNarrow && { flex: 6, padding: 16 }]}>
               <View style={styles.payRightHead}>
                 <Text style={styles.paySheetTitle}>Оплата</Text>
                 <Pressable onPress={() => setPrePayOpen(false)} hitSlop={14} style={styles.payCloseBtn}>
@@ -1407,15 +1409,15 @@ export default function KassaScreen({ navigation, route }) {
               </View>
             </View>
 
-          </View>
-        </View>
+          </FitView>
+        </KeyboardSafe>
       </Modal>
 
       {/* ── Modal пикер клиентов (поверх модалки оплаты) ── */}
       <Modal visible={clientPickerOpen} transparent animationType="fade" onRequestClose={() => setClientPickerOpen(false)}>
-        <View style={styles.modalRoot}>
+        <KeyboardSafe style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setClientPickerOpen(false)} />
-          <View style={[styles.modalInner, { width: '46%', maxHeight: '72%' }]}>
+          <FitView style={[styles.modalInner, { width: '46%', maxHeight: '72%' }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Выбор клиента</Text>
               <Pressable onPress={() => setClientPickerOpen(false)} hitSlop={14} style={styles.itemModalClose}>
@@ -1462,16 +1464,16 @@ export default function KassaScreen({ navigation, route }) {
                 <Text style={[styles.prePaySummaryMore, { padding: 14 }]}>Клиенты не найдены</Text>
               )}
             </ScrollView>
-          </View>
-        </View>
+          </FitView>
+        </KeyboardSafe>
       </Modal>
 
       {/* Установка скидки / начисление баллов конкретному клиенту — из пикера в Кассе */}
       <Modal visible={!!clientEditModal} transparent animationType="fade" onRequestClose={() => setClientEditModal(null)}>
-        <View style={styles.modalRoot}>
+        <KeyboardSafe style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setClientEditModal(null)} />
           {clientEditModal && (
-            <View style={[styles.modalInner, { width: '40%' }]}>
+            <FitView style={[styles.modalInner, { width: '40%' }]}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>{clientEditModal.client.fio}</Text>
                 <Pressable onPress={() => setClientEditModal(null)} hitSlop={14} style={styles.itemModalClose}>
@@ -1539,16 +1541,16 @@ export default function KassaScreen({ navigation, route }) {
                   </Pressable>
                 </>
               )}
-            </View>
+            </FitView>
           )}
-        </View>
+        </KeyboardSafe>
       </Modal>
 
       {/* ── Modal пикер скидок (поверх модалки оплаты) ── */}
       <Modal visible={discountDropOpen} transparent animationType="fade" onRequestClose={() => setDiscountDropOpen(false)}>
         <View style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setDiscountDropOpen(false)} />
-          <View style={[styles.modalInner, { width: '42%', maxHeight: '60%' }]}>
+          <FitView style={[styles.modalInner, { width: '42%', maxHeight: '60%' }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Скидка</Text>
               <Pressable onPress={() => setDiscountDropOpen(false)} hitSlop={14} style={styles.itemModalClose}>
@@ -1580,15 +1582,15 @@ export default function KassaScreen({ navigation, route }) {
                 );
               })}
             </ScrollView>
-          </View>
+          </FitView>
         </View>
       </Modal>
 
       {/* Модалка сохранения шаблона */}
       <Modal visible={templateModalOpen} transparent animationType="fade" onRequestClose={() => setTemplateModalOpen(false)}>
-        <View style={styles.modalRoot}>
+        <KeyboardSafe style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setTemplateModalOpen(false)} />
-          <View style={[styles.modalInner, { width: '45%' }]}>
+          <FitView style={[styles.modalInner, { width: '45%' }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>⚡ Сохранить шаблон</Text>
               <Pressable onPress={() => setTemplateModalOpen(false)} hitSlop={12}><Text style={styles.modalCloseText}>✕</Text></Pressable>
@@ -1610,15 +1612,15 @@ export default function KassaScreen({ navigation, route }) {
               setTemplates(getOrderTemplates());
               setTemplateModalOpen(false);
             }} style={{ marginTop: 10 }} />
-          </View>
-        </View>
+          </FitView>
+        </KeyboardSafe>
       </Modal>
 
       {/* Модалка выбора шаблона */}
       <Modal visible={templatesListOpen} transparent animationType="fade" onRequestClose={() => setTemplatesListOpen(false)}>
         <View style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setTemplatesListOpen(false)} />
-          <View style={[styles.modalInner, { width: '50%', maxHeight: '70%' }]}>
+          <FitView style={[styles.modalInner, { width: '50%', maxHeight: '70%' }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>⚡ Шаблоны заказов</Text>
               <Pressable onPress={() => setTemplatesListOpen(false)} hitSlop={12}><Text style={styles.modalCloseText}>✕</Text></Pressable>
@@ -1641,16 +1643,16 @@ export default function KassaScreen({ navigation, route }) {
                 </View>
               ))}
             </ScrollView>
-          </View>
+          </FitView>
         </View>
       </Modal>
 
       {/* Модалка заметки к позиции */}
       <Modal visible={!!itemNoteModal} transparent animationType="fade" onRequestClose={() => setItemNoteModal(null)}>
-        <View style={styles.modalRoot}>
+        <KeyboardSafe style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setItemNoteModal(null)} />
           {itemNoteModal && (
-            <View style={[styles.modalInner, { width: '45%' }]}>
+            <FitView style={[styles.modalInner, { width: '45%' }]}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>💬 Заметка к позиции</Text>
                 <Pressable onPress={() => setItemNoteModal(null)} hitSlop={12}>
@@ -1688,17 +1690,17 @@ export default function KassaScreen({ navigation, route }) {
                   <Text style={styles.noteModalBtnPrimaryText}>Сохранить</Text>
                 </Pressable>
               </View>
-            </View>
+            </FitView>
           )}
-        </View>
+        </KeyboardSafe>
       </Modal>
 
       {/* Модалка переименования/удаления чека (слота) */}
       <Modal visible={!!slotEditModal} transparent animationType="fade" onRequestClose={() => setSlotEditModal(null)}>
-        <View style={styles.modalRoot}>
+        <KeyboardSafe style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setSlotEditModal(null)} />
           {slotEditModal && (
-            <View style={[styles.modalInner, { width: '45%' }]}>
+            <FitView style={[styles.modalInner, { width: '45%' }]}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>✏️ Название чека</Text>
                 <Pressable onPress={() => setSlotEditModal(null)} hitSlop={12}>
@@ -1723,16 +1725,16 @@ export default function KassaScreen({ navigation, route }) {
                   <Text style={styles.noteModalBtnPrimaryText}>Сохранить</Text>
                 </Pressable>
               </View>
-            </View>
+            </FitView>
           )}
-        </View>
+        </KeyboardSafe>
       </Modal>
 
       {/* Модалка заметки к заказу */}
       <Modal visible={noteModalOpen} transparent animationType="fade" onRequestClose={() => setNoteModalOpen(false)}>
-        <View style={styles.modalRoot}>
+        <KeyboardSafe style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setNoteModalOpen(false)} />
-          <View style={[styles.modalInner, { width: '45%' }]}>
+          <FitView style={[styles.modalInner, { width: '45%' }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>📝 Заметка к заказу</Text>
               <Pressable onPress={() => setNoteModalOpen(false)} hitSlop={12}>
@@ -1752,8 +1754,8 @@ export default function KassaScreen({ navigation, route }) {
             {orderNote ? (
               <MetalButton title="Очистить заметку" variant="back" onPress={() => { setOrderNote(''); setNoteModalOpen(false); }} style={{ marginTop: 6 }} />
             ) : null}
-          </View>
-        </View>
+          </FitView>
+        </KeyboardSafe>
       </Modal>
 
       {/* Модалка товара — Apple стиль */}
@@ -1761,7 +1763,7 @@ export default function KassaScreen({ navigation, route }) {
         <View style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={closeModal} />
           {modalItem && (
-            <View style={[styles.modalInner, isLandscape ? { width: '52%', maxWidth: 620 } : { width: '94%', maxHeight: '88%' }]}>
+            <FitView style={[styles.modalInner, isLandscape ? { width: '52%', maxWidth: 620 } : { width: '94%', maxHeight: '88%' }]}>
               {/* Заголовок */}
               <View style={styles.itemModalHeader}>
                 <Text style={styles.itemModalName}>{modalItem.name}</Text>
@@ -1918,7 +1920,7 @@ export default function KassaScreen({ navigation, route }) {
                 <Text style={styles.itemModalAddText}>Добавить в заказ</Text>
                 <Text style={styles.itemModalAddPrice}>{modalPrice() * (editingCartItemId ? 1 : modalQty)} ₽</Text>
               </Pressable>
-            </View>
+            </FitView>
           )}
         </View>
       </Modal>

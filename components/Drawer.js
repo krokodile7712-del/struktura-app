@@ -1,22 +1,28 @@
 import React, { useRef, useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, Pressable,
-  Animated, Dimensions, ScrollView, Modal, Alert,
+  Animated, useWindowDimensions, ScrollView, Modal, Alert,
 } from 'react-native';
 import { colors, fonts, anim } from '../constants/theme';
 import { getSession, can, clearSession } from '../db/session';
 import { getBusinessProfile, getOpenShift } from '../db/queries';
 import { resetKassaCart } from '../db/cartStore';
 
-const { width: SCREEN_W } = Dimensions.get('window');
-const DRAWER_W = Math.min(300, SCREEN_W * 0.75);
-
 export default function Drawer({ visible, onClose, navigation, activeScreen }) {
+  // Ширина считается живо: при повороте экрана/складывании шторка не остаётся старого размера
+  const { width: screenW } = useWindowDimensions();
+  const DRAWER_W = Math.min(300, screenW * 0.75);
   const translateX      = useRef(new Animated.Value(-DRAWER_W)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const contentOpacity  = useRef(new Animated.Value(0)).current;
 
   const [tick, setTick] = useState(0);
+
+  // Закрытая шторка при смене ширины должна оставаться целиком за краем экрана
+  useEffect(() => {
+    if (!visible) translateX.setValue(-DRAWER_W);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [DRAWER_W]);
 
   // Синхронно читаем актуальные данные при каждом рендере
   const user    = getSession();
@@ -76,7 +82,7 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
       </Animated.View>
 
       {/* Шторка */}
-      <Animated.View style={[styles.drawer, { transform: [{ translateX }] }]}>
+      <Animated.View style={[styles.drawer, { width: DRAWER_W, transform: [{ translateX }] }]}>
 
         {/* Шапка */}
         <View style={styles.header}>
@@ -187,7 +193,6 @@ const styles = StyleSheet.create({
   drawer: {
     position: 'absolute',
     top: 0, left: 0, bottom: 0,
-    width: DRAWER_W,
     backgroundColor: colors.surface,
     zIndex: 101,
     borderRightWidth: 1,
