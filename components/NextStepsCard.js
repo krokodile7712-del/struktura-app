@@ -1,8 +1,12 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { getNextStepsStatus, getSetting, setSetting } from '../db/queries';
 import { colors, fonts } from '../constants/theme';
+
+// На Android (старая архитектура) LayoutAnimation нужно включить явно; в новой
+// архитектуре вызов безвреден. Нужен для плавного сворачивания карточки.
+if (Platform.OS === 'android') UIManager.setLayoutAnimationEnabledExperimental?.(true);
 
 export const NEXT_STEPS = [
   { key: 'businessType', icon: '🎯', label: 'Подобрать тип бизнеса',       screen: 'Settings', params: { section: 'business' }, sub: 'Подставит термины и разделы' },
@@ -19,11 +23,13 @@ export const NEXT_STEPS = [
 export function useNextStepsProgress() {
   const [status, setStatus] = useState({});
   const [dismissed, setDismissed] = useState(true);
+  const [loaded, setLoaded] = useState(false); // статус реально прочитан (до этого status — пустой)
 
   const load = useCallback(() => {
     try {
       setStatus(getNextStepsStatus());
       setDismissed(getSetting('next_steps_dismissed') === '1');
+      setLoaded(true);
     } catch (_) {}
   }, []);
 
@@ -38,35 +44,67 @@ export function useNextStepsProgress() {
   const allDone = doneCount === NEXT_STEPS.length;
   const visible = !dismissed && !allDone;
 
-  return { status, doneCount, allDone, dismissed, visible, dismiss, refresh: load };
+  return { status, doneCount, total: NEXT_STEPS.length, allDone, dismissed, visible, dismiss, loaded, refresh: load };
 }
 
 // Карусель шагов — одна карточка на экран (со скруглёнными краями и
 // крупным номером вместо чек-листа), открывается сразу на первом
-// невыполненном шаге, точки снизу вместо длинного списка. Пролистанные
-// вручную шаги не перескакивают обратно при обновлении статуса —
-// автопрокрутка на первый невыполненный срабатывает только один раз.
+// невыполненном шаге, точки снизу вместо длинного списка. Сворачивается в
+// аккуратную полоску (название, следующий шаг, шкала из сегментов, счётчик);
+// выбор запоминается в настройке next_steps_collapsed. На время вводного
+// тура карточка всегда развёрнута — тур показывает её целиком.
+//
+// Как устроено позиционирование (раньше карточка при запуске встречала на
+// стыке 5-го и 6-го шагов): переход на нужный шаг делается НЕ сразу при
+// появлении списка (содержимое ещё не измерено, Android оставляет
+// промежуточное смещение), а когда реально известна полная ширина
+// содержимого, и повторяется без анимации при каждой смене ширины.
 export default function NextStepsCard({ navigation, forceVisible = false }) {
-  const { status, doneCount, visible } = useNextStepsProgress();
+  const { status, doneCount, total, visible, loaded } = useNextStepsProgress();
   const [containerW, setContainerW] = useState(0);
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(null); // null — ещё не определён (статус не прочитан)
+  const [collapsed, setCollapsed] = useState(false);
   const scrollRef = useRef(null);
-  const hasAutoScrolled = useRef(false);
+  const contentW = useRef(0);
+  const positionedFor = useRef(0); // для какой ширины уже выставлено смещение
 
   const firstUnfinished = NEXT_STEPS.findIndex(s => !status[s.key]);
+  const expandedNow = forceVisible || !collapsed;
 
-  // Один раз при появлении карточки — сразу открываем на первом
-  // невыполненном шаге, не листаем туда при каждом обновлении статуса
+  // Сохранённое состояние «свёрнуто» — читаем при каждом возврате на экран
+  // (в том числе после «Показать подсказки заново» в Настройках)
+  useFocusEffect(useCallback(() => {
+    try { setCollapsed(getSetting('next_steps_collapsed') === '1'); } catch (_) {}
+  }, []));
+
+  // Один раз, когда статус прочитан, — запоминаем, на каком шаге открыться
   useEffect(() => {
-    if (hasAutoScrolled.current || containerW === 0) return;
-    if (firstUnfinished > 0) {
-      scrollRef.current?.scrollTo({ x: firstUnfinished * containerW, animated: false });
-      setActiveIndex(firstUnfinished);
-    }
-    hasAutoScrolled.current = true;
-  }, [containerW, firstUnfinished]);
+    if (activeIndex === null && loaded) setActiveIndex(firstUnfinished >= 0 ? firstUnfinished : 0);
+  }, [loaded, firstUnfinished, activeIndex]);
+
+  const tryPosition = useCallback(() => {
+    if (!containerW || activeIndex === null) return;
+    if (contentW.current < containerW * NEXT_STEPS.length - 1) return; // содержимое ещё не измерено целиком
+    if (positionedFor.current === containerW) return;
+    positionedFor.current = containerW;
+    scrollRef.current?.scrollTo({ x: activeIndex * containerW, animated: false });
+  }, [containerW, activeIndex]);
+
+  useEffect(() => { tryPosition(); }, [tryPosition]);
+
+  // Список пересоздаётся при разворачивании — позиционируем заново
+  useEffect(() => { positionedFor.current = 0; contentW.current = 0; }, [expandedNow]);
 
   if (!visible && !forceVisible) return null;
+
+  const current = activeIndex ?? Math.max(0, firstUnfinished);
+
+  const toggle = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    const next = !collapsed;
+    setCollapsed(next);
+    try { setSetting('next_steps_collapsed', next ? '1' : '0'); } catch (_) {}
+  };
 
   const onScrollEnd = (e) => {
     if (!containerW) return;
@@ -79,17 +117,59 @@ export default function NextStepsCard({ navigation, forceVisible = false }) {
     setActiveIndex(i);
   };
 
+  // ── Свёрнутая полоска ──
+  if (!expandedNow) {
+    const nextStep = firstUnfinished >= 0 ? NEXT_STEPS[firstUnfinished] : null;
+    return (
+      <Pressable
+        onPress={toggle}
+        accessibilityRole="button"
+        accessibilityLabel="Развернуть «Что дальше»"
+        style={({ pressed }) => [styles.strip, pressed && { opacity: 0.9 }]}
+      >
+        <View style={{ flex: 1 }}>
+          <Text style={styles.stripTitle}>Что дальше</Text>
+          <Text style={styles.stripSub} numberOfLines={1}>
+            {nextStep ? `Далее: ${nextStep.label}` : 'Всё готово'}
+          </Text>
+        </View>
+        <View style={styles.stripSegments}>
+          {NEXT_STEPS.map((s, i) => (
+            <View
+              key={s.key}
+              style={[styles.seg, status[s.key] && styles.segDone, !status[s.key] && i === firstUnfinished && styles.segCurrent]}
+            />
+          ))}
+        </View>
+        <Text style={styles.stripCount}>{doneCount}/{total}</Text>
+        <Text style={styles.chev}>▾</Text>
+      </Pressable>
+    );
+  }
+
+  // ── Развёрнутая карточка ──
   return (
     <View style={styles.card}>
       <View style={styles.head}>
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>Что дальше</Text>
-          <Text style={styles.sub}>Выполнено {doneCount} из {NEXT_STEPS.length}</Text>
+          <Text style={styles.sub}>Выполнено {doneCount} из {total}</Text>
         </View>
+        {!forceVisible && (
+          <Pressable
+            onPress={toggle}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Свернуть «Что дальше»"
+            style={styles.closeBtn}
+          >
+            <Text style={styles.closeTxt}>▴</Text>
+          </Pressable>
+        )}
       </View>
 
       <View style={styles.progressTrack}>
-        <View style={[styles.progressFill, { width: `${Math.max(6, (doneCount / NEXT_STEPS.length) * 100)}%` }]} />
+        <View style={[styles.progressFill, { width: `${Math.max(6, (doneCount / total) * 100)}%` }]} />
       </View>
 
       <View onLayout={e => setContainerW(e.nativeEvent.layout.width)}>
@@ -97,8 +177,12 @@ export default function NextStepsCard({ navigation, forceVisible = false }) {
           <ScrollView
             ref={scrollRef}
             horizontal
-            pagingEnabled
+            snapToInterval={containerW}
+            snapToAlignment="start"
+            decelerationRate="fast"
+            disableIntervalMomentum
             showsHorizontalScrollIndicator={false}
+            onContentSizeChange={(w) => { contentW.current = w; tryPosition(); }}
             onMomentumScrollEnd={onScrollEnd}
             scrollEventThrottle={16}
           >
@@ -138,7 +222,7 @@ export default function NextStepsCard({ navigation, forceVisible = false }) {
           <Pressable key={s.key} onPress={() => goTo(i)} hitSlop={8}>
             <View style={[
               styles.dot,
-              i === activeIndex && styles.dotActive,
+              i === current && styles.dotActive,
               status[s.key] && styles.dotDone,
             ]} />
           </Pressable>
@@ -149,6 +233,17 @@ export default function NextStepsCard({ navigation, forceVisible = false }) {
 }
 
 const styles = StyleSheet.create({
+  // Свёрнутая полоска
+  strip: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.surface2, borderRadius: 16, borderWidth: 1, borderColor: colors.borderHi, paddingVertical: 10, paddingHorizontal: 16, minHeight: 56, marginBottom: 16 },
+  stripTitle: { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: colors.text },
+  stripSub: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 1 },
+  stripSegments: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  seg: { width: 12, height: 4, borderRadius: 2, backgroundColor: colors.border },
+  segDone: { backgroundColor: colors.green },
+  segCurrent: { backgroundColor: colors.orange },
+  stripCount: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, minWidth: 30, textAlign: 'right' },
+  chev: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
+
   card: { backgroundColor: colors.surface2, borderRadius: 18, borderWidth: 1, borderColor: colors.borderHi, overflow: 'hidden', marginBottom: 16 },
   head: { flexDirection: 'row', alignItems: 'flex-start', padding: 16, paddingBottom: 12 },
   title: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text },

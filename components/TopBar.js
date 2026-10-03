@@ -10,7 +10,7 @@ import { useTourAnyActive } from './TourRegistry';
 export default function TopBar({ title, onBack, rightElement, syncPending, navigation, activeScreen }) {
   const insets = useSafeAreaInsets();
   const isAdmin = getSession()?.role === 'admin';
-  const { doneCount, visible: stepsVisible } = useNextStepsProgress();
+  const { doneCount, total: stepsTotal, visible: stepsVisible } = useNextStepsProgress();
   const showBanner = isAdmin && stepsVisible && navigation;
   const tourActive = useTourAnyActive();
 
@@ -71,7 +71,7 @@ export default function TopBar({ title, onBack, rightElement, syncPending, navig
 
       {showBanner && (
         <Pressable style={styles.stepsBanner} onPress={() => navigation.navigate('Admin')}>
-          <Text style={styles.stepsBannerTxt}>Настройка не завершена · выполнено {doneCount} из 6</Text>
+          <Text style={styles.stepsBannerTxt}>Настройка не завершена · выполнено {doneCount} из {stepsTotal}</Text>
           <Text style={styles.stepsBannerArrow}>→</Text>
         </Pressable>
       )}

@@ -2027,6 +2027,7 @@ export default function SettingsScreen({ navigation, route }) {
                   { text: 'Показать заново', onPress: () => {
                     resetAllTours();
                     setSetting('next_steps_dismissed', '0');
+                    setSetting('next_steps_collapsed', '0');
                     toast.show('Готово — подсказки покажутся заново');
                   } },
                 ]);
