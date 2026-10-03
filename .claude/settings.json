@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Edit",
+      "Write",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git branch*)",
+      "Bash(git show*)",
+      "Bash(ls*)",
+      "Bash(mkdir *)",
+      "Bash(node *)",
+      "Bash(npm init *)",
+      "Bash(npm i *)",
+      "Bash(npm install *)"
+    ],
+    "ask": [
+      "Bash(git commit*)",
+      "Bash(git push*)"
+    ]
+  }
+}
