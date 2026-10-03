@@ -1,6 +1,10 @@
-import React, { useState, useMemo, useRef } from 'react';
-import { View, Text, Pressable, StyleSheet, LayoutAnimation, PanResponder, Animated } from 'react-native';
+import React, { useState, useMemo, useRef, useLayoutEffect } from 'react';
+import { View, Text, Pressable, StyleSheet, LayoutAnimation, PanResponder, Animated, Platform, UIManager } from 'react-native';
 import { colors, fonts } from '../constants/theme';
+
+// На Android (старая архитектура) LayoutAnimation нужно включить явно; в новой
+// архитектуре вызов безвреден. Он нужен, чтобы высота карточки менялась нативно.
+if (Platform.OS === 'android') UIManager.setLayoutAnimationEnabledExperimental?.(true);
 
 const WEEKDAY_LABELS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 const MONTH_LABELS = [
@@ -117,9 +121,9 @@ function DayCell({ cell, isToday, isSelected, onPress, onEmptyPress }) {
 // (предыдущий/текущий/следующий), все смонтированы одновременно, поэтому
 // при свайпе соседний месяц со своим названием и рамкой сразу виден и
 // едет вместе с пальцем, а не появляется только после отпускания.
-function MonthPanel({ width, year, month, cells, todayKey, selectedDate, onSelectDay, onEmptyPress, onPrev, onNext, onHeight }) {
+function MonthPanel({ width, tx, inFlow, year, month, cells, todayKey, selectedDate, onSelectDay, onEmptyPress, onPrev, onNext }) {
   return (
-    <View style={{ width, paddingHorizontal: 4 }} onLayout={onHeight ? (e) => onHeight(e.nativeEvent.layout.height) : undefined}>
+    <Animated.View style={[{ width, paddingHorizontal: 4 }, !inFlow && styles.panelAbs, { transform: [{ translateX: tx }] }]}>
       <View style={styles.monthCard}>
         <View style={styles.monthHeader}>
           <Pressable onPress={onPrev} hitSlop={10} style={styles.monthArrowBtn}>
@@ -148,15 +152,15 @@ function MonthPanel({ width, year, month, cells, todayKey, selectedDate, onSelec
           ))}
         </View>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
 // Одна неделя целиком — та же логика, что MonthPanel, только без заголовка
 // и без собственной рамки (свёрнутый вид компактнее, рамка тут не нужна)
-function WeekPanel({ width, cells, todayKey, selectedDate, onSelectDay }) {
+function WeekPanel({ width, tx, inFlow, cells, todayKey, selectedDate, onSelectDay }) {
   return (
-    <View style={{ width }}>
+    <Animated.View style={[{ width }, !inFlow && styles.panelAbs, { transform: [{ translateX: tx }] }]}>
       <View style={styles.grid}>
         {cells.map((cell, i) => (
           <DayCell
@@ -168,7 +172,7 @@ function WeekPanel({ width, cells, todayKey, selectedDate, onSelectDay }) {
           />
         ))}
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -192,133 +196,122 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
   const slideAnim = useRef(new Animated.Value(0)).current;
   const isTransitioning = useRef(false);
 
-  // Высота карточки. Три месяца стоят в ряд одновременно, и раньше высота блока
-  // была равна САМОМУ ВЫСОКОМУ из трёх — если сосед на 6 недель, то под
-  // 5-недельным текущим месяцем оставалась пустая строка, а при смене центра
-  // всё, что ниже календаря, прыгало на строку. Теперь высота задана явно:
-  // равна высоте ТЕКУЩЕГО месяца, за пальцем плавно тянется к высоте соседа и
-  // доезжает пружиной вместе с листанием. Значение анимируется через JS-драйвер
-  // (высота — не нативное свойство), поэтому это ОТДЕЛЬНОЕ значение от slideAnim.
-  const heightAnim = useRef(new Animated.Value(0)).current;
-  const [heightKnown, setHeightKnown] = useState(false);
-  const slotH = useRef({ prev: 0, cur: 0, next: 0 });
-  const heightBusy = useRef(false);
-  const handleSlotHeight = (slot) => (h) => {
-    slotH.current[slot] = h;
-    if (slot === 'cur') {
-      if (!heightBusy.current) heightAnim.setValue(h);
-      setHeightKnown(true);
-    }
-  };
-  const heightAt = (dx) => {
-    const { prev, cur, next } = slotH.current;
-    const target = dx < 0 ? next : prev;
-    if (!cur || !target) return null;
-    return cur + (target - cur) * Math.min(1, Math.abs(dx) / containerW);
-  };
-  const animateHeightTo = (toValue) => {
-    if (!expanded || !toValue) return;
-    heightBusy.current = true;
-    Animated.spring(heightAnim, { ...SPRING_CONFIG, toValue, useNativeDriver: false })
-      .start(() => { heightBusy.current = false; });
-  };
-
   const todayKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
 
-  const [prevYear, prevMonth] = addMonth(viewYear, viewMonth, -1);
-  const [nextYear, nextMonth] = addMonth(viewYear, viewMonth, 1);
+  // ── Устройство карусели ──────────────────────────────────────────────────
+  // Раньше три панели стояли в ряд, и в конце анимации содержимое подменялось
+  // (центр становился соседом), а сдвиг сбрасывался в ноль двойным
+  // requestAnimationFrame. Эти два действия не могли произойти в одном кадре, а
+  // в тот же момент экран Записей перерисовывался целиком (загрузка точек
+  // календаря) — отсюда «доскок» в конце. Теперь подмены нет совсем:
+  //   • у каждой страницы (месяц или неделя) есть постоянный номер относительно
+  //     стартовой — pageRel;
+  //   • страница с номером N ВСЕГДА стоит в точке N·ширина, её сдвиг =
+  //     общий сдвиг + N·ширина (Animated.add, считается нативно);
+  //   • общий сдвиг при покое равен −pageRel·ширина, при листании просто
+  //     едет к −(pageRel±1)·ширина и там и остаётся — НИЧЕГО не сбрасывается;
+  //   • смена состояния (какой месяц «текущий») ничего не двигает визуально:
+  //     панели сохраняют свой номер и свой сдвиг.
+  const baseMonthRef = useRef(today.getFullYear() * 12 + today.getMonth());
+  const monthRel = viewYear * 12 + viewMonth - baseMonthRef.current;
+  const pageRel = expanded ? monthRel : weekOffset;
 
-  const prevCells = useMemo(() => buildMonthCells(prevYear, prevMonth, onlineDates, manualDates), [prevYear, prevMonth, onlineDates, manualDates]);
-  const curCells = useMemo(() => buildMonthCells(viewYear, viewMonth, onlineDates, manualDates), [viewYear, viewMonth, onlineDates, manualDates]);
-  const nextCells = useMemo(() => buildMonthCells(nextYear, nextMonth, onlineDates, manualDates), [nextYear, nextMonth, onlineDates, manualDates]);
+  const pages = useMemo(() => {
+    const out = [];
+    for (let d = -1; d <= 1; d++) {
+      const idx = pageRel + d;
+      if (expanded) {
+        const abs = baseMonthRef.current + idx;
+        const y = Math.floor(abs / 12);
+        const m = abs - y * 12;
+        out.push({ idx, year: y, month: m, cells: buildMonthCells(y, m, onlineDates, manualDates) });
+      } else {
+        out.push({ idx, cells: buildWeekCells(today, idx, onlineDates, manualDates) });
+      }
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageRel, expanded, onlineDates, manualDates]);
 
-  const prevWeekCells = useMemo(() => buildWeekCells(today, weekOffset - 1, onlineDates, manualDates), [weekOffset, onlineDates, manualDates]);
-  const curWeekCells = useMemo(() => buildWeekCells(today, weekOffset, onlineDates, manualDates), [weekOffset, onlineDates, manualDates]);
-  const nextWeekCells = useMemo(() => buildWeekCells(today, weekOffset + 1, onlineDates, manualDates), [weekOffset, onlineDates, manualDates]);
+  // Сдвиг каждой страницы: общий сдвиг + её постоянное положение.
+  const txs = useMemo(
+    () => [-1, 0, 1].map(d => Animated.add(slideAnim, (pageRel + d) * containerW)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pageRel, containerW],
+  );
 
-  // Завершение жеста — соседняя панель (месяц или неделя, в зависимости от
-  // текущего вида) уже смонтирована и едет вместе с пальцем, поэтому здесь
-  // остаётся только один финальный рывок пружиной до полного кадра. Пружина
-  // стартует с РЕАЛЬНОЙ скоростью пальца в момент отпускания (velocity, px/с) —
-  // шва между перетаскиванием и анимацией нет. Как только она останавливается,
-  // меняем состояние и мгновенно обнуляем сдвиг — визуально ничего не прыгает,
-  // потому что новый центр карусели уже стоит ровно там же.
+  // При смене ширины (поворот) или вида (месяц/неделя) ставим общий сдвиг на
+  // покой текущей страницы — до отрисовки кадра, чтобы не мигнуть.
+  useLayoutEffect(() => {
+    slideAnim.setValue(-pageRel * containerW);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [containerW, expanded]);
+
+  // Завершение жеста. Состояние (какой месяц/неделя текущие) меняем СРАЗУ, в
+  // момент отпускания: визуально это ничего не двигает (см. выше), зато
+  // карточка уже меняет высоту под новый месяц — нативной анимацией
+  // LayoutAnimation, параллельно с пружиной, без работы JS на каждом кадре
+  // (прежняя анимация высоты через JS-драйвер и давала дрожание). Пружина
+  // едет с РЕАЛЬНОЙ скоростью пальца (velocity, px/с) к постоянной точке
+  // новой страницы. Загрузку точек календаря в экране Записей (onMonthChange)
+  // откладываем до конца анимации, чтобы тяжёлая перерисовка не мешала движению.
   const commitChange = (delta, velocity = 0) => {
-    const dir = delta > 0 ? -1 : 1;
+    if (isTransitioning.current) return;
     isTransitioning.current = true;
-    animateHeightTo(delta > 0 ? slotH.current.next : slotH.current.prev);
+    let changed = null;
+    LayoutAnimation.configureNext({ duration: 280, update: { type: LayoutAnimation.Types.easeOut } });
+    if (expanded) {
+      changed = addMonth(viewYear, viewMonth, delta);
+      setViewYear(changed[0]);
+      setViewMonth(changed[1]);
+    } else {
+      setWeekOffset(o => o + delta);
+    }
     Animated.spring(slideAnim, {
       ...SPRING_CONFIG,
-      toValue: dir * containerW,
+      toValue: -(pageRel + delta) * containerW,
       velocity: clampVelocity(velocity),
       useNativeDriver: true,
     }).start(() => {
-      slideAnim.setValue(dir * containerW); // фиксируем ровно цель — до неё могло оставаться меньше порога покоя (1 px)
-      if (expanded) {
-        const [y, m] = addMonth(viewYear, viewMonth, delta);
-        setViewYear(y);
-        setViewMonth(m);
-        onMonthChange?.(y, m);
-      } else {
-        setWeekOffset(o => o + delta);
-      }
-      // Сброс позиции — только после того, как React реально перерисует
-      // дерево с новым месяцем в качестве центра. Если сбросить сразу
-      // (setValue работает на нативном слое, минуя JS), позиция может
-      // обнулиться раньше, чем JS успеет подменить содержимое — доля
-      // секунды старого контента в новой позиции, воспринимается как доскок.
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          slideAnim.setValue(0);
-          isTransitioning.current = false;
-        });
-      });
+      isTransitioning.current = false;
+      if (changed) onMonthChange?.(changed[0], changed[1]);
     });
   };
 
   const springBack = (velocity = 0) => {
     Animated.spring(slideAnim, {
       ...SPRING_CONFIG,
-      toValue: 0,
+      toValue: -pageRel * containerW,
       velocity: clampVelocity(velocity),
       useNativeDriver: true,
     }).start();
-    animateHeightTo(slotH.current.cur);
   };
 
   const toggleExpanded = () => {
     if (!collapsible) return;
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setHeightKnown(false); // у недельного и месячного вида разная высота — пока новая не измерена, высота автоматическая
     setExpanded(v => !v);
   };
 
   const clearSelection = () => onSelectDay?.(null, false);
 
   // Свайп влево/вправо — сетка следует за пальцем в реальном времени (не
-  // ждёт отпускания), завершение — пружиной, а не линейным движением. Один
-  // и тот же жест работает и для месяца (развёрнутый вид), и для недели
-  // (свёрнутый) — какая именно смена происходит, решает commitChange по
-  // текущему expanded. Порог по горизонтали с проверкой, что движение
-  // преимущественно горизонтальное, не вертикальный скролл. Пересоздаём
-  // объект на каждом рендере (не useRef) — иначе он замыкает состояние из
-  // САМОГО ПЕРВОГО рендера навсегда, и каждый следующий свайп считает delta
-  // от исходного значения, а не от текущего.
+  // ждёт отпускания), завершение — пружиной. Один и тот же жест работает и
+  // для месяца (развёрнутый вид), и для недели (свёрнутый). Порог по
+  // горизонтали с проверкой, что движение преимущественно горизонтальное,
+  // не вертикальный скролл. Пересоздаём объект на каждом рендере (не useRef) —
+  // иначе он замыкает состояние из САМОГО ПЕРВОГО рендера навсегда.
   const panResponder = PanResponder.create({
     onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 12 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
     onPanResponderMove: (_, g) => {
       if (isTransitioning.current) return;
-      slideAnim.setValue(g.dx);
-      if (expanded) {
-        const h = heightAt(g.dx);
-        if (h != null) heightAnim.setValue(h);
-      }
+      slideAnim.setValue(-pageRel * containerW + g.dx);
     },
     onPanResponderRelease: (_, g) => {
       if (isTransitioning.current) return;
       // Решение — по проекции: куда палец долетел бы по инерции (а не по точке
-      // отпускания). Лёгкий быстрый бросок листает, медленное «передумал» — нет;
-      // направление определяет знак проекции, а не только смещение.
+      // отпускания). Быстрый бросок листает, медленное «передумал» — нет;
+      // направление определяет знак проекции.
       const v = clampVelocity(g.vx * 1000); // PanResponder отдаёт px/мс, пружине нужны px/с
       const projected = g.dx + projectFling(v);
       if (Math.abs(projected) > containerW * 0.25) commitChange(projected < 0 ? 1 : -1, v);
@@ -334,39 +327,49 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
         </Pressable>
       )}
 
-      <View style={{ overflow: 'hidden' }} onLayout={(e) => setContainerW(e.nativeEvent.layout.width)}>
-        <Animated.View style={expanded && heightKnown ? { height: heightAnim, overflow: 'hidden' } : undefined}>
-        <Animated.View
-          {...panResponder.panHandlers}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'flex-start',
-            width: containerW * 3,
-            marginLeft: -containerW,
-            transform: [{ translateX: slideAnim }],
-          }}
-        >
-          {expanded ? (
-            <>
-              <MonthPanel width={containerW} year={prevYear} month={prevMonth} cells={prevCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} onEmptyPress={clearSelection} onPrev={() => commitChange(-1)} onNext={() => commitChange(1)} onHeight={handleSlotHeight('prev')} />
-              <MonthPanel width={containerW} year={viewYear} month={viewMonth} cells={curCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} onEmptyPress={clearSelection} onPrev={() => commitChange(-1)} onNext={() => commitChange(1)} onHeight={handleSlotHeight('cur')} />
-              <MonthPanel width={containerW} year={nextYear} month={nextMonth} cells={nextCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} onEmptyPress={clearSelection} onPrev={() => commitChange(-1)} onNext={() => commitChange(1)} onHeight={handleSlotHeight('next')} />
-            </>
-          ) : (
-            <>
-              <WeekPanel width={containerW} cells={prevWeekCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} />
-              <WeekPanel width={containerW} cells={curWeekCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} />
-              <WeekPanel width={containerW} cells={nextWeekCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} />
-            </>
-          )}
-        </Animated.View>
-        </Animated.View>
+      {/* Высоту блока задаёт ОДНА страница — текущая (она в обычном потоке);
+          остальные лежат поверх неё и сдвинуты в стороны. Поэтому карточка
+          всегда ровно по высоте текущего месяца, без пустой строки. */}
+      <View
+        style={{ overflow: 'hidden' }}
+        onLayout={(e) => setContainerW(e.nativeEvent.layout.width)}
+        {...panResponder.panHandlers}
+      >
+        {pages.map((pg, i) => (expanded ? (
+          <MonthPanel
+            key={pg.idx}
+            width={containerW}
+            tx={txs[i]}
+            inFlow={i === 1}
+            year={pg.year}
+            month={pg.month}
+            cells={pg.cells}
+            todayKey={todayKey}
+            selectedDate={selectedDate}
+            onSelectDay={onSelectDay}
+            onEmptyPress={clearSelection}
+            onPrev={() => commitChange(-1)}
+            onNext={() => commitChange(1)}
+          />
+        ) : (
+          <WeekPanel
+            key={pg.idx}
+            width={containerW}
+            tx={txs[i]}
+            inFlow={i === 1}
+            cells={pg.cells}
+            todayKey={todayKey}
+            selectedDate={selectedDate}
+            onSelectDay={onSelectDay}
+          />
+        )))}
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  panelAbs: { position: 'absolute', top: 0, left: 0 },
   root: { paddingHorizontal: 10, paddingTop: 10, paddingBottom: 4 },
   rootCard: { backgroundColor: colors.surface2, borderRadius: 16, borderWidth: 1, borderColor: colors.borderHi },
 
