@@ -8,6 +8,32 @@ const MONTH_LABELS = [
   'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
 ];
 
+// Пружина по принципу Apple: КРИТИЧЕСКОЕ демпфирование (ζ = 1) — без перелёта —
+// и параметр «отклик» (response) вместо сырых tension/friction. Для критического
+// демпфирования: жёсткость k = ω², затухание c = 2ω, где ω = 2π / отклик.
+// Раньше стояли tension 70 / friction 13 с порогом покоя 0,001 px: последние
+// ~10 px пружина «доползала» ещё 0,15–0,25 с — это и ощущалось как отскок/доскок
+// в конце перелистывания. Теперь порог покоя 1 px (разница до цели невидима),
+// а overshootClamping не даёт выйти за цель вообще.
+const SPRING_RESPONSE = 0.30; // секунд; у Apple для шторок/листов 0,3–0,4
+const SPRING_OMEGA = (2 * Math.PI) / SPRING_RESPONSE;
+const SPRING_CONFIG = {
+  stiffness: SPRING_OMEGA * SPRING_OMEGA,
+  damping: 2 * SPRING_OMEGA,
+  mass: 1,
+  overshootClamping: true,
+  restDisplacementThreshold: 1,
+  restSpeedThreshold: 30,
+};
+const MAX_FLING_VELOCITY = 4000; // px/с — защита от аномальных значений жеста
+const FLICK_DECELERATION = 0.99; // у Apple 0,998 — обычный скролл, 0,99 — «отзывчивее» (постраничное листание)
+function clampVelocity(v) { return Math.max(-MAX_FLING_VELOCITY, Math.min(MAX_FLING_VELOCITY, v)); }
+// Куда долетел бы палец по инерции (формула из WWDC «Designing Fluid Interfaces»).
+// Вход — скорость в px/с, выход — расстояние в px.
+function projectFling(vPxPerSec) {
+  return (vPxPerSec / 1000) * FLICK_DECELERATION / (1 - FLICK_DECELERATION);
+}
+
 function pad(n) { return String(n).padStart(2, '0'); }
 function dateKey(y, m, d) { return `${y}-${pad(m + 1)}-${pad(d)}`; }
 
@@ -91,9 +117,9 @@ function DayCell({ cell, isToday, isSelected, onPress, onEmptyPress }) {
 // (предыдущий/текущий/следующий), все смонтированы одновременно, поэтому
 // при свайпе соседний месяц со своим названием и рамкой сразу виден и
 // едет вместе с пальцем, а не появляется только после отпускания.
-function MonthPanel({ width, year, month, cells, todayKey, selectedDate, onSelectDay, onEmptyPress, onPrev, onNext }) {
+function MonthPanel({ width, year, month, cells, todayKey, selectedDate, onSelectDay, onEmptyPress, onPrev, onNext, onHeight }) {
   return (
-    <View style={{ width, paddingHorizontal: 4 }}>
+    <View style={{ width, paddingHorizontal: 4 }} onLayout={onHeight ? (e) => onHeight(e.nativeEvent.layout.height) : undefined}>
       <View style={styles.monthCard}>
         <View style={styles.monthHeader}>
           <Pressable onPress={onPrev} hitSlop={10} style={styles.monthArrowBtn}>
@@ -166,6 +192,37 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
   const slideAnim = useRef(new Animated.Value(0)).current;
   const isTransitioning = useRef(false);
 
+  // Высота карточки. Три месяца стоят в ряд одновременно, и раньше высота блока
+  // была равна САМОМУ ВЫСОКОМУ из трёх — если сосед на 6 недель, то под
+  // 5-недельным текущим месяцем оставалась пустая строка, а при смене центра
+  // всё, что ниже календаря, прыгало на строку. Теперь высота задана явно:
+  // равна высоте ТЕКУЩЕГО месяца, за пальцем плавно тянется к высоте соседа и
+  // доезжает пружиной вместе с листанием. Значение анимируется через JS-драйвер
+  // (высота — не нативное свойство), поэтому это ОТДЕЛЬНОЕ значение от slideAnim.
+  const heightAnim = useRef(new Animated.Value(0)).current;
+  const [heightKnown, setHeightKnown] = useState(false);
+  const slotH = useRef({ prev: 0, cur: 0, next: 0 });
+  const heightBusy = useRef(false);
+  const handleSlotHeight = (slot) => (h) => {
+    slotH.current[slot] = h;
+    if (slot === 'cur') {
+      if (!heightBusy.current) heightAnim.setValue(h);
+      setHeightKnown(true);
+    }
+  };
+  const heightAt = (dx) => {
+    const { prev, cur, next } = slotH.current;
+    const target = dx < 0 ? next : prev;
+    if (!cur || !target) return null;
+    return cur + (target - cur) * Math.min(1, Math.abs(dx) / containerW);
+  };
+  const animateHeightTo = (toValue) => {
+    if (!expanded || !toValue) return;
+    heightBusy.current = true;
+    Animated.spring(heightAnim, { ...SPRING_CONFIG, toValue, useNativeDriver: false })
+      .start(() => { heightBusy.current = false; });
+  };
+
   const todayKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
 
   const [prevYear, prevMonth] = addMonth(viewYear, viewMonth, -1);
@@ -181,21 +238,22 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
 
   // Завершение жеста — соседняя панель (месяц или неделя, в зависимости от
   // текущего вида) уже смонтирована и едет вместе с пальцем, поэтому здесь
-  // остаётся только один финальный рывок пружиной до полного кадра. Как
-  // только пружина останавливается, меняем состояние и мгновенно обнуляем
-  // сдвиг — визуально ничего не прыгает, потому что новый центр карусели
-  // уже стоит ровно там же.
-  const commitChange = (delta) => {
+  // остаётся только один финальный рывок пружиной до полного кадра. Пружина
+  // стартует с РЕАЛЬНОЙ скоростью пальца в момент отпускания (velocity, px/с) —
+  // шва между перетаскиванием и анимацией нет. Как только она останавливается,
+  // меняем состояние и мгновенно обнуляем сдвиг — визуально ничего не прыгает,
+  // потому что новый центр карусели уже стоит ровно там же.
+  const commitChange = (delta, velocity = 0) => {
     const dir = delta > 0 ? -1 : 1;
     isTransitioning.current = true;
+    animateHeightTo(delta > 0 ? slotH.current.next : slotH.current.prev);
     Animated.spring(slideAnim, {
+      ...SPRING_CONFIG,
       toValue: dir * containerW,
-      velocity: 0.6,
-      tension: 70,
-      friction: 13,
+      velocity: clampVelocity(velocity),
       useNativeDriver: true,
     }).start(() => {
-      slideAnim.setValue(dir * containerW); // фиксируем ровно цель — пружина могла остановиться чуть раньше своего порога покоя
+      slideAnim.setValue(dir * containerW); // фиксируем ровно цель — до неё могло оставаться меньше порога покоя (1 px)
       if (expanded) {
         const [y, m] = addMonth(viewYear, viewMonth, delta);
         setViewYear(y);
@@ -218,13 +276,20 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
     });
   };
 
-  const springBack = () => {
-    Animated.spring(slideAnim, { toValue: 0, tension: 90, friction: 12, useNativeDriver: true }).start();
+  const springBack = (velocity = 0) => {
+    Animated.spring(slideAnim, {
+      ...SPRING_CONFIG,
+      toValue: 0,
+      velocity: clampVelocity(velocity),
+      useNativeDriver: true,
+    }).start();
+    animateHeightTo(slotH.current.cur);
   };
 
   const toggleExpanded = () => {
     if (!collapsible) return;
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setHeightKnown(false); // у недельного и месячного вида разная высота — пока новая не измерена, высота автоматическая
     setExpanded(v => !v);
   };
 
@@ -244,14 +309,20 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
     onPanResponderMove: (_, g) => {
       if (isTransitioning.current) return;
       slideAnim.setValue(g.dx);
+      if (expanded) {
+        const h = heightAt(g.dx);
+        if (h != null) heightAnim.setValue(h);
+      }
     },
     onPanResponderRelease: (_, g) => {
       if (isTransitioning.current) return;
-      const passedDistance = Math.abs(g.dx) > containerW * 0.28;
-      const passedVelocity = Math.abs(g.vx) > 0.5;
-      if (g.dx < 0 && (passedDistance || passedVelocity)) commitChange(1);
-      else if (g.dx > 0 && (passedDistance || passedVelocity)) commitChange(-1);
-      else springBack();
+      // Решение — по проекции: куда палец долетел бы по инерции (а не по точке
+      // отпускания). Лёгкий быстрый бросок листает, медленное «передумал» — нет;
+      // направление определяет знак проекции, а не только смещение.
+      const v = clampVelocity(g.vx * 1000); // PanResponder отдаёт px/мс, пружине нужны px/с
+      const projected = g.dx + projectFling(v);
+      if (Math.abs(projected) > containerW * 0.25) commitChange(projected < 0 ? 1 : -1, v);
+      else springBack(v);
     },
   });
 
@@ -264,6 +335,7 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
       )}
 
       <View style={{ overflow: 'hidden' }} onLayout={(e) => setContainerW(e.nativeEvent.layout.width)}>
+        <Animated.View style={expanded && heightKnown ? { height: heightAnim, overflow: 'hidden' } : undefined}>
         <Animated.View
           {...panResponder.panHandlers}
           style={{
@@ -276,9 +348,9 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
         >
           {expanded ? (
             <>
-              <MonthPanel width={containerW} year={prevYear} month={prevMonth} cells={prevCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} onEmptyPress={clearSelection} onPrev={() => commitChange(-1)} onNext={() => commitChange(1)} />
-              <MonthPanel width={containerW} year={viewYear} month={viewMonth} cells={curCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} onEmptyPress={clearSelection} onPrev={() => commitChange(-1)} onNext={() => commitChange(1)} />
-              <MonthPanel width={containerW} year={nextYear} month={nextMonth} cells={nextCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} onEmptyPress={clearSelection} onPrev={() => commitChange(-1)} onNext={() => commitChange(1)} />
+              <MonthPanel width={containerW} year={prevYear} month={prevMonth} cells={prevCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} onEmptyPress={clearSelection} onPrev={() => commitChange(-1)} onNext={() => commitChange(1)} onHeight={handleSlotHeight('prev')} />
+              <MonthPanel width={containerW} year={viewYear} month={viewMonth} cells={curCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} onEmptyPress={clearSelection} onPrev={() => commitChange(-1)} onNext={() => commitChange(1)} onHeight={handleSlotHeight('cur')} />
+              <MonthPanel width={containerW} year={nextYear} month={nextMonth} cells={nextCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} onEmptyPress={clearSelection} onPrev={() => commitChange(-1)} onNext={() => commitChange(1)} onHeight={handleSlotHeight('next')} />
             </>
           ) : (
             <>
@@ -287,6 +359,7 @@ export default function BookingsCalendar({ onlineDates, manualDates, selectedDat
               <WeekPanel width={containerW} cells={nextWeekCells} todayKey={todayKey} selectedDate={selectedDate} onSelectDay={onSelectDay} />
             </>
           )}
+        </Animated.View>
         </Animated.View>
       </View>
     </View>
