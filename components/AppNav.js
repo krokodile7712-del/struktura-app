@@ -3,7 +3,9 @@ import { View, Text, Pressable, ScrollView, StyleSheet, Animated, Image } from '
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useResponsive } from '../hooks/useResponsive';
 import { StackActions } from '@react-navigation/native';
-import { colors, fonts } from '../constants/theme';
+import { colors, fonts, glass } from '../constants/theme';
+import GlassSurface from './GlassSurface';
+import SoftGlow from './SoftGlow';
 import { getSession, can } from '../db/session';
 import { getBusinessProfile, getTerms } from '../db/queries';
 import Drawer from './Drawer';
@@ -112,8 +114,15 @@ export default function AppNav({ navigation, activeScreen }) {
 
     return (
       <>
-        <Animated.View style={[styles.landscapeNav, { width: widthAnim, paddingTop: insets.top, position: 'relative' }, navPanelHighlight.style]}>
-          <Animated.View style={{ flex: 1, opacity: contentFade }}>
+        {/* Парящая стеклянная панель: колонка с отступами от краёв экрана, внутри —
+            плитка со стеклом. Под панелью — мягкая подсветка, чтобы стеклу было что
+            просвечивать (панель лежит поверх общего фона приложения, а не внутри экрана). */}
+        <View style={[styles.navColumn, { paddingTop: Math.max(insets.top, 0) + 12 }]}>
+          <SoftGlow size={440} color="127,168,217" alpha={0.20} style={{ position: 'absolute', left: -150, top: 120 }} />
+          <SoftGlow size={340} color="217,172,98" alpha={0.10} style={{ position: 'absolute', left: -130, bottom: -110 }} />
+          <Animated.View style={[{ width: widthAnim, flex: 1, position: 'relative' }, navPanelHighlight.style]}>
+          <GlassSurface floating radius={glass.radius.panel} style={{ flex: 1 }} contentStyle={{ flex: 1 }}>
+          <Animated.View style={{ flex: 1, opacity: contentFade, paddingTop: 8 }}>
             {renderWide ? (
               <>
                 <View style={styles.bizHeader}>
@@ -192,8 +201,10 @@ export default function AppNav({ navigation, activeScreen }) {
               </View>
             )}
           </Animated.View>
+          </GlassSurface>
           {navPanelHighlight.overlay}
-        </Animated.View>
+          </Animated.View>
+        </View>
 
         <Drawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} navigation={navigation} activeScreen={home} />
       </>
@@ -279,26 +290,26 @@ const styles = StyleSheet.create({
     backgroundColor: colors.orange,
   },
 
-  // ── Панель альбомной ориентации ──
-  landscapeNav: { borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface, overflow: 'hidden' },
-  bizHeader:   { padding: 18, paddingBottom: 10 },
-  bizName:     { fontFamily: fonts.family, fontSize: 18, color: colors.text },
-  bizCity:     { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
+  // ── Панель альбомной ориентации: парящая стеклянная плитка ──
+  navColumn:   { paddingLeft: 16, paddingBottom: 12, paddingRight: 4 },
+  bizHeader:   { paddingHorizontal: 22, paddingTop: 14, paddingBottom: 12 },
+  bizName:     { fontFamily: fonts.familySemibold, fontSize: 18, color: colors.text, letterSpacing: -0.1 },
+  bizCity:     { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.textDim, marginTop: 2 },
 
-  ctaBtn:      { marginHorizontal: 12, marginBottom: 12, padding: 18, borderRadius: 12, backgroundColor: colors.orange, alignItems: 'center' },
-  ctaLabel:    { fontFamily: fonts.family, fontSize: 18, color: '#fff', textTransform: 'capitalize' },
-  ctaSub:      { fontFamily: fonts.familyRegular, fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 1 },
+  ctaBtn:      { marginHorizontal: 14, marginBottom: 12, paddingVertical: 16, borderRadius: 16, backgroundColor: colors.orange, alignItems: 'center' },
+  ctaLabel:    { fontFamily: fonts.family, fontSize: 18, color: colors.onAccent, textTransform: 'capitalize' },
+  ctaSub:      { fontFamily: fonts.familyMedium, fontSize: 12, color: 'rgba(10,18,28,0.72)', marginTop: 2 },
 
-  divider:     { height: 1, backgroundColor: colors.border, marginHorizontal: 12, marginVertical: 4 },
+  divider:     { height: 1, backgroundColor: 'rgba(255,255,255,0.09)', marginHorizontal: 20, marginVertical: 6 },
 
-  menuItem:        { paddingVertical: 16, paddingHorizontal: 16, position: 'relative' },
-  menuItemActive:  { backgroundColor: 'rgba(255,255,255,0.06)' },
-  menuItemInactive:{ paddingVertical: 12, paddingHorizontal: 16, opacity: 0.45 },
-  activeBar:       { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
+  menuItem:        { marginHorizontal: 10, marginBottom: 2, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12, position: 'relative' },
+  menuItemActive:  { backgroundColor: 'rgba(255,255,255,0.10)' },
+  menuItemInactive:{ marginHorizontal: 10, paddingVertical: 10, paddingHorizontal: 14, opacity: 0.45 },
+  activeBar:       { position: 'absolute', left: -10, top: '25%', bottom: '25%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
   menuLabel:       { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.textDim },
   menuLabelActive: { color: colors.text },
-  menuLabelInactive:{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
-  menuSub:         { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 1 },
+  menuLabelInactive:{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
+  menuSub:         { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.textDim, marginTop: 1 },
 
   // ── Узкая свёрнутая — внутренние элементы ──
   narrowLogoWrap: { width: 52, height: 52, borderRadius: 14, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: 14 },

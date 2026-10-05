@@ -3448,7 +3448,6 @@ const styles = StyleSheet.create({
   menuTopTitle: {
     fontFamily: fonts.family,
     fontSize: 18,
-    
     color: colors.text,
     paddingRight: 100,
   },

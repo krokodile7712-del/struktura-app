@@ -6,16 +6,13 @@ import NextStepsCard from '../components/NextStepsCard';
 import EmployeeStatsSheet from '../components/EmployeeStatsSheet';
 import TourGuide from '../components/TourGuide';
 import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
-import GoldCard from '../components/GoldCard';
-import GlassCard from '../components/GlassCard';
-import GlowIcon from '../components/GlowIcon';
+import GlassSurface from '../components/GlassSurface';
 import ScreenGlow from '../components/ScreenGlow';
 import {
   getOpenShift, getBusinessProfile, getDashboardStats, getRoleNames, markTourSeen,
 } from '../db/queries';
 import { getSession } from '../db/session';
-import { LinearGradient } from 'expo-linear-gradient';
-import { colors, fonts, withOpacity, gradients } from '../constants/theme';
+import { colors, fonts, withOpacity, glass } from '../constants/theme';
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -156,13 +153,6 @@ export default function AdminScreen({ navigation }) {
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <Pressable style={styles.avatar} onPress={() => setMeOpen(true)} hitSlop={8}>
-              <LinearGradient
-                colors={gradients.metalGold}
-                locations={gradients.metalGoldLocations}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFill}
-              />
               <Text style={styles.avatarTxt}>{(sessionName || '?').charAt(0).toUpperCase()}</Text>
             </Pressable>
             <View style={{ flex: 1 }}>
@@ -178,70 +168,59 @@ export default function AdminScreen({ navigation }) {
 
           <View style={[styles.statsGrid, { position: 'relative' }, statsGridHighlight.style]} onLayout={rememberY('admin.statsGrid')}>
 
-            {/* Выручка — единственная золотая карточка на экране: то, что
-                действительно главное сегодня. Остальные карточки остаются
-                обычными — если золотым будет всё, оно перестанет что-то
-                значить (тот же принцип, что и в MetalButton/GoldCard). */}
+            {/* Выручка — главная плитка экрана: крупнее остальных и с тонкой акцентной
+                линией слева. Все плитки статистики — стекло (заливка 22%) поверх мягкой
+                подсветки фона; содержимое экрана ниже остаётся плотным слоем. */}
             <View style={[{ width: '100%', position: 'relative' }, statCardHighlights[0].style]}>
-              <GoldCard style={styles.revenueCard}>
-                <Text style={styles.revenueLbl}>Выручка сегодня</Text>
-                <Text style={styles.revenueVal}>{(stats.todayTotal || 0).toLocaleString('ru-RU')} ₽</Text>
-              </GoldCard>
+              <GlassSurface radius={glass.radius.tile} style={styles.revenueCard}>
+                <View style={styles.stripe} />
+                <View style={styles.revenueInner}>
+                  <Text style={styles.revenueLbl}>Выручка сегодня</Text>
+                  <Text style={styles.revenueVal}>{(stats.todayTotal || 0).toLocaleString('ru-RU')} ₽</Text>
+                </View>
+              </GlassSurface>
               {statCardHighlights[0].overlay}
             </View>
 
             {[
-              { label: 'Заказов', value: stats.todayOrders || 0, color: colors.indigo },
-              { label: 'Средний чек', value: `${stats.todayOrders > 0 ? Math.round((stats.todayTotal||0) / stats.todayOrders).toLocaleString('ru-RU') : 0} ₽`, color: colors.orange },
-              { label: 'Наличные', value: `${(stats.todayCash || 0).toLocaleString('ru-RU')} ₽`, color: colors.green },
-              { label: 'Карта', value: `${(stats.todayCard || 0).toLocaleString('ru-RU')} ₽`, color: colors.indigo },
+              { label: 'Заказов', value: stats.todayOrders || 0 },
+              { label: 'Средний чек', value: `${stats.todayOrders > 0 ? Math.round((stats.todayTotal||0) / stats.todayOrders).toLocaleString('ru-RU') : 0} ₽` },
+              { label: 'Наличные', value: `${(stats.todayCash || 0).toLocaleString('ru-RU')} ₽` },
+              { label: 'Карта', value: `${(stats.todayCard || 0).toLocaleString('ru-RU')} ₽` },
             ].map((s, i) => (
               <View key={i} style={[{ flex: 1, minWidth: '44%', position: 'relative' }, statCardHighlights[i + 1].style]}>
-                <GlassCard style={styles.statGlassCard} radius={14} intensity={35}>
-                  <GlowIcon color={s.color} size={22} style={{ marginBottom: 12 }}>
-                    <View style={[styles.statDot, { backgroundColor: s.color }]} />
-                  </GlowIcon>
-                  <Text style={styles.statVal}>{s.value}</Text>
+                <GlassSurface radius={glass.radius.tile} padding={20} style={styles.statTile}>
                   <Text style={styles.statLbl}>{s.label}</Text>
-                </GlassCard>
+                  <Text style={styles.statVal}>{s.value}</Text>
+                </GlassSurface>
                 {statCardHighlights[i + 1].overlay}
               </View>
             ))}
 
-            {/* Смена — та же карточка сводки, но интерактивная: статус
-                показан цветом рамки (красная — не открыта, зелёная —
-                открыта), тап сразу открывает или закрывает. Раньше это
-                было ДВА отдельных элемента на странице (синий баннер
-                сверху + отдельная кнопка на всю ширину внизу) для одного
-                и того же действия — теперь один, там же, где и так уже
-                показывался статус смены. */}
+            {/* Смена — та же плитка, но интерактивная: статус показан цветной полоской
+                слева (красная — не открыта, зелёная — открыта), тап открывает или
+                закрывает смену. */}
             <Pressable
               style={({ pressed }) => [
-                styles.shiftStatCard,
-                stats.shift ? styles.shiftStatCardOpen : styles.shiftStatCardClosed,
-                { position: 'relative' },
+                { flex: 1, minWidth: '44%', position: 'relative' },
                 shiftActionHighlight.style,
                 pressed && { opacity: 0.85 },
               ]}
               onPress={() => navigation.navigate(stats.shift ? 'ShiftClose' : 'Shift')}
               onLayout={rememberY('admin.statsGrid.shiftAction')}
             >
-              <LinearGradient
-                colors={stats.shift
-                  ? [withOpacity(colors.green, 0.14), withOpacity(colors.green, 0.03)]
-                  : [withOpacity(colors.red, 0.14), withOpacity(colors.red, 0.03)]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFill}
-              />
-              <GlowIcon color={stats.shift ? colors.green : colors.red} size={34} style={{ marginRight: 12 }}>
-                <View style={[styles.shiftDot, { backgroundColor: stats.shift ? colors.green : colors.red }]} />
-              </GlowIcon>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.shiftStatVal}>{stats.shift ? (stats.shiftDuration || '—') : 'Не открыта'}</Text>
-                <Text style={styles.statLbl}>{stats.shift ? 'Смена открыта' : 'Смена закрыта'}</Text>
-              </View>
-              <Text style={[styles.shiftStatChevron, { color: stats.shift ? colors.green : colors.red }]}>›</Text>
+              <GlassSurface radius={glass.radius.tile}>
+                <View style={styles.shiftClip}>
+                  <View style={[styles.stripe, { top: 0, bottom: 0, borderRadius: 0, backgroundColor: stats.shift ? colors.green : colors.red }]} />
+                  <View style={styles.shiftRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.shiftStatVal}>{stats.shift ? (stats.shiftDuration || '—') : 'Не открыта'}</Text>
+                      <Text style={styles.shiftStatLbl}>{stats.shift ? 'Смена открыта' : 'Смена закрыта'}</Text>
+                    </View>
+                    <Text style={[styles.shiftStatChevron, { color: colors.textDim }]}>›</Text>
+                  </View>
+                </View>
+              </GlassSurface>
               {shiftActionHighlight.overlay}
             </Pressable>
             {statsGridHighlight.overlay}
@@ -261,7 +240,7 @@ export default function AdminScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  avatarTxt: { fontFamily: fonts.family, fontSize: 18, color: '#0A121C' },
+  avatarTxt: { fontFamily: fonts.family, fontSize: 18, color: colors.orange },
   root:        { flex: 1, backgroundColor: colors.bg, overflow: 'hidden' },
 
   panelContent:{ padding: 24, paddingBottom: 40 },
@@ -273,25 +252,20 @@ const styles = StyleSheet.create({
 
   statsGrid:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
   revenueCard: { marginBottom: 2 },
-  revenueLbl:  { fontFamily: fonts.familyBold, fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: 'rgba(10,18,28,0.6)', marginBottom: 8 },
-  revenueVal:  { fontFamily: fonts.display, fontSize: 36, color: '#0A121C' },
-  statGlassCard: { minHeight: 96 },
-  statDot: { width: 8, height: 8, borderRadius: 4 },
-  shiftDot:    { width: 10, height: 10, borderRadius: 5 },
-  statCard:    { flex: 1, minWidth: '44%', backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.borderHi, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 10, elevation: 3 },
-  avatar: { width: 44, height: 44, borderRadius: 22, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  statVal:     { fontFamily: fonts.family, fontSize: 24, color: colors.text, marginBottom: 2 },
-  statLbl:     { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
+  stripe:      { position: 'absolute', left: 0, top: 24, bottom: 24, width: 3, borderTopRightRadius: 2, borderBottomRightRadius: 2, backgroundColor: colors.orange },
+  revenueInner:{ paddingVertical: 24, paddingLeft: 28, paddingRight: 24 },
+  revenueLbl:  { fontFamily: fonts.familySemibold, fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase', color: colors.textDim, marginBottom: 8 },
+  revenueVal:  { fontFamily: fonts.display, fontSize: 48, letterSpacing: -1, color: colors.text },
+  statTile:    { minHeight: 100 },
+  avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.surface3, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', alignItems: 'center', justifyContent: 'center' },
+  statVal:     { fontFamily: fonts.display, fontSize: 28, color: colors.text, letterSpacing: -0.4 },
+  statLbl:     { fontFamily: fonts.familySemibold, fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: colors.textDim, marginBottom: 8 },
 
-  shiftStatCard: {
-    flex: 1, minWidth: '44%', flexDirection: 'row', alignItems: 'center',
-    borderRadius: 12, borderWidth: 2, padding: 16, overflow: 'hidden',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 18, elevation: 6,
-  },
-  shiftStatVal:        { fontFamily: fonts.familySemibold, fontSize: 18, color: colors.text, marginBottom: 2 },
-  shiftStatCardClosed: { borderColor: colors.red },
-  shiftStatCardOpen:   { borderColor: colors.green },
-  shiftStatChevron:    { fontSize: 24, fontWeight: '800' },
+  shiftClip:   { overflow: 'hidden', borderRadius: glass.radius.tile },
+  shiftRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 22, paddingLeft: 28, paddingRight: 22 },
+  shiftStatVal:{ fontFamily: fonts.display, fontSize: 20, color: colors.text, marginBottom: 2 },
+  shiftStatLbl:{ fontFamily: fonts.familyMedium, fontSize: 14, color: colors.textDim },
+  shiftStatChevron: { fontSize: 24 },
 
   stockBanner:     { backgroundColor: withOpacity(colors.red, 0.06), borderWidth: 1, borderColor: withOpacity(colors.red, 0.25), borderRadius: 12, padding: 10, paddingHorizontal: 16, marginBottom: 16 },
   stockBannerOpen: { backgroundColor: withOpacity(colors.red, 0.09) },

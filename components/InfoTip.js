@@ -76,7 +76,6 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: fonts.family,
     fontSize: 16,
-    
     color: colors.text,
     marginBottom: 12,
   },

@@ -98,6 +98,5 @@ const styles = StyleSheet.create({
   text: {
     fontFamily: fonts.family,
     fontSize: 14,
-    
   },
 });

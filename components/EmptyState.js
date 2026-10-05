@@ -47,7 +47,6 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: fonts.family,
     fontSize: 18,
-    
     color: colors.text,
     textAlign: 'center',
     marginBottom: 10,

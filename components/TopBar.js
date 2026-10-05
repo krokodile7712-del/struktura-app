@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, fonts } from '../constants/theme';
+import { colors, fonts, withOpacity } from '../constants/theme';
+import LockIcon from './LockIcon';
 import { getSession, clearSession } from '../db/session';
 import { resetKassaCart } from '../db/cartStore';
 import { useNextStepsProgress } from './NextStepsCard';
@@ -64,7 +65,7 @@ export default function TopBar({ title, onBack, rightElement, syncPending, navig
             : null}
           {rightElement || null}
           <Pressable onPress={lockApp} style={styles.lockBtn} hitSlop={8} accessibilityLabel="Заблокировать" accessibilityRole="button">
-            <Text style={styles.lockIcon}>🔒</Text>
+            <LockIcon size={20} color={colors.textDim} />
           </Pressable>
         </View>
       </View>
@@ -85,9 +86,9 @@ const styles = StyleSheet.create({
     height: 52,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: 'transparent',
     borderBottomWidth: 1,
-    borderBottomColor: colors.borderHi,
+    borderBottomColor: 'rgba(255,255,255,0.07)',
     paddingHorizontal: 8,
   },
   side: {
@@ -111,12 +112,12 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   lockBtn: {
-    width: 50,
-    height: 50,
+    width: 44,
+    height: 44,
     borderRadius: 14,
-    backgroundColor: 'rgba(219,129,120,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
     borderWidth: 1,
-    borderColor: 'rgba(219,129,120,0.35)',
+    borderColor: 'rgba(255,255,255,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -125,20 +126,19 @@ const styles = StyleSheet.create({
   },
   menuIcon: {
     fontSize: 20,
-    color: colors.greenLight,
+    color: colors.orangeLight,
     fontFamily: fonts.family,
   },
   backArrow: {
     fontSize: 28,
-    color: colors.greenLight,
+    color: colors.orangeLight,
     lineHeight: 32,
     fontFamily: fonts.family,
-    
   },
   backLabel: {
     fontFamily: fonts.familySemibold,
     fontSize: 16,
-    color: colors.greenLight,
+    color: colors.orangeLight,
   },
   title: {
     fontFamily: fonts.familySemibold,
@@ -163,19 +163,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 8,
-    backgroundColor: 'rgba(127,168,217,0.1)',
+    paddingVertical: 10,
+    backgroundColor: withOpacity(colors.warning, 0.07),
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(127,168,217,0.25)',
+    borderBottomColor: withOpacity(colors.warning, 0.16),
   },
   stepsBannerTxt: {
     fontFamily: fonts.familySemibold,
-    fontSize: 12,
-    color: colors.orange,
+    fontSize: 14,
+    color: colors.warning,
   },
   stepsBannerArrow: {
     fontFamily: fonts.familySemibold,
     fontSize: 14,
-    color: colors.orange,
+    color: colors.warning,
   },
 });

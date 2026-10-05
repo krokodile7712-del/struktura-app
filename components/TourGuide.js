@@ -150,7 +150,6 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: fonts.family,
     fontSize: 18,
-    
     color: colors.text,
     marginBottom: 8,
   },

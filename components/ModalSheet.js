@@ -98,7 +98,6 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: fonts.family,
     fontSize: 18,
-    
     color: colors.text,
     flex: 1,
     marginRight: 12,
