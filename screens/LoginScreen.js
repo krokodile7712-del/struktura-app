@@ -1,63 +1,115 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, TextInput, TouchableWithoutFeedback } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRef } from 'react';
-import { getUserByPin, getBusinessProfile, getUserPermissions } from '../db/queries';
+import { attemptLogin, getLoginLock, getBusinessProfile, getUserPermissions } from '../db/queries';
 import { setSession, setPermissions } from '../db/session';
 import { colors, fonts } from '../constants/theme';
 
-const PIN_LENGTH = 4;
+// PIN — от 4 до 6 цифр (то же, что допускают формы создания сотрудника).
+// Раньше экран принимал ровно 4 цифры и сам проверял на четвёртой, поэтому
+// PIN из 5–6 цифр (формы это разрешали) войти не позволял. Теперь вход —
+// кнопкой ✓ (или автоматически на шестой цифре).
+const PIN_MIN = 4;
+const PIN_MAX = 6;
+
+function formatWait(sec) {
+  if (sec < 60) return `${sec} с`;
+  const m = Math.floor(sec / 60);
+  const r = sec % 60;
+  return r ? `${m} мин ${r} с` : `${m} мин`;
+}
 
 export default function LoginScreen({ navigation, route }) {
   const navTo = route?.params?.navTo;
   const navParams = route?.params?.navParams;
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
-  const [shake, setShake] = useState(false);
+  const [busy, setBusy] = useState(false);
+  // Блокировка подбора: после серии неверных PIN вход закрыт на время.
+  // Состояние хранится в базе (переживает перезапуск приложения).
+  const [lockUntil, setLockUntil] = useState(0);
+  const [now, setNow] = useState(Date.now());
   const inputRef = useRef(null);
 
   const businessName = (() => {
     try { return getBusinessProfile()?.business_name || 'СТРУКТУРА'; } catch { return 'СТРУКТУРА'; }
   })();
 
+  useEffect(() => {
+    try {
+      const l = getLoginLock();
+      if (l.locked) { setLockUntil(Date.now() + l.remainingMs); setNow(Date.now()); }
+    } catch (_) {}
+  }, []);
+
+  useEffect(() => {
+    if (!lockUntil) return undefined;
+    const id = setInterval(() => {
+      const t = Date.now();
+      setNow(t);
+      if (t >= lockUntil) { setLockUntil(0); setError(''); }
+    }, 500);
+    return () => clearInterval(id);
+  }, [lockUntil]);
+
+  const lockLeftSec = lockUntil ? Math.max(0, Math.ceil((lockUntil - now) / 1000)) : 0;
+  const locked = lockLeftSec > 0;
+
+  const submit = (code) => {
+    if (busy || locked || code.length < PIN_MIN) return;
+    setBusy(true);
+    // Расчёт отпечатка занимает долю секунды — даём экрану успеть перерисоваться
+    setTimeout(() => {
+      let res;
+      try { res = attemptLogin(code); }
+      catch (e) { console.error('[Вход]', e); res = { ok: false, error: 'Ошибка входа' }; }
+      setBusy(false);
+      if (res.ok) {
+        const user = res.user;
+        setSession(user);
+        setPermissions(user.role === 'admin' ? null : getUserPermissions(user.id));
+        const home = user.role === 'admin' ? 'Admin' : 'Dashboard';
+        if (navTo && navTo !== home) {
+          navigation.reset({ index: 1, routes: [{ name: home }, { name: navTo, params: navParams }] });
+        } else {
+          navigation.navigate(home);
+        }
+        return;
+      }
+      setPin('');
+      if (res.locked) {
+        setLockUntil(Date.now() + res.remainingMs);
+        setNow(Date.now());
+        setError('');
+      } else {
+        setError(res.attemptsLeft != null && res.attemptsLeft <= 3
+          ? `${res.error}. Осталось попыток: ${res.attemptsLeft}`
+          : (res.error || 'Неверный PIN-код'));
+      }
+    }, 60);
+  };
+
   const handlePress = (val) => {
+    if (busy || locked) return;
     if (val === '⌫') {
       setPin(p => p.slice(0, -1));
       setError('');
       return;
     }
-    if (pin.length >= PIN_LENGTH) return;
+    if (val === '✓') { submit(pin); return; }
+    if (pin.length >= PIN_MAX) return;
     const next = pin + val;
     setPin(next);
     setError('');
-
-    if (next.length === PIN_LENGTH) {
-      setTimeout(() => tryLogin(next), 120);
-    }
-  };
-
-  const tryLogin = (code) => {
-    const user = getUserByPin(code);
-    if (!user) {
-      setError('Неверный PIN-код');
-      setPin('');
-      return;
-    }
-    setSession(user);
-    setPermissions(user.role === 'admin' ? null : getUserPermissions(user.id));
-    const home = user.role === 'admin' ? 'Admin' : 'Dashboard';
-    if (navTo && navTo !== home) {
-      navigation.reset({ index: 1, routes: [{ name: home }, { name: navTo, params: navParams }] });
-    } else {
-      navigation.navigate(home);
-    }
+    if (next.length === PIN_MAX) submit(next);
   };
 
   const keys = [
     ['1', '2', '3'],
     ['4', '5', '6'],
     ['7', '8', '9'],
-    ['', '0', '⌫'],
+    ['✓', '0', '⌫'],
   ];
 
   return (
@@ -69,15 +121,15 @@ export default function LoginScreen({ navigation, route }) {
         style={styles.hiddenInput}
         value={pin}
         onChangeText={v => {
-          const digits = v.replace(/\D/g, '').slice(0, PIN_LENGTH);
+          if (busy || locked) return;
+          const digits = v.replace(/\D/g, '').slice(0, PIN_MAX);
           setPin(digits);
           setError('');
-          if (digits.length === PIN_LENGTH) {
-            setTimeout(() => tryLogin(digits), 120);
-          }
+          if (digits.length === PIN_MAX) submit(digits);
         }}
+        onSubmitEditing={() => submit(pin)}
         keyboardType="number-pad"
-        maxLength={PIN_LENGTH}
+        maxLength={PIN_MAX}
         autoFocus
         caretHidden
       />
@@ -90,7 +142,7 @@ export default function LoginScreen({ navigation, route }) {
 
       {/* Индикатор точек */}
       <View style={styles.dotsRow}>
-        {Array.from({ length: PIN_LENGTH }).map((_, i) => (
+        {Array.from({ length: Math.max(PIN_MIN, pin.length) }).map((_, i) => (
           <View
             key={i}
             style={[
@@ -103,7 +155,9 @@ export default function LoginScreen({ navigation, route }) {
       </View>
 
       {/* Ошибка */}
-      <Text style={styles.errorTxt}>{error}</Text>
+      <Text style={styles.errorTxt}>
+        {locked ? `Слишком много попыток. Повторите через ${formatWait(lockLeftSec)}` : error}
+      </Text>
 
       {/* Цифровой пад */}
       <View style={styles.pad}>
@@ -118,11 +172,12 @@ export default function LoginScreen({ navigation, route }) {
                   style={({ pressed }) => [
                     styles.key,
                     k === '⌫' && styles.keyBack,
+                    k === '✓' && (pin.length >= PIN_MIN && !busy && !locked ? styles.keyEnter : styles.keyEnterOff),
                     pressed && styles.keyPressed,
                   ]}
                   onPress={() => handlePress(k)}
                 >
-                  <Text style={[styles.keyTxt, k === '⌫' && styles.keyBackTxt]}>
+                  <Text style={[styles.keyTxt, k === '⌫' && styles.keyBackTxt, k === '✓' && styles.keyEnterTxt]}>
                     {k}
                   </Text>
                 </Pressable>
@@ -134,7 +189,7 @@ export default function LoginScreen({ navigation, route }) {
 
       {/* Подсказка */}
       <Text style={styles.hint}>
-        PIN-код назначает администратор в разделе Сотрудники
+        PIN-код — от 4 до 6 цифр. Назначает администратор в разделе «Сотрудники».
       </Text>
 
     </SafeAreaView>
@@ -172,6 +227,9 @@ const styles = StyleSheet.create({
   keyEmpty:  { width: KEY_SIZE, height: KEY_SIZE },
   keyTxt:    { fontFamily: fonts.family, fontSize: 26, fontWeight: '700', color: colors.text },
   keyBackTxt:{ fontSize: 22, color: colors.muted },
+  keyEnter:  { backgroundColor: colors.orange, borderColor: colors.orange },
+  keyEnterOff:{ backgroundColor: 'transparent', borderColor: 'transparent' },
+  keyEnterTxt:{ fontSize: 28, color: '#241708' },
 
   hint:      { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'center', maxWidth: 280, lineHeight: 18 },
   hiddenInput: { position: 'absolute', width: 0, height: 0, opacity: 0 },

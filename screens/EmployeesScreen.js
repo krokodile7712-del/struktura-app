@@ -6,7 +6,7 @@ import Sheet from '../components/Sheet';
 import EmployeeStatsSheet from '../components/EmployeeStatsSheet';
 import Toggle from '../components/Toggle';
 import { useResponsive } from '../hooks/useResponsive';
-import { getAllUsers, addUser, updateUser, toggleUserActive, getRoleNames, deleteUser } from '../db/queries';
+import { getAllUsers, addUser, updateUser, toggleUserActive, getRoleNames, deleteUser, findDuplicatePinUsers } from '../db/queries';
 import { useToast } from '../components/Toast';
 import { getHomeRoute, goBackSmart } from '../db/session';
 import { colors, fonts } from '../constants/theme';
@@ -34,6 +34,9 @@ const KPI_PERIODS = [
   { key: 'month', label: 'За месяц' },
 ];
 
+// Предупреждение об одинаковых PIN показываем один раз за запуск приложения
+let duplicatePinWarned = false;
+
 const empty = { id: null, name: '', pin: '', pinConfirm: '', role: 'barista', active: 1, salary_type: 'shift', salary_amount: '', kpi_type: '', kpi_amount: '', kpi_period: 'month', kpi_bonus_amount: '', kpi_in_salary: 0 };
 
 export default function EmployeesScreen({ navigation }) {
@@ -55,6 +58,19 @@ export default function EmployeesScreen({ navigation }) {
 
   const load = () => {
     try { setUsers(getAllUsers()); setRoleNames(getRoleNames()); } catch(e) { console.error(e); }
+    // Остатки старых данных: если у двух сотрудников один PIN, войдёт только первый
+    try {
+      const dups = findDuplicatePinUsers();
+      if (dups.length > 0 && !duplicatePinWarned) {
+        duplicatePinWarned = true;
+        Alert.alert(
+          'Одинаковые PIN-коды',
+          'У этих сотрудников один и тот же PIN, поэтому войти сможет только один из них:\n\n' +
+            dups.map(g => '• ' + g.join(', ')).join('\n') +
+            '\n\nОткройте сотрудника и задайте ему новый PIN.'
+        );
+      }
+    } catch (_) {}
   };
 
   const selectUser = (u) => {
@@ -104,13 +120,13 @@ export default function EmployeesScreen({ navigation }) {
         kpiBonusAmount: parseFloat(draft.kpi_bonus_amount) || 0,
         kpiInSalary: draft.kpi_in_salary ? 1 : 0,
       };
-      if (isNew) {
-        addUser(draft.name.trim(), draft.pin, draft.role, data.salary_type, data.salary_amount, extra);
-        toast.show('Сотрудник добавлен');
-      } else {
-        updateUser(selected.id, data.name, draft.pin || selected.pin, data.role, data.salary_type, data.salary_amount, extra);
-        toast.show('Сохранено');
-      }
+      // Раньше результат не проверялся: при занятом PIN показывалось «Сохранено»,
+      // хотя запись не менялась. Пустой PIN при правке означает «не менять».
+      const res = isNew
+        ? addUser(draft.name.trim(), draft.pin, draft.role, data.salary_type, data.salary_amount, extra)
+        : updateUser(selected.id, data.name, draft.pin, data.role, data.salary_type, data.salary_amount, extra);
+      if (!res?.ok) { setError(res?.error || 'Не удалось сохранить'); return; }
+      toast.show(isNew ? 'Сотрудник добавлен' : 'Сохранено');
       load();
       setSelected(null);
     } catch(e) { setError(e.message || 'Ошибка сохранения'); }
@@ -127,7 +143,8 @@ export default function EmployeesScreen({ navigation }) {
           style: 'destructive',
           onPress: () => {
             try {
-              deleteUser(u.id);
+              const res = deleteUser(u.id);
+              if (!res?.ok) { Alert.alert('Нельзя удалить', res?.error || 'Не удалось удалить сотрудника'); return; }
               load();
               setSelected(null);
               toast.show('Сотрудник удалён');

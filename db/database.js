@@ -1,4 +1,5 @@
 import * as SQLite from 'expo-sqlite';
+import { migrateLegacyPins } from './userAuth';
 
 let db = null;
 
@@ -273,15 +274,12 @@ export function initDatabase() {
     );
   `);
 
-  // Дефолтные пользователи — PIN-коды реальные из листа «Настройки»
-  const users = db.getAllSync(`SELECT id FROM users LIMIT 1`);
-  if (users.length === 0) {
-    db.execSync(`
-      INSERT INTO users (name, pin, role) VALUES
-        ('Бариста',       '1122', 'barista'),
-        ('Администратор', '2312', 'admin');
-    `);
-  }
+  // Стартовых сотрудников и PIN-кодов НЕТ. Раньше при создании базы сюда
+  // вписывались «Бариста 1122» и «Администратор 2312» — на любой новой установке
+  // можно было войти администратором по известному коду, а мастер регистрации
+  // не показывался. Теперь база создаётся пустой, и пока нет ни одного
+  // сотрудника, приложение открывает только мастер: администратор сам
+  // придумывает свой PIN (см. App.js и OnboardingScreen).
 
   // Дефолтные настройки
   const bonusSetting = db.getAllSync(`SELECT key FROM app_settings WHERE key='bonusPct' LIMIT 1`);
@@ -308,6 +306,8 @@ export function initDatabase() {
     `ALTER TABLE cost_ingredients ADD COLUMN factor REAL DEFAULT 1`,
     // Фаза 3: именные сотрудники и привязка смен
     `ALTER TABLE users   ADD COLUMN active        INTEGER DEFAULT 1`,
+    // Отпечаток PIN (PBKDF2-SHA256 с солью бизнеса); сам PIN больше не хранится
+    `ALTER TABLE users   ADD COLUMN pin_hash      TEXT    DEFAULT ''`,
     `ALTER TABLE shifts  ADD COLUMN user_id       INTEGER`,
     `ALTER TABLE shifts  ADD COLUMN employee_name TEXT    DEFAULT ''`,
     // roles: отображаемые названия ролей (barista_label, admin_label)
@@ -547,6 +547,11 @@ export function initDatabase() {
   // старые записи (могли быть 'production'/'mixed' со счётчиком износа,
   // которого больше нет) к единому виду, ничего не считаем заново
   try { db.execSync(`UPDATE equipment SET amort_type = 'linear' WHERE amort_type != 'linear'`); } catch (_) {}
+
+  // Переводим старые PIN (лежали открытым текстом) на отпечатки. Безопасно
+  // повторять; сбой не должен мешать запуску — вход тогда сам переведёт запись
+  // при первой успешной проверке PIN (см. findUserByPin).
+  try { migrateLegacyPins(db); } catch (e) { console.error('[PIN] миграция не выполнена:', e); }
 
   console.log('[DB] Инициализация завершена');
 }

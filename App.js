@@ -24,7 +24,7 @@ import AppBackground from './components/AppBackground';
 import { ToastProvider } from './components/Toast';
 import { TourRegistryProvider } from './components/TourRegistry';
 import OnboardingScreen from './screens/OnboardingScreen';
-import { getSetting, migrateClientPhones } from './db/queries';
+import { migrateClientPhones } from './db/queries';
 import { initDatabase } from './db/database';
 import { startAutoSync } from './db/sync';
 
@@ -103,13 +103,16 @@ export default function App() {
       // сбой миграции не должен мешать запуску приложения
       try { migrateClientPhones(); } catch (e) { console.error('[phones] миграция не выполнена:', e); }
       startAutoSync(30 * 1000);
-      // Показываем онбординг только если: флаг не установлен И нет ни одного пользователя
-      const done = getSetting('onboarding_done');
+      // Стартовых сотрудников нет: пока в базе нет ни одного, открываем только
+      // мастер регистрации, где администратор сам придумывает PIN. Флаг
+      // onboarding_done здесь не учитывается намеренно — если регистрация
+      // прервалась (или базу сбросили), без администратора войти нельзя, и
+      // мастер должен открыться снова, а не экран входа.
       const hasUsers = (() => {
         try { const { getAllUsers } = require('./db/queries'); return getAllUsers().length > 0; }
         catch { return false; }
       })();
-      setInitialRoute(done || hasUsers ? 'Login' : 'Onboarding');
+      setInitialRoute(hasUsers ? 'Login' : 'Onboarding');
       setDbReady(true);
     } catch (e) {
       setDbError(e.message);

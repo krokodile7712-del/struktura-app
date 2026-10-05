@@ -126,7 +126,7 @@ export default function OnboardingScreen({ navigation }) {
           placeholderTextColor={colors.muted}
         />
         {errors.empPin2 && <Text style={styles.fieldErr}>{errors.empPin2}</Text>}
-        <Text style={styles.hint}>Запомните PIN — по нему будете входить каждый раз. Изменить можно позже в разделе «Сотрудники».</Text>
+        <Text style={styles.hint}>Запомните PIN — по нему будете входить каждый раз. Не используйте простые коды вроде 1234 или 0000. Изменить можно позже в разделе «Сотрудники».</Text>
 
         <Pressable style={styles.nextBtn} onPress={start}>
           <Text style={styles.nextBtnText}>Начать работу →</Text>

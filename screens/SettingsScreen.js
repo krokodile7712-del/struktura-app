@@ -21,7 +21,7 @@ import {
   insertModifierGroup, updateModifierGroup, deleteModifierGroup,
   insertModifierOption, updateModifierOption, deleteModifierOption,
   getCostCardForVariant, saveCostCardForVariant,
-  getUsers, updateUserPin, addUser, updateUser, deleteUser,
+  getUsers, addUser, updateUser, deleteUser,
   getUserPermissions, saveUserPermissions, DEFAULT_PERMISSIONS,
   getDiscounts, setSetting, getSetting, getLoyaltyConfig, updateLoyaltyConfig,
   getPayMethods, savePayMethods,
@@ -187,8 +187,6 @@ export default function SettingsScreen({ navigation, route }) {
   const [discountModal, setDiscountModal]       = useState(null);
 
   // ── PIN ──
-  const [pinBarista, setPinBarista] = useState('');
-  const [pinAdmin, setPinAdmin]     = useState('');
 
   // ── Общие настройки ──
   const [loyaltyModel,  setLoyaltyModel]  = useState('points');
@@ -236,16 +234,6 @@ export default function SettingsScreen({ navigation, route }) {
   // ── Лояльность ──
   const saveLoyalty = () => {
     try { updateLoyaltyConfig(loyaltyModel, loyaltyConfig); loadAll(); toast.show('Лояльность сохранена ✓', 'info'); } catch (e) { console.error(e); toast.show('Ошибка', 'warn'); }
-  };
-
-  // ── PIN ──
-  const savePins = () => {
-    try {
-      if (pinBarista.trim()) updateUserPin('barista', pinBarista.trim());
-      if (pinAdmin.trim()) updateUserPin('admin', pinAdmin.trim());
-      loadAll();
-      toast.show('PIN-коды сохранены ✓', 'info');
-    } catch (e) { console.error(e); toast.show('Ошибка', 'warn'); }
   };
 
   // ── Способы оплаты ──
@@ -583,8 +571,6 @@ export default function SettingsScreen({ navigation, route }) {
       const u = getUsers();
       setUsers(u);
       setRoleNames(getRoleNames());
-      setPinBarista(u.find(x => x.role === 'barista')?.pin || '');
-      setPinAdmin(u.find(x => x.role === 'admin')?.pin || '');
     } catch(e) { console.error('users',e); }
     try { setDiscounts(getDiscounts()); } catch(e) {}
     try { setDiscEligibleProducts(getDiscountEligibleProducts()); } catch(e) {}
@@ -834,7 +820,7 @@ export default function SettingsScreen({ navigation, route }) {
                   idx < users.length - 1 && styles.menuRowDiv,
                   pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
                 ]}
-                onPress={() => setEmpModal({ id: u.id, name: u.name, pin: u.pin, pin2: u.pin, role: u.role, salaryType: u.salary_type || 'shift', salaryAmount: String(u.salary_amount || ''), kpiType: u.kpi_type || '', kpiAmount: String(u.kpi_amount || ''), kpiPeriod: u.kpi_period || 'month', permissions: getUserPermissions(u.id) })}
+                onPress={() => setEmpModal({ id: u.id, name: u.name, pin: '', pin2: '', role: u.role, salaryType: u.salary_type || 'shift', salaryAmount: String(u.salary_amount || ''), kpiType: u.kpi_type || '', kpiAmount: String(u.kpi_amount || ''), kpiPeriod: u.kpi_period || 'month', permissions: getUserPermissions(u.id) })}
               >
                 <View style={{ flex: 1 }}>
                   <Text style={styles.menuItemName}>{u.name}</Text>
@@ -2859,7 +2845,7 @@ export default function SettingsScreen({ navigation, route }) {
                       </Text>
                     </Pressable>
                     <Text style={{ fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 4, lineHeight: 19 }}>
-                      Минимум 4 цифры. Оставьте пустым чтобы не менять.
+                      От 4 до 6 цифр, не слишком простой (не 1234 и не 0000). Оставьте пустым, чтобы не менять. Текущий PIN показать нельзя — он не хранится.
                     </Text>
 
                     <Text style={[styles.productFieldLabel, { marginTop: 16 }]}>Роль</Text>
@@ -2885,26 +2871,30 @@ export default function SettingsScreen({ navigation, route }) {
                     <Pressable
                       style={({ pressed }) => [styles.confirmBtn, { marginTop: 24 }, pressed && { opacity: 0.88 }]}
                       onPress={() => {
-                        if (!empModal.name.trim()) return;
-                        if (empModal.pin !== empModal.pin2) return;
-                        if (!empModal.id && empModal.pin.length < 4) return;
+                        if (!empModal.name.trim()) { toast.show('Введите имя сотрудника', 'warn'); return; }
+                        if (empModal.pin !== empModal.pin2) { toast.show('PIN-коды не совпадают', 'warn'); return; }
+                        if (!empModal.id && empModal.pin.length < 4) { toast.show('PIN — минимум 4 цифры', 'warn'); return; }
                         try {
                           const extra = {
                             kpiType: empModal.kpiType || '',
                             kpiAmount: parseFloat(empModal.kpiAmount) || 0,
                             kpiPeriod: empModal.kpiPeriod || 'month',
                           };
+                          // Раньше результат не проверялся: окно закрывалось как при успехе,
+                          // даже если PIN занят. Пустой PIN при правке — «не менять».
                           if (empModal.id) {
-                            updateUser(empModal.id, empModal.name, empModal.pin, empModal.role, empModal.salaryType, parseFloat(empModal.salaryAmount) || 0, extra);
+                            const res = updateUser(empModal.id, empModal.name, empModal.pin, empModal.role, empModal.salaryType, parseFloat(empModal.salaryAmount) || 0, extra);
+                            if (!res?.ok) { toast.show(res?.error || 'Не удалось сохранить', 'warn'); return; }
                             if (empModal.role !== 'admin') {
                               saveUserPermissions(empModal.id, empModal.permissions || DEFAULT_PERMISSIONS);
                               setUserPermissions(empModal.id, empModal.permissions || DEFAULT_PERMISSIONS);
                             }
                           } else {
-                            addUser(empModal.name, empModal.pin, empModal.role, empModal.salaryType, parseFloat(empModal.salaryAmount) || 0, extra);
+                            const res = addUser(empModal.name, empModal.pin, empModal.role, empModal.salaryType, parseFloat(empModal.salaryAmount) || 0, extra);
+                            if (!res?.ok) { toast.show(res?.error || 'Не удалось сохранить', 'warn'); return; }
                             if (empModal.role !== 'admin') {
-                              const newUser = getUsers().find(u => u.name === empModal.name.trim());
-                              if (newUser) saveUserPermissions(newUser.id, empModal.permissions || DEFAULT_PERMISSIONS);
+                              const newId = res.id ?? getUsers().find(u => u.name === empModal.name.trim())?.id;
+                              if (newId) saveUserPermissions(newId, empModal.permissions || DEFAULT_PERMISSIONS);
                             }
                           }
                           loadAll();
@@ -2919,7 +2909,11 @@ export default function SettingsScreen({ navigation, route }) {
                       <Pressable
                         style={{ paddingVertical: 13, alignItems: 'center', marginTop: 8, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(217,95,95,0.3)', backgroundColor: 'rgba(217,95,95,0.06)' }}
                         onPress={() => {
-                          try { deleteUser(empModal.id); loadAll(); setEmpModal(null); } catch (e) { console.error(e); }
+                          try {
+                            const res = deleteUser(empModal.id);
+                            if (!res?.ok) { toast.show(res?.error || 'Не удалось удалить', 'warn'); return; }
+                            loadAll(); setEmpModal(null);
+                          } catch (e) { console.error(e); }
                         }}
                       >
                         <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red }}>Удалить сотрудника</Text>

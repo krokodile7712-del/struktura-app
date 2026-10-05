@@ -1,4 +1,5 @@
 import { getDb } from './database';
+import * as Auth from './userAuth';
 import { getSession } from './session';
 import { toStoredPhone, normalizeLegacyPhone, phoneSearchVariants } from '../utils/phone';
 
@@ -661,51 +662,39 @@ export function getDiscounts() {
 
 // ─── Пользователи ─────────────────────────────────────────────────────────
 
-export function getUserByPin(pin) {
-  const db = getDb();
-  // Только активные сотрудники могут войти
-  return db.getFirstSync(`SELECT * FROM users WHERE pin = ? AND active != 0`, [pin]) || null;
-}
+// Вход и сотрудники — вся логика PIN в db/userAuth.js (отпечатки, соль бизнеса,
+// блокировка подбора, защита последнего администратора). Здесь — тонкие
+// обёртки, чтобы остальной код продолжал импортировать их отсюда.
+export function getUserByPin(pin) { return Auth.findUserByPin(getDb(), pin); }
 
+// Попытка входа со счётом неудач и блокировкой подбора
+export function attemptLogin(pin) { return Auth.attemptLogin(getDb(), pin); }
+export function getLoginLock() { return Auth.getLoginLock(getDb()); }
+
+// Списки сотрудников отдают их БЕЗ pin и pin_hash — секреты дальше этого
+// слоя не уходят (ни на экраны, ни в сессию)
 export function getUsers() {
   const db = getDb();
-  return db.getAllSync(`SELECT * FROM users WHERE active != 0 ORDER BY role DESC, name`);
+  return db.getAllSync(`SELECT * FROM users WHERE active != 0 ORDER BY role DESC, name`).map(Auth.stripSecrets);
 }
 
 export function getAllUsers() {
   const db = getDb();
-  return db.getAllSync(`SELECT * FROM users ORDER BY role DESC, name, active DESC`);
+  return db.getAllSync(`SELECT * FROM users ORDER BY role DESC, name, active DESC`).map(Auth.stripSecrets);
 }
 
-// Добавляет нового сотрудника. Возвращает {ok, error}
+// Добавляет нового сотрудника. Возвращает {ok, id} или {ok:false, error}
 export function addUser(name, pin, role, salaryType = 'shift', salaryAmount = 0, extra = {}) {
-  const db = getDb();
-  if (!name?.trim()) return { ok: false, error: 'Укажите имя сотрудника' };
-  if (!pin?.trim() || pin.trim().length < 4) return { ok: false, error: 'PIN — минимум 4 цифры' };
-  const exists = db.getFirstSync(`SELECT id FROM users WHERE pin = ?`, [pin.trim()]);
-  if (exists) return { ok: false, error: 'Этот PIN уже используется' };
-  const { kpiType = '', kpiAmount = 0, kpiPeriod = 'month', locationId = null, kpiBonusAmount = 0, kpiInSalary = 0 } = extra;
-  db.runSync(
-    `INSERT INTO users (name, pin, role, active, salary_type, salary_amount, kpi_type, kpi_amount, kpi_period, location_id, kpi_bonus_amount, kpi_in_salary) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [name.trim(), pin.trim(), role, salaryType, salaryAmount, kpiType, kpiAmount, kpiPeriod, locationId, kpiBonusAmount, kpiInSalary]
-  );
-  return { ok: true };
+  return Auth.addUser(getDb(), name, pin, role, salaryType, salaryAmount, extra);
 }
 
-// Обновляет сотрудника. Возвращает {ok, error}
+// Обновляет сотрудника. Пустой pin — «не менять». Возвращает {ok} или {ok:false, error}
 export function updateUser(id, name, pin, role, salaryType = 'shift', salaryAmount = 0, extra = {}) {
-  const db = getDb();
-  if (!name?.trim()) return { ok: false, error: 'Укажите имя сотрудника' };
-  if (!pin?.trim() || pin.trim().length < 4) return { ok: false, error: 'PIN — минимум 4 цифры' };
-  const exists = db.getFirstSync(`SELECT id FROM users WHERE pin = ? AND id != ?`, [pin.trim(), id]);
-  if (exists) return { ok: false, error: 'Этот PIN уже занят другим сотрудником' };
-  const { kpiType = '', kpiAmount = 0, kpiPeriod = 'month', locationId = null, kpiBonusAmount = 0, kpiInSalary = 0 } = extra;
-  db.runSync(
-    `UPDATE users SET name = ?, pin = ?, role = ?, salary_type = ?, salary_amount = ?, kpi_type = ?, kpi_amount = ?, kpi_period = ?, location_id = ?, kpi_bonus_amount = ?, kpi_in_salary = ? WHERE id = ?`,
-    [name.trim(), pin.trim(), role, salaryType, salaryAmount, kpiType, kpiAmount, kpiPeriod, locationId, kpiBonusAmount, kpiInSalary, id]
-  );
-  return { ok: true };
+  return Auth.updateUser(getDb(), id, name, pin, role, salaryType, salaryAmount, extra);
 }
+
+// Группы активных сотрудников с одинаковым PIN (остатки старых данных)
+export function findDuplicatePinUsers() { return Auth.findDuplicatePinUsers(getDb()); }
 
 // Мягкое удаление/восстановление. Нельзя деактивировать последнего активного админа.
 export function toggleUserActive(id) {
@@ -718,12 +707,6 @@ export function toggleUserActive(id) {
   }
   db.runSync(`UPDATE users SET active = ? WHERE id = ?`, [user.active ? 0 : 1, id]);
   return { ok: true };
-}
-
-// Оставляем для обратной совместимости (Settings → EmployeesScreen заменяет эту логику)
-export function updateUserPin(role, pin) {
-  const db = getDb();
-  db.runSync(`UPDATE users SET pin = ? WHERE role = ?`, [pin, role]);
 }
 
 // ─── Товары ───────────────────────────────────────────────────────────────
@@ -2592,6 +2575,9 @@ export function exportAllData() {
     try { data[table] = db.getAllSync(`SELECT * FROM ${table}`); }
     catch (_) { data[table] = []; }
   }
+  // Счётчик неверных PIN и время блокировки — состояние конкретного устройства,
+  // в копию не кладём (иначе после восстановления вход оказался бы заблокирован)
+  data.app_settings = (data.app_settings || []).filter(r => r.key !== 'pin_fail_count' && r.key !== 'pin_lock_until');
   return data;
 }
 
@@ -2614,6 +2600,16 @@ export function importAllData(data) {
 
   if (!data || typeof data !== 'object') {
     return { ok: false, error: 'Файл повреждён или это не резервная копия СТРУКТУРЫ' };
+  }
+
+  // Отпечатки PIN считаются с солью бизнеса. Если в файле есть сотрудники с
+  // отпечатками, а соли нет — после восстановления никто бы не смог войти.
+  // Такой файл не принимаем, пока база не тронута.
+  if (Array.isArray(data.users) && data.users.some(u => u && u.pin_hash)) {
+    const hasSalt = Array.isArray(data.app_settings) && data.app_settings.some(r => r && r.key === 'pin_salt' && r.value);
+    if (!hasSalt) {
+      return { ok: false, error: 'Файл копии неполный: в нём нет ключа для PIN-кодов сотрудников. База оставлена без изменений.' };
+    }
   }
 
   try {
@@ -2642,6 +2638,10 @@ export function importAllData(data) {
       restored.push(label);
     }
     db.execSync('COMMIT');
+    // Копия, сделанная старой версией, содержит PIN открытым текстом —
+    // переводим на отпечатки. Блокировку подбора сбрасываем.
+    try { Auth.migrateLegacyPins(db); } catch (e) { console.error('[importAllData] миграция PIN не выполнена:', e); }
+    try { Auth.resetLoginLock(db); } catch (_) {}
   } catch (e) {
     console.error('[importAllData] Ошибка восстановления — откат к исходному состоянию:', e);
     try { db.execSync('ROLLBACK'); } catch (rollbackErr) {
@@ -2662,6 +2662,10 @@ export function importAllData(data) {
 export function resetDatabase(includeUsers = false) {
   const db = getDb();
   const errors = [];
+  // Если сотрудников оставляем, соль их PIN (лежит в настройках) терять нельзя:
+  // без неё отпечатки не сойдутся, и никто не сможет войти
+  let keepSalt = null;
+  if (!includeUsers) { try { keepSalt = getSetting('pin_salt'); } catch (_) {} }
   for (const table of BACKUP_TABLES) {
     if (table === 'users' && !includeUsers) continue;
     try {
@@ -2671,6 +2675,7 @@ export function resetDatabase(includeUsers = false) {
       errors.push(table);
     }
   }
+  if (keepSalt) { try { setSetting('pin_salt', keepSalt); } catch (_) {} }
   if (includeUsers) {
     try {
       const remaining = db.getFirstSync(`SELECT COUNT(*) AS c FROM users`);
@@ -3734,9 +3739,9 @@ export function getBusinessMetrics(pnlFull, businessPreset) {
   return metrics;
 }
 
+// Единственного активного администратора удалить нельзя. Возвращает {ok} или {ok:false, error}
 export function deleteUser(id) {
-  const db = getDb();
-  db.runSync(`DELETE FROM users WHERE id = ?`, [id]);
+  return Auth.deleteUser(getDb(), id);
 }
 
 // ─── Права доступа сотрудников ───────────────────────────────────────────────
