@@ -265,8 +265,10 @@ const styles = StyleSheet.create({
   root:        { flex: 1, backgroundColor: colors.bg, overflow: 'hidden' },
 
   panelContent:{ padding: 24, paddingBottom: 40 },
-  panelGreeting:{ fontFamily: fonts.familyRegular, fontSize: 15, color: colors.textDim, marginBottom: 4 },
-  panelGreetingName: { fontFamily: fonts.display, fontSize: 24, color: colors.text },
+  // Приветствие и имя — один размер: раньше было 15 и 24, и строка выглядела рваной.
+  // Иерархию задают цвет и начертание, а не размер.
+  panelGreeting:{ fontFamily: fonts.familyRegular, fontSize: 20, color: colors.textDim, marginBottom: 4 },
+  panelGreetingName: { fontFamily: fonts.display, fontSize: 20, color: colors.text },
   panelSub:    { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginBottom: 24 },
 
   statsGrid:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
