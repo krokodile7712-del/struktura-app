@@ -146,7 +146,7 @@ export default function AppNav({ navigation, activeScreen }) {
                     }
                     return (
                       <Pressable key={s.key}
-                        style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: 'rgba(245,240,232,0.04)' }]}
+                        style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: 'rgba(255,255,255,0.04)' }]}
                         onPress={() => goToSection(s.route, s.params)}>
                         <Text style={styles.menuLabel}>{s.label}</Text>
                       </Pressable>
@@ -248,13 +248,13 @@ const styles = StyleSheet.create({
     marginTop: -14,
   },
   icon: {
-    fontSize: 22,
+    fontSize: 24,
   },
   iconPrimary: {
-    fontSize: 26,
+    fontSize: 28,
     width: 52,
     height: 52,
-    lineHeight: 52,
+    lineHeight: 56,
     textAlign: 'center',
     backgroundColor: colors.orange,
     borderRadius: 26,
@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontFamily: fonts.familySemibold,
-    fontSize: 10,
+    fontSize: 12,
     color: colors.muted,
   },
   labelActive: {
@@ -282,35 +282,35 @@ const styles = StyleSheet.create({
   // ── Панель альбомной ориентации ──
   landscapeNav: { borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface, overflow: 'hidden' },
   bizHeader:   { padding: 18, paddingBottom: 10 },
-  bizName:     { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text },
-  bizCity:     { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
+  bizName:     { fontFamily: fonts.family, fontSize: 18, color: colors.text },
+  bizCity:     { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
 
   ctaBtn:      { marginHorizontal: 12, marginBottom: 12, padding: 18, borderRadius: 12, backgroundColor: colors.orange, alignItems: 'center' },
-  ctaLabel:    { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: '#fff', textTransform: 'capitalize' },
-  ctaSub:      { fontFamily: fonts.familyRegular, fontSize: 10, color: 'rgba(255,255,255,0.7)', marginTop: 1 },
+  ctaLabel:    { fontFamily: fonts.family, fontSize: 18, color: '#fff', textTransform: 'capitalize' },
+  ctaSub:      { fontFamily: fonts.familyRegular, fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 1 },
 
   divider:     { height: 1, backgroundColor: colors.border, marginHorizontal: 12, marginVertical: 4 },
 
   menuItem:        { paddingVertical: 16, paddingHorizontal: 16, position: 'relative' },
-  menuItemActive:  { backgroundColor: 'rgba(245,240,232,0.06)' },
+  menuItemActive:  { backgroundColor: 'rgba(255,255,255,0.06)' },
   menuItemInactive:{ paddingVertical: 12, paddingHorizontal: 16, opacity: 0.45 },
   activeBar:       { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
   menuLabel:       { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.textDim },
   menuLabelActive: { color: colors.text },
   menuLabelInactive:{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
-  menuSub:         { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, marginTop: 1 },
+  menuSub:         { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 1 },
 
   // ── Узкая свёрнутая — внутренние элементы ──
   narrowLogoWrap: { width: 52, height: 52, borderRadius: 14, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: 14 },
   narrowLogo: { width: 52, height: 52 },
-  narrowLogoFallback: { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.muted },
+  narrowLogoFallback: { fontFamily: fonts.family, fontSize: 20, color: colors.muted },
   narrowCta:   { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center', marginTop: 12 },
   narrowCtaIcon: { fontSize: 24 },
   narrowDivider: { width: 36, height: 1, backgroundColor: colors.border, marginBottom: 6 },
   narrowDividerWide: { width: 52, height: 1, backgroundColor: colors.border, marginBottom: 10 },
   narrowItem:  { width: 84, height: 52, alignItems: 'center', justifyContent: 'center' },
   narrowItemBig: { width: 68, height: 60, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  narrowItemBigActive: { backgroundColor: 'rgba(240,160,80,0.12)' },
+  narrowItemBigActive: { backgroundColor: 'rgba(127,168,217,0.12)' },
   narrowDot:   { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.muted, opacity: 0.4 },
   narrowDotActive: { backgroundColor: colors.orange, opacity: 1, width: 14, height: 14, borderRadius: 7 },
   narrowDotDisabled: { opacity: 0.15 },

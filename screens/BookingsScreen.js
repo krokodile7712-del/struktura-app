@@ -21,10 +21,10 @@ import {
 import { colors, fonts } from '../constants/theme';
 
 const STATUS = {
-  pending:   { label: 'Новая',        color: colors.amber,  bg: 'rgba(212,175,106,0.12)' },
-  confirmed: { label: 'Подтверждена', color: colors.green,  bg: 'rgba(123,175,142,0.12)' },
-  cancelled: { label: 'Отменена',     color: colors.red,    bg: 'rgba(217,95,95,0.12)'   },
-  done:      { label: 'Выполнена',    color: colors.muted,  bg: 'rgba(64,60,55,0.1)'     },
+  pending:   { label: 'Новая',        color: colors.amber,  bg: 'rgba(217,172,98,0.12)' },
+  confirmed: { label: 'Подтверждена', color: colors.green,  bg: 'rgba(120,183,150,0.12)' },
+  cancelled: { label: 'Отменена',     color: colors.red,    bg: 'rgba(219,129,120,0.12)'   },
+  done:      { label: 'Выполнена',    color: colors.muted,  bg: 'rgba(255,255,255,0.04)'     },
 };
 
 const FILTERS = [
@@ -534,7 +534,7 @@ export default function BookingsScreen({ navigation }) {
                           style={({ pressed }) => [
                             styles.bookingRow,
                             idx < items.length - 1 && !isExp && styles.rowDiv,
-                            pressed && { backgroundColor: 'rgba(245,240,232,0.03)' },
+                            pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
                           ]}
                           onPress={() => setExpanded(isExp ? null : b.id)}
                         >
@@ -575,12 +575,12 @@ export default function BookingsScreen({ navigation }) {
                               </Pressable>
                             )}
                             {b.status !== 'cancelled' && (
-                              <Pressable style={[styles.actionBtn, { borderColor: 'rgba(217,95,95,0.35)' }]}
+                              <Pressable style={[styles.actionBtn, { borderColor: 'rgba(219,129,120,0.35)' }]}
                                 onPress={() => handleStatus(b.id, 'cancelled')}>
                                 <Text style={[styles.actionTxt, { color: colors.red }]}>✕ Отменить</Text>
                               </Pressable>
                             )}
-                            <Pressable style={[styles.actionBtn, { borderColor: 'rgba(217,95,95,0.35)' }]}
+                            <Pressable style={[styles.actionBtn, { borderColor: 'rgba(219,129,120,0.35)' }]}
                               onPress={() => handleDeleteOnline(b)}>
                               <Text style={[styles.actionTxt, { color: colors.red }]}>🗑 Удалить</Text>
                             </Pressable>
@@ -866,7 +866,7 @@ export default function BookingsScreen({ navigation }) {
                   <View style={styles.sideDivider} />
 
                   <Text style={styles.sideLabel}>Сегодня</Text>
-                  <Text style={[styles.sideVal, { fontSize: 22, marginBottom: 4 }]}>{todayList.length} {todayList.length === 1 ? 'запись' : 'записей'}</Text>
+                  <Text style={[styles.sideVal, { fontSize: 24, marginBottom: 4 }]}>{todayList.length} {todayList.length === 1 ? 'запись' : 'записей'}</Text>
                   {todayList.length > 0 && (
                     <View style={{ marginTop: 8 }}>
                       {todayList.map(b => (
@@ -912,8 +912,8 @@ export default function BookingsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
-  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.orange },
+  tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(127,168,217,0.1)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)', alignItems: 'center', justifyContent: 'center' },
+  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, color: colors.orange },
   root:   { flex: 1, backgroundColor: colors.bg },
   layout: { flex: 1, flexDirection: 'row' },
 
@@ -921,27 +921,27 @@ const styles = StyleSheet.create({
   left:   { width: 200, margin: 12, marginRight: 0, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 14, overflow: 'hidden' },
   filterRowOuter: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
   filterChip: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 18, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
-  filterChipActive: { backgroundColor: 'rgba(240,160,80,0.14)', borderColor: colors.orange },
-  filterChipTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  filterChipActive: { backgroundColor: 'rgba(127,168,217,0.14)', borderColor: colors.orange },
+  filterChipTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   filterChipTxtActive: { color: colors.orange },
-  sectionLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8 },
+  sectionLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8 },
   filterCompactBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginHorizontal: 16, marginTop: 12, paddingVertical: 9, paddingHorizontal: 14, borderRadius: 12, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignSelf: 'flex-start' },
   filterCompactTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
   filterCompactChevron: { fontSize: 14, color: colors.muted },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 12 },
 
   filterBtn:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, paddingHorizontal: 14, borderRadius: 12, position: 'relative', gap: 8 },
-  filterBtnActive: { backgroundColor: 'rgba(240,160,80,0.08)' },
+  filterBtnActive: { backgroundColor: 'rgba(127,168,217,0.08)' },
   filterBar:   { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
   filterTxt:   { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted, flex: 1 },
   filterTxtActive: { color: colors.orange },
   countBadge:  { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10, backgroundColor: colors.surface2 },
-  countBadgeNew: { backgroundColor: 'rgba(212,175,106,0.2)' },
-  countTxt:    { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  countBadgeNew: { backgroundColor: 'rgba(217,172,98,0.2)' },
+  countTxt:    { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   countTxtNew: { color: colors.amber },
 
   hintCard:  { backgroundColor: colors.surface3, borderRadius: 14, borderWidth: 1, borderColor: colors.borderHi, padding: 16 },
-  hintTitle: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text, marginBottom: 8 },
+  hintTitle: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text, marginBottom: 8 },
   hintTxt:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, lineHeight: 20 },
 
   // Правая панель
@@ -951,41 +951,41 @@ const styles = StyleSheet.create({
   manualLeftPortrait:  { flex: 1, backgroundColor: colors.surface },
   sidePanelManual: { flex: 1, backgroundColor: colors.bg, borderRadius: 16, borderWidth: 1, borderColor: colors.border, margin: 12, marginLeft: 12, overflow: 'hidden' },
   embeddedFormHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, paddingBottom: 0 },
-  embeddedFormTitle: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, flex: 1 },
+  embeddedFormTitle: { fontFamily: fonts.family, fontSize: 18, color: colors.text, flex: 1 },
   embeddedFormClose: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  embeddedFormCloseTxt: { fontSize: 15, color: colors.muted, fontWeight: '700' },
-  sideLabel:   { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
-  sideVal:     { fontFamily: fonts.family, fontSize: 32, fontWeight: '800', color: colors.text, marginTop: 4 },
+  embeddedFormCloseTxt: { fontSize: 16, color: colors.muted, fontWeight: '700' },
+  sideLabel:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
+  sideVal:     { fontFamily: fonts.family, fontSize: 28, color: colors.text, marginTop: 4 },
   sideDivider: { height: 1, backgroundColor: colors.border, marginVertical: 16 },
   todayRow:    { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
   todayTime:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange, width: 42 },
   todayName:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.text, flex: 1 },
-  upcomingName:{ fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.text, marginTop: 4 },
+  upcomingName:{ fontFamily: fonts.family, fontSize: 16, color: colors.text, marginTop: 4 },
   upcomingWhen:{ fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 2 },
   mainTabBar: { flexDirection: 'row', gap: 6, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: colors.surface, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.18, shadowRadius: 6, zIndex: 2 },
   mainTabBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 12 },
-  mainTabBtnActive: { backgroundColor: 'rgba(240,160,80,0.14)' },
-  mainTabTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  mainTabBtnActive: { backgroundColor: 'rgba(127,168,217,0.14)' },
+  mainTabTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   mainTabTxtActive: { color: colors.orange },
   addManualBtn: { margin: 16, marginBottom: 8, paddingVertical: 13, borderRadius: 12, backgroundColor: colors.orange, alignItems: 'center' },
-  addManualBtnTxt: { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: '#fff' },
+  addManualBtnTxt: { fontFamily: fonts.family, fontSize: 14, color: '#fff' },
 
   fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, marginTop: 14, marginBottom: 6 },
-  sectionHeading: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange, textTransform: 'uppercase', letterSpacing: 1.5 },
+  sectionHeading: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange, textTransform: 'uppercase', letterSpacing: 1.5 },
   input: { backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 13, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 14 },
-  inputBig: { backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.borderHi, padding: 14, color: colors.text, fontFamily: fonts.family, fontWeight: '700', fontSize: 18 },
+  inputBig: { backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.borderHi, padding: 14, color: colors.text, fontFamily: fonts.family, fontSize: 18 },
   inputOptional: { borderColor: colors.border, backgroundColor: colors.surface },
   whenBox: { backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, padding: 14, marginTop: 8 },
   priceWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.borderHi, paddingHorizontal: 14 },
-  priceInput: { flex: 1, fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.text, paddingVertical: 12 },
+  priceInput: { flex: 1, fontFamily: fonts.family, fontSize: 24, color: colors.text, paddingVertical: 12 },
   priceCurrency: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
   saveManualBtn: { marginTop: 24, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.orange, alignItems: 'center' },
-  saveManualBtnTxt: { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: '#fff' },
+  saveManualBtnTxt: { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
   pickerDoneBtn: { marginTop: 8, paddingVertical: 10, borderRadius: 10, backgroundColor: colors.surface2, alignItems: 'center' },
   pickerDoneBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
   centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
   loadingTxt: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 12 },
-  emptyTxt:   { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted, textAlign: 'center' },
+  emptyTxt:   { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted, textAlign: 'center' },
   emptyHint:  { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', marginTop: 8, lineHeight: 20, opacity: 0.7 },
 
   group:       { marginBottom: 16 },
@@ -994,13 +994,13 @@ const styles = StyleSheet.create({
 
   bookingRow:  { flexDirection: 'row', alignItems: 'center', padding: 15, gap: 10 },
   rowDiv:      { borderBottomWidth: 1, borderBottomColor: colors.border },
-  bookingTime: { fontFamily: fonts.familySemibold, fontSize: 17, color: colors.text, width: 50 },
+  bookingTime: { fontFamily: fonts.familySemibold, fontSize: 18, color: colors.text, width: 50 },
   bookingName: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
   bookingSub:  { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 2 },
-  bookingNote: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.indigo, marginTop: 2 },
+  bookingNote: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.indigo, marginTop: 2 },
 
   statusBadge: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 10 },
-  statusTxt:   { fontFamily: fonts.familySemibold, fontSize: 13 },
+  statusTxt:   { fontFamily: fonts.familySemibold, fontSize: 14 },
   chevron:     { fontSize: 18, color: colors.muted, transform: [{ rotate: '90deg' }] },
   chevronOpen: { transform: [{ rotate: '-90deg' }] },
 
@@ -1011,7 +1011,7 @@ const styles = StyleSheet.create({
   refreshBtn:  { fontSize: 20, color: colors.muted },
   refreshBtnWrap: { paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
 
-  dayFilterBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 16, marginTop: 12, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.3)' },
+  dayFilterBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 16, marginTop: 12, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: 'rgba(127,168,217,0.1)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.3)' },
   dayFilterTxt: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.text, flex: 1 },
   dayFilterClear: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange, marginLeft: 8 },
 

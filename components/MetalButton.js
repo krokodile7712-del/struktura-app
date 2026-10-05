@@ -45,7 +45,7 @@ export default function MetalButton({ title, onPress, variant = 'default', style
           end={{ x: 1, y: 0.9 }}
           style={StyleSheet.absoluteFill}
         />
-        <Text style={[styles.text, { color: '#241708' }, textStyle]}>{title}</Text>
+        <Text style={[styles.text, { color: '#0A121C' }, textStyle]}>{title}</Text>
       </Pressable>
     );
   }
@@ -98,6 +98,6 @@ const styles = StyleSheet.create({
   text: {
     fontFamily: fonts.family,
     fontSize: 14,
-    fontWeight: '700',
+    
   },
 });

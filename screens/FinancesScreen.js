@@ -132,18 +132,18 @@ export default function FinancesScreen({ navigation, route }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
-  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.orange },
+  tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(127,168,217,0.1)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)', alignItems: 'center', justifyContent: 'center' },
+  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, color: colors.orange },
 
   summaryRow: { flexGrow: 0, borderBottomWidth: 1, borderBottomColor: colors.borderHi, backgroundColor: colors.surface2 },
   summaryRowInner: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingVertical: 10 },
   summaryChip: { backgroundColor: colors.surface3, borderRadius: 12, borderWidth: 1, borderColor: colors.borderHi, paddingVertical: 9, paddingHorizontal: 14, minWidth: 120 },
-  summaryChipLabel: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
-  summaryChipVal: { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text, marginTop: 3 },
+  summaryChipLabel: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
+  summaryChipVal: { fontFamily: fonts.family, fontSize: 18, color: colors.text, marginTop: 3 },
 
   tabBarOuter: { flexDirection: 'row', gap: 8, paddingHorizontal: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.borderHi, backgroundColor: colors.surface2 },
   tabBtn: { flex: 1, paddingVertical: 11, alignItems: 'center', borderRadius: 12 },
-  tabBtnActive: { backgroundColor: 'rgba(240,160,80,0.14)' },
-  tabTxt: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted },
+  tabBtnActive: { backgroundColor: 'rgba(127,168,217,0.14)' },
+  tabTxt: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
   tabTxtActive: { color: colors.orange },
 });

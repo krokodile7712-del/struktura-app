@@ -32,7 +32,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontFamily: fonts.familySemibold,
-    fontSize: 11,
+    fontSize: 12,
     color: colors.muted,
     textTransform: 'uppercase',
     letterSpacing: 1.5,

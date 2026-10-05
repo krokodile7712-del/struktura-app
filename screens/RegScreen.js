@@ -160,15 +160,15 @@ const styles = StyleSheet.create({
   fieldWrap: { padding: 18 },
   divider:   { height: 1, backgroundColor: colors.border },
 
-  label:     { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 10 },
+  label:     { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 10 },
   required:  { color: colors.orange },
   input:     { padding: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 16, fontFamily: fonts.familyRegular },
   hint:      { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 8, lineHeight: 17 },
 
-  errorBox:  { marginTop: 12, padding: 14, backgroundColor: 'rgba(217,95,95,0.1)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(217,95,95,0.3)' },
-  errorTxt:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.red },
+  errorBox:  { marginTop: 12, padding: 14, backgroundColor: 'rgba(219,129,120,0.1)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(219,129,120,0.3)' },
+  errorTxt:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red },
 
   btn:       { backgroundColor: colors.orange, borderRadius: 16, paddingVertical: 18, alignItems: 'center' },
-  btnTxt:    { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: '#fff' },
+  btnTxt:    { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
   btnSub:    { fontFamily: fonts.familyRegular, fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 3 },
 });

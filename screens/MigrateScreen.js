@@ -9,8 +9,8 @@ export default function MigrateScreen({ navigation }) {
     <View style={{ flex: 1 }}>
       <TopBar title="Импорт" onBack={() => goBackSmart(navigation)} />
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
-        <Text style={{ fontSize: 32, marginBottom: 16 }}>📥</Text>
-        <Text style={{ fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, textAlign: 'center' }}>
+        <Text style={{ fontSize: 28, marginBottom: 16 }}>📥</Text>
+        <Text style={{ fontFamily: fonts.family, fontSize: 18, color: colors.text, textAlign: 'center' }}>
           Импорт недоступен
         </Text>
         <Text style={{ fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', marginTop: 8 }}>

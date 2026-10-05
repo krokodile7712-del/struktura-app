@@ -131,35 +131,35 @@ const styles = StyleSheet.create({
   inner: { padding: 20, paddingBottom: 32, maxWidth: 480, width: '100%', alignSelf: 'center' },
 
   successWrap:   { alignItems: 'center', marginTop: 12, marginBottom: 24 },
-  successCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(123,175,142,0.15)', borderWidth: 1, borderColor: 'rgba(123,175,142,0.4)', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  successCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(120,183,150,0.15)', borderWidth: 1, borderColor: 'rgba(120,183,150,0.4)', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
   successIcon:   { fontSize: 28, color: colors.green, fontWeight: '800' },
-  fioText:       { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.text, textAlign: 'center', marginBottom: 4 },
-  subText:       { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center' },
+  fioText:       { fontFamily: fonts.family, fontSize: 20, color: colors.text, textAlign: 'center', marginBottom: 4 },
+  subText:       { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center' },
 
   codeBox: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
     borderRadius: 16, padding: 16, marginBottom: 14,
   },
-  codeLabel: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 },
-  codeValue: { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.text, letterSpacing: 1 },
+  codeLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 },
+  codeValue: { fontFamily: fonts.family, fontSize: 24, color: colors.text, letterSpacing: 1 },
   copyHint:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.orange },
 
   loyaltyCard: {
     flexDirection: 'row', gap: 12,
-    backgroundColor: 'rgba(139,127,212,0.08)', borderWidth: 1, borderColor: 'rgba(139,127,212,0.25)',
+    backgroundColor: 'rgba(165,168,212,0.08)', borderWidth: 1, borderColor: 'rgba(165,168,212,0.25)',
     borderRadius: 14, padding: 14, marginBottom: 24,
   },
   loyaltyIcon:  { fontSize: 20, marginTop: 1 },
-  loyaltyTitle: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, marginBottom: 3 },
+  loyaltyTitle: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, marginBottom: 3 },
   loyaltyText:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.textDim, lineHeight: 17 },
 
   primaryBtn:     { backgroundColor: colors.orange, borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginBottom: 10 },
-  primaryBtnText: { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: '#fff' },
+  primaryBtnText: { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
 
   secondaryBtn:     { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginBottom: 10 },
   secondaryBtnText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
 
   tertiaryBtn:     { paddingVertical: 10, alignItems: 'center' },
-  tertiaryBtnText: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
+  tertiaryBtnText: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
 });

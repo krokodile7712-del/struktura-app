@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
   },
   actionLabel: {
     fontFamily: fonts.familySemibold,
-    fontSize: 11,
+    fontSize: 12,
     color: '#fff',
     textTransform: 'uppercase',
     letterSpacing: 0.5,

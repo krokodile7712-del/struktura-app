@@ -46,8 +46,8 @@ export default function UnitPicker({ value, onChange }) {
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
-  chipActive: { backgroundColor: 'rgba(240,160,80,0.12)', borderColor: 'rgba(240,160,80,0.5)' },
-  chipTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  chipActive: { backgroundColor: 'rgba(127,168,217,0.12)', borderColor: 'rgba(127,168,217,0.5)' },
+  chipTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   chipTxtActive: { color: colors.orange },
-  input: { marginTop: 8, padding: 12, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontFamily: fonts.family, fontSize: 15 },
+  input: { marginTop: 8, padding: 12, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontFamily: fonts.family, fontSize: 16 },
 });

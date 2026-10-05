@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: fonts.family,
     fontSize: 16,
-    fontWeight: '700',
+    
     color: colors.text,
     marginBottom: 12,
   },
@@ -88,10 +88,10 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   btn: {
-    backgroundColor: 'rgba(240,160,80,0.12)',
+    backgroundColor: 'rgba(127,168,217,0.12)',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(240,160,80,0.4)',
+    borderColor: 'rgba(127,168,217,0.4)',
     padding: 13,
     alignItems: 'center',
   },

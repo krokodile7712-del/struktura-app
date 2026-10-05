@@ -346,7 +346,7 @@ export default function InventoryScreen({ navigation }) {
                           <Text style={styles.discBadgeTxt}>{discrepancies} расхождений</Text>
                         </View>
                       )}
-                      <View style={[styles.statusBadge, { backgroundColor: act.status === 'confirmed' ? 'rgba(123,175,142,0.12)' : 'rgba(240,160,80,0.1)' }]}>
+                      <View style={[styles.statusBadge, { backgroundColor: act.status === 'confirmed' ? 'rgba(120,183,150,0.12)' : 'rgba(127,168,217,0.1)' }]}>
                         <Text style={[styles.statusTxt, { color: act.status === 'confirmed' ? colors.green : colors.orange }]}>
                           {act.status === 'confirmed' ? 'Завершён' : 'В процессе'}
                         </Text>
@@ -435,7 +435,7 @@ export default function InventoryScreen({ navigation }) {
                   <View style={styles.sideDivider} />
 
                   <Text style={styles.sideLabel}>Расхождение план/факт</Text>
-                  <Text style={[styles.sideVal, { fontSize: 26, color: discrepancy >= 0 ? colors.green : colors.red }]}>
+                  <Text style={[styles.sideVal, { fontSize: 28, color: discrepancy >= 0 ? colors.green : colors.red }]}>
                     {discrepancy >= 0 ? '+' : ''}{fmt(discrepancy)} ₽
                   </Text>
                   <Text style={styles.sideSub}>
@@ -615,31 +615,31 @@ export default function InventoryScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   root:   { flex: 1, backgroundColor: colors.bg },
-  tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
-  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.orange },
+  tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(127,168,217,0.1)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)', alignItems: 'center', justifyContent: 'center' },
+  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, color: colors.orange },
 
   // ── Боковая панель сводки (альбомная) ──
   sidePanel:  { flex: 1, backgroundColor: colors.bg, margin: 12, marginLeft: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', padding: 20 },
   leftCol:    { flex: 0, width: '38%', maxWidth: 480, marginTop: 12, marginBottom: 12, marginLeft: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.borderHi, overflow: 'hidden', backgroundColor: colors.surface2 },
   addBtnBig:  { marginHorizontal: 16, marginTop: 16, marginBottom: 8, paddingVertical: 16, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
-  addBtnBigTxt: { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: '#fff' },
+  addBtnBigTxt: { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
 
-  infoCard:  { margin: 12, backgroundColor: 'rgba(139,127,212,0.08)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(139,127,212,0.2)', padding: 16, width: '100%', maxWidth: 760, alignSelf: 'center' },
+  infoCard:  { margin: 12, backgroundColor: 'rgba(165,168,212,0.08)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(165,168,212,0.2)', padding: 16, width: '100%', maxWidth: 760, alignSelf: 'center' },
   infoTitle: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.indigo, marginBottom: 6 },
   infoTxt:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.textDim, lineHeight: 20 },
 
   // Та же подсказка, но крупнее и с отступом сверху — для боковой панели
   // в альбомной, не прижата к самому верху под шапкой
-  infoCardBig: { marginTop: 24, backgroundColor: 'rgba(139,127,212,0.08)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(139,127,212,0.25)', padding: 20, width: '100%', maxWidth: 620, alignSelf: 'center' },
+  infoCardBig: { marginTop: 24, backgroundColor: 'rgba(165,168,212,0.08)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(165,168,212,0.25)', padding: 20, width: '100%', maxWidth: 620, alignSelf: 'center' },
   infoTitleBig: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.indigo, marginBottom: 8 },
-  infoTxtBig:   { fontFamily: fonts.familyRegular, fontSize: 15, color: colors.textDim, lineHeight: 22 },
-  sideLabel:  { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
-  sideVal:    { fontFamily: fonts.family, fontSize: 30, fontWeight: '800', color: colors.orange, marginTop: 6 },
+  infoTxtBig:   { fontFamily: fonts.familyRegular, fontSize: 16, color: colors.textDim, lineHeight: 23 },
+  sideLabel:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
+  sideVal:    { fontFamily: fonts.family, fontSize: 28, color: colors.orange, marginTop: 6 },
   sideSub:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
   sideDivider:{ height: 1, backgroundColor: colors.border, marginVertical: 16 },
 
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
-  emptyTxt:  { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted },
+  emptyTxt:  { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
   emptyHint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 8, lineHeight: 18, opacity: 0.7 },
 
   card:       { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
@@ -647,72 +647,72 @@ const styles = StyleSheet.create({
   cardTitle:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, marginBottom: 2 },
   cardDate:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
   cardRight:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  discBadge:  { backgroundColor: 'rgba(217,95,95,0.1)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
-  discBadgeTxt: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.red },
+  discBadge:  { backgroundColor: 'rgba(219,129,120,0.1)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  discBadgeTxt: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.red },
   statusBadge:{ borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
-  statusTxt:  { fontFamily: fonts.familySemibold, fontSize: 11 },
+  statusTxt:  { fontFamily: fonts.familySemibold, fontSize: 12 },
   chevron:    { fontSize: 20, color: colors.muted, transform: [{ rotate: '90deg' }] },
   chevronOpen:{ transform: [{ rotate: '-90deg' }] },
 
   cardBody:   { borderTopWidth: 1, borderTopColor: colors.border, padding: 16 },
-  noItems:    { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center', paddingVertical: 12 },
+  noItems:    { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', paddingVertical: 12 },
 
   tableHeader:{ flexDirection: 'row', marginBottom: 8 },
-  tableHd:    { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, width: 70, textAlign: 'right' },
+  tableHd:    { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, width: 70, textAlign: 'right' },
   tableRow:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
-  tableName:  { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.text },
-  tableVal:   { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, width: 70, textAlign: 'right' },
-  tableDiff:  { fontFamily: fonts.familySemibold, fontSize: 13, width: 70, textAlign: 'right' },
+  tableName:  { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.text },
+  tableVal:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, width: 70, textAlign: 'right' },
+  tableDiff:  { fontFamily: fonts.familySemibold, fontSize: 14, width: 70, textAlign: 'right' },
 
-  deleteBtn:  { marginTop: 14, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(217,95,95,0.3)', backgroundColor: 'rgba(217,95,95,0.06)', alignItems: 'center' },
-  deleteBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.red },
+  deleteBtn:  { marginTop: 14, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(219,129,120,0.3)', backgroundColor: 'rgba(219,129,120,0.06)', alignItems: 'center' },
+  deleteBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red },
 
-  fillBtn:    { marginTop: 14, marginBottom: 8, paddingVertical: 13, borderRadius: 12, backgroundColor: 'rgba(240,160,80,0.12)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center' },
-  fillBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
+  fillBtn:    { marginTop: 14, marginBottom: 8, paddingVertical: 13, borderRadius: 12, backgroundColor: 'rgba(127,168,217,0.12)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)', alignItems: 'center' },
+  fillBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
 
   // ─── Заполнение фактических остатков — встроено в правую колонку/Sheet ──
   fillPanelHeader: { flexDirection: 'row', alignItems: 'center', paddingBottom: 16, gap: 12 },
   fillCloseBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  fillCloseBtnTxt: { fontSize: 15, color: colors.muted, fontWeight: '700' },
-  fillPanelTitle:  { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text },
-  fillPanelSub:    { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 2 },
+  fillCloseBtnTxt: { fontSize: 16, color: colors.muted, fontWeight: '700' },
+  fillPanelTitle:  { fontFamily: fonts.family, fontSize: 18, color: colors.text },
+  fillPanelSub:    { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 2 },
   confirmBtn: { backgroundColor: colors.orange, borderRadius: 12, paddingVertical: 11, paddingHorizontal: 18 },
   confirmBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: '#fff' },
 
   fillCard:   { backgroundColor: colors.surface2, borderRadius: 16, borderWidth: 1, borderColor: colors.borderHi, overflow: 'hidden' },
   fillRow:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
-  fillName:   { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
-  fillUnit:   { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 2 },
-  fillInput:  { width: 110, backgroundColor: colors.surface3, borderRadius: 12, borderWidth: 1, borderColor: colors.border, paddingVertical: 12, paddingHorizontal: 12, fontFamily: fonts.familySemibold, fontSize: 15, textAlign: 'right', color: colors.text },
-  summaryHeading: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8 },
-  summaryDiff: { fontFamily: fonts.familySemibold, fontSize: 15 },
+  fillName:   { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
+  fillUnit:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 2 },
+  fillInput:  { width: 110, backgroundColor: colors.surface3, borderRadius: 12, borderWidth: 1, borderColor: colors.border, paddingVertical: 12, paddingHorizontal: 12, fontFamily: fonts.familySemibold, fontSize: 16, textAlign: 'right', color: colors.text },
+  summaryHeading: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8 },
+  summaryDiff: { fontFamily: fonts.familySemibold, fontSize: 16 },
 
-  addBtn:     { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, backgroundColor: 'rgba(240,160,80,0.12)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)' },
-  addBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
+  addBtn:     { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, backgroundColor: 'rgba(127,168,217,0.12)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)' },
+  addBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
   modalBox:   { width: '50%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, padding: 24 },
-  modalTitle: { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.text, marginBottom: 4 },
-  modalSub:   { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginBottom: 20 },
+  modalTitle: { fontFamily: fonts.family, fontSize: 20, color: colors.text, marginBottom: 4 },
+  modalSub:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginBottom: 20 },
 
   scopeList:  { backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', marginBottom: 16 },
   catChips:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   catChip:    { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface2 },
-  catChipActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.1)' },
+  catChipActive: { borderColor: 'rgba(127,168,217,0.5)', backgroundColor: 'rgba(127,168,217,0.1)' },
   catChipTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   catChipTxtActive: { color: colors.orange },
   manualList: { backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', maxHeight: 260 },
   manualRow:  { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 12 },
   manualName: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.text, flex: 1 },
   scopeRow:   { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
-  scopeRowActive: { backgroundColor: 'rgba(240,160,80,0.06)' },
+  scopeRowActive: { backgroundColor: 'rgba(127,168,217,0.06)' },
   scopeCheck: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   scopeCheckActive: { backgroundColor: colors.orange, borderColor: colors.orange },
   scopeLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, marginBottom: 2 },
   scopeHint:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
 
   createBtn:  { backgroundColor: colors.orange, borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginBottom: 8 },
-  createBtnTxt: { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: '#fff' },
+  createBtnTxt: { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
   cancelBtn:  { paddingVertical: 12, alignItems: 'center' },
   cancelBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
 });

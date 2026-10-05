@@ -103,20 +103,20 @@ export default function DashboardScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  avatarTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.orange },
+  avatarTxt: { fontFamily: fonts.family, fontSize: 18, color: colors.orange },
   root:    { flex: 1, backgroundColor: colors.bg },
 
   dashContent: { padding: 24, paddingBottom: 40 },
-  greeting:    { fontFamily: fonts.family, fontSize: 26, fontWeight: '800', color: colors.text, marginBottom: 4 },
-  greetingSub: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginBottom: 28 },
+  greeting:    { fontFamily: fonts.family, fontSize: 28, color: colors.text, marginBottom: 4 },
+  greetingSub: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginBottom: 28 },
 
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
   statCard:  { flex: 1, minWidth: '44%', backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, padding: 16 },
-  statVal:   { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.text, marginBottom: 4 },
-  statLbl:   { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.8 },
+  statVal:   { fontFamily: fonts.family, fontSize: 24, color: colors.text, marginBottom: 4 },
+  statLbl:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 0.8 },
 
   shiftDivider:  { height: 1, backgroundColor: colors.border, marginBottom: 16 },
-  shiftCloseBtn: { backgroundColor: 'rgba(217,95,95,0.07)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(217,95,95,0.3)', padding: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  shiftCloseBtn: { backgroundColor: 'rgba(219,129,120,0.07)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(219,129,120,0.3)', padding: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   shiftCloseTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red, marginBottom: 3 },
   shiftCloseSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
 });

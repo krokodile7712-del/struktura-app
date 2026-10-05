@@ -33,7 +33,7 @@ const MODES = [
   { key: 'purchase', label: 'Закупка',    desc: 'Добавить с фиксацией цены', icon: '🛒', tint: colors.orange },
   { key: 'add',      label: 'Добавить',   desc: 'Пополнить остаток', icon: '➕', tint: colors.green },
   { key: 'subtract', label: 'Списать',    desc: 'Уменьшить (брак, расход)', icon: '➖', tint: colors.red },
-  { key: 'set',      label: 'Установить', desc: 'Задать точное значение', icon: '✏️', tint: '#7a9ce0' },
+  { key: 'set',      label: 'Установить', desc: 'Задать точное значение', icon: '✏️', tint: '#7FA8D9' },
 ];
 
 // Единая реализация Склада — используется и отдельным экраном (StockScreen),
@@ -354,7 +354,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
                   </View>
                 )}
                 {!can('edit_thresholds') && selected['порог'] > 0 && (
-                  <Text style={{ fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, marginTop: 4 }}>Изменение порога недоступно</Text>
+                  <Text style={{ fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 4 }}>Изменение порога недоступно</Text>
                 )}
               </View>
 
@@ -384,7 +384,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
                 />
                 <Text style={styles.curAvg}>₽/ед.</Text>
                 <Pressable
-                  style={({ pressed }) => [styles.priceSaveBtn, pressed && { opacity: 0.7, backgroundColor: 'rgba(240,160,80,0.3)' }]}
+                  style={({ pressed }) => [styles.priceSaveBtn, pressed && { opacity: 0.7, backgroundColor: 'rgba(127,168,217,0.3)' }]}
                   onPress={() => saveSellPrice(String(selected.sell_price || ''))}
                 >
                   <Text style={styles.priceSaveTxt}>✓</Text>
@@ -395,7 +395,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
             {/* Режимы */}
             {!can('edit_stock') ? (
               <View style={{ paddingVertical: 16, alignItems: 'center' }}>
-                <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted }}>Изменение остатков недоступно</Text>
+                <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted }}>Изменение остатков недоступно</Text>
               </View>
             ) : (
               <View style={styles.modeList}>
@@ -954,27 +954,27 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
 }
 
 const styles = StyleSheet.create({
-  bridgeTxt:       { fontFamily: fonts.familyRegular, fontSize: 15, color: colors.text, lineHeight: 22 },
+  bridgeTxt:       { fontFamily: fonts.familyRegular, fontSize: 16, color: colors.text, lineHeight: 23 },
   bridgeAmountBox: { marginTop: 16, backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.borderHi, padding: 16, alignItems: 'center' },
-  bridgeAmountVal: { fontFamily: fonts.family, fontSize: 28, fontWeight: '800', color: colors.orange },
+  bridgeAmountVal: { fontFamily: fonts.family, fontSize: 28, color: colors.orange },
   bridgeAmountLbl: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 4 },
   bridgeAddBtn:    { marginTop: 20, paddingVertical: 15, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
-  bridgeAddBtnTxt: { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: '#fff' },
+  bridgeAddBtnTxt: { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
   bridgeSkipBtn:   { marginTop: 10, paddingVertical: 15, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
-  bridgeSkipBtnTxt:{ fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted },
+  bridgeSkipBtnTxt:{ fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
   layout: { flex: 1 },
   left:   { flex: 1, backgroundColor: colors.surface },
   leftLandscape: { flex: 0, width: '38%', maxWidth: 480, marginLeft: 0, marginTop: 12, marginBottom: 12, marginRight: 0, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   landscapeDetail: { flex: 1, backgroundColor: colors.bg, margin: 12, marginLeft: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   landscapeHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
-  landscapeHeaderTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, flex: 1 },
+  landscapeHeaderTxt: { fontFamily: fonts.family, fontSize: 18, color: colors.text, flex: 1 },
   landscapeBackBtn: { paddingHorizontal: 10, paddingVertical: 6 },
-  landscapeBackTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
+  landscapeBackTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
   right:  { flex: 1, backgroundColor: colors.bg },
 
   emptyRight:    { flex: 1, alignItems: 'center', justifyContent: 'center', opacity: 0.3 },
-  emptyRightTxt: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted, marginTop: 12 },
-  detailTitle:   { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.text, marginBottom: 16 },
+  emptyRightTxt: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted, marginTop: 12 },
+  detailTitle:   { fontFamily: fonts.family, fontSize: 20, color: colors.text, marginBottom: 16 },
 
   inner: { paddingBottom: 24 },
 
@@ -984,8 +984,8 @@ const styles = StyleSheet.create({
   },
   viewSwitch: { flexDirection: 'row', backgroundColor: colors.surface2, borderRadius: 10, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   viewSwitchBtn: { paddingVertical: 6, paddingHorizontal: 10 },
-  viewSwitchBtnActive: { backgroundColor: 'rgba(240,160,80,0.12)' },
-  viewSwitchTxt: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
+  viewSwitchBtnActive: { backgroundColor: 'rgba(127,168,217,0.12)' },
+  viewSwitchTxt: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
   viewSwitchTxtActive: { color: colors.orange },
 
   searchWrap: {
@@ -1008,30 +1008,30 @@ const styles = StyleSheet.create({
   },
   catBtn: { width: 38, height: 38, borderRadius: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', position: 'relative' },
   catChip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
-  catChipActive: { backgroundColor: 'rgba(240,160,80,0.12)', borderColor: 'rgba(240,160,80,0.5)' },
+  catChipActive: { backgroundColor: 'rgba(127,168,217,0.12)', borderColor: 'rgba(127,168,217,0.5)' },
   catCountTxt: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
   catItemRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
-  catItemName: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.text },
-  catItemQty: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
-  catDeleteBtn: { backgroundColor: 'rgba(160,16,32,0.06)', borderWidth: 1, borderColor: 'rgba(160,16,32,0.35)', borderRadius: 12, paddingVertical: 13, alignItems: 'center' },
-  deleteItemBtn: { marginTop: 20, marginBottom: 8, paddingVertical: 13, alignItems: 'center', borderRadius: 12, backgroundColor: 'rgba(160,16,32,0.06)', borderWidth: 1, borderColor: 'rgba(160,16,32,0.3)' },
+  catItemName: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.text },
+  catItemQty: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
+  catDeleteBtn: { backgroundColor: 'rgba(219,129,120,0.06)', borderWidth: 1, borderColor: 'rgba(219,129,120,0.35)', borderRadius: 12, paddingVertical: 13, alignItems: 'center' },
+  deleteItemBtn: { marginTop: 20, marginBottom: 8, paddingVertical: 13, alignItems: 'center', borderRadius: 12, backgroundColor: 'rgba(219,129,120,0.06)', borderWidth: 1, borderColor: 'rgba(219,129,120,0.3)' },
   deleteItemTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red },
   cancelBtn: { paddingVertical: 13, alignItems: 'center', borderRadius: 12, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
   cancelTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   catDeleteTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red },
-  catChipTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  catChipTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   catChipTxtActive: { color: colors.orange },
   catBtnText: { fontSize: 16, color: colors.muted },
-  addStockBtn: { paddingHorizontal: 12, height: 38, borderRadius: 10, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
-  addStockBtnText: { fontSize: 13, color: colors.orange, fontFamily: fonts.familySemibold },
+  addStockBtn: { paddingHorizontal: 12, height: 38, borderRadius: 10, backgroundColor: 'rgba(127,168,217,0.1)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)', alignItems: 'center', justifyContent: 'center' },
+  addStockBtnText: { fontSize: 14, color: colors.orange, fontFamily: fonts.familySemibold },
 
   catGroup: { marginTop: 18, paddingHorizontal: 14 },
-  lowSheetSectionTitle: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.red, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 },
+  lowSheetSectionTitle: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 },
 
   catHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, paddingVertical: 8, paddingHorizontal: 10, backgroundColor: colors.surface2, borderRadius: 10 },
-  catName: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, flex: 1 },
-  catCount: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginRight: 6 },
-  catNameWarn: { color: '#e0906a' },
+  catName: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, flex: 1 },
+  catCount: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginRight: 6 },
+  catNameWarn: { color: '#D9AC62' },
   catWarnDot:  { fontSize: 14 },
 
   catCard: { backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
@@ -1039,34 +1039,34 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 14, position: 'relative' },
   rowDivider: { borderBottomWidth: 1, borderBottomColor: colors.border },
   rowPressed: { backgroundColor: 'rgba(255,255,255,0.03)' },
-  rowActive:  { backgroundColor: 'rgba(240,160,80,0.08)' },
+  rowActive:  { backgroundColor: 'rgba(127,168,217,0.08)' },
   activeBar:  { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
 
-  itemName: { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 3 },
+  itemName: { fontFamily: fonts.family, fontSize: 16, color: colors.text, marginBottom: 3 },
   itemThreshold: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
 
   itemRight: { alignItems: 'flex-end', marginRight: 10 },
-  itemQty: { fontFamily: fonts.family, fontSize: 17, fontWeight: '700', color: colors.text },
-  itemUnit: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, fontWeight: '400' },
+  itemQty: { fontFamily: fonts.family, fontSize: 18, color: colors.text },
+  itemUnit: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
 
   qtyOk:     { color: colors.green },
   qtyLow:    { color: colors.red },
-  qtyNeg:    { color: '#ff3b30' },
+  qtyNeg:    { color: '#DB8178' },
 
   rowArrow: { fontFamily: fonts.family, fontSize: 20, color: colors.border },
 
   locBar:   { maxHeight: 44, borderBottomWidth: 1, borderBottomColor: colors.border },
   locInner: { paddingHorizontal: spacing.lg, paddingVertical: 8, gap: 8, flexDirection: 'row' },
   locChip:  { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  locChipActive: { borderColor: 'rgba(240,160,80,0.6)', backgroundColor: 'rgba(240,160,80,0.08)' },
+  locChipActive: { borderColor: 'rgba(127,168,217,0.6)', backgroundColor: 'rgba(127,168,217,0.08)' },
   locChipText:   { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   catModalBox: { width: '45%', maxWidth: 420, maxHeight: '80%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   modalHeader:{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
-  modalTitle: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, flex: 1, marginRight: 12 },
+  modalTitle: { fontFamily: fonts.family, fontSize: 18, color: colors.text, flex: 1, marginRight: 12 },
   modalClose: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' },
-  modalCloseTxt: { fontSize: 13, color: colors.muted, fontFamily: fonts.familySemibold },
+  modalCloseTxt: { fontSize: 14, color: colors.muted, fontFamily: fonts.familySemibold },
   sectionLabel: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, lineHeight: 17 },
   card: { backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   catRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 16 },
@@ -1076,14 +1076,14 @@ const styles = StyleSheet.create({
 
   curBox:    { padding: 16, backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, marginBottom: 16 },
   curRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  curLabel:  { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.textDim, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
-  curVal:    { fontFamily: fonts.family, fontSize: 28, fontWeight: '800', color: colors.text },
-  curUnit:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, fontWeight: '400' },
+  curLabel:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.textDim, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
+  curVal:    { fontFamily: fonts.family, fontSize: 28, color: colors.text },
+  curUnit:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
   curThrBox: { alignItems: 'flex-end' },
-  curThrLabel:{ fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
+  curThrLabel:{ fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
   curThrVal: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, marginTop: 2 },
   curAvg:    { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.textDim, marginTop: 10 },
-  curAvgVal: { fontFamily: fonts.family, fontSize: 14, fontWeight: '700', color: colors.text },
+  curAvgVal: { fontFamily: fonts.family, fontSize: 14, color: colors.text },
 
   modeList:   { gap: 10 },
   modeRow:    {
@@ -1094,33 +1094,33 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
   modeIconBadge: { width: 38, height: 38, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  modeIconTxt: { fontSize: 17 },
-  modeLabel:  { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 2 },
-  modeDesc:   { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
+  modeIconTxt: { fontSize: 18 },
+  modeLabel:  { fontFamily: fonts.family, fontSize: 16, color: colors.text, marginBottom: 2 },
+  modeDesc:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
   modeArrow:  { fontSize: 18, color: colors.muted },
-  modeRowActive: { backgroundColor: 'rgba(240,160,80,0.08)' },
+  modeRowActive: { backgroundColor: 'rgba(127,168,217,0.08)' },
 
   slidePanel: { overflow: 'hidden', borderLeftWidth: 1, borderLeftColor: colors.border, backgroundColor: colors.surface },
   slidePanelHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  slidePanelTitle: { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text },
+  slidePanelTitle: { fontFamily: fonts.family, fontSize: 18, color: colors.text },
   slidePanelClose: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' },
-  slidePanelCloseTxt: { fontSize: 13, color: colors.muted, fontFamily: fonts.familySemibold },
+  slidePanelCloseTxt: { fontSize: 14, color: colors.muted, fontFamily: fonts.familySemibold },
   slidePanelDesc: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginBottom: 12 },
   backToDetailBtn: { paddingVertical: 8, marginBottom: 4 },
-  backToDetailTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
+  backToDetailTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
 
   backBtn:     { paddingVertical: 10, marginBottom: 8 },
-  backBtnText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
+  backBtnText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
   inputLabel:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.textDim, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, marginTop: 14 },
-  inputField:  { padding: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 22, fontFamily: fonts.family, textAlign: 'center', marginBottom: 4 },
+  inputField:  { padding: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 24, fontFamily: fonts.family, textAlign: 'center', marginBottom: 4 },
 
-  previewBox:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, backgroundColor: 'rgba(61,95,168,0.08)', borderRadius: 12, marginVertical: 10, borderWidth: 1, borderColor: 'rgba(61,95,168,0.2)' },
-  previewLabel: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
-  previewVal:   { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.text },
+  previewBox:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, backgroundColor: 'rgba(127,168,217,0.08)', borderRadius: 12, marginVertical: 10, borderWidth: 1, borderColor: 'rgba(127,168,217,0.2)' },
+  previewLabel: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
+  previewVal:   { fontFamily: fonts.family, fontSize: 24, color: colors.text },
 
   confirmBtn:    { paddingVertical: 15, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center', marginTop: 8 },
   confirmBtnOff: { backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
-  confirmBtnText:{ fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff' },
+  confirmBtnText:{ fontFamily: fonts.family, fontSize: 16, color: '#fff' },
 
   histToggle:     { paddingVertical: 12, alignItems: 'center', marginTop: 8 },
   histToggleText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
@@ -1129,15 +1129,15 @@ const styles = StyleSheet.create({
   histQty:    { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.text, flex: 1, textAlign: 'center' },
   priceRow:   { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
   priceInput: { paddingVertical: 4, paddingHorizontal: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 8, color: colors.text, fontFamily: fonts.family, fontSize: 14, minWidth: 70, textAlign: 'center' },
-  priceSaveBtn: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 8, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)' },
+  priceSaveBtn: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 8, backgroundColor: 'rgba(127,168,217,0.1)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)' },
   priceSaveTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
   priceCalcToggle: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.orange, marginTop: 8 },
   priceCalcBox: { marginTop: 8, padding: 10, backgroundColor: colors.surface, borderRadius: 10, borderWidth: 1, borderColor: colors.border, gap: 8 },
   priceCalcRow: { flexDirection: 'row', gap: 8 },
   priceCalcInput: { flex: 1, paddingVertical: 8, paddingHorizontal: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 8, color: colors.text, fontFamily: fonts.family, fontSize: 14, textAlign: 'center' },
   priceCalcApplyBtn: { paddingVertical: 10, borderRadius: 8, backgroundColor: colors.orange, alignItems: 'center' },
-  priceCalcApplyTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: '#fff' },
+  priceCalcApplyTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: '#fff' },
   purchasePerUnitHint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.green, textAlign: 'center', marginBottom: 4 },
-  purchaseExpenseNote: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, textAlign: 'center', marginTop: 4 },
+  purchaseExpenseNote: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 4 },
   histPrice:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.orange, flex: 1, textAlign: 'right' },
 });

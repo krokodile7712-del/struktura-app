@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
   box: { backgroundColor: colors.surface3, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 14, marginBottom: 12 },
   tabs: { flexDirection: 'row', gap: 6, marginBottom: 4 },
   tab: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center', backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
-  tabOn: { borderColor: 'rgba(240,160,80,0.6)', backgroundColor: 'rgba(240,160,80,0.10)' },
+  tabOn: { borderColor: 'rgba(127,168,217,0.6)', backgroundColor: 'rgba(127,168,217,0.10)' },
   tabTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   tabTxtOn: { color: colors.orange },
 
@@ -281,31 +281,31 @@ const styles = StyleSheet.create({
   input: { backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, paddingVertical: 12, paddingHorizontal: 14, fontFamily: fonts.familyRegular, fontSize: 16, color: colors.text },
 
   primary: { marginTop: 16, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.orange, alignItems: 'center' },
-  primaryTxt: { fontFamily: fonts.familySemibold, fontSize: 15, color: '#fff' },
+  primaryTxt: { fontFamily: fonts.familySemibold, fontSize: 16, color: '#fff' },
   secondary: { marginTop: 10, paddingVertical: 13, borderRadius: 12, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
   secondaryTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
 
   signRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
   signBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center', backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
-  signPlus: { borderColor: 'rgba(123,175,142,0.6)', backgroundColor: 'rgba(123,175,142,0.10)' },
-  signMinus: { borderColor: 'rgba(217,95,95,0.6)', backgroundColor: 'rgba(217,95,95,0.10)' },
-  signTxt: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted },
+  signPlus: { borderColor: 'rgba(120,183,150,0.6)', backgroundColor: 'rgba(120,183,150,0.10)' },
+  signMinus: { borderColor: 'rgba(219,129,120,0.6)', backgroundColor: 'rgba(219,129,120,0.10)' },
+  signTxt: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
 
   checkRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 },
   check: { width: 24, height: 24, borderRadius: 7, borderWidth: 1.5, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   checkOn: { backgroundColor: colors.orange, borderColor: colors.orange },
   checkMark: { color: '#fff', fontSize: 14, fontFamily: fonts.familySemibold },
-  checkTxt: { fontFamily: fonts.familyRegular, fontSize: 15, color: colors.text },
+  checkTxt: { fontFamily: fonts.familyRegular, fontSize: 16, color: colors.text },
 
   linkRow: { marginTop: 12, marginBottom: 4 },
   link: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
   orderRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.border },
-  orderMain: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
-  orderSub: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 2 },
+  orderMain: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
+  orderSub: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 2 },
 
   logRow: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
   logMain: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, lineHeight: 20 },
-  logSub: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 2 },
+  logSub: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 2 },
 
   del: { marginTop: 18, paddingVertical: 12, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border },
   delTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red },

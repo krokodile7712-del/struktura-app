@@ -580,7 +580,7 @@ export default function ClientsListScreen({ navigation, route, initialClientId }
                         styles.clientRow,
                         idx < filtered.length-1 && styles.clientRowDiv,
                         isActive && styles.clientRowActive,
-                        pressed && !isActive && { backgroundColor: 'rgba(240,160,80,0.06)' },
+                        pressed && !isActive && { backgroundColor: 'rgba(127,168,217,0.06)' },
                       ]}
                       onPress={() => selectClient(c)}
                     >
@@ -623,12 +623,12 @@ export default function ClientsListScreen({ navigation, route, initialClientId }
             ) : (
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
                 <View style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-                  <Text style={{ fontSize: 40, opacity: 0.6 }}>👤</Text>
+                  <Text style={{ fontSize: 36, opacity: 0.6 }}>👤</Text>
                 </View>
-                <Text style={{ fontFamily: fonts.family, fontSize: 17, fontWeight: '700', color: colors.text }}>
+                <Text style={{ fontFamily: fonts.family, fontSize: 18, color: colors.text }}>
                   Выберите клиента
                 </Text>
-                <Text style={{ fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 6 }}>
+                <Text style={{ fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 6 }}>
                   Карточка с баллами, историей и заметками откроется здесь
                 </Text>
               </View>
@@ -661,95 +661,95 @@ export default function ClientsListScreen({ navigation, route, initialClientId }
 }
 
 const styles = StyleSheet.create({
-  tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
-  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.orange },
+  tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(127,168,217,0.1)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)', alignItems: 'center', justifyContent: 'center' },
+  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, color: colors.orange },
   layout:     { flex: 1, flexDirection: 'row' },
   listCol:    { width: '38%', maxWidth: 480, margin: 12, marginRight: 0, borderRadius: 16, borderWidth: 1, borderColor: colors.borderHi, backgroundColor: colors.surface2, overflow: 'hidden' },
   cardCol:    { flex: 1, backgroundColor: colors.bg },
   loyaltyStrip:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, backgroundColor: colors.surface2, borderBottomWidth: 1, borderBottomColor: colors.border },
-  loyaltyStripLabel: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
-  loyaltyStripVal:   { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.text, marginTop: 2 },
-  loyaltyStripChevron: { fontSize: 11, color: colors.muted, opacity: 0.6 },
+  loyaltyStripLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
+  loyaltyStripVal:   { fontFamily: fonts.family, fontSize: 16, color: colors.text, marginTop: 2 },
+  loyaltyStripChevron: { fontSize: 12, color: colors.muted, opacity: 0.6 },
   loyaltyStripBody:  { padding: 14, gap: 10, backgroundColor: colors.surface2, borderBottomWidth: 1, borderBottomColor: colors.border },
   loyaltyStripDesc:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, lineHeight: 18 },
   loyaltyStatRow:    { flexDirection: 'row', gap: 8 },
   loyaltyStatBox:    { flex: 1, backgroundColor: colors.surface3, borderRadius: 10, borderWidth: 1, borderColor: colors.borderHi, padding: 10, alignItems: 'center' },
-  loyaltyStatVal:    { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.text },
-  loyaltyStatLbl:    { fontFamily: fonts.familyRegular, fontSize: 9, color: colors.muted, textAlign: 'center', marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
+  loyaltyStatVal:    { fontFamily: fonts.family, fontSize: 16, color: colors.text },
+  loyaltyStatLbl:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
 
-  searchWrap: { padding: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.2)' },
-  sortRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.2)' },
+  searchWrap: { padding: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)' },
+  sortRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)' },
   sortChip: { paddingVertical: 13, paddingHorizontal: 16, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
-  sortChipActive: { backgroundColor: 'rgba(240,160,80,0.14)', borderColor: colors.orange },
-  sortChipTxt: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted },
+  sortChipActive: { backgroundColor: 'rgba(127,168,217,0.14)', borderColor: colors.orange },
+  sortChipTxt: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
   sortChipTxtActive: { color: colors.orange },
   searchInput:{ backgroundColor: colors.surface2, borderRadius: 10, paddingVertical: 11, paddingHorizontal: 12, fontFamily: fonts.familyRegular, fontSize: 16, color: colors.text },
-  addBtn:     { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(240,160,80,0.15)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
-  addBtnTxt:  { fontSize: 22, color: colors.orange, lineHeight: 28 },
+  addBtn:     { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(127,168,217,0.15)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)', alignItems: 'center', justifyContent: 'center' },
+  addBtnTxt:  { fontSize: 24, color: colors.orange, lineHeight: 31 },
   addBtnBig:  { margin: 12, marginBottom: 0, paddingVertical: 15, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
-  addBtnBigTxt: { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: '#fff' },
+  addBtnBigTxt: { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
 
   clientsCard:   { margin: 8, backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   clientRow:     { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12, position: 'relative' },
-  clientRowDiv:  { borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.15)' },
-  clientRowActive:{ backgroundColor: 'rgba(240,160,80,0.07)' },
+  clientRowDiv:  { borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
+  clientRowActive:{ backgroundColor: 'rgba(127,168,217,0.07)' },
   clientName:    { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
-  clientSub:     { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 3 },
+  clientSub:     { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 3 },
   listAvatar:    { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   listAvatarActive:{ backgroundColor: colors.orange },
-  listAvatarTxt: { fontFamily: fonts.familySemibold, fontSize: 17, color: colors.muted },
+  listAvatarTxt: { fontFamily: fonts.familySemibold, fontSize: 18, color: colors.muted },
   activeBar:     { position: 'absolute', left: 0, top: '20%', bottom: '20%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
 
   // Карточка клиента
   cardHead:    { alignItems: 'center', marginBottom: 20 },
-  avatar:      { width: 76, height: 76, borderRadius: 38, backgroundColor: 'rgba(139,127,212,0.15)', borderWidth: 2, borderColor: 'rgba(139,127,212,0.35)', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-  avatarTxt:   { fontFamily: fonts.family, fontSize: 28, fontWeight: '800', color: colors.indigo },
-  cardName:    { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.text },
-  cardCode:    { fontFamily: 'monospace', fontSize: 11, color: colors.muted, marginTop: 4 },
-  birthday:    { fontFamily: fonts.familySemibold, fontSize: 13, color: '#f5c842', marginTop: 6 },
+  avatar:      { width: 76, height: 76, borderRadius: 38, backgroundColor: 'rgba(165,168,212,0.15)', borderWidth: 2, borderColor: 'rgba(165,168,212,0.35)', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  avatarTxt:   { fontFamily: fonts.family, fontSize: 28, color: colors.indigo },
+  cardName:    { fontFamily: fonts.family, fontSize: 24, color: colors.text },
+  cardCode:    { fontFamily: 'monospace', fontSize: 12, color: colors.muted, marginTop: 4 },
+  birthday:    { fontFamily: fonts.familySemibold, fontSize: 14, color: '#D9AC62', marginTop: 6 },
 
   balanceBox:  { alignItems: 'center', marginBottom: 20 },
-  balanceNum:  { fontFamily: fonts.family, fontSize: 42, fontWeight: '800', color: colors.text },
+  balanceNum:  { fontFamily: fonts.family, fontSize: 48, color: colors.text },
   balanceLbl:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
   personalDiscount: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.orange, marginTop: 4 },
 
   statsRow:    { flexDirection: 'row', gap: 10, marginBottom: 16 },
   statBox:     { flex: 1, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.borderHi, borderRadius: 14, padding: 14, alignItems: 'center' },
-  statVal:     { fontFamily: fonts.family, fontSize: 19, fontWeight: '800', color: colors.text },
-  statLbl:     { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, textTransform: 'uppercase', marginTop: 3 },
+  statVal:     { fontFamily: fonts.family, fontSize: 20, color: colors.text },
+  statLbl:     { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textTransform: 'uppercase', marginTop: 3 },
 
   infoCard:    { backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 14, marginBottom: 16, overflow: 'hidden' },
   infoRow:     { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
   infoRowDiv:  { borderBottomWidth: 1, borderBottomColor: colors.border },
-  infoIcon:    { fontSize: 15, width: 22, textAlign: 'center' },
-  infoTxt:     { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
+  infoIcon:    { fontSize: 16, width: 22, textAlign: 'center' },
+  infoTxt:     { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
 
   section:     { marginTop: 16 },
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   sectionTitle:{ fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
   sectionAction:{ fontFamily: fonts.familySemibold, fontSize: 12, color: colors.greenLight },
-  noteInput:   { backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 12, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 13, minHeight: 80, textAlignVertical: 'top' },
-  noteText:    { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.textDim, lineHeight: 20, backgroundColor: colors.surface2, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.border },
-  notePlaceholder: { fontFamily: fonts.familyRegular, fontSize: 13, color: 'rgba(64,60,55,0.5)' },
+  noteInput:   { backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 12, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 14, minHeight: 80, textAlignVertical: 'top' },
+  noteText:    { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.textDim, lineHeight: 22, backgroundColor: colors.surface2, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.border },
+  notePlaceholder: { fontFamily: fonts.familyRegular, fontSize: 14, color: 'rgba(255,255,255,0.2)' },
 
   btn:        { paddingVertical: 18, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
-  btnTxt:     { fontFamily: fonts.family, fontSize: 16, fontWeight: '700', color: '#fff' },
-  delBtn:     { marginTop: 28, marginBottom: 12, paddingVertical: 15, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(217,95,95,0.35)', alignItems: 'center' },
-  delBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.red },
+  btnTxt:     { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
+  delBtn:     { marginTop: 28, marginBottom: 12, paddingVertical: 15, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(219,129,120,0.35)', alignItems: 'center' },
+  delBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.red },
   btnSec:     { paddingVertical: 18, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.borderHi, alignItems: 'center' },
   btnSecTxt:  { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.textDim },
 
   editBox:    { marginTop: 16, padding: 16, backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, gap: 4 },
-  fieldLbl:   { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.2, marginTop: 10, marginBottom: 4 },
-  input:      { padding: 15, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.borderHi, borderRadius: 12, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 15 },
+  fieldLbl:   { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.2, marginTop: 10, marginBottom: 4 },
+  input:      { padding: 15, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.borderHi, borderRadius: 12, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 16 },
 
   ordersCard:    { backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.borderHi, overflow: 'hidden' },
   orderRow:      { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 10 },
-  orderDiv:      { borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.15)' },
-  orderDate:     { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
+  orderDiv:      { borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
+  orderDate:     { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
   orderMethod:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 3 },
   orderTotal:    { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.orange },
-  orderChevron:  { fontSize: 18, color: 'rgba(64,60,55,0.4)', transform: [{ rotate: '90deg' }] },
+  orderChevron:  { fontSize: 18, color: 'rgba(255,255,255,0.16)', transform: [{ rotate: '90deg' }] },
   orderChevronOpen: { transform: [{ rotate: '-90deg' }] },
   orderItems:    { backgroundColor: colors.surface2, paddingHorizontal: 14, paddingVertical: 10 },
   orderItem:     { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },

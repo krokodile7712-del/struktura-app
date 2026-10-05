@@ -160,9 +160,9 @@ const styles = StyleSheet.create({
   grabber: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginTop: 10, marginBottom: 4 },
 
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
-  title: { flex: 1, fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, marginRight: 12 },
+  title: { flex: 1, fontFamily: fonts.family, fontSize: 18, color: colors.text, marginRight: 12 },
   backBtn: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
-  backTxt: { fontSize: 22, color: colors.orange, fontFamily: fonts.family, marginTop: -2 },
+  backTxt: { fontSize: 24, color: colors.orange, fontFamily: fonts.family, marginTop: -2 },
   closeBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' },
-  closeTxt: { fontSize: 13, color: colors.muted, fontFamily: fonts.familySemibold },
+  closeTxt: { fontSize: 14, color: colors.muted, fontFamily: fonts.familySemibold },
 });

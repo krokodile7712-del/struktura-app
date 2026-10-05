@@ -46,18 +46,18 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: fonts.family,
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: 18,
+    
     color: colors.text,
     textAlign: 'center',
     marginBottom: 10,
   },
   text: {
     fontFamily: fonts.familyRegular,
-    fontSize: 13,
+    fontSize: 14,
     color: colors.muted,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 22,
     maxWidth: 340,
     marginBottom: 20,
   },

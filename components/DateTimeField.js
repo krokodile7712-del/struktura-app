@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
   label: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, marginTop: 14, marginBottom: 6 },
   row: { flexDirection: 'row', gap: 8 },
   field: { flex: 1, backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 13 },
-  fieldOn: { borderColor: 'rgba(240,160,80,0.6)' },
+  fieldOn: { borderColor: 'rgba(127,168,217,0.6)' },
   fieldTxt: { fontFamily: fonts.familyRegular, fontSize: 16, color: colors.text },
   done: { marginTop: 10, paddingVertical: 12, borderRadius: 10, backgroundColor: colors.surface2, alignItems: 'center' },
   doneTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },

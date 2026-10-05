@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   },
   stepCounter: {
     fontFamily: fonts.familySemibold,
-    fontSize: 11,
+    fontSize: 12,
     color: colors.muted,
     textTransform: 'uppercase',
     letterSpacing: 1.5,
@@ -149,8 +149,8 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: fonts.family,
-    fontSize: 17,
-    fontWeight: '800',
+    fontSize: 18,
+    
     color: colors.text,
     marginBottom: 8,
   },
@@ -179,5 +179,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.orange,
     alignItems: 'center',
   },
-  nextTxt: { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: '#fff' },
+  nextTxt: { fontFamily: fonts.family, fontSize: 14, color: '#fff' },
 });

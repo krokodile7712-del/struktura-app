@@ -102,7 +102,7 @@ export function useTourHighlight(key, radius = 12) {
         pointerEvents="none"
         style={{
           position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(6,6,8,0.78)',
+          backgroundColor: 'rgba(14,18,24,0.78)',
           borderRadius: radius,
         }}
       />

@@ -206,27 +206,27 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   inner: { padding: spacing.lg, paddingBottom: 20, maxWidth: 760, width: '100%', alignSelf: 'center' },
 
-  tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
-  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.orange },
+  tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(127,168,217,0.1)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)', alignItems: 'center', justifyContent: 'center' },
+  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, color: colors.orange },
 
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
   sectionLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
 
   addBtnBig:  { paddingVertical: 16, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center', marginBottom: 16 },
-  addBtnBigTxt: { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: '#fff' },
+  addBtnBigTxt: { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
 
   hint: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 10, lineHeight: 20 },
 
   card: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.surface2, borderRadius: 16, borderWidth: 1, borderColor: colors.borderHi, padding: 16 },
-  cardActive: { borderColor: 'rgba(123,175,142,0.5)', backgroundColor: 'rgba(123,175,142,0.06)' },
+  cardActive: { borderColor: 'rgba(120,183,150,0.5)', backgroundColor: 'rgba(120,183,150,0.06)' },
   statusDot: { width: 9, height: 9, borderRadius: 5 },
   locName: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
   locNameActive: { color: colors.greenLight },
   locDesc: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 2 },
-  activeBadge: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.greenLight },
+  activeBadge: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight },
   editBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface3, borderWidth: 1, borderColor: colors.border },
   editBtnText: { fontSize: 16, color: colors.muted },
 
-  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 6, marginTop: 14 },
-  input: { padding: 14, backgroundColor: colors.surface3, borderWidth: 1, borderColor: colors.borderHi, borderRadius: 12, color: colors.text, fontSize: 15, fontFamily: fonts.family, marginBottom: 4 },
+  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 6, marginTop: 14 },
+  input: { padding: 14, backgroundColor: colors.surface3, borderWidth: 1, borderColor: colors.borderHi, borderRadius: 12, color: colors.text, fontSize: 16, fontFamily: fonts.family, marginBottom: 4 },
 });

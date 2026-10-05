@@ -302,7 +302,7 @@ export default function SalesScreen({ navigation }) {
                               styles.orderRow,
                               idx < dayOrders.length - 1 && !isExp && styles.orderRowDiv,
                               isReturn && { opacity: 0.55 },
-                              pressed && { backgroundColor: 'rgba(245,240,232,0.03)' },
+                              pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
                             ]}
                             onPress={() => isAdmin ? toggleOrder(order.id) : null}
                           >
@@ -364,7 +364,7 @@ export default function SalesScreen({ navigation }) {
                                   </Pressable>
                                 </>
                               )}
-                              <Pressable style={[styles.actionBtn, { borderColor: 'rgba(217,95,95,0.35)' }]} onPress={() => setDeleteTarget(order)}>
+                              <Pressable style={[styles.actionBtn, { borderColor: 'rgba(219,129,120,0.35)' }]} onPress={() => setDeleteTarget(order)}>
                                 <Text style={[styles.actionTxt, { color: colors.red }]}>✕ Удалить</Text>
                               </Pressable>
                             </View>
@@ -467,19 +467,19 @@ export default function SalesScreen({ navigation }) {
                 ? payMethods.map(m => (
                     <Pressable
                       key={m.id}
-                      style={{ paddingVertical: 9, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: editMethod === m.name ? 'rgba(240,160,80,0.5)' : colors.border, backgroundColor: editMethod === m.name ? 'rgba(240,160,80,0.08)' : colors.surface }}
+                      style={{ paddingVertical: 9, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: editMethod === m.name ? 'rgba(127,168,217,0.5)' : colors.border, backgroundColor: editMethod === m.name ? 'rgba(127,168,217,0.08)' : colors.surface }}
                       onPress={() => setEditMethod(m.name)}
                     >
-                      <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: editMethod === m.name ? colors.orange : colors.muted }}>{m.name}</Text>
+                      <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: editMethod === m.name ? colors.orange : colors.muted }}>{m.name}</Text>
                     </Pressable>
                   ))
                 : ['Наличные', 'Карта'].map(name => (
                     <Pressable
                       key={name}
-                      style={{ paddingVertical: 9, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: editMethod === name ? 'rgba(240,160,80,0.5)' : colors.border, backgroundColor: editMethod === name ? 'rgba(240,160,80,0.08)' : colors.surface }}
+                      style={{ paddingVertical: 9, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: editMethod === name ? 'rgba(127,168,217,0.5)' : colors.border, backgroundColor: editMethod === name ? 'rgba(127,168,217,0.08)' : colors.surface }}
                       onPress={() => setEditMethod(name)}
                     >
-                      <Text style={{ fontFamily: fonts.familySemibold, fontSize: 13, color: editMethod === name ? colors.orange : colors.muted }}>{name}</Text>
+                      <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: editMethod === name ? colors.orange : colors.muted }}>{name}</Text>
                     </Pressable>
                   ))
               }
@@ -546,55 +546,55 @@ export default function SalesScreen({ navigation }) {
 const styles = StyleSheet.create({
   root:   { flex: 1, backgroundColor: colors.bg },
   layout: { flex: 1 },
-  tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
-  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.orange },
+  tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(127,168,217,0.1)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)', alignItems: 'center', justifyContent: 'center' },
+  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, color: colors.orange },
 
   // Левая панель
   left:   { width: 200, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface, padding: 14 },
-  sectionLabel: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 6 },
+  sectionLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 6 },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 12 },
   periodList: { gap: 2 },
   periodBtn:  { paddingVertical: 15, paddingHorizontal: 14, borderRadius: 12, position: 'relative' },
-  periodBtnActive: { backgroundColor: 'rgba(240,160,80,0.08)' },
+  periodBtnActive: { backgroundColor: 'rgba(127,168,217,0.08)' },
   periodBar:  { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
   periodTxt:  { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
   periodTxtActive: { color: colors.orange },
   statRow:    { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
   statLabel:  { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
-  statVal:    { fontFamily: fonts.familySemibold, fontSize: 15 },
+  statVal:    { fontFamily: fonts.familySemibold, fontSize: 16 },
 
   // Правая панель
   searchWrap:  { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, paddingBottom: 6 },
   filtersBtn:  { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 13, paddingHorizontal: 16, borderRadius: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
-  filtersBtnActive: { backgroundColor: 'rgba(240,160,80,0.14)', borderColor: colors.orange },
-  filtersBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
+  filtersBtnActive: { backgroundColor: 'rgba(127,168,217,0.14)', borderColor: colors.orange },
+  filtersBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
   filtersBtnTxtActive: { color: colors.orange },
   filtersClearBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  filtersClearBtnTxt: { fontSize: 13, color: colors.muted, fontWeight: '600' },
-  filtersSheetLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },
+  filtersClearBtnTxt: { fontSize: 14, color: colors.muted, fontWeight: '600' },
+  filtersSheetLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },
   filtersSheetRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 13, paddingHorizontal: 4, borderRadius: 10 },
-  filtersSheetRowActive: { backgroundColor: 'rgba(240,160,80,0.08)' },
-  filtersSheetRowTxt: { fontFamily: fonts.familyRegular, fontSize: 15, color: colors.text },
+  filtersSheetRowActive: { backgroundColor: 'rgba(127,168,217,0.08)' },
+  filtersSheetRowTxt: { fontFamily: fonts.familyRegular, fontSize: 16, color: colors.text },
   filtersSheetRowTxtActive: { fontFamily: fonts.familySemibold, color: colors.orange },
-  filtersSheetCheck: { fontSize: 15, color: colors.orange, fontWeight: '800' },
+  filtersSheetCheck: { fontSize: 16, color: colors.orange, fontWeight: '800' },
 
   // ── Сводка — общие строки (переиспользуются в боковой панели и полоске) ──
   catRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 9 },
-  catName:    { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text, flex: 1 },
-  catVal:     { fontFamily: fonts.familyRegular, fontSize: 15, color: colors.muted },
+  catName:    { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text, flex: 1 },
+  catVal:     { fontFamily: fonts.familyRegular, fontSize: 16, color: colors.muted },
 
   // ── Портрет — сворачиваемая полоска сверху ──
   stripWrap:  { borderBottomWidth: 1, borderBottomColor: colors.borderHi, backgroundColor: colors.surface2, paddingHorizontal: 16, paddingVertical: 12 },
   stripRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   stripLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
-  stripVal:   { fontFamily: fonts.family, fontSize: 24, fontWeight: '800', color: colors.orange, marginTop: 2 },
-  stripChevron: { fontSize: 11, color: colors.muted, opacity: 0.6 },
+  stripVal:   { fontFamily: fonts.family, fontSize: 24, color: colors.orange, marginTop: 2 },
+  stripChevron: { fontSize: 12, color: colors.muted, opacity: 0.6 },
   stripBody:  { marginTop: 10 },
 
   // ── Альбомная — постоянная боковая панель сводки ──
   sidePanel:  { width: '40%', maxWidth: 340, borderLeftWidth: 1, borderLeftColor: colors.borderHi, backgroundColor: colors.surface2, padding: 20 },
-  sideLabel:  { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
-  sideVal:    { fontFamily: fonts.family, fontSize: 34, fontWeight: '800', color: colors.orange, marginTop: 6 },
+  sideLabel:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
+  sideVal:    { fontFamily: fonts.family, fontSize: 36, color: colors.orange, marginTop: 6 },
   sideSub:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
   sideDivider:{ height: 1, backgroundColor: colors.border, marginVertical: 16 },
   searchInput: { backgroundColor: colors.surface, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14, fontFamily: fonts.familyRegular, fontSize: 16, color: colors.text },
@@ -605,20 +605,20 @@ const styles = StyleSheet.create({
 
   dayHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10 },
   dayLabel:   { fontFamily: fonts.familySemibold, fontSize: 18, color: colors.text },
-  dayTotal:   { fontFamily: fonts.familyRegular, fontSize: 15, color: colors.muted },
+  dayTotal:   { fontFamily: fonts.familyRegular, fontSize: 16, color: colors.muted },
   dayCard:    { backgroundColor: colors.surface2, marginHorizontal: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.borderHi, overflow: 'hidden', marginBottom: 8 },
 
   orderRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, paddingHorizontal: 14, gap: 10 },
   orderRowDiv: { borderBottomWidth: 1, borderBottomColor: colors.border },
-  orderTime:   { fontFamily: fonts.familySemibold, fontSize: 17, color: colors.text },
+  orderTime:   { fontFamily: fonts.familySemibold, fontSize: 18, color: colors.text },
   orderItems:  { fontFamily: fonts.familyRegular, fontSize: 16, color: colors.muted },
   orderMeta:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
-  orderTotal:  { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.orange },
+  orderTotal:  { fontFamily: fonts.family, fontSize: 18, color: colors.orange },
   orderMethod: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
-  chevron:     { fontSize: 22, color: colors.muted, transform: [{ rotate: '90deg' }] },
+  chevron:     { fontSize: 24, color: colors.muted, transform: [{ rotate: '90deg' }] },
   chevronOpen: { transform: [{ rotate: '-90deg' }] },
-  returnBadge: { paddingVertical: 2, paddingHorizontal: 8, borderRadius: 8, backgroundColor: 'rgba(217,95,95,0.12)' },
-  returnBadgeTxt: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.red },
+  returnBadge: { paddingVertical: 2, paddingHorizontal: 8, borderRadius: 8, backgroundColor: 'rgba(219,129,120,0.12)' },
+  returnBadgeTxt: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.red },
 
   actionsPanel: { flexDirection: 'row', gap: 8, padding: 12, backgroundColor: colors.surface2 },
   actionBtn:    { flex: 1, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
@@ -627,13 +627,13 @@ const styles = StyleSheet.create({
   // Модалки
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 24 },
   modalBox:     { width: '100%', maxWidth: 400, backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, padding: 24 },
-  modalTitle:   { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.text, marginBottom: 4 },
+  modalTitle:   { fontFamily: fonts.family, fontSize: 20, color: colors.text, marginBottom: 4 },
   modalDesc:    { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginBottom: 20, lineHeight: 20 },
-  fieldLabel:   { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 14 },
-  modalInput:   { backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 13, color: colors.text, fontSize: 15, fontFamily: fonts.familyRegular },
+  fieldLabel:   { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 14 },
+  modalInput:   { backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 13, color: colors.text, fontSize: 16, fontFamily: fonts.familyRegular },
   modalBtns:    { flexDirection: 'row', gap: 10, marginTop: 20 },
   modalCancel:  { flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
   modalCancelTxt:{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   modalSave:    { flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
-  modalSaveTxt: { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: '#fff' },
+  modalSaveTxt: { fontFamily: fonts.family, fontSize: 14, color: '#fff' },
 });

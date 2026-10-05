@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: 'rgba(64,60,55,0.5)',
+    borderColor: 'rgba(255,255,255,0.2)',
     padding: 24,
     // Тень
     shadowColor: '#000',
@@ -97,8 +97,8 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: fonts.family,
-    fontSize: 17,
-    fontWeight: '800',
+    fontSize: 18,
+    
     color: colors.text,
     flex: 1,
     marginRight: 12,

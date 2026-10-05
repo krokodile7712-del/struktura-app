@@ -237,7 +237,7 @@ export default function EmployeesScreen({ navigation }) {
                         idx < users.length - 1 && styles.userRowDiv,
                         isActive && styles.userRowActive,
                         !u.active && { opacity: 0.45 },
-                        pressed && { backgroundColor: 'rgba(245,240,232,0.03)' },
+                        pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
                       ]}
                       onPress={() => selectUser(u)}
                     >
@@ -433,7 +433,7 @@ export default function EmployeesScreen({ navigation }) {
                   {!isNew && (
                     <>
                     <Pressable
-                      style={[styles.toggleBtn, { borderColor: selected?.active ? 'rgba(217,95,95,0.4)' : 'rgba(123,175,142,0.4)' }]}
+                      style={[styles.toggleBtn, { borderColor: selected?.active ? 'rgba(219,129,120,0.4)' : 'rgba(120,183,150,0.4)' }]}
                       onPress={() => handleToggle(selected)}
                     >
                       <Text style={[styles.toggleTxt, { color: selected?.active ? colors.red : colors.green }]}>
@@ -441,7 +441,7 @@ export default function EmployeesScreen({ navigation }) {
                       </Text>
                     </Pressable>
                     <Pressable
-                      style={[styles.toggleBtn, { borderColor: 'rgba(217,95,95,0.5)', backgroundColor: 'rgba(217,95,95,0.07)' }]}
+                      style={[styles.toggleBtn, { borderColor: 'rgba(219,129,120,0.5)', backgroundColor: 'rgba(219,129,120,0.07)' }]}
                       onPress={() => handleDelete(selected)}
                     >
                       <Text style={[styles.toggleTxt, { color: colors.red }]}>Удалить</Text>
@@ -457,7 +457,7 @@ export default function EmployeesScreen({ navigation }) {
             </Animated.View>
           ) : (
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', opacity: 0.3 }}>
-              <Text style={{ fontSize: 40 }}>👥</Text>
+              <Text style={{ fontSize: 36 }}>👥</Text>
               <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, marginTop: 12 }}>
                 Выберите сотрудника
               </Text>
@@ -638,7 +638,7 @@ export default function EmployeesScreen({ navigation }) {
                   {!isNew && (
                     <>
                     <Pressable
-                      style={[styles.toggleBtn, { borderColor: selected?.active ? 'rgba(217,95,95,0.4)' : 'rgba(123,175,142,0.4)' }]}
+                      style={[styles.toggleBtn, { borderColor: selected?.active ? 'rgba(219,129,120,0.4)' : 'rgba(120,183,150,0.4)' }]}
                       onPress={() => handleToggle(selected)}
                     >
                       <Text style={[styles.toggleTxt, { color: selected?.active ? colors.red : colors.green }]}>
@@ -646,7 +646,7 @@ export default function EmployeesScreen({ navigation }) {
                       </Text>
                     </Pressable>
                     <Pressable
-                      style={[styles.toggleBtn, { borderColor: 'rgba(217,95,95,0.5)', backgroundColor: 'rgba(217,95,95,0.07)' }]}
+                      style={[styles.toggleBtn, { borderColor: 'rgba(219,129,120,0.5)', backgroundColor: 'rgba(219,129,120,0.07)' }]}
                       onPress={() => handleDelete(selected)}
                     >
                       <Text style={[styles.toggleTxt, { color: colors.red }]}>Удалить</Text>
@@ -674,32 +674,32 @@ const styles = StyleSheet.create({
   layout:     { flex: 1, flexDirection: 'row' },
 
   left:       { width: 280, borderRightWidth: 1, borderRightColor: colors.border, backgroundColor: colors.surface },
-  listHint:   { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, padding: 12, paddingBottom: 6 },
+  listHint:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, padding: 12, paddingBottom: 6 },
   listCard:   { margin: 8, backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   userRow:    { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 10, position: 'relative' },
   userRowDiv: { borderBottomWidth: 1, borderBottomColor: colors.border },
-  userRowActive: { backgroundColor: 'rgba(240,160,80,0.06)' },
+  userRowActive: { backgroundColor: 'rgba(127,168,217,0.06)' },
   activeBar:  { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
   userAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  userAvatarTxt: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted },
+  userAvatarTxt: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
   userName:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
-  userRole:   { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 2 },
-  inactiveBadge: { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.red, backgroundColor: 'rgba(217,95,95,0.1)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  userRole:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
+  inactiveBadge: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.red, backgroundColor: 'rgba(219,129,120,0.1)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   emptyWrap:  { padding: 32, alignItems: 'center' },
   emptyTxt:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   emptyHint:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 6, textAlign: 'center', opacity: 0.7 },
 
   right:      { flex: 1, backgroundColor: colors.bg },
   editContent:{ padding: 24, paddingBottom: 40 },
-  editTitle:  { fontFamily: fonts.family, fontSize: 24, fontWeight: '800', color: colors.text, marginBottom: 4 },
+  editTitle:  { fontFamily: fonts.family, fontSize: 24, color: colors.text, marginBottom: 4 },
   editHint:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginBottom: 16, lineHeight: 18 },
 
-  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 18 },
-  input:      { backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 13, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 15 },
+  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 18 },
+  input:      { backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 13, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 16 },
   chips:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip:       { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  chipActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.08)' },
-  chipTxt:    { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  chipActive: { borderColor: 'rgba(127,168,217,0.5)', backgroundColor: 'rgba(127,168,217,0.08)' },
+  chipTxt:    { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   chipTxtActive: { color: colors.orange },
   roleHint:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 8, lineHeight: 17 },
   pinHint:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 6, lineHeight: 17 },
@@ -707,13 +707,13 @@ const styles = StyleSheet.create({
   showPinBtn: { paddingVertical: 10, paddingHorizontal: 12 },
   showPinTxt: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
 
-  errorTxt:   { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.red, marginTop: 12 },
+  errorTxt:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red, marginTop: 12 },
   btnRow:     { flexDirection: 'row', gap: 10, marginTop: 24 },
   toggleBtn:  { flex: 1, paddingVertical: 14, borderRadius: 14, borderWidth: 1, alignItems: 'center', backgroundColor: colors.surface },
   toggleTxt:  { fontFamily: fonts.familySemibold, fontSize: 14 },
   saveBtn:    { flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
-  saveTxt:    { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: '#fff' },
+  saveTxt:    { fontFamily: fonts.family, fontSize: 14, color: '#fff' },
 
-  addBtn:     { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 10, backgroundColor: 'rgba(240,160,80,0.15)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)' },
-  addBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
+  addBtn:     { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 10, backgroundColor: 'rgba(127,168,217,0.15)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)' },
+  addBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
 });

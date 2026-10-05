@@ -49,7 +49,7 @@ export default function ShiftBadge({ stats, onShiftPress, onStockPress }) {
                       <Text style={styles.stockName} numberOfLines={1}>{item.name}</Text>
                       <Text style={[
                         styles.stockQty,
-                        item['остаток'] < 0 && { color: '#ff3b30' },
+                        item['остаток'] < 0 && { color: '#DB8178' },
                         item['остаток'] >= 0 && { color: colors.redLight },
                       ]}>
                         {item['остаток']} {item.unit}
@@ -102,12 +102,12 @@ const styles = StyleSheet.create({
   stockBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
     paddingVertical: 4, paddingHorizontal: 8,
-    backgroundColor: 'rgba(160,16,32,0.12)',
+    backgroundColor: 'rgba(219,129,120,0.12)',
     borderRadius: 18, borderWidth: 1,
-    borderColor: 'rgba(160,16,32,0.35)',
+    borderColor: 'rgba(219,129,120,0.35)',
   },
-  stockIcon:  { fontSize: 11, lineHeight: 14 },
-  stockCount: { fontFamily: fonts.familySemibold, fontSize: 12, color: '#e05555', lineHeight: 14 },
+  stockIcon:  { fontSize: 12, lineHeight: 15 },
+  stockCount: { fontFamily: fonts.familySemibold, fontSize: 12, color: '#DB8178', lineHeight: 14 },
 
   // Дропдаун
   backdrop: {
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(64,60,55,0.5)',
+    borderColor: 'rgba(255,255,255,0.2)',
     overflow: 'hidden',
     maxHeight: 320,
     shadowColor: '#000',
@@ -134,36 +134,36 @@ const styles = StyleSheet.create({
   },
   dropdownHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.3)',
+    padding: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.12)',
   },
-  dropdownTitle: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
+  dropdownTitle: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
   dropdownClose: { fontSize: 16, color: colors.muted, padding: 2 },
 
   stockRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: 11, paddingHorizontal: 14,
   },
-  stockRowDiv: { borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.15)' },
-  stockName:   { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, flex: 1, marginRight: 8 },
-  stockQty:    { fontFamily: fonts.familySemibold, fontSize: 13 },
+  stockRowDiv: { borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
+  stockName:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, flex: 1, marginRight: 8 },
+  stockQty:    { fontFamily: fonts.familySemibold, fontSize: 14 },
 
   goToStock: {
-    padding: 14, borderTopWidth: 1, borderTopColor: 'rgba(64,60,55,0.3)',
+    padding: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.12)',
     alignItems: 'center',
   },
-  goToStockText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.greenLight },
+  goToStockText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight },
 
   // Бейдж смены
   mainBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingVertical: 5, paddingHorizontal: 10,
-    backgroundColor: 'rgba(240,160,80,0.1)',
+    backgroundColor: 'rgba(127,168,217,0.1)',
     borderRadius: 18, borderWidth: 1,
-    borderColor: 'rgba(240,160,80,0.35)',
+    borderColor: 'rgba(127,168,217,0.35)',
   },
   mainBadgeClosed: {
-    backgroundColor: 'rgba(64,60,55,0.1)',
-    borderColor: 'rgba(64,60,55,0.25)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   dotWrap: { justifyContent: 'center' },
   dot:       { width: 7, height: 7, borderRadius: 4 },
@@ -171,6 +171,6 @@ const styles = StyleSheet.create({
   dotClosed: { backgroundColor: colors.muted },
   info:      { alignItems: 'flex-start' },
   shiftTime: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.greenLight, lineHeight: 15 },
-  shiftNone: { fontFamily: fonts.familyRegular,  fontSize: 11, color: colors.muted, lineHeight: 15 },
-  stats:     { fontFamily: fonts.familyRegular,  fontSize: 10, color: colors.muted, lineHeight: 13 },
+  shiftNone: { fontFamily: fonts.familyRegular,  fontSize: 12, color: colors.muted, lineHeight: 16 },
+  stats:     { fontFamily: fonts.familyRegular,  fontSize: 12, color: colors.muted, lineHeight: 16 },
 });

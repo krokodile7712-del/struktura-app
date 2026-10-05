@@ -121,9 +121,9 @@ const styles = StyleSheet.create({
   box: { backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.borderHi, marginBottom: 14, overflow: 'hidden' },
   head: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, paddingHorizontal: 14 },
   star: { fontSize: 18, color: colors.orange },
-  headTxt: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
-  headSub: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 2 },
-  headRub: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.green },
+  headTxt: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
+  headSub: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 2 },
+  headRub: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.green },
   chevron: { fontSize: 20, color: colors.muted, transform: [{ rotate: '0deg' }] },
   chevronOpen: { transform: [{ rotate: '90deg' }] },
 
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
 
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
   chip: { paddingVertical: 11, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface3 },
-  chipOn: { borderColor: 'rgba(240,160,80,0.6)', backgroundColor: 'rgba(240,160,80,0.12)' },
+  chipOn: { borderColor: 'rgba(127,168,217,0.6)', backgroundColor: 'rgba(127,168,217,0.12)' },
   chipOff: { opacity: 0.4 },
   chipTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   chipTxtOn: { color: colors.orange },
@@ -140,11 +140,11 @@ const styles = StyleSheet.create({
   label: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, marginTop: 14, marginBottom: 6 },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   input: { flex: 1, backgroundColor: colors.surface3, borderRadius: 12, borderWidth: 1, borderColor: colors.border, paddingVertical: 12, paddingHorizontal: 14, fontFamily: fonts.familySemibold, fontSize: 18, color: colors.text },
-  suffix: { fontFamily: fonts.familyRegular, fontSize: 15, color: colors.muted },
-  hint: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.orange, marginTop: 6 },
+  suffix: { fontFamily: fonts.familyRegular, fontSize: 16, color: colors.muted },
+  hint: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.orange, marginTop: 6 },
 
   sum: { marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border, gap: 6 },
   sumRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sumLbl: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
-  sumVal: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
+  sumVal: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
 });

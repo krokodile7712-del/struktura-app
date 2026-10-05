@@ -114,14 +114,14 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 14,
-    backgroundColor: 'rgba(217,95,95,0.12)',
+    backgroundColor: 'rgba(219,129,120,0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(217,95,95,0.35)',
+    borderColor: 'rgba(219,129,120,0.35)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   lockIcon: {
-    fontSize: 22,
+    fontSize: 24,
   },
   menuIcon: {
     fontSize: 20,
@@ -129,15 +129,15 @@ const styles = StyleSheet.create({
     fontFamily: fonts.family,
   },
   backArrow: {
-    fontSize: 30,
+    fontSize: 28,
     color: colors.greenLight,
     lineHeight: 32,
     fontFamily: fonts.family,
-    fontWeight: '800',
+    
   },
   backLabel: {
     fontFamily: fonts.familySemibold,
-    fontSize: 15,
+    fontSize: 16,
     color: colors.greenLight,
   },
   title: {
@@ -149,14 +149,14 @@ const styles = StyleSheet.create({
   },
   syncBadge: {
     fontFamily: fonts.familySemibold,
-    fontSize: 11,
-    color: 'rgba(122,158,82,0.9)',
+    fontSize: 12,
+    color: 'rgba(120,183,150,0.9)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(122,158,82,0.3)',
-    backgroundColor: 'rgba(122,158,82,0.08)',
+    borderColor: 'rgba(120,183,150,0.3)',
+    backgroundColor: 'rgba(120,183,150,0.08)',
   },
   stepsBanner: {
     flexDirection: 'row',
@@ -164,9 +164,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     paddingVertical: 8,
-    backgroundColor: 'rgba(240,160,80,0.1)',
+    backgroundColor: 'rgba(127,168,217,0.1)',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(240,160,80,0.25)',
+    borderBottomColor: 'rgba(127,168,217,0.25)',
   },
   stepsBannerTxt: {
     fontFamily: fonts.familySemibold,
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
   },
   stepsBannerArrow: {
     fontFamily: fonts.familySemibold,
-    fontSize: 13,
+    fontSize: 14,
     color: colors.orange,
   },
 });

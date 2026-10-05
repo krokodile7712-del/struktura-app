@@ -10,10 +10,6 @@ import LockGuard from './components/LockGuard';
 import { useResponsive } from './hooks/useResponsive';
 import { useFonts } from 'expo-font';
 import {
-  Unbounded_600SemiBold,
-  Unbounded_700Bold,
-} from '@expo-google-fonts/unbounded';
-import {
   Manrope_400Regular,
   Manrope_500Medium,
   Manrope_600SemiBold,
@@ -84,8 +80,6 @@ export default function App() {
   const NAV_SCREENS = ['Products', 'Admin', 'Dashboard', 'Sales', 'ClientsList', 'Reports', 'Expenses', 'Finances', 'Locations', 'Inventory', 'Kassa', 'Equipment', 'Investments', 'Overheads', 'WorkJournal', 'Bookings', 'Employees', 'Settings'];
 
   const [fontsLoaded] = useFonts({
-    Unbounded_600SemiBold,
-    Unbounded_700Bold,
     Manrope_400Regular,
     Manrope_500Medium,
     Manrope_600SemiBold,

@@ -163,7 +163,7 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
                         style={({ pressed }) => [
                           styles.navItem,
                           isActive && styles.navItemActive,
-                          pressed && !isActive && { backgroundColor: 'rgba(245,240,232,0.04)' },
+                          pressed && !isActive && { backgroundColor: 'rgba(255,255,255,0.04)' },
                         ]}
                         onPress={() => nav(item.screen)}
                       >
@@ -223,33 +223,33 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     alignItems: 'center', justifyContent: 'center',
   },
-  closeIcon: { fontSize: 11, color: colors.muted, fontFamily: fonts.familySemibold },
+  closeIcon: { fontSize: 12, color: colors.muted, fontFamily: fonts.familySemibold },
 
   avatarRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   avatar: {
     width: 48, height: 48, borderRadius: 24,
-    backgroundColor: 'rgba(139,127,212,0.15)',
-    borderWidth: 2, borderColor: 'rgba(139,127,212,0.3)',
+    backgroundColor: 'rgba(165,168,212,0.15)',
+    borderWidth: 2, borderColor: 'rgba(165,168,212,0.3)',
     alignItems: 'center', justifyContent: 'center',
   },
-  avatarTxt:  { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.indigo },
+  avatarTxt:  { fontFamily: fonts.family, fontSize: 20, color: colors.indigo },
   switchAccBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  switchAccIcon: { fontSize: 15 },
-  userName:   { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.text, marginBottom: 2 },
+  switchAccIcon: { fontSize: 16 },
+  userName:   { fontFamily: fonts.family, fontSize: 16, color: colors.text, marginBottom: 2 },
   userRole:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
 
   bizRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  bizName: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, flex: 1 },
+  bizName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, flex: 1 },
   shiftBadge: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   shiftDot:   { width: 7, height: 7, borderRadius: 4 },
-  shiftTxt:   { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
+  shiftTxt:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
 
   // Секции
   section:    { paddingTop: 10, paddingBottom: 4 },
   sectionDiv: { borderTopWidth: 1, borderTopColor: colors.border, marginTop: 4 },
   sectionLabel: {
     fontFamily: fonts.familySemibold,
-    fontSize: 10,
+    fontSize: 12,
     color: colors.muted,
     textTransform: 'uppercase',
     letterSpacing: 2,
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     position: 'relative',
   },
-  navItemActive: { backgroundColor: 'rgba(240,160,80,0.08)' },
+  navItemActive: { backgroundColor: 'rgba(127,168,217,0.08)' },
   activeBar: {
     position: 'absolute',
     left: 0, top: '15%', bottom: '15%',

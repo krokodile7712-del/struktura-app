@@ -71,7 +71,7 @@ export default function StatsBar({ stats, modules, onShiftPress, onStockPress })
               {(lowStockItems || []).map((item, i) => (
                 <View key={i} style={[styles.dropRow, i < (lowStockItems.length - 1) && styles.dropRowDiv]}>
                   <Text style={styles.dropName} numberOfLines={1}>{item.name}</Text>
-                  <Text style={[styles.dropQty, { color: item['остаток'] < 0 ? '#ff3b30' : colors.redLight }]}>
+                  <Text style={[styles.dropQty, { color: item['остаток'] < 0 ? '#DB8178' : colors.redLight }]}>
                     {item['остаток']} {item.unit}
                   </Text>
                 </View>
@@ -88,8 +88,8 @@ export default function StatsBar({ stats, modules, onShiftPress, onStockPress })
 }
 
 const styles = StyleSheet.create({
-  bar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 10, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.3)', gap: 4 },
-  divider: { width: 1, height: 28, backgroundColor: 'rgba(64,60,55,0.3)', marginHorizontal: 10 },
+  bar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 10, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.12)', gap: 4 },
+  divider: { width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.12)', marginHorizontal: 10 },
   item: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   dot: { width: 9, height: 9, borderRadius: 5 },
   dotOpen:   { backgroundColor: colors.green },
@@ -97,21 +97,21 @@ const styles = StyleSheet.create({
   val: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text, lineHeight: 20 },
   valAccent: { color: colors.green },
   valMuted:  { color: colors.muted },
-  label: { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, lineHeight: 13 },
-  stockItem: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4, paddingHorizontal: 10, backgroundColor: 'rgba(160,16,32,0.1)', borderRadius: 10, borderWidth: 1, borderColor: 'rgba(160,16,32,0.3)' },
+  label: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, lineHeight: 16 },
+  stockItem: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4, paddingHorizontal: 10, backgroundColor: 'rgba(219,129,120,0.1)', borderRadius: 10, borderWidth: 1, borderColor: 'rgba(219,129,120,0.3)' },
   stockIcon: { fontSize: 14 },
-  stockVal:  { fontFamily: fonts.familySemibold, fontSize: 13, color: '#e05555', lineHeight: 17 },
-  stockLabel:{ fontFamily: fonts.familyRegular, fontSize: 10, color: '#e05555', lineHeight: 13, opacity: 0.8 },
+  stockVal:  { fontFamily: fonts.familySemibold, fontSize: 14, color: '#DB8178', lineHeight: 18 },
+  stockLabel:{ fontFamily: fonts.familyRegular, fontSize: 12, color: '#DB8178', lineHeight: 16, opacity: 0.8 },
 
   backdrop:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-start', alignItems: 'flex-end', paddingTop: 56, paddingRight: 12 },
-  dropdown:  { width: 280, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(64,60,55,0.5)', overflow: 'hidden', maxHeight: 320, elevation: 16 },
-  dropHeader:{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.3)' },
-  dropTitle: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text },
+  dropdown:  { width: 280, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', overflow: 'hidden', maxHeight: 320, elevation: 16 },
+  dropHeader:{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.12)' },
+  dropTitle: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
   dropClose: { fontSize: 16, color: colors.muted, padding: 2 },
   dropRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 14 },
-  dropRowDiv:{ borderBottomWidth: 1, borderBottomColor: 'rgba(64,60,55,0.15)' },
-  dropName:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, flex: 1, marginRight: 8 },
-  dropQty:   { fontFamily: fonts.familySemibold, fontSize: 13 },
-  dropGoBtn: { padding: 14, borderTopWidth: 1, borderTopColor: 'rgba(64,60,55,0.3)', alignItems: 'center' },
-  dropGoBtnText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.greenLight },
+  dropRowDiv:{ borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
+  dropName:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, flex: 1, marginRight: 8 },
+  dropQty:   { fontFamily: fonts.familySemibold, fontSize: 14 },
+  dropGoBtn: { padding: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.12)', alignItems: 'center' },
+  dropGoBtnText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.greenLight },
 });

@@ -385,7 +385,7 @@ export default function ExpensesPanel({ navigation }) {
               </Text>
               <Text style={styles.expenseDate}>{fmtDate(item.date?.slice(0,10) || '')}</Text>
             </View>
-            {item.photo_uri ? <Text style={{ fontSize: 15, marginRight: 8 }}>📎</Text> : null}
+            {item.photo_uri ? <Text style={{ fontSize: 16, marginRight: 8 }}>📎</Text> : null}
             <Text style={styles.expenseAmt}>{fmt(item.amount)} ₽</Text>
           </Pressable>
         </SwipeableRow>
@@ -682,18 +682,18 @@ export default function ExpensesPanel({ navigation }) {
 
 const styles = StyleSheet.create({
   root:       { flex: 1, backgroundColor: colors.bg },
-  tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
-  tourBtnFloat: { position: 'absolute', top: 10, right: 16, zIndex: 20, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
-  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.orange },
+  tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(127,168,217,0.1)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)', alignItems: 'center', justifyContent: 'center' },
+  tourBtnFloat: { position: 'absolute', top: 10, right: 16, zIndex: 20, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(127,168,217,0.1)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)', alignItems: 'center', justifyContent: 'center' },
+  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, color: colors.orange },
 
   periodRow:  { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 8, borderBottomWidth: 1, borderBottomColor: colors.borderHi },
   periodBtn:  { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface2 },
-  periodBtnActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.08)' },
-  periodTxt:  { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted },
+  periodBtnActive: { borderColor: 'rgba(127,168,217,0.5)', backgroundColor: 'rgba(127,168,217,0.08)' },
+  periodTxt:  { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
   periodTxtActive: { color: colors.orange },
 
   addBtn:     { height: 50, justifyContent: 'center', borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center', marginBottom: 12 },
-  addBtnTxt:  { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: '#fff' },
+  addBtnTxt:  { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
   recurringBtn: { paddingHorizontal: 16, height: 50, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.borderHi, alignItems: 'center', justifyContent: 'center', marginBottom: 12, flexDirection: 'row' },
   recurringBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
 
@@ -705,22 +705,22 @@ const styles = StyleSheet.create({
   expenseRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, gap: 12 },
   expenseRowDiv: { borderBottomWidth: 1, borderBottomColor: colors.borderHi },
   expenseCat: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
-  expenseDate:{ fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 2 },
-  expenseAmt: { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.red, textAlign: 'right', minWidth: 90 },
+  expenseDate:{ fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 2 },
+  expenseAmt: { fontFamily: fonts.family, fontSize: 18, color: colors.red, textAlign: 'right', minWidth: 90 },
 
   // ── Сводка — общие строки категорий (переиспользуются в обоих режимах) ──
   catRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 9 },
   catRowDiv:  { borderBottomWidth: 1, borderBottomColor: colors.borderHi },
-  catName:    { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text, flex: 1 },
-  catVal:     { fontFamily: fonts.familyRegular, fontSize: 15, color: colors.muted },
-  hintText:   { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, lineHeight: 19, marginTop: 4 },
+  catName:    { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text, flex: 1 },
+  catVal:     { fontFamily: fonts.familyRegular, fontSize: 16, color: colors.muted },
+  hintText:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, lineHeight: 20, marginTop: 4 },
 
   // ── Портрет — сворачиваемая полоска сверху ──
   stripWrap:  { borderBottomWidth: 1, borderBottomColor: colors.borderHi, backgroundColor: colors.surface2, paddingHorizontal: 16, paddingVertical: 12 },
   stripRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   stripLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
-  stripVal:   { fontFamily: fonts.family, fontSize: 24, fontWeight: '800', color: colors.red, marginTop: 2 },
-  stripChevron: { fontSize: 11, color: colors.muted, opacity: 0.6 },
+  stripVal:   { fontFamily: fonts.family, fontSize: 24, color: colors.red, marginTop: 2 },
+  stripChevron: { fontSize: 12, color: colors.muted, opacity: 0.6 },
   stripBody:  { marginTop: 10 },
 
   // ── Альбомная — постоянная боковая панель сводки ──
@@ -728,58 +728,58 @@ const styles = StyleSheet.create({
   sidePanelPad: { flex: 1, padding: 20 },
   listColLandscape: { flex: 0, width: '38%', maxWidth: 480, margin: 12, marginRight: 0, borderRadius: 16, borderWidth: 1, borderColor: colors.borderHi, backgroundColor: colors.surface2, overflow: 'hidden' },
   editorHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface2 },
-  editorHeaderTxt: { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text, flex: 1 },
+  editorHeaderTxt: { fontFamily: fonts.family, fontSize: 18, color: colors.text, flex: 1 },
   editorCloseBtn: { paddingHorizontal: 6, paddingVertical: 4 },
   editorCloseTxt: { fontSize: 18, color: colors.muted },
-  sideLabel:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
-  sideVal:    { fontFamily: fonts.family, fontSize: 26, fontWeight: '800', color: colors.red, marginTop: 6 },
+  sideLabel:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
+  sideVal:    { fontFamily: fonts.family, fontSize: 28, color: colors.red, marginTop: 6 },
   sideSub:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
   sideDivider:{ height: 1, backgroundColor: colors.border, marginVertical: 16 },
 
   // ── Модалка добавления ──
   modalHint:  { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginBottom: 20, lineHeight: 20 },
   recurringItemRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.borderHi },
-  recurringItemCat: { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: colors.text },
-  recurringItemHint: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 2 },
+  recurringItemCat: { fontFamily: fonts.family, fontSize: 16, color: colors.text },
+  recurringItemHint: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 2 },
   recurringItemAmt: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.orange },
-  recurringItemDelete: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(217,95,95,0.12)', alignItems: 'center', justifyContent: 'center' },
-  recurringItemDeleteTxt: { fontSize: 15, color: colors.red, fontWeight: '800' },
-  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 16 },
+  recurringItemDelete: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(219,129,120,0.12)', alignItems: 'center', justifyContent: 'center' },
+  recurringItemDeleteTxt: { fontSize: 16, color: colors.red, fontWeight: '800' },
+  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 16 },
   basisBox:   { marginTop: 12, backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, padding: 14 },
   labelRow:   { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 0, marginBottom: 8 },
-  input:      { backgroundColor: colors.surface3, borderRadius: 12, borderWidth: 1, borderColor: colors.borderHi, paddingVertical: 14, paddingHorizontal: 14, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 15 },
+  input:      { backgroundColor: colors.surface3, borderRadius: 12, borderWidth: 1, borderColor: colors.borderHi, paddingVertical: 14, paddingHorizontal: 14, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 16 },
   inputRow:   { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
-  unitTxt:    { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted, width: 30 },
-  hintTxt:    { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 8, lineHeight: 19 },
+  unitTxt:    { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted, width: 30 },
+  hintTxt:    { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 8, lineHeight: 20 },
   chips:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip:       { paddingVertical: 11, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface3 },
-  chipActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.08)' },
-  chipTxt:    { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted },
+  chipActive: { borderColor: 'rgba(127,168,217,0.5)', backgroundColor: 'rgba(127,168,217,0.08)' },
+  chipTxt:    { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
   chipTxtActive: { color: colors.orange },
   catChips:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   catChip:    { paddingVertical: 11, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface2 },
-  catChipActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.1)' },
-  catChipTxt: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted },
+  catChipActive: { borderColor: 'rgba(127,168,217,0.5)', backgroundColor: 'rgba(127,168,217,0.1)' },
+  catChipTxt: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
   catChipTxtActive: { color: colors.orange },
 
   amountWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 16 },
-  amountInput:{ flex: 1, paddingVertical: 16, fontSize: 28, fontFamily: fonts.family, fontWeight: '800', color: colors.text, textAlign: 'center' },
+  amountInput:{ flex: 1, paddingVertical: 16, fontSize: 28, fontFamily: fonts.family, color: colors.text, textAlign: 'center' },
   amountCurrency: { fontFamily: fonts.familySemibold, fontSize: 20, color: colors.muted },
   dateFieldBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 16, paddingVertical: 14 },
   dateFieldTxt: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
   dateFieldChange: { fontFamily: fonts.family, fontSize: 14, color: colors.orange },
 
-  commentInput: { backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 15, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 15 },
+  commentInput: { backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 15, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 16 },
 
   recurringRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16, padding: 15, backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border },
   recurringCheckbox: { width: 26, height: 26, borderRadius: 7, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   recurringCheckboxActive: { backgroundColor: colors.orange, borderColor: colors.orange },
-  recurringCheckMark: { fontSize: 15, color: '#fff', fontWeight: '800' },
+  recurringCheckMark: { fontSize: 16, color: '#fff', fontWeight: '800' },
   recurringLabel: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
-  recurringHint: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 2 },
+  recurringHint: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 2 },
 
   photoPickBtn: { paddingVertical: 15, borderRadius: 12, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
-  photoPickTxt: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted },
+  photoPickTxt: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
   photoPreviewWrap: { position: 'relative' },
   photoPreview: { width: '100%', height: 160, borderRadius: 12, backgroundColor: colors.surface2 },
   photoRemoveBtn: { position: 'absolute', top: 8, right: 8, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.6)' },
@@ -794,5 +794,5 @@ const styles = StyleSheet.create({
   cancelBtn:  { flex: 1, paddingVertical: 17, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
   cancelTxt:  { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
   saveBtn:    { flex: 1, paddingVertical: 17, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
-  saveTxt:    { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: '#fff' },
+  saveTxt:    { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
 });

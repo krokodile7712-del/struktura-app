@@ -81,13 +81,13 @@ export default function WelcomeBonusBlock({ client, onActivated }) {
 
 const styles = StyleSheet.create({
   box: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 14, borderWidth: 1, padding: 14, marginTop: 14 },
-  boxReserved: { backgroundColor: 'rgba(240,160,80,0.10)', borderColor: 'rgba(240,160,80,0.45)' },
+  boxReserved: { backgroundColor: 'rgba(127,168,217,0.10)', borderColor: 'rgba(127,168,217,0.45)' },
   boxDone: { backgroundColor: colors.surface2, borderColor: colors.border },
-  title: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.orange },
-  titleDone: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.green },
-  titleMuted: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.muted },
+  title: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.orange },
+  titleDone: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.green },
+  titleMuted: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
   sub: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 3 },
-  warn: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.orange, marginTop: 6, lineHeight: 18 },
+  warn: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.orange, marginTop: 6, lineHeight: 19 },
   btn: { backgroundColor: colors.orange, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 18 },
-  btnTxt: { fontFamily: fonts.familySemibold, fontSize: 15, color: '#fff' },
+  btnTxt: { fontFamily: fonts.familySemibold, fontSize: 16, color: '#fff' },
 });

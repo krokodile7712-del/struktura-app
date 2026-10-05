@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, padding: 13, gap: 10, overflow: 'hidden' },
   rowMargin: { marginBottom: 10 },
   accent: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 4 },
-  time: { fontFamily: fonts.familySemibold, fontSize: 17, color: colors.text, width: 50, marginLeft: 4 },
+  time: { fontFamily: fonts.familySemibold, fontSize: 18, color: colors.text, width: 50, marginLeft: 4 },
   name: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
   service: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 2 },
   arrow: { fontSize: 18, color: colors.muted },

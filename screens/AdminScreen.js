@@ -261,7 +261,7 @@ export default function AdminScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  avatarTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: '#241708' },
+  avatarTxt: { fontFamily: fonts.family, fontSize: 18, color: '#0A121C' },
   root:        { flex: 1, backgroundColor: colors.bg, overflow: 'hidden' },
 
   panelContent:{ padding: 24, paddingBottom: 40 },
@@ -269,26 +269,26 @@ const styles = StyleSheet.create({
   // Иерархию задают цвет и начертание, а не размер.
   panelGreeting:{ fontFamily: fonts.familyRegular, fontSize: 20, color: colors.textDim, marginBottom: 4 },
   panelGreetingName: { fontFamily: fonts.display, fontSize: 20, color: colors.text },
-  panelSub:    { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginBottom: 24 },
+  panelSub:    { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginBottom: 24 },
 
   statsGrid:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
   revenueCard: { marginBottom: 2 },
-  revenueLbl:  { fontFamily: fonts.familyBold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: 'rgba(36,23,8,0.6)', marginBottom: 8 },
-  revenueVal:  { fontFamily: fonts.display, fontSize: 34, color: '#241708' },
+  revenueLbl:  { fontFamily: fonts.familyBold, fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', color: 'rgba(10,18,28,0.6)', marginBottom: 8 },
+  revenueVal:  { fontFamily: fonts.display, fontSize: 36, color: '#0A121C' },
   statGlassCard: { minHeight: 96 },
   statDot: { width: 8, height: 8, borderRadius: 4 },
   shiftDot:    { width: 10, height: 10, borderRadius: 5 },
   statCard:    { flex: 1, minWidth: '44%', backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.borderHi, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 10, elevation: 3 },
   avatar: { width: 44, height: 44, borderRadius: 22, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  statVal:     { fontFamily: fonts.family, fontSize: 22, fontWeight: '800', color: colors.text, marginBottom: 2 },
-  statLbl:     { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
+  statVal:     { fontFamily: fonts.family, fontSize: 24, color: colors.text, marginBottom: 2 },
+  statLbl:     { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
 
   shiftStatCard: {
     flex: 1, minWidth: '44%', flexDirection: 'row', alignItems: 'center',
     borderRadius: 12, borderWidth: 2, padding: 16, overflow: 'hidden',
     shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 18, elevation: 6,
   },
-  shiftStatVal:        { fontFamily: fonts.familySemibold, fontSize: 17, color: colors.text, marginBottom: 2 },
+  shiftStatVal:        { fontFamily: fonts.familySemibold, fontSize: 18, color: colors.text, marginBottom: 2 },
   shiftStatCardClosed: { borderColor: colors.red },
   shiftStatCardOpen:   { borderColor: colors.green },
   shiftStatChevron:    { fontSize: 24, fontWeight: '800' },
@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
   stockBannerOpen: { backgroundColor: withOpacity(colors.red, 0.09) },
   stockBannerRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   stockBannerTxt:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.red },
-  stockBannerChevron: { fontSize: 10, color: colors.red, opacity: 0.7 },
+  stockBannerChevron: { fontSize: 12, color: colors.red, opacity: 0.7 },
   stockBannerItem: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.red, opacity: 0.8, marginTop: 4 },
   stockBannerLink: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.red, marginTop: 8, textDecorationLine: 'underline' },
 
@@ -309,5 +309,5 @@ const styles = StyleSheet.create({
   shiftOpenTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.green, marginBottom: 3 },
   shiftOpenSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
   tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: withOpacity(colors.orange, 0.1), borderWidth: 1, borderColor: withOpacity(colors.orange, 0.4), alignItems: 'center', justifyContent: 'center' },
-  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.orange },
+  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, color: colors.orange },
 });

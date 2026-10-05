@@ -370,7 +370,7 @@ const styles = StyleSheet.create({
   rootCard: { backgroundColor: colors.surface2, borderRadius: 16, borderWidth: 1, borderColor: colors.borderHi },
 
   collapseBtn: { position: 'absolute', top: 10, right: 10, zIndex: 2, width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surface3, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  collapseArrow: { fontSize: 13, color: colors.muted },
+  collapseArrow: { fontSize: 14, color: colors.muted },
 
   // Рамка и название теперь принадлежат каждой отдельной месячной панели —
   // едут вместе с её датами, а не остаются позади неподвижным заголовком
@@ -378,10 +378,10 @@ const styles = StyleSheet.create({
   monthHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
   monthArrowBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   monthArrow: { fontSize: 16, color: colors.muted, fontWeight: '700' },
-  monthLabel: { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: colors.text, textAlign: 'center', flex: 1 },
+  monthLabel: { fontFamily: fonts.family, fontSize: 16, color: colors.text, textAlign: 'center', flex: 1 },
 
   weekRow: { flexDirection: 'row' },
-  weekdayLabel: { flex: 1, textAlign: 'center', fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, paddingVertical: 3 },
+  weekdayLabel: { flex: 1, textAlign: 'center', fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, paddingVertical: 3 },
 
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   cell: { width: `${100 / 7}%`, alignItems: 'center', paddingVertical: 1 },
@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
   dayCircle: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   dayCircleToday: { borderWidth: 1.5, borderColor: colors.orange },
   dayCircleSelected: { backgroundColor: colors.orange },
-  dayNum: { fontFamily: fonts.familyRegular, fontSize: 15, color: colors.text },
+  dayNum: { fontFamily: fonts.familyRegular, fontSize: 16, color: colors.text },
   dayNumToday: { color: colors.orange, fontFamily: fonts.familySemibold },
   dayNumSelected: { color: '#fff', fontFamily: fonts.familySemibold },
 

@@ -930,10 +930,10 @@ export default function SettingsScreen({ navigation, route }) {
             ].map((m, idx) => (
               <Pressable
                 key={m.key}
-                style={[styles.menuRow, idx < 2 && styles.menuRowDiv, loyaltyModel === m.key && { backgroundColor: 'rgba(240,160,80,0.06)' }]}
+                style={[styles.menuRow, idx < 2 && styles.menuRowDiv, loyaltyModel === m.key && { backgroundColor: 'rgba(127,168,217,0.06)' }]}
                 onPress={() => setLoyaltyModel(m.key)}
               >
-                <Text style={{ fontSize: 22, marginRight: 12 }}>{m.icon}</Text>
+                <Text style={{ fontSize: 24, marginRight: 12 }}>{m.icon}</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.menuItemName, loyaltyModel === m.key && { color: colors.orange }]}>{m.label}</Text>
                   <Text style={styles.menuItemSub}>{m.desc}</Text>
@@ -1595,13 +1595,13 @@ export default function SettingsScreen({ navigation, route }) {
                     Alert.alert('Скопировано', link);
                   }}>
                   <Text style={styles.bizFieldLabel}>Ссылка</Text>
-                  <Text style={{ fontFamily: fonts.familyRegular, fontSize: 13, color: colors.orange, flex: 1, textAlign: 'right' }} numberOfLines={1}>
+                  <Text style={{ fontFamily: fonts.familyRegular, fontSize: 14, color: colors.orange, flex: 1, textAlign: 'right' }} numberOfLines={1}>
                     .../{bookingSlug} 📋
                   </Text>
                 </TouchableOpacity>
                 <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
                   <Pressable
-                    style={{ flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: 'rgba(240,160,80,0.08)', alignItems: 'center' }}
+                    style={{ flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: 'rgba(127,168,217,0.08)', alignItems: 'center' }}
                     onPress={() => setQrModal(true)}>
                     <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange }}>📷 QR код</Text>
                   </Pressable>
@@ -1612,7 +1612,7 @@ export default function SettingsScreen({ navigation, route }) {
                     <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted }}>{syncing ? '⏳...' : '🔄 Обновить'}</Text>
                   </TouchableOpacity>
                   <Pressable
-                    style={{ flex: 1, marginLeft: 8, paddingVertical: 10, borderRadius: 10, backgroundColor: 'rgba(200,50,50,0.12)', alignItems: 'center' }}
+                    style={{ flex: 1, marginLeft: 8, paddingVertical: 10, borderRadius: 10, backgroundColor: 'rgba(219,129,120,0.12)', alignItems: 'center' }}
                     onPress={() => { setBookingConnected(false); setBookingSlug(''); }}>
                     <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red }}>↺ Сбросить</Text>
                   </Pressable>
@@ -1658,7 +1658,7 @@ export default function SettingsScreen({ navigation, route }) {
                 activeOpacity={0.7}
                 style={{ marginTop: 10, paddingVertical: 15, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' }}
                 onPress={() => connectBooking()}>
-                <Text style={{ fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff' }}>Подключить онлайн запись</Text>
+                <Text style={{ fontFamily: fonts.family, fontSize: 16, color: '#fff' }}>Подключить онлайн запись</Text>
                 <Text style={{ fontFamily: fonts.familyRegular, fontSize: 14, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>Займёт секунду — ссылка создаётся автоматически</Text>
               </TouchableOpacity>
             </>
@@ -1926,7 +1926,7 @@ export default function SettingsScreen({ navigation, route }) {
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 {['DD.MM.YYYY','MM/DD/YYYY','YYYY-MM-DD'].map(fmt => (
                   <Pressable key={fmt} style={[styles.bizCurrencyChip, bizDraft.dateFormat === fmt && styles.bizCurrencyChipActive]} onPress={() => setBizDraft(d => ({ ...d, dateFormat: fmt }))}>
-                    <Text style={[{ fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted }, bizDraft.dateFormat === fmt && { color: colors.orange }]}>{fmt}</Text>
+                    <Text style={[{ fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted }, bizDraft.dateFormat === fmt && { color: colors.orange }]}>{fmt}</Text>
                   </Pressable>
                 ))}
               </View>
@@ -2158,7 +2158,7 @@ export default function SettingsScreen({ navigation, route }) {
               <Text style={styles.menuItemArrow}>›</Text>
             </Pressable>
             <Pressable
-              style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: 'rgba(255,59,48,0.04)' }]}
+              style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: 'rgba(219,129,120,0.04)' }]}
               onPress={() => {
                 Alert.alert(
                   'Сбросить продажи и клиентов?',
@@ -2245,8 +2245,8 @@ export default function SettingsScreen({ navigation, route }) {
     <View style={{ flex: 1 }}>
       <TopBar title="Настройки" onBack={() => goBackSmart(navigation)} navigation={navigation} activeScreen="Settings" />
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
-        <Text style={{ fontSize: 32, marginBottom: 16 }}>🔒</Text>
-        <Text style={{ fontFamily: 'Unbounded_700Bold', fontSize: 18, color: colors.text, textAlign: 'center' }}>Нет доступа</Text>
+        <Text style={{ fontSize: 28, marginBottom: 16 }}>🔒</Text>
+        <Text style={{ fontFamily: fonts.display, fontSize: 18, color: colors.text, textAlign: 'center' }}>Нет доступа</Text>
         <Text style={{ fontFamily: 'Manrope_400Regular', fontSize: 14, color: colors.muted, textAlign: 'center', marginTop: 8 }}>Обратитесь к администратору, чтобы получить доступ к этому разделу.</Text>
       </View>
     </View>
@@ -2425,7 +2425,7 @@ export default function SettingsScreen({ navigation, route }) {
                       <View key={t.id} style={styles.tableChipEdit}>
                         <Text style={styles.tableChipEditText}>{t.name}</Text>
                         <Pressable onPress={() => removeTableFromZone(t.id)} hitSlop={6}>
-                          <Text style={{ fontSize: 13, color: colors.red, marginLeft: 4 }}>✕</Text>
+                          <Text style={{ fontSize: 14, color: colors.red, marginLeft: 4 }}>✕</Text>
                         </Pressable>
                       </View>
                     ))}
@@ -2641,7 +2641,7 @@ export default function SettingsScreen({ navigation, route }) {
 
               <Text style={styles.fieldLabel}>Иконка (эмодзи)</Text>
               <TextInput
-                style={[styles.input, { fontSize: 22 }]}
+                style={[styles.input, { fontSize: 24 }]}
                 value={payMethodModal.icon}
                 onChangeText={v => setPayMethodModal(m => ({ ...m, icon: v }))}
                 placeholder="💳"
@@ -3012,7 +3012,7 @@ export default function SettingsScreen({ navigation, route }) {
 
                     {empModal.id && (
                       <Pressable
-                        style={{ paddingVertical: 13, alignItems: 'center', marginTop: 8, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(217,95,95,0.3)', backgroundColor: 'rgba(217,95,95,0.06)' }}
+                        style={{ paddingVertical: 13, alignItems: 'center', marginTop: 8, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(219,129,120,0.3)', backgroundColor: 'rgba(219,129,120,0.06)' }}
                         onPress={() => askAdminPin('Удалить сотрудника', `Введите ваш PIN-код администратора, чтобы удалить «${empModal.name}».`, () => {
                           try {
                             const res = deleteUser(empModal.id);
@@ -3072,7 +3072,7 @@ export default function SettingsScreen({ navigation, route }) {
               </View>
             </ScrollView>
             <Pressable style={{ padding: 16, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border }} onPress={() => setReceiptPreview(false)}>
-              <Text style={{ fontFamily: fonts.familySemibold, fontSize: 15, color: colors.orange }}>Закрыть</Text>
+              <Text style={{ fontFamily: fonts.familySemibold, fontSize: 16, color: colors.orange }}>Закрыть</Text>
             </Pressable>
           </FitView>
           )}
@@ -3082,7 +3082,7 @@ export default function SettingsScreen({ navigation, route }) {
       <Modal visible={qrModal} transparent animationType="fade" onRequestClose={() => setQrModal(false)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center', gap: 24 }}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setQrModal(false)} />
-          <Text style={{ fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: '#fff' }}>
+          <Text style={{ fontFamily: fonts.family, fontSize: 20, color: '#fff' }}>
             Онлайн запись
           </Text>
           <View style={{ backgroundColor: '#fff', padding: 20, borderRadius: 20 }}>
@@ -3097,7 +3097,7 @@ export default function SettingsScreen({ navigation, route }) {
           <Pressable
             style={{ paddingVertical: 14, paddingHorizontal: 40, borderRadius: 16, backgroundColor: colors.orange }}
             onPress={shareBookingLink}>
-            <Text style={{ fontFamily: fonts.family, fontSize: 16, fontWeight: '700', color: '#fff' }}>Поделиться ссылкой</Text>
+            <Text style={{ fontFamily: fonts.family, fontSize: 16, color: '#fff' }}>Поделиться ссылкой</Text>
           </Pressable>
           <Pressable onPress={() => setQrModal(false)} hitSlop={20}>
             <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: 'rgba(255,255,255,0.5)' }}>Закрыть</Text>
@@ -3268,20 +3268,20 @@ export default function SettingsScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  tourBtn:    { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
-  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.orange },
+  tourBtn:    { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(127,168,217,0.1)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)', alignItems: 'center', justifyContent: 'center' },
+  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, color: colors.orange },
   presetCard: { borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 16, marginBottom: 10, gap: 8 },
-  presetCardActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.06)' },
+  presetCardActive: { borderColor: 'rgba(127,168,217,0.5)', backgroundColor: 'rgba(127,168,217,0.06)' },
   presetHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  presetIcon: { fontSize: 26 },
-  presetLabel: { flex: 1, fontFamily: fonts.family, fontSize: 16, fontWeight: '700', color: colors.text },
+  presetIcon: { fontSize: 28 },
+  presetLabel: { flex: 1, fontFamily: fonts.family, fontSize: 16, color: colors.text },
   presetLabelActive: { color: colors.orange },
   presetCheck: { fontSize: 18, color: colors.muted },
-  presetDesc: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, lineHeight: 19 },
+  presetDesc: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, lineHeight: 20 },
   presetTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   presetTag: { paddingVertical: 3, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  presetTagActive: { borderColor: 'rgba(240,160,80,0.4)', backgroundColor: 'rgba(240,160,80,0.08)' },
-  presetTagText: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
+  presetTagActive: { borderColor: 'rgba(127,168,217,0.4)', backgroundColor: 'rgba(127,168,217,0.08)' },
+  presetTagText: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
   presetTagTextActive: { color: colors.orange },
   // Двухколоночный layout
   twoCol: { flex: 1, flexDirection: 'row' },
@@ -3292,15 +3292,15 @@ const styles = StyleSheet.create({
   rightPanelBase: { flex: 1 },
   rightPanelCard: { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, margin: 12, marginLeft: 12, overflow: 'hidden' },
   navItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 17, paddingHorizontal: 18, position: 'relative' },
-  navItemActive: { backgroundColor: 'rgba(240,160,80,0.06)' },
-  navIcon: { fontSize: 17, width: 24, textAlign: 'center' },
+  navItemActive: { backgroundColor: 'rgba(127,168,217,0.06)' },
+  navIcon: { fontSize: 18, width: 24, textAlign: 'center' },
   navLabel: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted, flex: 1 },
   navLabelActive: { color: colors.orange, fontFamily: fonts.family },
   navActiveBar: { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
   navArrow: { fontSize: 16, color: colors.muted },
   rightPanel: { flex: 1, backgroundColor: colors.bg },
   rightInner: { padding: 24, paddingBottom: 48 },
-  sectionTitle: { fontFamily: fonts.family, fontSize: 24, fontWeight: '800', color: colors.text, marginBottom: 20, letterSpacing: -0.3 },
+  sectionTitle: { fontFamily: fonts.family, fontSize: 24, color: colors.text, marginBottom: 20, letterSpacing: -0.3 },
   phoneback: { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
   phoneBackText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
   // Модалка товара — position:absolute для надёжного scroll
@@ -3311,56 +3311,56 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     padding: 20, borderBottomWidth: 1, borderBottomColor: colors.border,
   },
-  prodModalTitle: { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: colors.text },
+  prodModalTitle: { fontFamily: fonts.family, fontSize: 18, color: colors.text },
   receiptBox: { width: 320, maxHeight: '88%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   receiptPaper: { backgroundColor: '#ffffff', borderRadius: 12, padding: 20 },
-  receiptBizName: { fontFamily: fonts.family, fontSize: 16, fontWeight: '800', color: '#111', textAlign: 'center', marginBottom: 4 },
+  receiptBizName: { fontFamily: fonts.family, fontSize: 16, color: '#111', textAlign: 'center', marginBottom: 4 },
   receiptBizSub:  { fontFamily: fonts.familyRegular, fontSize: 12, color: '#555', textAlign: 'center', lineHeight: 18 },
   receiptDivider: { height: 1, backgroundColor: '#ddd', marginVertical: 12, borderStyle: 'dashed' },
   receiptRow:     { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  receiptMeta:    { fontFamily: fonts.familyRegular, fontSize: 11, color: '#888' },
-  receiptItem:    { fontFamily: fonts.familyRegular, fontSize: 13, color: '#222' },
-  receiptTotal:   { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: '#111' },
-  receiptFooter:  { fontFamily: fonts.familyRegular, fontSize: 11, color: '#888', textAlign: 'center', marginTop: 4 },
-  typeChip:       { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(64,60,55,0.35)', backgroundColor: colors.surface2 },
-  typeChipActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.08)' },
-  typeChipTxt:    { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
+  receiptMeta:    { fontFamily: fonts.familyRegular, fontSize: 12, color: '#888' },
+  receiptItem:    { fontFamily: fonts.familyRegular, fontSize: 14, color: '#222' },
+  receiptTotal:   { fontFamily: fonts.family, fontSize: 14, color: '#111' },
+  receiptFooter:  { fontFamily: fonts.familyRegular, fontSize: 12, color: '#888', textAlign: 'center', marginTop: 4 },
+  typeChip:       { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: colors.surface2 },
+  typeChipActive: { borderColor: 'rgba(127,168,217,0.5)', backgroundColor: 'rgba(127,168,217,0.08)' },
+  typeChipTxt:    { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
   typeChipTxtActive: { color: colors.orange },
-  bizGroupLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginTop: 20, marginBottom: 8, marginLeft: 2 },
+  bizGroupLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginTop: 20, marginBottom: 8, marginLeft: 2 },
   bizFieldRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, gap: 12 },
-  bizFieldLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, width: 140 },
-  bizInput: { flex: 1, fontFamily: fonts.familyRegular, fontSize: 13, color: colors.text, textAlign: 'right', padding: 0 },
+  bizFieldLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, width: 140 },
+  bizInput: { flex: 1, fontFamily: fonts.familyRegular, fontSize: 14, color: colors.text, textAlign: 'right', padding: 0 },
   hoursGroup: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 6 },
   hoursInput: { flex: 0, width: 64, alignItems: 'center', justifyContent: 'center' },
-  hoursDash: { color: colors.muted, fontSize: 13 },
+  hoursDash: { color: colors.muted, fontSize: 14 },
   pickerDoneBtn: { marginTop: 8, paddingVertical: 10, borderRadius: 10, backgroundColor: colors.surface2, alignItems: 'center' },
-  pickerDoneBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
-  bizPreviewBtn: { marginTop: 8, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', backgroundColor: 'rgba(240,160,80,0.06)' },
+  pickerDoneBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
+  bizPreviewBtn: { marginTop: 8, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)', alignItems: 'center', backgroundColor: 'rgba(127,168,217,0.06)' },
   bizPreviewBtnText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
 
-  fiscalStatusCard: { marginTop: 8, marginBottom: 8, backgroundColor: 'rgba(240,160,80,0.06)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(240,160,80,0.2)', padding: 12 },
+  fiscalStatusCard: { marginTop: 8, marginBottom: 8, backgroundColor: 'rgba(127,168,217,0.06)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(127,168,217,0.2)', padding: 12 },
   fiscalStatusTxt:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.orange, marginBottom: 4 },
-  fiscalStatusHint: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, lineHeight: 16 },
+  fiscalStatusHint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, lineHeight: 17 },
 
   termsAccordionHeader: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, gap: 8, marginBottom: 12 },
 
   discSaveBtn: { backgroundColor: colors.orange, borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
-  discSaveBtnTxt: { fontFamily: fonts.family, fontSize: 14, fontWeight: '700', color: '#fff' },
-  discDeleteBtn: { borderRadius: 14, paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(160,16,32,0.35)', backgroundColor: 'rgba(160,16,32,0.06)' },
+  discSaveBtnTxt: { fontFamily: fonts.family, fontSize: 14, color: '#fff' },
+  discDeleteBtn: { borderRadius: 14, paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(219,129,120,0.35)', backgroundColor: 'rgba(219,129,120,0.06)' },
   discDeleteBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red },
 
   discTabBar: { flexDirection: 'row', gap: 8, backgroundColor: colors.surface2, borderRadius: 12, padding: 4 },
   discTabBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10 },
-  discTabBtnActive: { backgroundColor: 'rgba(240,160,80,0.14)' },
-  discTabTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  discTabBtnActive: { backgroundColor: 'rgba(127,168,217,0.14)' },
+  discTabTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   discTabTxtActive: { color: colors.orange },
 
-  discRemoveBtn: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10, backgroundColor: 'rgba(160,16,32,0.08)', borderWidth: 1, borderColor: 'rgba(160,16,32,0.25)' },
+  discRemoveBtn: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10, backgroundColor: 'rgba(219,129,120,0.08)', borderWidth: 1, borderColor: 'rgba(219,129,120,0.25)' },
   discRemoveBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.red },
 
   discClientInfoCard: { backgroundColor: colors.surface2, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: 18, alignItems: 'center' },
-  discClientInfoNum: { fontFamily: fonts.family, fontSize: 36, fontWeight: '800', color: colors.text },
-  discClientInfoLbl: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, marginTop: 2 },
+  discClientInfoNum: { fontFamily: fonts.family, fontSize: 36, color: colors.text },
+  discClientInfoLbl: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, marginTop: 2 },
   discClientInfoSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 10, lineHeight: 17 },
 
   discOrderArrow: { fontSize: 12, color: colors.muted, paddingVertical: 3 },
@@ -3368,69 +3368,69 @@ const styles = StyleSheet.create({
 
   termBlock: { marginBottom: 14, padding: 16, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border },
   termHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 12 },
-  termIcon: { fontSize: 22, marginTop: 2 },
+  termIcon: { fontSize: 24, marginTop: 2 },
   termTitle: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, marginBottom: 3 },
   termDesc: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, lineHeight: 17 },
   termPresets: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
   termChip: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface2 },
-  termChipActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.08)' },
-  termChipText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  termChipActive: { borderColor: 'rgba(127,168,217,0.5)', backgroundColor: 'rgba(127,168,217,0.08)' },
+  termChipText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   termChipTextActive: { color: colors.orange },
   termInput: { marginTop: 4, marginBottom: 0, fontSize: 14 },
   bizCurrencyChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface2 },
-  bizCurrencyChipActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.08)' },
+  bizCurrencyChipActive: { borderColor: 'rgba(127,168,217,0.5)', backgroundColor: 'rgba(127,168,217,0.08)' },
   bizCurrencyText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   stockCatGroup: { marginBottom: 4 },
   stockAccHead: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, marginBottom: 6 },
   stockAccTitle: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, flex: 1 },
   stockAccArrow: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
-  loyaltyInput: { width: 60, padding: 8, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 10, color: colors.text, fontFamily: fonts.family, fontSize: 16, fontWeight: '700', textAlign: 'center' },
-  loyaltyUnit: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, width: 36 },
-  loyaltyExample: { marginTop: 10, padding: 14, backgroundColor: 'rgba(61,95,168,0.08)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(61,95,168,0.2)', gap: 4 },
-  loyaltyExampleTitle: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
-  loyaltyExampleLine: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.text, lineHeight: 20 },
+  loyaltyInput: { width: 60, padding: 8, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 10, color: colors.text, fontFamily: fonts.family, fontSize: 16, textAlign: 'center' },
+  loyaltyUnit: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, width: 36 },
+  loyaltyExample: { marginTop: 10, padding: 14, backgroundColor: 'rgba(127,168,217,0.08)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(127,168,217,0.2)', gap: 4 },
+  loyaltyExampleTitle: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
+  loyaltyExampleLine: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.text, lineHeight: 22 },
   loyaltyExampleAccent: { fontFamily: fonts.familySemibold, color: colors.orange },
   prodModalFooter: { padding: 16, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface },
   confirmBtn: { paddingVertical: 15, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
-  confirmBtnText: { fontFamily: fonts.family, fontSize: 15, fontWeight: '700', color: '#fff' },
+  confirmBtnText: { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
   prodInput: {
     padding: 13, backgroundColor: colors.surface2, borderWidth: 1,
     borderColor: colors.border, borderRadius: 12,
-    fontSize: 15, fontFamily: fonts.familySemibold, color: colors.text, marginBottom: 4,
+    fontSize: 16, fontFamily: fonts.familySemibold, color: colors.text, marginBottom: 4,
   },
 
   // Модалка товара
   productNameInput: { fontSize: 16, fontFamily: fonts.familySemibold, color: colors.text },
-  productFieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 16 },
+  productFieldLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 16 },
   productSectionHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, marginBottom: 8 },
   productCatRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   productCatChip: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface2 },
-  productCatChipActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.08)' },
-  productCatChipText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  productCatChipActive: { borderColor: 'rgba(127,168,217,0.5)', backgroundColor: 'rgba(127,168,217,0.08)' },
+  productCatChipText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   productCatChipTextActive: { color: colors.orange },
   productVariantRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, gap: 10 },
-  productVariantName: { flex: 1, fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, padding: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 10, marginRight: 8 },
+  productVariantName: { flex: 1, fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, padding: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 10, marginRight: 8 },
   productVariantPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
-  productVariantPrice: { fontFamily: fonts.family, fontSize: 16, fontWeight: '700', color: colors.text, width: 72, textAlign: 'right', padding: 8, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 10 },
+  productVariantPrice: { fontFamily: fonts.family, fontSize: 16, color: colors.text, width: 72, textAlign: 'right', padding: 8, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 10 },
   productVariantUnit: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
-  techCardBtn: { flex: 1, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(64,60,55,0.35)', backgroundColor: colors.surface2, alignItems: 'center' },
-  techCardBtnText: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
+  techCardBtn: { flex: 1, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: colors.surface2, alignItems: 'center' },
+  techCardBtnText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
   productAddVariant: { paddingVertical: 12, alignItems: 'center' },
-  productAddVariantText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
+  productAddVariantText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
   productHint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, lineHeight: 18, marginBottom: 4 },
   productCheckbox: { width: 24, height: 24, borderRadius: 8, borderWidth: 1.5, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   productCheckboxOn: { backgroundColor: colors.orange, borderColor: colors.orange },
 
   // Техкарта модалка
   techCardEmpty: { alignItems: 'center', paddingVertical: 24, gap: 8 },
-  techCardEmptyIcon: { fontSize: 32 },
-  techCardEmptyText: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
+  techCardEmptyIcon: { fontSize: 28 },
+  techCardEmptyText: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
   techIngRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, gap: 10 },
   techIngName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, marginBottom: 2 },
-  techIngFactor: { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted },
+  techIngFactor: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
   techIngAmount: { width: 64, padding: 8, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 10, color: colors.text, fontFamily: fonts.family, fontSize: 16, textAlign: 'right' },
   techIngUnitBtn: { paddingVertical: 7, paddingHorizontal: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 10 },
-  techIngUnitText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  techIngUnitText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   techIngAddBtn: { paddingVertical: 14, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border, marginTop: 8 },
   techIngAddText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
 
@@ -3447,8 +3447,8 @@ const styles = StyleSheet.create({
   },
   menuTopTitle: {
     fontFamily: fonts.family,
-    fontSize: 17,
-    fontWeight: '800',
+    fontSize: 18,
+    
     color: colors.text,
     paddingRight: 100,
   },
@@ -3469,16 +3469,16 @@ const styles = StyleSheet.create({
   menuSearchRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   menuSearchInput: { flex: 1, padding: 9, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 14, fontFamily: fonts.family },
   menuBadge: { width: 36, height: 36, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  addPayMethodBtn: { paddingHorizontal: 14, height: 36, borderRadius: 12, backgroundColor: 'rgba(240,160,80,0.08)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
-  addPayMethodBtnText: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orange },
-  payEditHint: { fontFamily: fonts.familyRegular, fontSize: 10, color: colors.muted, marginTop: 2, opacity: 0.7 },
-  menuBadgeAdd: { borderColor: 'rgba(240,160,80,0.4)', backgroundColor: 'rgba(240,160,80,0.08)' },
+  addPayMethodBtn: { paddingHorizontal: 14, height: 36, borderRadius: 12, backgroundColor: 'rgba(127,168,217,0.08)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)', alignItems: 'center', justifyContent: 'center' },
+  addPayMethodBtnText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
+  payEditHint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2, opacity: 0.7 },
+  menuBadgeAdd: { borderColor: 'rgba(127,168,217,0.4)', backgroundColor: 'rgba(127,168,217,0.08)' },
   menuBadgeText: { fontSize: 16, color: colors.muted },
   // Категории меню
   menuCatGroup: { marginBottom: 16 },
   menuCatRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  menuCatLine: { flex: 1, height: 1, backgroundColor: 'rgba(64,60,55,0.25)' },
-  menuCatName: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
+  menuCatLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.1)' },
+  menuCatName: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
   // Карточка товаров
   menuCard: { backgroundColor: colors.surface2, borderRadius: 16, borderWidth: 1, borderColor: colors.borderHi, overflow: 'hidden' },
   menuRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, gap: 12 },
@@ -3491,65 +3491,65 @@ const styles = StyleSheet.create({
 
   screen: { flex: 1 },
   inner: { padding: spacing.lg, paddingBottom: 20, maxWidth: 1100, width: '100%', alignSelf: 'center' },
-  hiddenHint: { textAlign: 'center', fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginBottom: 10 },
+  hiddenHint: { textAlign: 'center', fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginBottom: 10 },
   blockTitle: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.textDim, textTransform: 'uppercase', letterSpacing: 2, marginBottom: 12, textAlign: 'center' },
-  catHeader: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 2, marginBottom: 8, marginTop: 16 },
+  catHeader: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 2, marginBottom: 8, marginTop: 16 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
   rowName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, flex: 1 },
   rowSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
-  tableChipEdit: { flexDirection: 'row', alignItems: 'center', paddingVertical: 5, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(61,95,168,0.4)', backgroundColor: 'rgba(61,95,168,0.1)' },
-  tableChipEditText: { fontFamily: fonts.familySemibold, fontSize: 12, color: '#7a9be8' },
+  tableChipEdit: { flexDirection: 'row', alignItems: 'center', paddingVertical: 5, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)', backgroundColor: 'rgba(127,168,217,0.1)' },
+  tableChipEditText: { fontFamily: fonts.familySemibold, fontSize: 12, color: '#7FA8D9' },
   rowNameInactive: { color: colors.muted },
-  rowPrice: { fontFamily: fonts.family, fontSize: 14, fontWeight: '800', color: colors.orange },
-  empty: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center', paddingVertical: 12 },
-  fieldHint: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, marginTop: 5, marginBottom: 4, lineHeight: 15 },
+  rowPrice: { fontFamily: fonts.family, fontSize: 14, color: colors.orange },
+  empty: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', paddingVertical: 12 },
+  fieldHint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 5, marginBottom: 4, lineHeight: 16 },
   hintText: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginBottom: 10, lineHeight: 17 },
   catChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  catChipActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.1)' },
-  catChipLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted },
+  catChipActive: { borderColor: 'rgba(127,168,217,0.5)', backgroundColor: 'rgba(127,168,217,0.1)' },
+  catChipLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
   unitChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, marginTop: 10 },
-  subLabel: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, textTransform: 'uppercase', letterSpacing: 1, marginTop: 16, marginBottom: 8 },
+  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, marginTop: 10 },
+  subLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, textTransform: 'uppercase', letterSpacing: 1, marginTop: 16, marginBottom: 8 },
   input: { padding: 13, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 14, fontFamily: fonts.familyRegular },
   modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center' },
   modalInner: { width: '55%', maxWidth: 540, backgroundColor: colors.surface, borderRadius: 20, padding: 24, borderWidth: 1, borderColor: colors.borderHi },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  modalTitle: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, flex: 1 },
+  modalTitle: { fontFamily: fonts.family, fontSize: 18, color: colors.text, flex: 1 },
   modalClose: { fontSize: 18, color: colors.muted, padding: 4 },
-  itemModalClose: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(64,60,55,0.25)', alignItems: 'center', justifyContent: 'center' },
-  itemModalCloseText: { fontSize: 13, color: colors.text, fontFamily: fonts.familySemibold },
+  itemModalClose: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' },
+  itemModalCloseText: { fontSize: 14, color: colors.text, fontFamily: fonts.familySemibold },
   variantBlock: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border },
   variantHeaderRow: { flexDirection: 'row', alignItems: 'center' },
 
   // Оси вариативности
-  axisBlock: { marginTop: 10, padding: 10, borderWidth: 1, borderColor: 'rgba(61,95,168,0.35)', borderRadius: 12, backgroundColor: 'rgba(61,95,168,0.06)' },
+  axisBlock: { marginTop: 10, padding: 10, borderWidth: 1, borderColor: 'rgba(127,168,217,0.35)', borderRadius: 12, backgroundColor: 'rgba(127,168,217,0.06)' },
   axisHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   axisValuesWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
-  axisValueChip: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(240,160,80,0.45)', borderRadius: 10, backgroundColor: 'rgba(240,160,80,0.08)', paddingHorizontal: 8, paddingVertical: 4 },
-  axisValueInput: { fontFamily: fonts.family, fontSize: 13, color: colors.text, minWidth: 40, maxWidth: 90, padding: 0 },
+  axisValueChip: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(127,168,217,0.45)', borderRadius: 10, backgroundColor: 'rgba(127,168,217,0.08)', paddingHorizontal: 8, paddingVertical: 4 },
+  axisValueInput: { fontFamily: fonts.family, fontSize: 14, color: colors.text, minWidth: 40, maxWidth: 90, padding: 0 },
   axisValueRemove: { fontSize: 14, color: colors.red },
   addValueBtn: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed' },
   addValueBtnText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.orange },
   techCardTitle: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.text, marginTop: 10, marginBottom: 6 },
   ingredientRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  ingredientName: { flex: 1, fontFamily: fonts.familyRegular, fontSize: 13, color: colors.text },
-  ingredientAmount: { width: 64, padding: 8, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 10, color: colors.text, fontSize: 13, fontFamily: fonts.family, textAlign: 'center' },
+  ingredientName: { flex: 1, fontFamily: fonts.familyRegular, fontSize: 14, color: colors.text },
+  ingredientAmount: { width: 64, padding: 8, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 10, color: colors.text, fontSize: 14, fontFamily: fonts.family, textAlign: 'center' },
   ingredientUnit: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, width: 30 },
-  ingredientUnitBtn: { paddingVertical: 5, paddingHorizontal: 8, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(61,95,168,0.5)', backgroundColor: 'rgba(61,95,168,0.1)', minWidth: 36, alignItems: 'center' },
-  ingredientUnitBtnText: { fontFamily: fonts.familySemibold, fontSize: 12, color: '#7a9be8' },
+  ingredientUnitBtn: { paddingVertical: 5, paddingHorizontal: 8, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(127,168,217,0.5)', backgroundColor: 'rgba(127,168,217,0.1)', minWidth: 36, alignItems: 'center' },
+  ingredientUnitBtnText: { fontFamily: fonts.familySemibold, fontSize: 12, color: '#7FA8D9' },
   factorRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, paddingLeft: 8 },
-  factorLabel: { flex: 1, fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted },
-  factorInput: { width: 72, padding: 6, backgroundColor: colors.surface2, borderWidth: 1, borderColor: 'rgba(122,158,82,0.4)', borderRadius: 8, color: colors.text, fontSize: 12, fontFamily: fonts.family, textAlign: 'center' },
-  factorInputAuto: { borderColor: 'rgba(240,160,80,0.4)', color: colors.orange },
-  factorAutoLabel: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.orange, textTransform: 'uppercase', letterSpacing: 1 },
-  ingredientRemove: { fontSize: 15, color: colors.red, paddingHorizontal: 4 },
+  factorLabel: { flex: 1, fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+  factorInput: { width: 72, padding: 6, backgroundColor: colors.surface2, borderWidth: 1, borderColor: 'rgba(120,183,150,0.4)', borderRadius: 8, color: colors.text, fontSize: 12, fontFamily: fonts.family, textAlign: 'center' },
+  factorInputAuto: { borderColor: 'rgba(127,168,217,0.4)', color: colors.orange },
+  factorAutoLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.orange, textTransform: 'uppercase', letterSpacing: 1 },
+  ingredientRemove: { fontSize: 16, color: colors.red, paddingHorizontal: 4 },
   addIngredientBtn: { paddingVertical: 8, alignItems: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: 12, borderStyle: 'dashed', marginTop: 2 },
   addIngredientBtnLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.orange },
   checkRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
   checkBox: { fontSize: 18, color: colors.orange, width: 22 },
   chipsRowSmall: { flexDirection: 'row', gap: 8, marginTop: 8 },
   chipSmall: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  chipSmallActive: { borderColor: 'rgba(240,160,80,0.5)', backgroundColor: 'rgba(240,160,80,0.18)' },
+  chipSmallActive: { borderColor: 'rgba(127,168,217,0.5)', backgroundColor: 'rgba(127,168,217,0.18)' },
   chipSmallLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
   chipSmallLabelActive: { color: colors.orange },
 });

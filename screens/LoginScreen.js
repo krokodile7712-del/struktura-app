@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
   root:      { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
 
   header:    { alignItems: 'center', marginBottom: 48 },
-  bizName:   { fontFamily: fonts.family, fontSize: 28, fontWeight: '800', color: colors.text, letterSpacing: 0.5 },
+  bizName:   { fontFamily: fonts.family, fontSize: 28, color: colors.text, letterSpacing: 0.5 },
   prompt:    { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 8 },
 
   dotsRow:   { flexDirection: 'row', gap: 18, marginBottom: 12 },
@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
   dotFilled: { backgroundColor: colors.orange, borderColor: colors.orange },
   dotError:  { borderColor: colors.red, backgroundColor: colors.red },
 
-  errorTxt:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.red, height: 20, marginBottom: 32, textAlign: 'center' },
+  errorTxt:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red, height: 20, marginBottom: 32, textAlign: 'center' },
 
   pad:       { gap: 12, marginBottom: 32 },
   padRow:    { flexDirection: 'row', gap: 12 },
@@ -228,11 +228,11 @@ const styles = StyleSheet.create({
   keyPressed:{ backgroundColor: colors.surface2, transform: [{ scale: 0.94 }] },
   keyBack:   { backgroundColor: 'transparent', borderColor: 'transparent' },
   keyEmpty:  { width: KEY_SIZE, height: KEY_SIZE },
-  keyTxt:    { fontFamily: fonts.family, fontSize: 26, fontWeight: '700', color: colors.text },
-  keyBackTxt:{ fontSize: 22, color: colors.muted },
+  keyTxt:    { fontFamily: fonts.family, fontSize: 28, color: colors.text },
+  keyBackTxt:{ fontSize: 24, color: colors.muted },
   keyEnter:  { backgroundColor: colors.orange, borderColor: colors.orange },
   keyEnterOff:{ backgroundColor: 'transparent', borderColor: 'transparent' },
-  keyEnterTxt:{ fontSize: 28, color: '#241708' },
+  keyEnterTxt:{ fontSize: 28, color: '#0A121C' },
 
   hint:      { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'center', maxWidth: 280, lineHeight: 18 },
   hiddenInput: { position: 'absolute', width: 0, height: 0, opacity: 0 },

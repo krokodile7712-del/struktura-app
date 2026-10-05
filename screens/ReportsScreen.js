@@ -223,7 +223,7 @@ export default function ReportsScreen({ navigation }) {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <TopBar title="Отчётность" onBack={() => goBackSmart(navigation)} />
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
-        <Text style={{ fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, textAlign: 'center' }}>Нет доступа</Text>
+        <Text style={{ fontFamily: fonts.family, fontSize: 18, color: colors.text, textAlign: 'center' }}>Нет доступа</Text>
         <Text style={{ fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', marginTop: 8 }}>Обратитесь к администратору.</Text>
       </View>
     </View>
@@ -304,7 +304,7 @@ export default function ReportsScreen({ navigation }) {
                     tip="Аренда, зарплата и другие записи из Расходов." isLast />
                 </View>
 
-                <View style={[styles.profitCard, { borderColor: pnl.netProfit >= 0 ? 'rgba(123,175,142,0.4)' : 'rgba(217,95,95,0.4)', backgroundColor: pnl.netProfit >= 0 ? 'rgba(123,175,142,0.07)' : 'rgba(217,95,95,0.07)' }]}>
+                <View style={[styles.profitCard, { borderColor: pnl.netProfit >= 0 ? 'rgba(120,183,150,0.4)' : 'rgba(219,129,120,0.4)', backgroundColor: pnl.netProfit >= 0 ? 'rgba(120,183,150,0.07)' : 'rgba(219,129,120,0.07)' }]}>
                   <Text style={styles.profitLabel}>Чистая прибыль</Text>
                   <Text style={[styles.profitVal, { color: pnl.netProfit >= 0 ? colors.green : colors.red }]}>
                     {pnl.netProfit >= 0 ? '+' : ''}{fmt(pnl.netProfit)} ₽
@@ -353,7 +353,7 @@ export default function ReportsScreen({ navigation }) {
                   ].map((row, i, arr) => (
                     <View key={i} style={[styles.metricRow, i < arr.length-1 && styles.rowDiv]}>
                       <Text style={[styles.metricLabel, row.bold && { fontFamily: fonts.familySemibold, color: colors.text }]}>{row.label}</Text>
-                      <Text style={[styles.metricValue, { color: row.color }, row.bold && { fontSize: 17 }]}>
+                      <Text style={[styles.metricValue, { color: row.color }, row.bold && { fontSize: 18 }]}>
                         {row.val >= 0 ? '+' : ''}{fmt(Math.round(row.val))} ₽
                       </Text>
                     </View>
@@ -379,8 +379,8 @@ export default function ReportsScreen({ navigation }) {
                         </View>
                         <View style={{ alignItems: 'flex-end', flexDirection: 'row', gap: 8 }}>
                           <Text style={[styles.metricValue, { color: m.ok ? colors.green : m.warn ? colors.red : colors.text }]}>{m.value}</Text>
-                          {m.ok   && <Text style={{ fontSize: 11, color: colors.green }}>✓</Text>}
-                          {m.warn && <Text style={{ fontSize: 11, color: colors.red }}>!</Text>}
+                          {m.ok   && <Text style={{ fontSize: 12, color: colors.green }}>✓</Text>}
+                          {m.warn && <Text style={{ fontSize: 12, color: colors.red }}>!</Text>}
                         </View>
                       </View>
                     ))}
@@ -444,7 +444,7 @@ export default function ReportsScreen({ navigation }) {
             <View style={styles.sideDivider} />
 
             <Text style={styles.sideLabel}>Чистая прибыль</Text>
-            <Text style={[styles.sideVal, { fontSize: 26, color: pnl.netProfit >= 0 ? colors.green : colors.red }]}>
+            <Text style={[styles.sideVal, { fontSize: 28, color: pnl.netProfit >= 0 ? colors.green : colors.red }]}>
               {pnl.netProfit >= 0 ? '+' : ''}{fmt(pnl.netProfit)} ₽
             </Text>
             <Text style={styles.sideSub}>Маржа {pnl.netMarginPct}%</Text>
@@ -555,32 +555,32 @@ export default function ReportsScreen({ navigation }) {
 const styles = StyleSheet.create({
   root:    { flex: 1, backgroundColor: colors.bg },
 
-  sectionLabel: { fontFamily: fonts.familySemibold, fontSize: 10, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8 },
+  sectionLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8 },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 14 },
 
   presetList:    { gap: 2 },
   presetBtn:     { paddingVertical: 15, paddingHorizontal: 14, borderRadius: 12, position: 'relative' },
-  presetBtnActive: { backgroundColor: 'rgba(240,160,80,0.08)' },
+  presetBtnActive: { backgroundColor: 'rgba(127,168,217,0.08)' },
   presetActiveBar: { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
   presetTxt:     { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
   presetTxtActive: { color: colors.orange },
 
   statRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 7 },
   statLabel:{ fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
-  statVal:  { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
+  statVal:  { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
 
   compareRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   compareTxt: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
 
   // ── Боковая панель быстрого обзора (альбомная) ──
   sidePanel:  { width: '40%', maxWidth: 320, borderLeftWidth: 1, borderLeftColor: colors.border, backgroundColor: colors.surface, padding: 20 },
-  sideLabel:  { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
-  sideVal:    { fontFamily: fonts.family, fontSize: 30, fontWeight: '800', color: colors.orange, marginTop: 6 },
+  sideLabel:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
+  sideVal:    { fontFamily: fonts.family, fontSize: 28, color: colors.orange, marginTop: 6 },
   sideSub:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
   sideDivider:{ height: 1, backgroundColor: colors.border, marginVertical: 16 },
   catRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 9 },
-  catName:    { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.text, flex: 1 },
-  catVal:     { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
+  catName:    { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, flex: 1 },
+  catVal:     { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
 
   tabBarRow: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: colors.border },
   tabBar:  { flexDirection: 'row', flex: 1 },
@@ -588,59 +588,59 @@ const styles = StyleSheet.create({
   filtersBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   tabBtn:  { flex: 1, paddingVertical: 14, alignItems: 'center' },
   tabBtnActive: { borderBottomWidth: 2, borderBottomColor: colors.orange },
-  tabTxt:  { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  tabTxt:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   tabTxtActive: { color: colors.orange },
   tabContent: { padding: 16, paddingBottom: 32, width: '100%', maxWidth: 720, alignSelf: 'center' },
 
   // Карточки
   card:    { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
-  cardTitle:{ fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, padding: 14, paddingBottom: 8 },
+  cardTitle:{ fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, padding: 14, paddingBottom: 8 },
   rowDiv:  { borderTopWidth: 1, borderTopColor: colors.border },
 
   metricRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14 },
   metricLabel: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
-  metricValue: { fontFamily: fonts.family, fontSize: 17, fontWeight: '700', color: colors.text },
-  metricSub:   { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 2 },
-  deltaText:   { fontFamily: fonts.familySemibold, fontSize: 11 },
+  metricValue: { fontFamily: fonts.family, fontSize: 18, color: colors.text },
+  metricSub:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 2 },
+  deltaText:   { fontFamily: fonts.familySemibold, fontSize: 12 },
 
   profitCard:  { borderRadius: 16, borderWidth: 1, padding: 20, marginTop: 10, alignItems: 'center' },
-  profitLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8 },
-  profitVal:   { fontFamily: fonts.family, fontSize: 40, fontWeight: '800', marginBottom: 4 },
+  profitLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8 },
+  profitVal:   { fontFamily: fonts.family, fontSize: 36, marginBottom: 4 },
   profitSub:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
 
   hintCard:  { backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, padding: 16, marginTop: 10 },
-  hintTxt:   { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, lineHeight: 20 },
-  emptyHint: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center', padding: 20 },
+  hintTxt:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, lineHeight: 22 },
+  emptyHint: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', padding: 20 },
 
   // Бар-чарт
   barRow:   { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, gap: 8, marginBottom: 8 },
-  barLabel: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted, width: 70, textAlign: 'right' },
+  barLabel: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, width: 70, textAlign: 'right' },
   barTrack: { flex: 1, height: 14, backgroundColor: colors.surface2, borderRadius: 7, overflow: 'hidden' },
   barFill:  { height: '100%', borderRadius: 7 },
-  barValue: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.text, width: 65, textAlign: 'right' },
+  barValue: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.text, width: 65, textAlign: 'right' },
 
   // Тепловая карта
   heatMapWrap: { flexDirection: 'row', gap: 3, paddingHorizontal: 14, paddingBottom: 14, paddingTop: 4 },
   heatCell:    { flex: 1, alignItems: 'center', gap: 4 },
   heatBar:     { width: '100%', height: 28, borderRadius: 4 },
-  heatLabel:   { fontFamily: fonts.familyRegular, fontSize: 8, color: colors.muted },
+  heatLabel:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
 
   // Экспорт
-  exportBtn:    { paddingVertical: 8, paddingHorizontal: 12, marginRight: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', backgroundColor: 'rgba(240,160,80,0.08)' },
-  tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(240,160,80,0.1)', borderWidth: 1, borderColor: 'rgba(240,160,80,0.4)', alignItems: 'center', justifyContent: 'center' },
-  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.orange },
+  exportBtn:    { paddingVertical: 8, paddingHorizontal: 12, marginRight: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)', backgroundColor: 'rgba(127,168,217,0.08)' },
+  tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(127,168,217,0.1)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)', alignItems: 'center', justifyContent: 'center' },
+  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, color: colors.orange },
   exportBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
 
   // Модалка
   modalRoot:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 24 },
   modalBox:   { width: '100%', maxWidth: 360, backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, padding: 24 },
-  modalTitle: { fontFamily: fonts.family, fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: 16 },
+  modalTitle: { fontFamily: fonts.family, fontSize: 18, color: colors.text, marginBottom: 16 },
   modalCloseBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' },
   modalCloseTxt: { fontSize: 14, color: colors.muted, fontFamily: fonts.familySemibold },
-  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 6, marginTop: 14 },
+  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 6, marginTop: 14 },
   dateBtn:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 13 },
-  dateTxt:    { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
+  dateTxt:    { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
   dateIcon:   { fontSize: 16 },
   applyBtn:   { marginTop: 20, paddingVertical: 15, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
-  applyTxt:   { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: '#fff' },
+  applyTxt:   { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
 });

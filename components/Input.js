@@ -25,10 +25,10 @@ export const inputStyle = {
   padding: 14,
   backgroundColor: colors.surface,
   borderWidth: 1,
-  borderColor: '#252830',
+  borderColor: '#212933',
   borderRadius: radius.sm,
   color: colors.text,
-  fontSize: 15,
+  fontSize: 16,
   fontFamily: 'Manrope_400Regular',
   marginBottom: 4,
 };
@@ -38,6 +38,6 @@ const styles = StyleSheet.create({
     ...inputStyle,
   },
   inputError: {
-    borderColor: 'rgba(160,16,32,0.7)',
+    borderColor: 'rgba(219,129,120,0.7)',
   },
 });

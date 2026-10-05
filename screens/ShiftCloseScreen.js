@@ -266,8 +266,8 @@ export default function ShiftCloseScreen({ navigation }) {
                 <Animated.View style={[
                   styles.diffBox,
                   diff === 0
-                    ? { borderColor: 'rgba(123,175,142,0.4)', backgroundColor: 'rgba(123,175,142,0.08)' }
-                    : { borderColor: 'rgba(217,95,95,0.4)', backgroundColor: 'rgba(217,95,95,0.08)' }
+                    ? { borderColor: 'rgba(120,183,150,0.4)', backgroundColor: 'rgba(120,183,150,0.08)' }
+                    : { borderColor: 'rgba(219,129,120,0.4)', backgroundColor: 'rgba(219,129,120,0.08)' }
                 ]}>
                   <Text style={[styles.diffTxt, { color: diff === 0 ? colors.green : colors.red }]}>
                     {diff === 0
@@ -316,9 +316,9 @@ const styles = StyleSheet.create({
   root:       { flex: 1, backgroundColor: colors.bg },
   inner:      { padding: 24, paddingBottom: 60, maxWidth: 680, width: '100%', alignSelf: 'center' },
 
-  employee:   { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.textDim, textAlign: 'center', marginBottom: 20 },
+  employee:   { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.textDim, textAlign: 'center', marginBottom: 20 },
 
-  sectionLabel:{ fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 20 },
+  sectionLabel:{ fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8, marginTop: 20 },
   sectionHint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginBottom: 10, lineHeight: 17 },
 
   card:       { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
@@ -327,22 +327,22 @@ const styles = StyleSheet.create({
   rowLabel:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.textDim },
   rowVal:     { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
   totalRow:   { borderTopWidth: 1, borderTopColor: colors.borderHi },
-  totalLabel: { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: colors.text },
-  totalVal:   { fontFamily: fonts.family, fontSize: 15, fontWeight: '800', color: colors.text },
+  totalLabel: { fontFamily: fonts.family, fontSize: 16, color: colors.text },
+  totalVal:   { fontFamily: fonts.family, fontSize: 16, color: colors.text },
 
   inputWrap:  { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 20, marginBottom: 12 },
-  cashInput:  { flex: 1, paddingVertical: 18, fontSize: 32, fontFamily: fonts.family, fontWeight: '800', color: colors.text, textAlign: 'center' },
-  currency:   { fontFamily: fonts.familySemibold, fontSize: 22, color: colors.muted },
+  cashInput:  { flex: 1, paddingVertical: 18, fontSize: 28, fontFamily: fonts.family, color: colors.text, textAlign: 'center' },
+  currency:   { fontFamily: fonts.familySemibold, fontSize: 24, color: colors.muted },
 
   diffBox:    { padding: 14, borderRadius: 12, borderWidth: 1, marginBottom: 8 },
-  diffTxt:    { fontFamily: fonts.familySemibold, fontSize: 13, textAlign: 'center', lineHeight: 19 },
+  diffTxt:    { fontFamily: fonts.familySemibold, fontSize: 14, textAlign: 'center', lineHeight: 20 },
 
   closeBtn:   { backgroundColor: colors.orange, borderRadius: 16, paddingVertical: 18, alignItems: 'center', marginTop: 8 },
-  closeBtnTxt:{ fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: '#fff' },
+  closeBtnTxt:{ fontFamily: fonts.family, fontSize: 18, color: '#fff' },
   closeBtnSub:{ fontFamily: fonts.familyRegular, fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 3 },
 
   closedCard: { backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, padding: 32, alignItems: 'center', marginTop: 20 },
-  closedTitle:{ fontFamily: fonts.family, fontSize: 24, fontWeight: '800', color: colors.green, marginBottom: 8 },
+  closedTitle:{ fontFamily: fonts.family, fontSize: 24, color: colors.green, marginBottom: 8 },
   closedSub:  { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginBottom: 24 },
   logoutBtn:  { backgroundColor: colors.surface2, borderRadius: 12, paddingVertical: 13, paddingHorizontal: 32, borderWidth: 1, borderColor: colors.border },
   logoutBtnTxt:{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
@@ -350,18 +350,18 @@ const styles = StyleSheet.create({
   overlay:      { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center', padding: 24 },
   modalBox:     { width: '100%', maxWidth: 700, backgroundColor: colors.surface, borderRadius: 28, borderWidth: 1, borderColor: colors.border, padding: 32, gap: 24 },
   modalHeader:  { alignItems: 'center' },
-  modalTitle:   { fontFamily: fonts.family, fontSize: 34, fontWeight: '800', color: colors.text, marginBottom: 6 },
+  modalTitle:   { fontFamily: fonts.family, fontSize: 36, color: colors.text, marginBottom: 6 },
   modalDate:    { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
   modalGrid:    { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   modalCard:    { flex: 1, minWidth: '45%', backgroundColor: colors.surface2, borderRadius: 18, borderWidth: 1, borderColor: colors.border, padding: 20 },
-  modalCardOrange: { borderColor: 'rgba(240,160,80,0.3)', backgroundColor: 'rgba(240,160,80,0.07)' },
-  modalCardLabel: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8 },
-  modalCardVal:  { fontFamily: fonts.family, fontSize: 32, fontWeight: '800', color: colors.text, marginBottom: 6 },
+  modalCardOrange: { borderColor: 'rgba(127,168,217,0.3)', backgroundColor: 'rgba(127,168,217,0.07)' },
+  modalCardLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8 },
+  modalCardVal:  { fontFamily: fonts.family, fontSize: 28, color: colors.text, marginBottom: 6 },
   modalCardSub:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
   modalBtn:     { backgroundColor: colors.orange, borderRadius: 16, paddingVertical: 18, alignItems: 'center' },
-  modalBtnTxt:  { fontFamily: fonts.family, fontSize: 17, fontWeight: '800', color: '#fff' },
+  modalBtnTxt:  { fontFamily: fonts.family, fontSize: 18, color: '#fff' },
   modalBtnSub:  { fontFamily: fonts.familyRegular, fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 3 },
-  emptyTitle: { fontFamily: fonts.family, fontSize: 20, fontWeight: '800', color: colors.text, marginBottom: 8, textAlign: 'center' },
+  emptyTitle: { fontFamily: fonts.family, fontSize: 20, color: colors.text, marginBottom: 8, textAlign: 'center' },
   emptyText:  { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', lineHeight: 21, marginBottom: 24 },
   backBtn:    { backgroundColor: colors.surface, borderRadius: 12, paddingVertical: 13, paddingHorizontal: 28, borderWidth: 1, borderColor: colors.border },
   backBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
