@@ -1,10 +1,6 @@
 import React, { useState, useMemo, useRef, useLayoutEffect } from 'react';
-import { View, Text, Pressable, StyleSheet, LayoutAnimation, PanResponder, Animated, Platform, UIManager } from 'react-native';
+import { View, Text, Pressable, StyleSheet, LayoutAnimation, PanResponder, Animated } from 'react-native';
 import { colors, fonts } from '../constants/theme';
-
-// На Android (старая архитектура) LayoutAnimation нужно включить явно; в новой
-// архитектуре вызов безвреден. Он нужен, чтобы высота карточки менялась нативно.
-if (Platform.OS === 'android') UIManager.setLayoutAnimationEnabledExperimental?.(true);
 
 const WEEKDAY_LABELS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 const MONTH_LABELS = [

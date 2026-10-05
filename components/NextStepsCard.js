@@ -1,12 +1,8 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView, LayoutAnimation, Platform, UIManager } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ScrollView, LayoutAnimation } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { getNextStepsStatus, getSetting, setSetting } from '../db/queries';
 import { colors, fonts } from '../constants/theme';
-
-// На Android (старая архитектура) LayoutAnimation нужно включить явно; в новой
-// архитектуре вызов безвреден. Нужен для плавного сворачивания карточки.
-if (Platform.OS === 'android') UIManager.setLayoutAnimationEnabledExperimental?.(true);
 
 export const NEXT_STEPS = [
   { key: 'businessType', icon: '🎯', label: 'Подобрать тип бизнеса',       screen: 'Settings', params: { section: 'business' }, sub: 'Подставит термины и разделы' },
