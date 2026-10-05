@@ -338,7 +338,7 @@ export default function ExpensesPanel({ navigation }) {
     </View>
   );
 
-  const addBtn = can('add_expense') !== false && (
+  const addBtn = can('add_expenses') !== false && (
     <Pressable style={[styles.addBtn, { position: 'relative' }, addBtnHighlight.style]} onPress={openModal}>
       <Text style={styles.addBtnTxt}>+ Добавить расход</Text>
       {addBtnHighlight.overlay}

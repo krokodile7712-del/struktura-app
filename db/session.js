@@ -39,7 +39,7 @@ export const setUserPermissions = (userId, p) => {
 };
 export const getUserPermissionsById = (userId) => global.__userPermissions[userId] || null;
 
-// Проверка конкретного права (admin всегда true)
+// Проверка конкретного права (admin всегда true; остальным — только явно разрешённое)
 export const can = (key) => {
   if (global.__session?.role === 'admin') return true;
   const userId = global.__session?.id;
@@ -47,8 +47,11 @@ export const can = (key) => {
   const perms = userId && global.__userPermissions[userId]
     ? global.__userPermissions[userId]
     : global.__permissions;
-  if (!perms) return true; // fallback
-  return perms[key] !== false;
+  // По умолчанию ЗАКРЫТО: если права не загружены или такого права нет в списке —
+  // доступа нет. Раньше при отсутствии прав разрешалось всё, а право, которого нет
+  // в списке (опечатка в названии), не действовало вообще.
+  if (!perms) return false;
+  return perms[key] === true;
 };
 
 // Текущая выбранная локация (null = модуль локаций выключен или не выбрана)

@@ -20,7 +20,9 @@ function formatWait(sec) {
   return r ? `${m} мин ${r} с` : `${m} мин`;
 }
 
-export default function LoginScreen({ navigation, route }) {
+// embedded + onUnlocked — режим экрана блокировки (поверх приложения, см. LockGuard):
+// при успехе экран не переходит никуда, а сообщает, кто вошёл.
+export default function LoginScreen({ navigation, route, embedded = false, onUnlocked }) {
   const navTo = route?.params?.navTo;
   const navParams = route?.params?.navParams;
   const [pin, setPin] = useState('');
@@ -67,6 +69,7 @@ export default function LoginScreen({ navigation, route }) {
       setBusy(false);
       if (res.ok) {
         const user = res.user;
+        if (onUnlocked) { onUnlocked(user); return; }
         setSession(user);
         setPermissions(user.role === 'admin' ? null : getUserPermissions(user.id));
         const home = user.role === 'admin' ? 'Admin' : 'Dashboard';
@@ -137,7 +140,7 @@ export default function LoginScreen({ navigation, route }) {
       {/* Шапка */}
       <View style={styles.header}>
         <Text style={styles.bizName}>{businessName}</Text>
-        <Text style={styles.prompt}>Введите PIN-код для входа</Text>
+        <Text style={styles.prompt}>{embedded ? 'Экран заблокирован. Введите PIN-код' : 'Введите PIN-код для входа'}</Text>
       </View>
 
       {/* Индикатор точек */}

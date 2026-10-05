@@ -6,6 +6,7 @@ import { NavigationContainer, useNavigationContainerRef } from '@react-navigatio
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNav from './components/AppNav';
+import LockGuard from './components/LockGuard';
 import { useResponsive } from './hooks/useResponsive';
 import { useFonts } from 'expo-font';
 import {
@@ -135,6 +136,7 @@ export default function App() {
       <StatusBar style="light" backgroundColor={colors.bg} />
       <ToastProvider>
       <TourRegistryProvider>
+      <LockGuard navigationRef={navigationRef}>
       <NavigationContainer
         theme={navTheme}
         ref={navigationRef}
@@ -187,6 +189,7 @@ export default function App() {
           </View>
         </AppBackground>
       </NavigationContainer>
+      </LockGuard>
       </TourRegistryProvider>
       </ToastProvider>
     </SafeAreaProvider>

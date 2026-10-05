@@ -8,7 +8,8 @@ import Toggle from '../components/Toggle';
 import { useResponsive } from '../hooks/useResponsive';
 import { getAllUsers, addUser, updateUser, toggleUserActive, getRoleNames, deleteUser, findDuplicatePinUsers } from '../db/queries';
 import { useToast } from '../components/Toast';
-import { getHomeRoute, goBackSmart } from '../db/session';
+import { getHomeRoute, goBackSmart, getSession } from '../db/session';
+import PinConfirmModal from '../components/PinConfirmModal';
 import { colors, fonts } from '../constants/theme';
 
 const SALARY_TYPES = [
@@ -49,6 +50,7 @@ export default function EmployeesScreen({ navigation }) {
   const [error, setError]         = useState('');
   const [isNew, setIsNew]         = useState(false);
   const [statsUserId, setStatsUserId] = useState(null);
+  const [pinAsk, setPinAsk] = useState(null); // подтверждение PIN администратора перед удалением
   const toast = useToast();
 
   const cardAnim  = useState(new Animated.Value(0))[0];
@@ -141,15 +143,20 @@ export default function EmployeesScreen({ navigation }) {
         {
           text: 'Удалить',
           style: 'destructive',
-          onPress: () => {
-            try {
-              const res = deleteUser(u.id);
-              if (!res?.ok) { Alert.alert('Нельзя удалить', res?.error || 'Не удалось удалить сотрудника'); return; }
-              load();
-              setSelected(null);
-              toast.show('Сотрудник удалён');
-            } catch(e) { Alert.alert('Ошибка', e.message); }
-          }
+          // Опасное действие — сначала PIN администратора
+          onPress: () => setPinAsk({
+            title: 'Удалить сотрудника',
+            message: `Введите ваш PIN-код администратора, чтобы удалить «${u.name}».`,
+            action: () => {
+              try {
+                const res = deleteUser(u.id);
+                if (!res?.ok) { Alert.alert('Нельзя удалить', res?.error || 'Не удалось удалить сотрудника'); return; }
+                load();
+                setSelected(null);
+                toast.show('Сотрудник удалён');
+              } catch(e) { Alert.alert('Ошибка', e.message); }
+            },
+          }),
         }
       ]
     );
@@ -161,13 +168,40 @@ export default function EmployeesScreen({ navigation }) {
       u.active ? `${u.name} не сможет войти в систему` : `${u.name} снова сможет входить`,
       [
         { text: 'Отмена' },
-        { text: 'Да', onPress: () => { toggleUserActive(u.id); load(); if (selected?.id === u.id) setSelected(null); } }
+        { text: 'Да', onPress: () => {
+          const res = toggleUserActive(u.id);
+          if (!res?.ok) { Alert.alert('Нельзя', res?.error || 'Не удалось изменить'); return; }
+          load();
+          if (selected?.id === u.id) setSelected(null);
+        } }
       ]
     );
   };
 
+  // Управлять сотрудниками и PIN-кодами может только администратор. Сотрудник
+  // свой PIN не меняет — его задаёт администратор.
+  if (getSession()?.role !== 'admin') {
+    return (
+      <View style={styles.root}>
+        <TopBar title="Сотрудники" onBack={() => goBackSmart(navigation)} navigation={navigation} activeScreen="Employees" />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+          <Text style={{ fontFamily: fonts.familyRegular, fontSize: 16, color: colors.muted, textAlign: 'center', lineHeight: 24 }}>
+            Управлять сотрудниками и PIN-кодами может только администратор.
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.root}>
+      <PinConfirmModal
+        visible={!!pinAsk}
+        title={pinAsk?.title}
+        message={pinAsk?.message}
+        onCancel={() => setPinAsk(null)}
+        onConfirm={() => { const a = pinAsk?.action; setPinAsk(null); a?.(); }}
+      />
       <TopBar
         title="Сотрудники"
         onBack={() => goBackSmart(navigation)}

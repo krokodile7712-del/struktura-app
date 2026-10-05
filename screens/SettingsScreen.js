@@ -49,6 +49,8 @@ import {
 } from '../db/supabase';
 import { useToast } from '../components/Toast';
 import FitView from '../components/FitView';
+import PinConfirmModal from '../components/PinConfirmModal';
+import { getAutoLockMinutes, setAutoLockMinutes, AUTO_LOCK_OPTIONS } from '../db/queries';
 import KeyboardSafe from '../components/KeyboardSafe';
 
 // SectionAccordion — в 2-колоночном layout просто передаёт children
@@ -226,6 +228,9 @@ export default function SettingsScreen({ navigation, route }) {
   const [rolesOpen, setRolesOpen]       = useState(false);
   const [receiptPreview, setReceiptPreview] = useState(false);
   const [empModal, setEmpModal]         = useState(null);
+  const [pinAsk, setPinAsk]             = useState(null); // подтверждение PIN администратора перед опасным действием
+  const [autoLockMin, setAutoLockMin]   = useState(() => getAutoLockMinutes());
+  const isAdminUser = getSession()?.role === 'admin';    // управлять сотрудниками и опасными действиями — только администратор
   const [showPin, setShowPin]           = useState(false);
   const [roleNames, setRoleNames]       = useState({ admin: 'Администратор', barista: 'Сотрудник' });
 
@@ -642,6 +647,18 @@ export default function SettingsScreen({ navigation, route }) {
     } catch (e) { console.error(e); toast.show('Не удалось создать копию', 'warn'); }
   };
 
+  // Опасное действие: только администратор и только после ввода его PIN
+  const askAdminPin = (title, message, action) => {
+    if (getSession()?.role !== 'admin') { toast.show('Это действие доступно только администратору', 'warn'); return; }
+    setPinAsk({ title, message, action });
+  };
+
+  const chooseAutoLock = (minutes) => {
+    const res = setAutoLockMinutes(minutes);
+    if (!res?.ok) { toast.show(res?.error || 'Не удалось сохранить', 'warn'); return; }
+    setAutoLockMin(minutes);
+  };
+
   // ── Импорт / восстановление из бэкапа ──
   const [importing, setImporting] = useState(false);
 
@@ -688,7 +705,7 @@ export default function SettingsScreen({ navigation, route }) {
         `Это ПОЛНОСТЬЮ заменит все текущие данные приложения на данные из файла:\n\n${list}\n\nОтменить это действие нельзя. Продолжить?`,
         [
           { text: 'Отмена', style: 'cancel' },
-          { text: 'Восстановить', style: 'destructive', onPress: () => doImport(data) },
+          { text: 'Восстановить', style: 'destructive', onPress: () => askAdminPin('Восстановить из копии', 'Введите ваш PIN-код администратора, чтобы заменить все данные файлом.', () => doImport(data)) },
         ]
       );
     } catch (e) {
@@ -796,16 +813,22 @@ export default function SettingsScreen({ navigation, route }) {
           <Text style={styles.menuTopTitle}>Сотрудники</Text>
           <View style={styles.menuFloatBtns} pointerEvents="box-none">
             <View style={styles.menuFloatRow}>
-              <Pressable
+              {isAdminUser && (<Pressable
                 onPress={() => setEmpModal({ id: null, name: '', pin: '', pin2: '', role: 'barista', salaryType: 'shift', salaryAmount: '', kpiType: '', kpiAmount: '', kpiPeriod: 'month', permissions: { ...DEFAULT_PERMISSIONS } })}
                 hitSlop={14}
                 style={[styles.menuBadge, styles.menuBadgeAdd]}
               >
                 <Text style={[styles.menuBadgeText, { color: colors.orange }]}>+</Text>
-              </Pressable>
+              </Pressable>)}
             </View>
           </View>
         </View>
+
+        {!isAdminUser && (
+          <Text style={[styles.empty, { paddingVertical: 12 }]}>
+            Управлять сотрудниками и PIN-кодами может только администратор.
+          </Text>
+        )}
 
         {/* Список сотрудников */}
         {users.length === 0 ? (
@@ -820,7 +843,7 @@ export default function SettingsScreen({ navigation, route }) {
                   idx < users.length - 1 && styles.menuRowDiv,
                   pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
                 ]}
-                onPress={() => setEmpModal({ id: u.id, name: u.name, pin: '', pin2: '', role: u.role, salaryType: u.salary_type || 'shift', salaryAmount: String(u.salary_amount || ''), kpiType: u.kpi_type || '', kpiAmount: String(u.kpi_amount || ''), kpiPeriod: u.kpi_period || 'month', permissions: getUserPermissions(u.id) })}
+                onPress={() => isAdminUser && setEmpModal({ id: u.id, name: u.name, pin: '', pin2: '', role: u.role, salaryType: u.salary_type || 'shift', salaryAmount: String(u.salary_amount || ''), kpiType: u.kpi_type || '', kpiAmount: String(u.kpi_amount || ''), kpiPeriod: u.kpi_period || 'month', permissions: getUserPermissions(u.id) })}
               >
                 <View style={{ flex: 1 }}>
                   <Text style={styles.menuItemName}>{u.name}</Text>
@@ -1947,7 +1970,7 @@ export default function SettingsScreen({ navigation, route }) {
                     { text: 'Отмена', style: 'cancel' },
                     {
                       text: 'Стереть всё и начать заново', style: 'destructive',
-                      onPress: async () => {
+                      onPress: () => askAdminPin('Стереть всё и начать заново', 'Введите ваш PIN-код администратора, чтобы подтвердить удаление всех данных.', async () => {
                         try {
                           // Сначала облако — код и секрет бизнеса нужны, чтобы до него достучаться,
                           // а после сброса локальной базы их уже не будет. Не критично, если не выйдет
@@ -1974,7 +1997,7 @@ export default function SettingsScreen({ navigation, route }) {
                           console.error('[Регистрация бизнеса] ошибка запуска:', e);
                           toast.show('Не удалось начать заново: ' + (e?.message || 'ошибка'), 'warn');
                         }
-                      },
+                      }),
                     },
                   ]
                 );
@@ -2029,6 +2052,33 @@ export default function SettingsScreen({ navigation, route }) {
           </View>
 
 
+
+          {/* Безопасность */}
+          <Text style={styles.bizGroupLabel}>Безопасность</Text>
+          <View style={styles.menuCard}>
+            <View style={styles.menuRow}>
+              <Text style={{ fontSize: 20, marginRight: 12 }}>🔒</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.menuItemName}>Автоблокировка</Text>
+                <Text style={styles.menuItemSub}>
+                  Возврат на экран входа, если никто не касался экрана, и при уходе из приложения больше чем на минуту
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+                  {AUTO_LOCK_OPTIONS.map(m => (
+                    <Pressable
+                      key={m}
+                      style={[styles.typeChip, autoLockMin === m && styles.typeChipActive]}
+                      onPress={() => chooseAutoLock(m)}
+                    >
+                      <Text style={[styles.typeChipTxt, autoLockMin === m && styles.typeChipTxtActive]}>
+                        {m === 0 ? 'Выкл' : `${m} мин`}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            </View>
+          </View>
 
           {/* Данные */}
           <Text style={styles.bizGroupLabel}>Данные</Text>
@@ -2597,6 +2647,14 @@ export default function SettingsScreen({ navigation, route }) {
       </Modal>
 
 
+      <PinConfirmModal
+        visible={!!pinAsk}
+        title={pinAsk?.title}
+        message={pinAsk?.message}
+        onCancel={() => setPinAsk(null)}
+        onConfirm={() => { const a = pinAsk?.action; setPinAsk(null); a?.(); }}
+      />
+
       <Modal visible={!!empModal} transparent animationType="fade" onRequestClose={() => setEmpModal(null)}>
         <KeyboardSafe style={styles.prodModalRoot}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setEmpModal(null)} />
@@ -2908,13 +2966,13 @@ export default function SettingsScreen({ navigation, route }) {
                     {empModal.id && (
                       <Pressable
                         style={{ paddingVertical: 13, alignItems: 'center', marginTop: 8, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(217,95,95,0.3)', backgroundColor: 'rgba(217,95,95,0.06)' }}
-                        onPress={() => {
+                        onPress={() => askAdminPin('Удалить сотрудника', `Введите ваш PIN-код администратора, чтобы удалить «${empModal.name}».`, () => {
                           try {
                             const res = deleteUser(empModal.id);
                             if (!res?.ok) { toast.show(res?.error || 'Не удалось удалить', 'warn'); return; }
                             loadAll(); setEmpModal(null);
                           } catch (e) { console.error(e); }
-                        }}
+                        })}
                       >
                         <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red }}>Удалить сотрудника</Text>
                       </Pressable>

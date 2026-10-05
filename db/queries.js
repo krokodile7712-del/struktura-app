@@ -685,27 +685,43 @@ export function getAllUsers() {
 
 // Добавляет нового сотрудника. Возвращает {ok, id} или {ok:false, error}
 export function addUser(name, pin, role, salaryType = 'shift', salaryAmount = 0, extra = {}) {
-  return Auth.addUser(getDb(), name, pin, role, salaryType, salaryAmount, extra);
+  return Auth.addUser(getDb(), getSession()?.id ?? null, name, pin, role, salaryType, salaryAmount, extra);
 }
 
 // Обновляет сотрудника. Пустой pin — «не менять». Возвращает {ok} или {ok:false, error}
 export function updateUser(id, name, pin, role, salaryType = 'shift', salaryAmount = 0, extra = {}) {
-  return Auth.updateUser(getDb(), id, name, pin, role, salaryType, salaryAmount, extra);
+  return Auth.updateUser(getDb(), getSession()?.id ?? null, id, name, pin, role, salaryType, salaryAmount, extra);
 }
 
 // Группы активных сотрудников с одинаковым PIN (остатки старых данных)
 export function findDuplicatePinUsers() { return Auth.findDuplicatePinUsers(getDb()); }
 
-// Мягкое удаление/восстановление. Нельзя деактивировать последнего активного админа.
+// Мягкое удаление/восстановление. Нельзя деактивировать последнего активного админа;
+// только администратор.
 export function toggleUserActive(id) {
-  const db = getDb();
-  const user = db.getFirstSync(`SELECT * FROM users WHERE id = ?`, [id]);
-  if (!user) return { ok: false, error: 'Сотрудник не найден' };
-  if (user.active && user.role === 'admin') {
-    const adminCount = db.getFirstSync(`SELECT COUNT(*) as n FROM users WHERE role='admin' AND active != 0`);
-    if ((adminCount?.n || 0) <= 1) return { ok: false, error: 'Нельзя деактивировать единственного администратора' };
-  }
-  db.runSync(`UPDATE users SET active = ? WHERE id = ?`, [user.active ? 0 : 1, id]);
+  return Auth.toggleUserActive(getDb(), getSession()?.id ?? null, id);
+}
+
+// Подтверждение PIN текущего администратора перед опасным действием
+export function confirmAdminPin(pin) {
+  return Auth.confirmAdminPin(getDb(), getSession()?.id ?? null, pin);
+}
+
+// Автоблокировка: через сколько минут без касаний возвращать на экран входа
+// (0 — выключена). По умолчанию 5. Менять может только администратор.
+export const AUTO_LOCK_OPTIONS = [0, 1, 5, 15, 30];
+export function getAutoLockMinutes() {
+  try {
+    const v = getSetting('auto_lock_minutes');
+    if (v === null || v === undefined || v === '') return 5;
+    const n = parseInt(v, 10);
+    return AUTO_LOCK_OPTIONS.includes(n) ? n : 5;
+  } catch (_) { return 5; }
+}
+export function setAutoLockMinutes(minutes) {
+  if (!Auth.isActiveAdmin(getDb(), getSession()?.id ?? null)) return { ok: false, error: Auth.NOT_ADMIN_ERROR };
+  if (!AUTO_LOCK_OPTIONS.includes(minutes)) return { ok: false, error: 'Недопустимое значение' };
+  setSetting('auto_lock_minutes', String(minutes));
   return { ok: true };
 }
 
@@ -3741,7 +3757,7 @@ export function getBusinessMetrics(pnlFull, businessPreset) {
 
 // Единственного активного администратора удалить нельзя. Возвращает {ok} или {ok:false, error}
 export function deleteUser(id) {
-  return Auth.deleteUser(getDb(), id);
+  return Auth.deleteUser(getDb(), getSession()?.id ?? null, id);
 }
 
 // ─── Права доступа сотрудников ───────────────────────────────────────────────
@@ -3785,10 +3801,9 @@ export function getUserPermissions(userId) {
 }
 
 export function saveUserPermissions(userId, permissions) {
-  const db = getDb();
   try {
-    db.runSync(`UPDATE users SET permissions = ? WHERE id = ?`, [JSON.stringify(permissions), userId]);
-  } catch (e) { console.error(e); }
+    return Auth.saveUserPermissions(getDb(), getSession()?.id ?? null, userId, permissions);
+  } catch (e) { console.error(e); return { ok: false, error: 'Не удалось сохранить права' }; }
 }
 
 // ─── Аналитика для отчётности ─────────────────────────────────────────────────

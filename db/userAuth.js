@@ -13,6 +13,11 @@
 //    попыток подряд — пауза 30 с, дальше она удваивается (до 30 мин).
 //  • Нельзя остаться без администратора: последнего активного администратора
 //    нельзя удалить, деактивировать или понизить в роли.
+//  • Управлять сотрудниками, их ролями и PIN-кодами может ТОЛЬКО администратор
+//    (проверяется здесь, в базе, а не только на экранах). Сотрудник свой PIN
+//    не меняет — его задаёт администратор. Единственное исключение: пока в
+//    базе нет ни одного сотрудника, первого администратора создаёт мастер
+//    регистрации.
 import { hashPin, makeSalt, validatePinFormat, isWeakPin } from './pinCrypto';
 
 const SALT_KEY = 'pin_salt';
@@ -114,6 +119,18 @@ export function getLoginLock(db, now = Date.now()) {
   return remaining > 0 ? { locked: true, remainingMs: remaining } : { locked: false, remainingMs: 0 };
 }
 
+// Учитывает неудачную попытку PIN и при необходимости включает блокировку.
+function registerFailure(db, now) {
+  const fails = (Number(getRaw(db, FAIL_KEY) || 0) || 0) + 1;
+  setRaw(db, FAIL_KEY, fails);
+  if (fails >= LOCK_AFTER_FAILS) {
+    const ms = Math.min(BASE_LOCK_MS * Math.pow(2, fails - LOCK_AFTER_FAILS), MAX_LOCK_MS);
+    setRaw(db, LOCK_KEY, now + ms);
+    return { ok: false, locked: true, remainingMs: ms, error: 'Неверный PIN-код' };
+  }
+  return { ok: false, locked: false, attemptsLeft: LOCK_AFTER_FAILS - fails, error: 'Неверный PIN-код' };
+}
+
 // Попытка входа со счётом неудач.
 // Возвращает: { ok:true, user } | { ok:false, locked:true, remainingMs } |
 //             { ok:false, locked:false, attemptsLeft, error }
@@ -128,17 +145,42 @@ export function attemptLogin(db, pin, now = Date.now()) {
     return { ok: true, user };
   }
 
-  const fails = (Number(getRaw(db, FAIL_KEY) || 0) || 0) + 1;
-  setRaw(db, FAIL_KEY, fails);
-  if (fails >= LOCK_AFTER_FAILS) {
-    const ms = Math.min(BASE_LOCK_MS * Math.pow(2, fails - LOCK_AFTER_FAILS), MAX_LOCK_MS);
-    setRaw(db, LOCK_KEY, now + ms);
-    return { ok: false, locked: true, remainingMs: ms, error: 'Неверный PIN-код' };
+  return registerFailure(db, now);
+}
+
+// Подтверждение PIN администратора перед опасным действием (стереть всё,
+// восстановить из копии, удалить сотрудника). Проверяет, что введён PIN
+// именно этого администратора, и делит со входом один счётчик неудач и одну
+// блокировку — подбор через окно подтверждения не обходит защиту.
+export function confirmAdminPin(db, userId, pin, now = Date.now()) {
+  const lock = getLoginLock(db, now);
+  if (lock.locked) return { ok: false, locked: true, remainingMs: lock.remainingMs, error: 'Слишком много попыток' };
+  const found = isActiveAdmin(db, userId) ? findUserByPin(db, pin) : null;
+  if (found && found.id === userId) {
+    delRaw(db, FAIL_KEY);
+    delRaw(db, LOCK_KEY);
+    return { ok: true };
   }
-  return { ok: false, locked: false, attemptsLeft: LOCK_AFTER_FAILS - fails, error: 'Неверный PIN-код' };
+  return registerFailure(db, now);
 }
 
 // ── Сотрудники ────────────────────────────────────────────────────────────
+export const NOT_ADMIN_ERROR = 'Управлять сотрудниками и PIN-кодами может только администратор';
+
+// Действующий администратор по номеру (роль берётся из базы, а не из сессии)
+export function isActiveAdmin(db, id) {
+  if (id === null || id === undefined) return false;
+  const r = db.getFirstSync(`SELECT role, active FROM users WHERE id = ?`, [id]);
+  return !!r && r.role === 'admin' && !!r.active;
+}
+
+// Управлять сотрудниками можно администратору; единственное исключение —
+// пустая база (первый запуск: мастер создаёт первого администратора)
+function canManageUsers(db, actorId) {
+  if (isActiveAdmin(db, actorId)) return true;
+  return (db.getFirstSync(`SELECT COUNT(*) AS n FROM users`)?.n || 0) === 0;
+}
+
 function activeAdminCount(db, exceptId = null) {
   const r = db.getFirstSync(
     `SELECT COUNT(*) AS n FROM users WHERE role = 'admin' AND active != 0 AND (? IS NULL OR id != ?)`,
@@ -148,7 +190,8 @@ function activeAdminCount(db, exceptId = null) {
 }
 
 // Добавляет сотрудника. Возвращает { ok, id } или { ok:false, error }
-export function addUser(db, name, pin, role, salaryType = 'shift', salaryAmount = 0, extra = {}) {
+export function addUser(db, actorId, name, pin, role, salaryType = 'shift', salaryAmount = 0, extra = {}) {
+  if (!canManageUsers(db, actorId)) return { ok: false, error: NOT_ADMIN_ERROR };
   if (!name?.trim()) return { ok: false, error: 'Укажите имя сотрудника' };
   const chk = checkNewPin(db, pin);
   if (!chk.ok) return chk;
@@ -162,7 +205,8 @@ export function addUser(db, name, pin, role, salaryType = 'shift', salaryAmount 
 }
 
 // Обновляет сотрудника. Пустой PIN означает «не менять».
-export function updateUser(db, id, name, pin, role, salaryType = 'shift', salaryAmount = 0, extra = {}) {
+export function updateUser(db, actorId, id, name, pin, role, salaryType = 'shift', salaryAmount = 0, extra = {}) {
+  if (!canManageUsers(db, actorId)) return { ok: false, error: NOT_ADMIN_ERROR };
   if (!name?.trim()) return { ok: false, error: 'Укажите имя сотрудника' };
   const existing = db.getFirstSync(`SELECT id, role, active FROM users WHERE id = ?`, [id]);
   if (!existing) return { ok: false, error: 'Сотрудник не найден' };
@@ -188,13 +232,34 @@ export function updateUser(db, id, name, pin, role, salaryType = 'shift', salary
 }
 
 // Удаление сотрудника. Единственного активного администратора удалить нельзя.
-export function deleteUser(db, id) {
+export function deleteUser(db, actorId, id) {
+  if (!canManageUsers(db, actorId)) return { ok: false, error: NOT_ADMIN_ERROR };
   const user = db.getFirstSync(`SELECT id, role, active FROM users WHERE id = ?`, [id]);
   if (!user) return { ok: false, error: 'Сотрудник не найден' };
   if (user.role === 'admin' && user.active && activeAdminCount(db, id) === 0) {
     return { ok: false, error: 'Нельзя удалить единственного администратора' };
   }
   db.runSync(`DELETE FROM users WHERE id = ?`, [id]);
+  return { ok: true };
+}
+
+// Отключение/включение сотрудника (мягкое удаление). Нельзя отключить
+// последнего активного администратора.
+export function toggleUserActive(db, actorId, id) {
+  if (!canManageUsers(db, actorId)) return { ok: false, error: NOT_ADMIN_ERROR };
+  const user = db.getFirstSync(`SELECT * FROM users WHERE id = ?`, [id]);
+  if (!user) return { ok: false, error: 'Сотрудник не найден' };
+  if (user.active && user.role === 'admin' && activeAdminCount(db, id) === 0) {
+    return { ok: false, error: 'Нельзя деактивировать единственного администратора' };
+  }
+  db.runSync(`UPDATE users SET active = ? WHERE id = ?`, [user.active ? 0 : 1, id]);
+  return { ok: true };
+}
+
+// Права сотрудника (что ему разрешено) — тоже часть управления сотрудниками
+export function saveUserPermissions(db, actorId, userId, permissions) {
+  if (!canManageUsers(db, actorId)) return { ok: false, error: NOT_ADMIN_ERROR };
+  db.runSync(`UPDATE users SET permissions = ? WHERE id = ?`, [JSON.stringify(permissions), userId]);
   return { ok: true };
 }
 
