@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import FitView from './FitView';
 import KeyboardSafe from './KeyboardSafe';
-import { validateBackupPassword, BACKUP_PASSWORD_MIN } from '../db/backupCrypto';
+import { validateBackupPassword, BACKUP_PASSWORD_MIN, BACKUP_PASSWORD_RULES } from '../db/backupCrypto';
 import { colors, fonts } from '../constants/theme';
 
 // Окно пароля резервной копии.
@@ -80,6 +80,8 @@ export default function BackupPasswordModal({ visible, mode = 'set', title, mess
             <Text style={styles.showTxt}>{show ? '🙈 Скрыть пароль' : '👁 Показать пароль'}</Text>
           </Pressable>
 
+          {isSet && <Text style={styles.rules}>{BACKUP_PASSWORD_RULES}</Text>}
+
           {isSet && (
             <Text style={styles.warn}>
               Запишите пароль и сохраните отдельно от файла. Если вы его забудете, открыть копию будет невозможно — восстановить пароль нельзя.
@@ -118,6 +120,7 @@ const styles = StyleSheet.create({
   message: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 8, lineHeight: 20, marginBottom: 6 },
   input:   { marginTop: 12, height: 50, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bg, color: colors.text, paddingHorizontal: 14, fontSize: 16, fontFamily: fonts.familyRegular },
   showTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
+  rules:   { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, marginTop: 10, lineHeight: 19 },
   warn:    { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 12, lineHeight: 19 },
   statusRow: { minHeight: 28, marginTop: 10, justifyContent: 'center' },
   error:   { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.red },

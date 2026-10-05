@@ -5,7 +5,7 @@
 // текстом, и любой, кто получил файл (мессенджер, облако, чужой телефон),
 // получал всё. Теперь файл шифруется паролем, который задаёт администратор.
 //
-// Схема: ключ = PBKDF2-HMAC-SHA256(пароль, случайная соль, 200 000 итераций);
+// Схема: ключ = PBKDF2-HMAC-SHA256(пароль, случайная соль, 100 000 итераций);
 // шифр = AES-256-GCM (проверяет и подлинность: неверный пароль и любая порча
 // файла определяются при расшифровке). Заголовок файла (формат, версия,
 // алгоритмы, число итераций) входит в проверяемые данные — подменить число
@@ -18,7 +18,12 @@ import { getRandomBytes } from 'expo-crypto';
 
 export const BACKUP_FORMAT = 'struktura-backup';
 export const BACKUP_VERSION = 2;
-export const BACKUP_KDF_ITERATIONS = 200000;
+// 100 000 итераций — на планшете около 12 секунд (вдвое меньше, чем при 200 000):
+// фиксированная часть времени шифрования, от размера данных не зависит. Файлы,
+// сделанные с большим числом итераций, открываются: число записано в самом файле.
+// Основную защиту даёт сам пароль (см. validateBackupPassword). Когда появится
+// сборка с нативной криптографией, число можно поднять.
+export const BACKUP_KDF_ITERATIONS = 100000;
 export const BACKUP_PASSWORD_MIN = 10;
 
 // Границы числа итераций при чтении чужого файла: не даём подсунуть файл с
@@ -79,10 +84,34 @@ function normalizePassword(password) {
   return p;
 }
 
+export const BACKUP_PASSWORD_RULES =
+  `Не короче ${BACKUP_PASSWORD_MIN} символов: заглавная и строчная буква, цифра и спецсимвол (например ! ? # - _ $)`;
+
+// Какие виды символов есть в пароле. Буква определяется по наличию регистра, поэтому
+// работает и для латиницы, и для кириллицы (без \p{…}, который не везде поддерживается).
+function charKinds(p) {
+  let lower = false; let upper = false; let digit = false; let special = false;
+  for (const ch of p) {
+    const lo = ch.toLowerCase();
+    const up = ch.toUpperCase();
+    if (ch >= '0' && ch <= '9') digit = true;
+    else if (lo !== up) { if (ch === lo) lower = true; else if (ch === up) upper = true; }
+    else if (ch.trim() !== '') special = true; // не буква, не цифра и не пробел
+  }
+  return { lower, upper, digit, special };
+}
+
 export function validateBackupPassword(password) {
   const p = normalizePassword(password);
   if (p.length < BACKUP_PASSWORD_MIN) return { ok: false, error: `Пароль — не короче ${BACKUP_PASSWORD_MIN} символов` };
   if (/^(.)\1+$/.test(p)) return { ok: false, error: 'Слишком простой пароль' };
+  const k = charKinds(p);
+  const missing = [];
+  if (!k.lower) missing.push('строчной буквы');
+  if (!k.upper) missing.push('заглавной буквы');
+  if (!k.digit) missing.push('цифры');
+  if (!k.special) missing.push('спецсимвола (! ? # - _ $ и т.п.)');
+  if (missing.length) return { ok: false, error: `В пароле не хватает: ${missing.join(', ')}` };
   return { ok: true };
 }
 
