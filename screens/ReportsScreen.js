@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
-  Modal, Animated, Share,
+  Modal, Animated,
 } from 'react-native';
 import TopBar from '../components/TopBar';
 import Sheet from '../components/Sheet';
@@ -13,7 +13,7 @@ import {
   getPnL, getPnLFull, getTopProducts, getRevenueByDay,
   getBusinessMetrics, getBusinessProfile,
   getOrdersByHour, getRevenueByEmployee, getPaymentBreakdown,
-  exportAllData, markTourSeen,
+  markTourSeen,
 } from '../db/queries';
 import { getHomeRoute, goBackSmart, can } from '../db/session';
 import DatePicker from '../components/DatePicker';
@@ -270,11 +270,10 @@ export default function ReportsScreen({ navigation }) {
               <Text style={styles.filtersBtnTxt}>⚙ Период</Text>
               {filtersHighlight.overlay}
             </Pressable>
-            <Pressable style={styles.exportBtn} onPress={async () => {
-              try { const d = exportAllData(); await Share.share({ message: d, title: 'Отчёт СТРУКТУРА' }); } catch(_) {}
-            }}>
-              <Text style={styles.exportBtnTxt}>↑ Экспорт</Text>
-            </Pressable>
+            {/* Кнопка «Экспорт» убрана: она выгружала ВСЮ базу (клиентов, продажи, отпечатки PIN,
+                секрет облачной записи) обычным текстом через меню «Поделиться». Резервная копия
+                теперь — только в Настройках, под паролем (см. db/backupCrypto.js). Экспорт самого
+                отчёта нужно делать отдельно и только с данными отчёта. */}
           </View>
 
           {/* Контент вкладки */}

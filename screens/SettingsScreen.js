@@ -50,6 +50,8 @@ import {
 import { useToast } from '../components/Toast';
 import FitView from '../components/FitView';
 import PinConfirmModal from '../components/PinConfirmModal';
+import BackupPasswordModal from '../components/BackupPasswordModal';
+import { encryptBackup, decryptBackup, isEncryptedBackup } from '../db/backupCrypto';
 import { getAutoLockMinutes, setAutoLockMinutes, AUTO_LOCK_OPTIONS } from '../db/queries';
 import KeyboardSafe from '../components/KeyboardSafe';
 
@@ -229,6 +231,7 @@ export default function SettingsScreen({ navigation, route }) {
   const [receiptPreview, setReceiptPreview] = useState(false);
   const [empModal, setEmpModal]         = useState(null);
   const [pinAsk, setPinAsk]             = useState(null); // подтверждение PIN администратора перед опасным действием
+  const [backupAsk, setBackupAsk]       = useState(null); // пароль копии: {mode:'set', purpose:'save'|'share'} или {mode:'enter', file}
   const [autoLockMin, setAutoLockMin]   = useState(() => getAutoLockMinutes());
   const isAdminUser = getSession()?.role === 'admin';    // управлять сотрудниками и опасными действиями — только администратор
   const [showPin, setShowPin]           = useState(false);
@@ -597,10 +600,10 @@ export default function SettingsScreen({ navigation, route }) {
     try { setProfile(getBusinessProfile()); } catch(e) {}
   };
 
-  const handleExportSave = async () => {
+  // Копия всегда защищена паролем: см. startBackup. Сюда приходит уже готовый
+  // зашифрованный текст файла.
+  const handleExportSave = async (json) => {
     try {
-      const data = exportAllData();
-      const json = JSON.stringify(data, null, 2);
       const fileName = `struktura-backup-${new Date().toISOString().slice(0, 10)}.json`;
 
       if (Platform.OS === 'android') {
@@ -627,10 +630,8 @@ export default function SettingsScreen({ navigation, route }) {
     }
   };
 
-  const handleExportShare = async () => {
+  const handleExportShare = async (json) => {
     try {
-      const data = exportAllData();
-      const json = JSON.stringify(data, null, 2);
       const fileName = `struktura-backup-${new Date().toISOString().slice(0, 10)}.json`;
       // Раньше здесь был Share.share({ message: json }) — это отправляло
       // сырой текст JSON через системное меню «Поделиться», а не файл.
@@ -645,6 +646,35 @@ export default function SettingsScreen({ navigation, route }) {
         toast.show('На этом устройстве не поддерживается', 'warn');
       }
     } catch (e) { console.error(e); toast.show('Не удалось создать копию', 'warn'); }
+  };
+
+  // Копия: только администратор, сначала его PIN, затем пароль, которым защищается файл.
+  // Без пароля копию не сохраняем и не отправляем — в ней все данные бизнеса.
+  const startBackup = (purpose) => {
+    askAdminPin(
+      'Резервная копия',
+      'Введите ваш PIN-код администратора. Затем вы зададите пароль, которым будет защищён файл.',
+      () => setBackupAsk({ mode: 'set', purpose })
+    );
+  };
+
+  const submitBackupPassword = async (password) => {
+    const res = encryptBackup(exportAllData(), password);
+    if (!res.ok) return res;
+    const json = JSON.stringify(res.file);
+    const purpose = backupAsk?.purpose;
+    setBackupAsk(null);
+    if (purpose === 'share') await handleExportShare(json);
+    else await handleExportSave(json);
+    return { ok: true };
+  };
+
+  const submitRestorePassword = async (password) => {
+    const res = decryptBackup(backupAsk?.file, password);
+    if (!res.ok) return res;
+    setBackupAsk(null);
+    confirmRestore(res.data, true);
+    return { ok: true };
   };
 
   // Опасное действие: только администратор и только после ввода его PIN
@@ -685,7 +715,23 @@ export default function SettingsScreen({ navigation, route }) {
     }
   };
 
+  // Подтверждение восстановления; дальше — PIN администратора и сама замена данных
+  const confirmRestore = (data, protectedFile) => {
+    const list = BACKUP_TABLES_INFO.map(t => '• ' + t.label).join('\n');
+    Alert.alert(
+      'Восстановить из резервной копии?',
+      `Это ПОЛНОСТЬЮ заменит все текущие данные приложения на данные из файла:\n\n${list}\n\nОтменить это действие нельзя.` +
+        (protectedFile ? '' : '\n\n⚠ Файл не защищён паролем — он создан старой версией приложения. После восстановления сохраните новую копию: она будет защищена паролем.') +
+        '\n\nПродолжить?',
+      [
+        { text: 'Отмена', style: 'cancel' },
+        { text: 'Восстановить', style: 'destructive', onPress: () => askAdminPin('Восстановить из копии', 'Введите ваш PIN-код администратора, чтобы заменить все данные файлом.', () => doImport(data)) },
+      ]
+    );
+  };
+
   const handleImport = async () => {
+    if (getSession()?.role !== 'admin') { toast.show('Это действие доступно только администратору', 'warn'); return; }
     try {
       const result = await DocumentPicker.getDocumentAsync({ type: 'application/json', copyToCacheDirectory: true });
       if (result.canceled) return;
@@ -699,15 +745,9 @@ export default function SettingsScreen({ navigation, route }) {
       catch (_) { throw new Error('Файл повреждён или это не резервная копия (не JSON)'); }
       setImporting(false);
 
-      const list = BACKUP_TABLES_INFO.map(t => '• ' + t.label).join('\n');
-      Alert.alert(
-        'Восстановить из резервной копии?',
-        `Это ПОЛНОСТЬЮ заменит все текущие данные приложения на данные из файла:\n\n${list}\n\nОтменить это действие нельзя. Продолжить?`,
-        [
-          { text: 'Отмена', style: 'cancel' },
-          { text: 'Восстановить', style: 'destructive', onPress: () => askAdminPin('Восстановить из копии', 'Введите ваш PIN-код администратора, чтобы заменить все данные файлом.', () => doImport(data)) },
-        ]
-      );
+      // Копия, защищённая паролем, — сначала пароль. Старая (открытым текстом) — с предупреждением.
+      if (isEncryptedBackup(data)) { setBackupAsk({ mode: 'enter', file: data }); return; }
+      confirmRestore(data, false);
     } catch (e) {
       setImporting(false);
       console.error('[handleImport]', e);
@@ -2085,22 +2125,18 @@ export default function SettingsScreen({ navigation, route }) {
           <View style={styles.menuCard}>
             <Pressable
               style={({ pressed }) => [styles.menuRow, styles.menuRowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
-              onPress={async () => {
-                try {
-                  await handleExportSave();
-                } catch (e) { console.error(e); }
-              }}
+              onPress={() => startBackup('save')}
             >
               <Text style={{ fontSize: 20, marginRight: 12 }}>💾</Text>
               <View style={{ flex: 1 }}>
                 <Text style={styles.menuItemName}>Сохранить резервную копию</Text>
-                <Text style={styles.menuItemSub}>Выберите папку на устройстве — товары, клиенты, продажи, настройки</Text>
+                <Text style={styles.menuItemSub}>Файл защищается паролем. Выберите папку на устройстве — товары, клиенты, продажи, настройки</Text>
               </View>
               <Text style={styles.menuItemArrow}>›</Text>
             </Pressable>
             <Pressable
               style={({ pressed }) => [styles.menuRow, styles.menuRowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
-              onPress={handleExportShare}
+              onPress={() => startBackup('share')}
             >
               <Text style={{ fontSize: 20, marginRight: 12 }}>📤</Text>
               <View style={{ flex: 1 }}>
@@ -2646,6 +2682,17 @@ export default function SettingsScreen({ navigation, route }) {
         </KeyboardSafe>
       </Modal>
 
+
+      <BackupPasswordModal
+        visible={!!backupAsk}
+        mode={backupAsk?.mode || 'set'}
+        title={backupAsk?.mode === 'enter' ? 'Пароль копии' : 'Защитите копию паролем'}
+        message={backupAsk?.mode === 'enter'
+          ? 'Эта копия защищена паролем. Введите пароль, который вы задавали при сохранении.'
+          : 'В копии все данные вашего бизнеса. Без пароля её не откроет никто, включая вас.'}
+        onSubmit={backupAsk?.mode === 'enter' ? submitRestorePassword : submitBackupPassword}
+        onCancel={() => setBackupAsk(null)}
+      />
 
       <PinConfirmModal
         visible={!!pinAsk}

@@ -13,6 +13,7 @@
     },
     "android": {
       "package": "com.struktura.app",
+      "allowBackup": false,
       "adaptiveIcon": {
         "backgroundColor": "#171513",
         "foregroundImage": "./assets/android-icon-foreground.png",
