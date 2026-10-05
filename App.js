@@ -1,7 +1,7 @@
 import 'react-native-url-polyfill/auto';
 import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { View, ActivityIndicator, Text } from 'react-native';
+import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
 import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -142,7 +142,7 @@ export default function App() {
             {isLandscape && NAV_SCREENS.includes(currentRoute) && (
               <AppNav navigation={navigationRef} activeScreen={currentRoute} />
             )}
-            <View style={{ flex: 1 }}>
+            <View style={[{ flex: 1 }, isLandscape && NAV_SCREENS.includes(currentRoute) && styles.contentPlate]}>
           <Stack.Navigator
             initialRouteName={initialRoute}
             screenOptions={{
@@ -189,3 +189,15 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
+// Область контента рядом с парящей боковой панелью — скруглённая «плита»: левые
+// углы того же радиуса, что у панели (28), на тёмной подложке приложения.
+// Раньше она была прямоугольником и упиралась в панель острым углом.
+const styles = StyleSheet.create({
+  contentPlate: {
+    overflow: 'hidden',
+    borderTopLeftRadius: 28,
+    borderBottomLeftRadius: 28,
+    backgroundColor: colors.bg,
+  },
+});

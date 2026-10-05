@@ -291,13 +291,13 @@ const styles = StyleSheet.create({
   },
 
   // ── Панель альбомной ориентации: парящая стеклянная плитка ──
-  navColumn:   { paddingLeft: 16, paddingBottom: 12, paddingRight: 4 },
+  navColumn:   { paddingLeft: 16, paddingBottom: 12, paddingRight: 12 },
   bizHeader:   { paddingHorizontal: 22, paddingTop: 14, paddingBottom: 12 },
   bizName:     { fontFamily: fonts.familySemibold, fontSize: 18, color: colors.text, letterSpacing: -0.1 },
   bizCity:     { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.textDim, marginTop: 2 },
 
   ctaBtn:      { marginHorizontal: 14, marginBottom: 12, paddingVertical: 16, borderRadius: 16, backgroundColor: colors.orange, alignItems: 'center' },
-  ctaLabel:    { fontFamily: fonts.family, fontSize: 18, color: colors.onAccent, textTransform: 'capitalize' },
+  ctaLabel:    { fontFamily: fonts.family, fontSize: 18, color: colors.onAccent },
   ctaSub:      { fontFamily: fonts.familyMedium, fontSize: 12, color: 'rgba(10,18,28,0.72)', marginTop: 2 },
 
   divider:     { height: 1, backgroundColor: 'rgba(255,255,255,0.09)', marginHorizontal: 20, marginVertical: 6 },

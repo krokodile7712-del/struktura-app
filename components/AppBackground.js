@@ -19,6 +19,6 @@ export default function AppBackground({ children }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
+  container: { flex: 1, backgroundColor: colors.canvas },
   content: { flex: 1 },
 });
