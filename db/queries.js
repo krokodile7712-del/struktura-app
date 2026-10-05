@@ -2800,6 +2800,64 @@ export function deleteInventoryAct(actId) {
 // - информация о текущей смене
 // - выручка и количество заказов за сегодня
 // - количество позиций склада ниже порогового значения
+// Начало календарного дня по местному времени (со сдвигом в днях: 0 — сегодня, -1 — вчера)
+function localDayStart(offsetDays = 0) {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + offsetDays);
+  return d;
+}
+
+// Дополнительные данные для Обзора администратора: сравнение со вчера, последние
+// продажи и популярное за сегодня. Сравнение «ко вчера» — на то же время суток
+// (сегодня с 00:00 до сейчас против вчера с 00:00 до этого же времени), иначе утром
+// любая выручка выглядела бы провалом по сравнению с целым вчерашним днём.
+export function getOverviewExtras() {
+  const db = getDb();
+  const startToday = localDayStart(0);
+  const startYest  = localDayStart(-1);
+  const nowMs = Date.now();
+  const elapsed = nowMs - startToday.getTime();
+  const notReturned = `(status IS NULL OR status != 'returned')`;
+
+  const sum = (from, to) => db.getFirstSync(
+    `SELECT COUNT(*) AS n, COALESCE(SUM(total), 0) AS s FROM orders WHERE created_at >= ? AND created_at < ? AND ${notReturned}`,
+    [from, to]
+  ) || { n: 0, s: 0 };
+  const y = sum(startYest.toISOString(), new Date(startYest.getTime() + elapsed + 1000).toISOString());
+  const yesterday = { orders: y.n, total: y.s, avg: y.n > 0 ? y.s / y.n : 0 };
+
+  const todayFrom = startToday.toISOString();
+  const rows = db.getAllSync(
+    `SELECT id, created_at, total, method, method_type FROM orders
+     WHERE created_at >= ? AND ${notReturned} ORDER BY created_at DESC LIMIT 4`,
+    [todayFrom]
+  );
+  const payMethods = getPayMethods();
+  const recent = rows.map(o => {
+    const items = db.getAllSync(`SELECT name, COALESCE(quantity, 1) AS q FROM order_items WHERE order_id = ? ORDER BY id`, [o.id]);
+    const names = items.map(it => (it.q > 1 ? `${it.name} × ${it.q}` : it.name));
+    const summary = names.length === 0 ? 'Без позиций'
+      : names.length <= 2 ? names.join(', ')
+      : `${names.slice(0, 2).join(', ')} и ещё ${names.length - 2}`;
+    const type = resolveMethodType(o, payMethods);
+    const method = type === 'cash' ? 'Наличные' : type === 'mixed' ? 'Смешанная' : (o.method && o.method !== 'Карта' ? o.method : 'Карта');
+    const d = new Date(o.created_at);
+    const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    return { id: o.id, time, summary, total: o.total, method };
+  });
+
+  const popular = db.getAllSync(
+    `SELECT oi.name AS name, SUM(COALESCE(oi.quantity, 1)) AS qty
+     FROM order_items oi JOIN orders o ON o.id = oi.order_id
+     WHERE o.created_at >= ? AND (o.status IS NULL OR o.status != 'returned')
+     GROUP BY oi.name ORDER BY qty DESC, oi.name LIMIT 4`,
+    [todayFrom]
+  );
+
+  return { yesterday, recent, popular };
+}
+
 export function getDashboardStats(userId = null) {
   const db = getDb();
 
@@ -2812,13 +2870,17 @@ export function getDashboardStats(userId = null) {
     ? db.getFirstSync(`SELECT * FROM shifts WHERE status = 'open' AND user_id = ? ORDER BY opened_at DESC LIMIT 1`, [userId])
     : db.getFirstSync(`SELECT * FROM shifts WHERE status = 'open' ORDER BY opened_at DESC LIMIT 1`)) || null;
 
-  // Сегодняшняя дата в формате YYYY-MM-DD
-  const today = new Date().toISOString().slice(0, 10);
+  // Сегодня — календарный день ПО МЕСТНОМУ ВРЕМЕНИ устройства. Раньше брали дату UTC
+  // (toISOString), и с 00:00 до 03:00 по Москве «сегодня» показывало вчерашние продажи.
+  // Время заказов хранится в UTC (ISO), поэтому границы локального дня переводим в UTC.
+  const dayStart = localDayStart(0).toISOString();
+  const dayEnd   = localDayStart(1).toISOString();
 
-  // Заказы за сегодня
+  // Заказы за сегодня (возвращённые — не выручка)
   const todayOrders = db.getAllSync(
-    `SELECT total, method_type, method FROM orders WHERE created_at LIKE ?`,
-    [`${today}%`]
+    `SELECT total, method_type, method FROM orders
+     WHERE created_at >= ? AND created_at < ? AND (status IS NULL OR status != 'returned')`,
+    [dayStart, dayEnd]
   );
 
   const payMethods = getPayMethods();
@@ -2854,7 +2916,7 @@ export function getDashboardStats(userId = null) {
     const totalMin = Math.floor(ms / 60000);
     const h = Math.floor(totalMin / 60);
     const m = totalMin % 60;
-    shiftDuration = h > 0 ? `${h}ч ${m}мин` : `${m}мин`;
+    shiftDuration = h > 0 ? `${h} ч ${m} мин` : `${m} мин`;
   }
 
   return {

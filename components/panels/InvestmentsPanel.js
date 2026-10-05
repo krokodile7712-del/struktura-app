@@ -436,12 +436,12 @@ const styles = StyleSheet.create({
   chipTxtActive: { color: colors.orange },
 
   saveBtn:    { backgroundColor: colors.orange, borderRadius: 14, paddingVertical: 17, alignItems: 'center', marginTop: 24 },
-  saveBtnTxt: { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
+  saveBtnTxt: { fontFamily: fonts.family, fontSize: 16, color: colors.onAccent },
   deleteBtn:  { borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginTop: 10, borderWidth: 1, borderColor: 'rgba(219,129,120,0.4)', backgroundColor: 'rgba(219,129,120,0.07)' },
   deleteBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.red },
 
   addBtn:     { paddingVertical: 11, paddingHorizontal: 16, borderRadius: 12, backgroundColor: 'rgba(127,168,217,0.12)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)' },
   addBtnBig:  { paddingVertical: 16, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center', margin: 16, marginBottom: 8 },
-  addBtnBigTxt: { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
+  addBtnBigTxt: { fontFamily: fonts.family, fontSize: 16, color: colors.onAccent },
   addBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.orange },
 });

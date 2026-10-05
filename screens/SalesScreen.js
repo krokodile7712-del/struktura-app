@@ -635,5 +635,5 @@ const styles = StyleSheet.create({
   modalCancel:  { flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
   modalCancelTxt:{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   modalSave:    { flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
-  modalSaveTxt: { fontFamily: fonts.family, fontSize: 14, color: '#fff' },
+  modalSaveTxt: { fontFamily: fonts.family, fontSize: 14, color: colors.onAccent },
 });

@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
   cellToday:    { backgroundColor: 'rgba(127,168,217,0.15)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.5)' },
 
   cellText:         { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
-  cellTextSelected: { color: '#fff' },
+  cellTextSelected: { color: colors.onAccent },
   cellTextToday:    { color: colors.greenLight },
   cellTextWeekend:  { color: 'rgba(219,129,120,0.7)' },
 

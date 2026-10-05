@@ -642,5 +642,5 @@ const styles = StyleSheet.create({
   dateTxt:    { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
   dateIcon:   { fontSize: 16 },
   applyBtn:   { marginTop: 20, paddingVertical: 15, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
-  applyTxt:   { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
+  applyTxt:   { fontFamily: fonts.family, fontSize: 16, color: colors.onAccent },
 });

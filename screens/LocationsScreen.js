@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
   sectionLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
 
   addBtnBig:  { paddingVertical: 16, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center', marginBottom: 16 },
-  addBtnBigTxt: { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
+  addBtnBigTxt: { fontFamily: fonts.family, fontSize: 16, color: colors.onAccent },
 
   hint: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 10, lineHeight: 20 },
 

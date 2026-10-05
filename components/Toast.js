@@ -83,13 +83,13 @@ const styles = StyleSheet.create({
   },
   icon: {
     fontSize: 16,
-    color: '#fff',
+    color: colors.onAccent,
     fontWeight: '700',
   },
   message: {
     fontFamily: fonts.familySemibold,
     fontSize: 14,
-    color: '#fff',
+    color: colors.onAccent,
     flexShrink: 1,
   },
 });

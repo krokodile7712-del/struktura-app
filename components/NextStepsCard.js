@@ -230,8 +230,8 @@ export default function NextStepsCard({ navigation, forceVisible = false }) {
 
 const styles = StyleSheet.create({
   // Свёрнутая полоска
-  strip: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.surface2, borderRadius: 16, borderWidth: 1, borderColor: colors.borderHi, paddingVertical: 10, paddingHorizontal: 16, minHeight: 56, marginBottom: 16 },
-  stripTitle: { fontFamily: fonts.family, fontSize: 16, color: colors.text },
+  strip: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.surface, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', paddingVertical: 10, paddingHorizontal: 16, minHeight: 56, marginBottom: 16 },
+  stripTitle: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
   stripSub: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 1 },
   stripSegments: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   seg: { width: 12, height: 4, borderRadius: 2, backgroundColor: colors.border },
@@ -240,9 +240,9 @@ const styles = StyleSheet.create({
   stripCount: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, minWidth: 30, textAlign: 'right' },
   chev: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
 
-  card: { backgroundColor: colors.surface2, borderRadius: 18, borderWidth: 1, borderColor: colors.borderHi, overflow: 'hidden', marginBottom: 16 },
+  card: { backgroundColor: colors.surface, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', overflow: 'hidden', marginBottom: 16 },
   head: { flexDirection: 'row', alignItems: 'flex-start', padding: 16, paddingBottom: 12 },
-  title: { fontFamily: fonts.family, fontSize: 18, color: colors.text },
+  title: { fontFamily: fonts.familySemibold, fontSize: 18, color: colors.text },
   sub: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 2 },
   closeBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface3, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   closeTxt: { fontSize: 16, color: colors.muted, fontFamily: fonts.familySemibold },
@@ -254,13 +254,13 @@ const styles = StyleSheet.create({
   numberBadge: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(127,168,217,0.12)', borderWidth: 1.5, borderColor: 'rgba(127,168,217,0.4)', alignItems: 'center', justifyContent: 'center' },
   numberBadgeDone: { backgroundColor: colors.green, borderColor: colors.green },
   numberTxt: { fontFamily: fonts.family, fontSize: 14, color: colors.orange },
-  numberDoneTxt: { fontFamily: fonts.family, fontSize: 14, color: '#fff' },
+  numberDoneTxt: { fontFamily: fonts.family, fontSize: 14, color: colors.onAccent },
   stepIcon: { fontSize: 20 },
   stepLabel: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
   stepLabelDone: { color: colors.muted, textDecorationLine: 'line-through' },
   stepSub: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 2 },
   ctaBtn: { backgroundColor: colors.orange, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 14 },
-  ctaTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: '#fff' },
+  ctaTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.onAccent },
   doneLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.green },
 
   dotsRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingTop: 12, paddingBottom: 4 },

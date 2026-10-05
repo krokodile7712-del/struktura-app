@@ -959,7 +959,7 @@ const styles = StyleSheet.create({
   bridgeAmountVal: { fontFamily: fonts.family, fontSize: 28, color: colors.orange },
   bridgeAmountLbl: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 4 },
   bridgeAddBtn:    { marginTop: 20, paddingVertical: 15, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
-  bridgeAddBtnTxt: { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
+  bridgeAddBtnTxt: { fontFamily: fonts.family, fontSize: 16, color: colors.onAccent },
   bridgeSkipBtn:   { marginTop: 10, paddingVertical: 15, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
   bridgeSkipBtnTxt:{ fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
   layout: { flex: 1 },
@@ -1120,7 +1120,7 @@ const styles = StyleSheet.create({
 
   confirmBtn:    { paddingVertical: 15, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center', marginTop: 8 },
   confirmBtnOff: { backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
-  confirmBtnText:{ fontFamily: fonts.family, fontSize: 16, color: '#fff' },
+  confirmBtnText:{ fontFamily: fonts.family, fontSize: 16, color: colors.onAccent },
 
   histToggle:     { paddingVertical: 12, alignItems: 'center', marginTop: 8 },
   histToggleText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
@@ -1136,7 +1136,7 @@ const styles = StyleSheet.create({
   priceCalcRow: { flexDirection: 'row', gap: 8 },
   priceCalcInput: { flex: 1, paddingVertical: 8, paddingHorizontal: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 8, color: colors.text, fontFamily: fonts.family, fontSize: 14, textAlign: 'center' },
   priceCalcApplyBtn: { paddingVertical: 10, borderRadius: 8, backgroundColor: colors.orange, alignItems: 'center' },
-  priceCalcApplyTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: '#fff' },
+  priceCalcApplyTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.onAccent },
   purchasePerUnitHint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.green, textAlign: 'center', marginBottom: 4 },
   purchaseExpenseNote: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 4 },
   histPrice:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.orange, flex: 1, textAlign: 'right' },

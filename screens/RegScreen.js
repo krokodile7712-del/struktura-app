@@ -169,6 +169,6 @@ const styles = StyleSheet.create({
   errorTxt:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red },
 
   btn:       { backgroundColor: colors.orange, borderRadius: 16, paddingVertical: 18, alignItems: 'center' },
-  btnTxt:    { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
+  btnTxt:    { fontFamily: fonts.family, fontSize: 16, color: colors.onAccent },
   btnSub:    { fontFamily: fonts.familyRegular, fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 3 },
 });

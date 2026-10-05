@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
   errorBox:    { marginBottom: 16, padding: 14, backgroundColor: 'rgba(219,129,120,0.1)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(219,129,120,0.3)' },
   errorTxt:    { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red, textAlign: 'center' },
   startBtn:    { backgroundColor: colors.orange, borderRadius: 16, paddingVertical: 18, alignItems: 'center', marginBottom: 12 },
-  startBtnTxt: { fontFamily: fonts.family, fontSize: 18, color: '#fff' },
+  startBtnTxt: { fontFamily: fonts.family, fontSize: 18, color: colors.onAccent },
   startBtnSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 3 },
   skipBtn:     { paddingVertical: 14, alignItems: 'center', marginBottom: 28 },
   skipTxt:     { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },

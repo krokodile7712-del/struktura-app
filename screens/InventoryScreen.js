@@ -534,7 +534,7 @@ export default function InventoryScreen({ navigation }) {
                   onPress={() => setScope(s.key)}
                 >
                   <View style={[styles.scopeCheck, scope === s.key && styles.scopeCheckActive]}>
-                    {scope === s.key && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
+                    {scope === s.key && <Text style={{ color: colors.onAccent, fontSize: 12 }}>✓</Text>}
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.scopeLabel, scope === s.key && { color: colors.orange }]}>{s.label}</Text>
@@ -575,7 +575,7 @@ export default function InventoryScreen({ navigation }) {
                         onPress={() => setScopeManualIds(prev => checked ? prev.filter(x => x !== s.id) : [...prev, s.id])}
                       >
                         <View style={[styles.scopeCheck, checked && styles.scopeCheckActive]}>
-                          {checked && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
+                          {checked && <Text style={{ color: colors.onAccent, fontSize: 12 }}>✓</Text>}
                         </View>
                         <Text style={styles.manualName} numberOfLines={1}>{s.name}</Text>
                       </Pressable>
@@ -622,7 +622,7 @@ const styles = StyleSheet.create({
   sidePanel:  { flex: 1, backgroundColor: colors.bg, margin: 12, marginLeft: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', padding: 20 },
   leftCol:    { flex: 0, width: '38%', maxWidth: 480, marginTop: 12, marginBottom: 12, marginLeft: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.borderHi, overflow: 'hidden', backgroundColor: colors.surface2 },
   addBtnBig:  { marginHorizontal: 16, marginTop: 16, marginBottom: 8, paddingVertical: 16, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
-  addBtnBigTxt: { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
+  addBtnBigTxt: { fontFamily: fonts.family, fontSize: 16, color: colors.onAccent },
 
   infoCard:  { margin: 12, backgroundColor: 'rgba(165,168,212,0.08)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(165,168,212,0.2)', padding: 16, width: '100%', maxWidth: 760, alignSelf: 'center' },
   infoTitle: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.indigo, marginBottom: 6 },
@@ -677,7 +677,7 @@ const styles = StyleSheet.create({
   fillPanelTitle:  { fontFamily: fonts.family, fontSize: 18, color: colors.text },
   fillPanelSub:    { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 2 },
   confirmBtn: { backgroundColor: colors.orange, borderRadius: 12, paddingVertical: 11, paddingHorizontal: 18 },
-  confirmBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: '#fff' },
+  confirmBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.onAccent },
 
   fillCard:   { backgroundColor: colors.surface2, borderRadius: 16, borderWidth: 1, borderColor: colors.borderHi, overflow: 'hidden' },
   fillRow:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
@@ -712,7 +712,7 @@ const styles = StyleSheet.create({
   scopeHint:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
 
   createBtn:  { backgroundColor: colors.orange, borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginBottom: 8 },
-  createBtnTxt: { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
+  createBtnTxt: { fontFamily: fonts.family, fontSize: 16, color: colors.onAccent },
   cancelBtn:  { paddingVertical: 12, alignItems: 'center' },
   cancelBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
 });

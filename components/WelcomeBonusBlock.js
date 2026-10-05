@@ -89,5 +89,5 @@ const styles = StyleSheet.create({
   sub: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 3 },
   warn: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.orange, marginTop: 6, lineHeight: 19 },
   btn: { backgroundColor: colors.orange, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 18 },
-  btnTxt: { fontFamily: fonts.familySemibold, fontSize: 16, color: '#fff' },
+  btnTxt: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.onAccent },
 });

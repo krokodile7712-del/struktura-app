@@ -149,5 +149,5 @@ const styles = StyleSheet.create({
   hint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, lineHeight: 18, marginTop: 4 },
   pinInput: { textAlign: 'center', letterSpacing: 8, fontSize: 20 },
   nextBtn: { marginTop: 28, paddingVertical: 16, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
-  nextBtnText: { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
+  nextBtnText: { fontFamily: fonts.family, fontSize: 16, color: colors.onAccent },
 });

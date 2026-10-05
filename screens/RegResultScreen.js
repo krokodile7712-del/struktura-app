@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
   loyaltyText:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.textDim, lineHeight: 17 },
 
   primaryBtn:     { backgroundColor: colors.orange, borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginBottom: 10 },
-  primaryBtnText: { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
+  primaryBtnText: { fontFamily: fonts.family, fontSize: 16, color: colors.onAccent },
 
   secondaryBtn:     { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginBottom: 10 },
   secondaryBtnText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },

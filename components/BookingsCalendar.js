@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
   dayCircleSelected: { backgroundColor: colors.orange },
   dayNum: { fontFamily: fonts.familyRegular, fontSize: 16, color: colors.text },
   dayNumToday: { color: colors.orange, fontFamily: fonts.familySemibold },
-  dayNumSelected: { color: '#fff', fontFamily: fonts.familySemibold },
+  dayNumSelected: { color: colors.onAccent, fontFamily: fonts.familySemibold },
 
   dotsRow: { flexDirection: 'row', gap: 3, height: 6, marginTop: 1 },
   dot: { width: 6, height: 6, borderRadius: 3 },

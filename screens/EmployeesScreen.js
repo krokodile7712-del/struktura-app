@@ -712,7 +712,7 @@ const styles = StyleSheet.create({
   toggleBtn:  { flex: 1, paddingVertical: 14, borderRadius: 14, borderWidth: 1, alignItems: 'center', backgroundColor: colors.surface },
   toggleTxt:  { fontFamily: fonts.familySemibold, fontSize: 14 },
   saveBtn:    { flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
-  saveTxt:    { fontFamily: fonts.family, fontSize: 14, color: '#fff' },
+  saveTxt:    { fontFamily: fonts.family, fontSize: 14, color: colors.onAccent },
 
   addBtn:     { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 10, backgroundColor: 'rgba(127,168,217,0.15)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)' },
   addBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },

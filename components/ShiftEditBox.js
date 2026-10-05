@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
   input: { backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, paddingVertical: 12, paddingHorizontal: 14, fontFamily: fonts.familyRegular, fontSize: 16, color: colors.text },
 
   primary: { marginTop: 16, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.orange, alignItems: 'center' },
-  primaryTxt: { fontFamily: fonts.familySemibold, fontSize: 16, color: '#fff' },
+  primaryTxt: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.onAccent },
   secondary: { marginTop: 10, paddingVertical: 13, borderRadius: 12, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
   secondaryTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
 
@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
   checkRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 },
   check: { width: 24, height: 24, borderRadius: 7, borderWidth: 1.5, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   checkOn: { backgroundColor: colors.orange, borderColor: colors.orange },
-  checkMark: { color: '#fff', fontSize: 14, fontFamily: fonts.familySemibold },
+  checkMark: { color: colors.onAccent, fontSize: 14, fontFamily: fonts.familySemibold },
   checkTxt: { fontFamily: fonts.familyRegular, fontSize: 16, color: colors.text },
 
   linkRow: { marginTop: 12, marginBottom: 4 },

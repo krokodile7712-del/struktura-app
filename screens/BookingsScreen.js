@@ -968,7 +968,7 @@ const styles = StyleSheet.create({
   mainTabTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   mainTabTxtActive: { color: colors.orange },
   addManualBtn: { margin: 16, marginBottom: 8, paddingVertical: 13, borderRadius: 12, backgroundColor: colors.orange, alignItems: 'center' },
-  addManualBtnTxt: { fontFamily: fonts.family, fontSize: 14, color: '#fff' },
+  addManualBtnTxt: { fontFamily: fonts.family, fontSize: 14, color: colors.onAccent },
 
   fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, marginTop: 14, marginBottom: 6 },
   sectionHeading: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange, textTransform: 'uppercase', letterSpacing: 1.5 },
@@ -980,7 +980,7 @@ const styles = StyleSheet.create({
   priceInput: { flex: 1, fontFamily: fonts.family, fontSize: 24, color: colors.text, paddingVertical: 12 },
   priceCurrency: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
   saveManualBtn: { marginTop: 24, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.orange, alignItems: 'center' },
-  saveManualBtnTxt: { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
+  saveManualBtnTxt: { fontFamily: fonts.family, fontSize: 16, color: colors.onAccent },
   pickerDoneBtn: { marginTop: 8, paddingVertical: 10, borderRadius: 10, backgroundColor: colors.surface2, alignItems: 'center' },
   pickerDoneBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
   centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },

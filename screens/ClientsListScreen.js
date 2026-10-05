@@ -585,7 +585,7 @@ export default function ClientsListScreen({ navigation, route, initialClientId }
                       onPress={() => selectClient(c)}
                     >
                       <View style={[styles.listAvatar, isActive && styles.listAvatarActive]}>
-                        <Text style={[styles.listAvatarTxt, isActive && { color: '#fff' }]}>
+                        <Text style={[styles.listAvatarTxt, isActive && { color: colors.onAccent }]}>
                           {(c.fio||'?').charAt(0).toUpperCase()}
                         </Text>
                       </View>
@@ -687,7 +687,7 @@ const styles = StyleSheet.create({
   addBtn:     { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(127,168,217,0.15)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)', alignItems: 'center', justifyContent: 'center' },
   addBtnTxt:  { fontSize: 24, color: colors.orange, lineHeight: 31 },
   addBtnBig:  { margin: 12, marginBottom: 0, paddingVertical: 15, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
-  addBtnBigTxt: { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
+  addBtnBigTxt: { fontFamily: fonts.family, fontSize: 16, color: colors.onAccent },
 
   clientsCard:   { margin: 8, backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   clientRow:     { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12, position: 'relative' },
@@ -733,7 +733,7 @@ const styles = StyleSheet.create({
   notePlaceholder: { fontFamily: fonts.familyRegular, fontSize: 14, color: 'rgba(255,255,255,0.2)' },
 
   btn:        { paddingVertical: 18, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
-  btnTxt:     { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
+  btnTxt:     { fontFamily: fonts.family, fontSize: 16, color: colors.onAccent },
   delBtn:     { marginTop: 28, marginBottom: 12, paddingVertical: 15, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(219,129,120,0.35)', alignItems: 'center' },
   delBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.red },
   btnSec:     { paddingVertical: 18, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.borderHi, alignItems: 'center' },

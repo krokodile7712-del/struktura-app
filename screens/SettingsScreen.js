@@ -941,7 +941,7 @@ export default function SettingsScreen({ navigation, route }) {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <InfoTip title={m.label} text={m.tip} />
                   <View style={[styles.productCheckbox, loyaltyModel === m.key && styles.productCheckboxOn]}>
-                    {loyaltyModel === m.key && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
+                    {loyaltyModel === m.key && <Text style={{ color: colors.onAccent, fontSize: 12 }}>✓</Text>}
                   </View>
                 </View>
               </Pressable>
@@ -1658,7 +1658,7 @@ export default function SettingsScreen({ navigation, route }) {
                 activeOpacity={0.7}
                 style={{ marginTop: 10, paddingVertical: 15, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' }}
                 onPress={() => connectBooking()}>
-                <Text style={{ fontFamily: fonts.family, fontSize: 16, color: '#fff' }}>Подключить онлайн запись</Text>
+                <Text style={{ fontFamily: fonts.family, fontSize: 16, color: colors.onAccent }}>Подключить онлайн запись</Text>
                 <Text style={{ fontFamily: fonts.familyRegular, fontSize: 14, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>Займёт секунду — ссылка создаётся автоматически</Text>
               </TouchableOpacity>
             </>
@@ -1976,7 +1976,7 @@ export default function SettingsScreen({ navigation, route }) {
                   <Text style={styles.menuItemSub}>{t.sub}</Text>
                 </View>
                 <View style={[styles.productCheckbox, bizDraft.theme === t.key && styles.productCheckboxOn]}>
-                  {bizDraft.theme === t.key && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
+                  {bizDraft.theme === t.key && <Text style={{ color: colors.onAccent, fontSize: 12 }}>✓</Text>}
                 </View>
               </Pressable>
             ))}
@@ -2752,7 +2752,7 @@ export default function SettingsScreen({ navigation, route }) {
                         )}
                         <Text style={[styles.menuItemSub, { marginRight: 8 }]}>{s.unit}</Text>
                         <View style={[styles.productCheckbox, empModal.salaryType === s.key && styles.productCheckboxOn]}>
-                          {empModal.salaryType === s.key && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
+                          {empModal.salaryType === s.key && <Text style={{ color: colors.onAccent, fontSize: 12 }}>✓</Text>}
                         </View>
                       </Pressable>
                     ))}
@@ -2790,7 +2790,7 @@ export default function SettingsScreen({ navigation, route }) {
                         )}
                         {empModal.kpiType === k.key && k.key ? <Text style={[styles.menuItemSub, { marginRight: 8 }]}>{k.unit}</Text> : null}
                         <View style={[styles.productCheckbox, empModal.kpiType === k.key && styles.productCheckboxOn]}>
-                          {empModal.kpiType === k.key && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
+                          {empModal.kpiType === k.key && <Text style={{ color: colors.onAccent, fontSize: 12 }}>✓</Text>}
                         </View>
                       </Pressable>
                     ))}
@@ -2812,7 +2812,7 @@ export default function SettingsScreen({ navigation, route }) {
                           >
                             <Text style={styles.menuItemName}>{p.label}</Text>
                             <View style={[styles.productCheckbox, empModal.kpiPeriod === p.key && styles.productCheckboxOn]}>
-                              {empModal.kpiPeriod === p.key && <Text style={{ color: '#fff', fontSize: 12 }}>✓</Text>}
+                              {empModal.kpiPeriod === p.key && <Text style={{ color: colors.onAccent, fontSize: 12 }}>✓</Text>}
                             </View>
                           </Pressable>
                         ))}
@@ -3097,7 +3097,7 @@ export default function SettingsScreen({ navigation, route }) {
           <Pressable
             style={{ paddingVertical: 14, paddingHorizontal: 40, borderRadius: 16, backgroundColor: colors.orange }}
             onPress={shareBookingLink}>
-            <Text style={{ fontFamily: fonts.family, fontSize: 16, color: '#fff' }}>Поделиться ссылкой</Text>
+            <Text style={{ fontFamily: fonts.family, fontSize: 16, color: colors.onAccent }}>Поделиться ссылкой</Text>
           </Pressable>
           <Pressable onPress={() => setQrModal(false)} hitSlop={20}>
             <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: 'rgba(255,255,255,0.5)' }}>Закрыть</Text>
@@ -3345,7 +3345,7 @@ const styles = StyleSheet.create({
   termsAccordionHeader: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, gap: 8, marginBottom: 12 },
 
   discSaveBtn: { backgroundColor: colors.orange, borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
-  discSaveBtnTxt: { fontFamily: fonts.family, fontSize: 14, color: '#fff' },
+  discSaveBtnTxt: { fontFamily: fonts.family, fontSize: 14, color: colors.onAccent },
   discDeleteBtn: { borderRadius: 14, paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(219,129,120,0.35)', backgroundColor: 'rgba(219,129,120,0.06)' },
   discDeleteBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red },
 
@@ -3392,7 +3392,7 @@ const styles = StyleSheet.create({
   loyaltyExampleAccent: { fontFamily: fonts.familySemibold, color: colors.orange },
   prodModalFooter: { padding: 16, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface },
   confirmBtn: { paddingVertical: 15, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
-  confirmBtnText: { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
+  confirmBtnText: { fontFamily: fonts.family, fontSize: 16, color: colors.onAccent },
   prodInput: {
     padding: 13, backgroundColor: colors.surface2, borderWidth: 1,
     borderColor: colors.border, borderRadius: 12,

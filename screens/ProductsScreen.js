@@ -1543,7 +1543,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 },
     elevation: 6, zIndex: 20,
   },
-  fabTxt: { fontSize: 28, color: '#fff', fontFamily: fonts.family, marginTop: -2 },
+  fabTxt: { fontSize: 28, color: colors.onAccent, fontFamily: fonts.family, marginTop: -2 },
 
   modeCard: { backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, padding: 16, marginBottom: 10 },
   modeCardHighlight: { borderColor: 'rgba(127,168,217,0.5)', backgroundColor: 'rgba(127,168,217,0.06)' },
@@ -1554,7 +1554,7 @@ const styles = StyleSheet.create({
   combInput: { padding: 12, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontFamily: fonts.family, fontSize: 16 },
   combHint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, lineHeight: 17, marginTop: 16 },
   combSaveBtn: { backgroundColor: colors.orange, borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginTop: 16 },
-  combSaveTxt: { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
+  combSaveTxt: { fontFamily: fonts.family, fontSize: 16, color: colors.onAccent },
 
   tabBtn: { flex: 1, paddingVertical: 14, alignItems: 'center', borderRadius: 12 },
   tabBtnActive: { backgroundColor: 'rgba(127,168,217,0.14)' },
@@ -1681,7 +1681,7 @@ const styles = StyleSheet.create({
   modeSwitchBtn: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
   modeSwitchBtnActive: { backgroundColor: colors.orange },
   modeSwitchTxt: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textAlign: 'center' },
-  modeSwitchTxtActive: { color: '#fff' },
+  modeSwitchTxtActive: { color: colors.onAccent },
   ingCard:    { backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 10, marginBottom: 8 },
   ingCardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   ingFieldRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
@@ -1701,10 +1701,10 @@ const styles = StyleSheet.create({
   modSub:     { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
   modCheck:   { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   modCheckActive: { borderColor: colors.orange, backgroundColor: colors.orange },
-  modCheckMark:   { fontFamily: fonts.familySemibold, fontSize: 12, color: '#fff' },
+  modCheckMark:   { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.onAccent },
 
   saveBtn:    { backgroundColor: colors.orange, borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginTop: 20 },
-  saveBtnTxt: { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
+  saveBtnTxt: { fontFamily: fonts.family, fontSize: 16, color: colors.onAccent },
   demoNote:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', marginTop: 20, lineHeight: 20 },
 
   dangerRow:     { flexDirection: 'row', gap: 10, marginTop: 10 },
@@ -1721,7 +1721,7 @@ const styles = StyleSheet.create({
   addBtn:     { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, backgroundColor: 'rgba(127,168,217,0.12)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)' },
   addBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
   addBtnBig:  { paddingVertical: 15, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
-  addBtnBigTxt: { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
+  addBtnBigTxt: { fontFamily: fonts.family, fontSize: 16, color: colors.onAccent },
 
   // Модалки
   modalOverlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 24 },
@@ -1756,7 +1756,7 @@ const styles = StyleSheet.create({
   newCatRow:   { flexDirection: 'row', gap: 8, marginTop: 14 },
   newCatInput: { flex: 1, paddingVertical: 11, paddingHorizontal: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 14 },
   newCatBtn:   { width: 44, borderRadius: 12, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center' },
-  newCatBtnTxt:{ fontFamily: fonts.family, fontSize: 18, color: '#fff' },
+  newCatBtnTxt:{ fontFamily: fonts.family, fontSize: 18, color: colors.onAccent },
   catCountTxt: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
 
   catBackTxt:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
@@ -1793,7 +1793,7 @@ const styles = StyleSheet.create({
   catMgmtChipTxtActive: { color: colors.orange },
 
   confirmBtn: { paddingVertical: 13, borderRadius: 12, backgroundColor: colors.orange, alignItems: 'center' },
-  confirmBtnText: { fontFamily: fonts.family, fontSize: 14, color: '#fff' },
+  confirmBtnText: { fontFamily: fonts.family, fontSize: 14, color: colors.onAccent },
   modalTitle:    { fontFamily: fonts.family, fontSize: 20, color: colors.text, flex: 1 },
   closeBtn:      { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   closeTxt:      { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },

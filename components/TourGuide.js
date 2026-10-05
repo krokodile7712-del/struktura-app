@@ -178,5 +178,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.orange,
     alignItems: 'center',
   },
-  nextTxt: { fontFamily: fonts.family, fontSize: 14, color: '#fff' },
+  nextTxt: { fontFamily: fonts.family, fontSize: 14, color: colors.onAccent },
 });

@@ -1868,7 +1868,7 @@ export default function KassaScreen({ navigation, route }) {
                                       onPress={() => toggleModifierOption(group, opt.id)}
                                     >
                                       <View style={[styles.modCheck, selected && styles.modCheckOn]}>
-                                        {selected && <Text style={{ color:'#fff', fontSize: 14, fontWeight:'700' }}>✓</Text>}
+                                        {selected && <Text style={{ color:colors.onAccent, fontSize: 14, fontWeight:'700' }}>✓</Text>}
                                       </View>
                                       <Text style={[styles.modName, selected && { color: colors.orange }]}>{opt.name}</Text>
                                       {opt.price_delta > 0 && (
@@ -1947,7 +1947,7 @@ const styles = StyleSheet.create({
   varTotalLabel: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
   varTotalVal: { fontFamily: fonts.family, fontSize: 24, color: colors.orange },
   varConfirmBtn: { backgroundColor: colors.orange, borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 16 },
-  varConfirmTxt: { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
+  varConfirmTxt: { fontFamily: fonts.family, fontSize: 16, color: colors.onAccent },
 
   layout: { flex: 1, flexDirection: 'row' },
 
@@ -1992,7 +1992,7 @@ const styles = StyleSheet.create({
   clientDropdownGearTxt: { fontSize: 16, color: colors.muted },
   menuItemSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
   discSaveBtn: { backgroundColor: colors.orange, borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
-  discSaveBtnTxt: { fontFamily: fonts.family, fontSize: 14, color: '#fff' },
+  discSaveBtnTxt: { fontFamily: fonts.family, fontSize: 14, color: colors.onAccent },
   prePayTotalBox: { marginTop: 16, padding: 14, backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, gap: 6 },
   prePayTotalLabel: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
   prePayTotalTitle: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
@@ -2055,7 +2055,7 @@ const styles = StyleSheet.create({
   qtyStepperBtnTxt: { fontFamily: fonts.family, fontSize: 18, color: colors.text },
   qtyStepperVal: { fontFamily: fonts.family, fontSize: 18, color: colors.text, minWidth: 24, textAlign: 'center' },
   itemModalAddBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, paddingVertical: 16, paddingHorizontal: 20, borderRadius: 16, backgroundColor: colors.orange },
-  itemModalAddText: { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
+  itemModalAddText: { fontFamily: fonts.family, fontSize: 16, color: colors.onAccent },
   itemModalAddPrice: { fontFamily: fonts.familySemibold, fontSize: 16, color: 'rgba(255,255,255,0.85)' },
 
   // Модалка оплаты — Apple стиль
@@ -2115,11 +2115,11 @@ const styles = StyleSheet.create({
   payMethodChipTxt:    { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
 
   payConfirmBtn: { marginTop: 16, paddingVertical: 16, borderRadius: 16, backgroundColor: 'rgba(127,168,217,0.85)', alignItems: 'center' },
-  payConfirmText: { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
+  payConfirmText: { fontFamily: fonts.family, fontSize: 16, color: colors.onAccent },
 
   // Кнопки модалки заметки
   noteModalBtnPrimary: { paddingVertical: 14, borderRadius: 14, backgroundColor: 'rgba(127,168,217,0.85)', alignItems: 'center' },
-  noteModalBtnPrimaryText: { fontFamily: fonts.family, fontSize: 14, color: '#fff' },
+  noteModalBtnPrimaryText: { fontFamily: fonts.family, fontSize: 14, color: colors.onAccent },
   noteModalBtnSecondary: { paddingVertical: 14, paddingHorizontal: 18, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(219,129,120,0.4)', alignItems: 'center' },
   noteModalBtnSecondaryText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.redLight },
   cartBadge: { position: 'absolute', top: -6, right: -6, minWidth: 20, height: 20, borderRadius: 10, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center', zIndex: 1, paddingHorizontal: 4 },
@@ -2193,7 +2193,7 @@ const styles = StyleSheet.create({
   cartActionTxt:      { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
   cartPayBtn:         { paddingVertical: 15, borderRadius: 16, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center' },
   cartPayBtnOff:      { backgroundColor: 'rgba(255,255,255,0.1)' },
-  cartPayBtnTxt:      { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
+  cartPayBtnTxt:      { fontFamily: fonts.family, fontSize: 16, color: colors.onAccent },
 
 
   v2EmptyWrap:  { flex: 1 },
@@ -2237,7 +2237,7 @@ const styles = StyleSheet.create({
   v2ActLbl:     { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
   v2Pay:        { paddingVertical: 16, borderRadius: 16, backgroundColor: colors.orange, alignItems: 'center' },
   v2PayOff:     { backgroundColor: 'rgba(255,255,255,0.08)' },
-  v2PayTxt:     { fontFamily: fonts.family, fontSize: 18, color: '#fff', letterSpacing: 0.3 },
+  v2PayTxt:     { fontFamily: fonts.family, fontSize: 18, color: colors.onAccent, letterSpacing: 0.3 },
 
   // ── Портрет: свёрнутая полоска корзины снизу ──
   cartStripCollapsed: {
@@ -2249,7 +2249,7 @@ const styles = StyleSheet.create({
   cartStripTotal: { fontFamily: fonts.family, fontSize: 18, color: colors.text, marginTop: 1 },
   cartStripHint:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
   cartStripPayBtn: { paddingVertical: 12, paddingHorizontal: 20, borderRadius: 12, backgroundColor: colors.orange },
-  cartStripPayTxt: { fontFamily: fonts.family, fontSize: 14, color: '#fff' },
+  cartStripPayTxt: { fontFamily: fonts.family, fontSize: 14, color: colors.onAccent },
 
   // ── Портрет: полноэкранный разворот корзины ──
   // ── Портрет: разворот корзины теперь через Sheet (см. components/Sheet.js) ──
@@ -2299,7 +2299,7 @@ const styles = StyleSheet.create({
   payBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 16, paddingHorizontal: 18, borderRadius: 16, backgroundColor: colors.orange, gap: 8 },
   payBtnDisabled: { backgroundColor: 'rgba(255,255,255,0.12)' },
   payBtnIcon: { fontSize: 18 },
-  payBtnText: { fontFamily: fonts.family, fontSize: 16, color: '#fff', flex: 1 },
+  payBtnText: { fontFamily: fonts.family, fontSize: 16, color: colors.onAccent, flex: 1 },
   payBtnTotal: { fontFamily: fonts.familySemibold, fontSize: 16, color: 'rgba(255,255,255,0.85)' },
   discountRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   pointsInput: { width: 70, paddingVertical: 4, paddingHorizontal: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: 'rgba(127,168,217,0.5)', borderRadius: 8, color: colors.green, fontSize: 14, fontFamily: fonts.family, textAlign: 'center' },

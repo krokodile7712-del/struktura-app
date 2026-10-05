@@ -693,7 +693,7 @@ const styles = StyleSheet.create({
   periodTxtActive: { color: colors.orange },
 
   addBtn:     { height: 50, justifyContent: 'center', borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center', marginBottom: 12 },
-  addBtnTxt:  { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
+  addBtnTxt:  { fontFamily: fonts.family, fontSize: 16, color: colors.onAccent },
   recurringBtn: { paddingHorizontal: 16, height: 50, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.borderHi, alignItems: 'center', justifyContent: 'center', marginBottom: 12, flexDirection: 'row' },
   recurringBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
 
@@ -774,7 +774,7 @@ const styles = StyleSheet.create({
   recurringRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16, padding: 15, backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border },
   recurringCheckbox: { width: 26, height: 26, borderRadius: 7, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   recurringCheckboxActive: { backgroundColor: colors.orange, borderColor: colors.orange },
-  recurringCheckMark: { fontSize: 16, color: '#fff', fontWeight: '800' },
+  recurringCheckMark: { fontSize: 16, color: colors.onAccent, fontWeight: '800' },
   recurringLabel: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
   recurringHint: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 2 },
 
@@ -794,5 +794,5 @@ const styles = StyleSheet.create({
   cancelBtn:  { flex: 1, paddingVertical: 17, borderRadius: 14, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
   cancelTxt:  { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
   saveBtn:    { flex: 1, paddingVertical: 17, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
-  saveTxt:    { fontFamily: fonts.family, fontSize: 16, color: '#fff' },
+  saveTxt:    { fontFamily: fonts.family, fontSize: 16, color: colors.onAccent },
 });
