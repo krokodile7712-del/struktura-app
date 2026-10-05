@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, Animated } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
 import NextStepsCard from '../components/NextStepsCard';
@@ -7,6 +7,8 @@ import EmployeeStatsSheet from '../components/EmployeeStatsSheet';
 import TourGuide from '../components/TourGuide';
 import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
 import GlassSurface from '../components/GlassSurface';
+import NewOrderButton from '../components/NewOrderButton';
+import { useDock } from '../hooks/useDock';
 import ScreenGlow from '../components/ScreenGlow';
 import {
   getOpenShift, getBusinessProfile, getDashboardStats, getRoleNames, markTourSeen,
@@ -49,6 +51,10 @@ export default function AdminScreen({ navigation }) {
   const statCardHighlights = [revenueHighlight, ordersHighlight, avgCheckHighlight, cashHighlight, cardHighlight];
   const activeTourKey = useTourActiveKey();
   const scrollRef = useRef(null);
+  // Кнопка «Новый заказ» в строке приветствия; при прокрутке вниз её копия «стыкуется»
+  // в верхней полосе (справа), а в центре верхней полосы появляется выручка за сегодня.
+  const dock = useDock(90);
+  const goKassa = () => navigation.navigate('Kassa');
   const sectionY = useRef({});
   const rememberY = (key) => (e) => { sectionY.current[key] = e.nativeEvent.layout.y; };
 
@@ -109,16 +115,30 @@ export default function AdminScreen({ navigation }) {
         title={roleNames.admin || 'Администратор'}
         navigation={navigation}
         activeScreen="Admin"
+        centerElement={dock.docked ? (
+          <Animated.View style={{ opacity: dock.anim, flexDirection: 'row', alignItems: 'baseline' }}>
+            <Text style={styles.dockLbl}>Выручка сегодня</Text>
+            <Text style={styles.dockVal}>{(stats.todayTotal || 0).toLocaleString('ru-RU')} ₽</Text>
+          </Animated.View>
+        ) : null}
         rightElement={
-          <Pressable onPress={() => setTourOpen(true)} hitSlop={10} style={styles.tourBtn}>
-            <Text style={styles.tourBtnTxt}>?</Text>
-          </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Animated.View
+              pointerEvents={dock.docked ? 'auto' : 'none'}
+              style={{ opacity: dock.anim, transform: [{ translateY: dock.anim.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }}
+            >
+              <NewOrderButton compact onPress={goKassa} />
+            </Animated.View>
+            <Pressable onPress={() => setTourOpen(true)} hitSlop={10} style={styles.tourBtn}>
+              <Text style={styles.tourBtnTxt}>?</Text>
+            </Pressable>
+          </View>
         }
       />
 
       <View style={{ flex: 1 }}>
 
-        <ScrollView ref={scrollRef} contentContainerStyle={styles.panelContent} style={{ flex: 1 }}>
+        <ScrollView ref={scrollRef} contentContainerStyle={styles.panelContent} style={{ flex: 1 }} onScroll={dock.onScroll} scrollEventThrottle={16}>
           {(stats.lowStockCount > 0 || tourOpen) && (() => {
             const isDemo = !(stats.lowStockCount > 0);
             const demoCount = isDemo ? 2 : stats.lowStockCount;
@@ -151,7 +171,7 @@ export default function AdminScreen({ navigation }) {
             );
           })()}
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24 }}>
             <Pressable style={styles.avatar} onPress={() => setMeOpen(true)} hitSlop={8}>
               <Text style={styles.avatarTxt}>{(sessionName || '?').charAt(0).toUpperCase()}</Text>
             </Pressable>
@@ -159,6 +179,7 @@ export default function AdminScreen({ navigation }) {
               <Text style={styles.panelGreeting}>{getGreeting()}{sessionName ? <Text style={styles.panelGreetingName}>{`, ${sessionName}`}</Text> : ''}</Text>
               <Text style={styles.panelSub}>{profile?.business_name || 'Сводка за сегодня'}</Text>
             </View>
+            <NewOrderButton onPress={goKassa} style={{ marginLeft: 16 }} />
           </View>
 
           <View style={[{ position: 'relative' }, nextStepsHighlight.style]} onLayout={rememberY('admin.nextSteps')}>
@@ -248,7 +269,7 @@ const styles = StyleSheet.create({
   // Иерархию задают цвет и начертание, а не размер.
   panelGreeting:{ fontFamily: fonts.familyRegular, fontSize: 20, color: colors.textDim, marginBottom: 4 },
   panelGreetingName: { fontFamily: fonts.display, fontSize: 20, color: colors.text },
-  panelSub:    { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginBottom: 24 },
+  panelSub:    { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginBottom: 0 },
 
   statsGrid:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
   revenueCard: { marginBottom: 2 },
@@ -282,6 +303,8 @@ const styles = StyleSheet.create({
   shiftOpenBtn: { backgroundColor: withOpacity(colors.green, 0.08), borderRadius: 14, borderWidth: 1, borderColor: withOpacity(colors.green, 0.3), padding: 16, marginTop: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   shiftOpenTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.green, marginBottom: 3 },
   shiftOpenSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+  dockLbl:     { fontFamily: fonts.familySemibold, fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase', color: colors.textDim, marginRight: 12 },
+  dockVal:     { fontFamily: fonts.display, fontSize: 16, color: colors.text },
   tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: withOpacity(colors.orange, 0.1), borderWidth: 1, borderColor: withOpacity(colors.orange, 0.4), alignItems: 'center', justifyContent: 'center' },
   tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, color: colors.orange },
 });

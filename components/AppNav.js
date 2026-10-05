@@ -7,7 +7,7 @@ import { colors, fonts, glass } from '../constants/theme';
 import GlassSurface from './GlassSurface';
 import SoftGlow from './SoftGlow';
 import { getSession, can } from '../db/session';
-import { getBusinessProfile, getTerms } from '../db/queries';
+import { getBusinessProfile } from '../db/queries';
 import Drawer from './Drawer';
 import { useTourHighlight } from './TourRegistry';
 
@@ -61,8 +61,7 @@ export default function AppNav({ navigation, activeScreen }) {
   const profile = getBusinessProfile();
   const modules = profile?.modules || {};
   const navPanelHighlight = useTourHighlight('admin.navPanel', 0);
-  const terms = getTerms();
-  const bookingActive = !!(profile?.booking_slug);
+    const bookingActive = !!(profile?.booking_slug);
 
   const isWide = activeScreen === home;
   const widthAnim = useRef(new Animated.Value(isWide ? 240 : 84)).current;
@@ -129,12 +128,6 @@ export default function AppNav({ navigation, activeScreen }) {
                   <Text style={styles.bizName} numberOfLines={1}>{profile?.business_name || 'Мой бизнес'}</Text>
                   {profile?.city ? <Text style={styles.bizCity}>{profile.city}</Text> : null}
                 </View>
-
-                <Pressable style={({ pressed }) => [styles.ctaBtn, pressed && { opacity: 0.85 }]}
-                  onPress={() => goToSection('Kassa')}>
-                  <Text style={styles.ctaLabel}>Новый {terms.order?.toLowerCase() || 'заказ'}</Text>
-                  <Text style={styles.ctaSub}>Открыть кассу</Text>
-                </Pressable>
 
                 <View style={styles.divider} />
 
@@ -295,10 +288,6 @@ const styles = StyleSheet.create({
   bizHeader:   { paddingHorizontal: 22, paddingTop: 14, paddingBottom: 12 },
   bizName:     { fontFamily: fonts.familySemibold, fontSize: 18, color: colors.text, letterSpacing: -0.1 },
   bizCity:     { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.textDim, marginTop: 2 },
-
-  ctaBtn:      { marginHorizontal: 14, marginBottom: 12, paddingVertical: 16, borderRadius: 16, backgroundColor: colors.orange, alignItems: 'center' },
-  ctaLabel:    { fontFamily: fonts.family, fontSize: 18, color: colors.onAccent },
-  ctaSub:      { fontFamily: fonts.familyMedium, fontSize: 12, color: 'rgba(10,18,28,0.72)', marginTop: 2 },
 
   divider:     { height: 1, backgroundColor: 'rgba(255,255,255,0.09)', marginHorizontal: 20, marginVertical: 6 },
 

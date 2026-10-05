@@ -8,7 +8,7 @@ import { resetKassaCart } from '../db/cartStore';
 import { useNextStepsProgress } from './NextStepsCard';
 import { useTourAnyActive } from './TourRegistry';
 
-export default function TopBar({ title, onBack, rightElement, syncPending, navigation, activeScreen }) {
+export default function TopBar({ title, onBack, rightElement, centerElement, syncPending, navigation, activeScreen }) {
   const insets = useSafeAreaInsets();
   const isAdmin = getSession()?.role === 'admin';
   const { doneCount, total: stepsTotal, visible: stepsVisible } = useNextStepsProgress();
@@ -42,24 +42,25 @@ export default function TopBar({ title, onBack, rightElement, syncPending, navig
           )}
         </View>
 
-        {navigation ? (
-          <Pressable
-            style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
-            onPress={() => {
-              const home = getSession()?.role === 'admin' ? 'Admin' : 'Dashboard';
-              if (activeScreen !== home) navigation.navigate(home);
-            }}
-            hitSlop={8}
-          >
+        {/* Центр: заголовок (по нажатию — на главный экран) или свой элемент (например,
+            выручка при прокрутке). Лежит поверх, чтобы широкая правая часть его не сдвигала. */}
+        <View style={[styles.centerAbs, { top: insets.top }]} pointerEvents="box-none">
+          {centerElement ? centerElement : navigation ? (
+            <Pressable
+              onPress={() => {
+                const home = getSession()?.role === 'admin' ? 'Admin' : 'Dashboard';
+                if (activeScreen !== home) navigation.navigate(home);
+              }}
+              hitSlop={8}
+            >
+              <Text style={styles.title} numberOfLines={1}>{title || ''}</Text>
+            </Pressable>
+          ) : (
             <Text style={styles.title} numberOfLines={1}>{title || ''}</Text>
-          </Pressable>
-        ) : (
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <Text style={styles.title} numberOfLines={1}>{title || ''}</Text>
-          </View>
-        )}
+          )}
+        </View>
 
-        <View style={[styles.side, { alignItems: 'flex-end', gap: 10 }]}>
+        <View style={styles.sideR}>
           {syncPending > 0
             ? <Text style={styles.syncBadge}>↑{syncPending}</Text>
             : null}
@@ -91,6 +92,8 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.07)',
     paddingHorizontal: 8,
   },
+  centerAbs: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+  sideR: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 10, marginLeft: 'auto' },
   side: {
     width: 128,
     flexDirection: 'row',

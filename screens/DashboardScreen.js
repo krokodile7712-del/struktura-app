@@ -1,7 +1,9 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, Animated } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
+import NewOrderButton from '../components/NewOrderButton';
+import { useDock } from '../hooks/useDock';
 import ShiftBanner from '../components/ShiftBanner';
 import EmployeeStatsSheet from '../components/EmployeeStatsSheet';
 import {
@@ -29,6 +31,8 @@ export default function DashboardScreen({ navigation }) {
   const [roleNames, setRoleNames]     = useState({ barista: 'Сотрудник' });
   const [sessionName, setSessionName] = useState('');
   const [meOpen, setMeOpen] = useState(false);
+  const dock = useDock(90);                       // кнопка «Новый заказ» стыкуется в верхней полосе при прокрутке
+  const goKassa = () => navigation.navigate('Kassa');
 
   const load = useCallback(() => {
     try {
@@ -46,12 +50,24 @@ export default function DashboardScreen({ navigation }) {
 
   return (
     <View style={styles.root}>
-      <TopBar title={roleNames.barista || 'Сотрудник'} navigation={navigation} activeScreen="Dashboard" />
+      <TopBar
+        title={roleNames.barista || 'Сотрудник'}
+        navigation={navigation}
+        activeScreen="Dashboard"
+        rightElement={
+          <Animated.View
+            pointerEvents={dock.docked ? 'auto' : 'none'}
+            style={{ opacity: dock.anim, transform: [{ translateY: dock.anim.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }}
+          >
+            <NewOrderButton compact onPress={goKassa} />
+          </Animated.View>
+        }
+      />
       {!hasShift && <ShiftBanner onOpen={can('open_shift') ? () => navigation.navigate('Shift') : undefined} />}
 
       <View style={{ flex: 1 }}>
 
-        <ScrollView contentContainerStyle={styles.dashContent} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={styles.dashContent} style={{ flex: 1 }} onScroll={dock.onScroll} scrollEventThrottle={16}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 28 }}>
             <Pressable style={styles.avatar} onPress={() => setMeOpen(true)} hitSlop={8}>
               <Text style={styles.avatarTxt}>{(sessionName || '?').charAt(0).toUpperCase()}</Text>
@@ -60,6 +76,7 @@ export default function DashboardScreen({ navigation }) {
               <Text style={[styles.greeting, { marginBottom: 0 }]}>{getGreeting()}{sessionName ? `, ${sessionName}` : ''}</Text>
               <Text style={[styles.greetingSub, { marginBottom: 0 }]}>{profile?.business_name || 'Сводка текущей смены'}</Text>
             </View>
+            <NewOrderButton onPress={goKassa} style={{ marginLeft: 16 }} />
           </View>
 
           <View style={styles.statsGrid}>

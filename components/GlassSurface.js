@@ -25,7 +25,9 @@ export default function GlassSurface({
   children, style, contentStyle,
   radius = glass.radius.tile, alpha = glass.alpha, blur = glass.blur,
   floating = false, padding = 0,
+  tint, sheen, rimColors,
 }) {
+  const rc = rimColors || {};
   const useBlur = Platform.OS !== 'android' || REAL_BLUR_ANDROID;
   return (
     <View style={[{ borderRadius: radius }, style]}>
@@ -39,10 +41,10 @@ export default function GlassSurface({
             blurMethod={Platform.OS === 'android' ? 'dimezisBlurViewSdk31Plus' : undefined}
           />
         )}
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: glassFill(alpha) }]} />
-        <LinearGradient colors={glass.sheen} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFill} />
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: tint ? `rgba(${tint},${alpha})` : glassFill(alpha) }]} />
+        <LinearGradient colors={sheen || glass.sheen} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFill} />
       </View>
-      <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.rim, { borderRadius: radius }]} />
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.rim, { borderRadius: radius }, rimColors && { borderTopColor: rc.top || glass.rimBright, borderLeftColor: rc.left || 'rgba(255,255,255,0.18)', borderRightColor: rc.right || glass.rim, borderBottomColor: rc.bottom || 'rgba(255,255,255,0.05)' }]} />
       <View style={[{ padding }, contentStyle]}>{children}</View>
     </View>
   );
