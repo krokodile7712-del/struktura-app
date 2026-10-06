@@ -1,7 +1,7 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
-  Modal, TextInput, Alert, Animated,
+  Modal, TextInput, Alert, Animated, BackHandler,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
@@ -43,6 +43,7 @@ const fmtDayLabel = key => {
 };
 
 const PAGE = 300; // сколько заказов подгружать за раз
+const POP_W = 440; // ширина окна фильтров у кнопки
 
 const PERIODS = [
   { key: 'today',  label: 'Сегодня', from: todayStr,           to: todayStr },
@@ -54,6 +55,15 @@ const PAY_FILTERS = [
   { key: 'all', label: 'Все' }, { key: 'cash', label: 'Наличные' },
   { key: 'card', label: 'Карта' }, { key: 'returns', label: 'Возвраты' },
 ];
+
+// «1 заказ», «2 заказа», «5 заказов»
+function plural(n, one, few, many) {
+  const m10 = n % 10, m100 = n % 100;
+  if (m100 >= 11 && m100 <= 14) return many;
+  if (m10 === 1) return one;
+  if (m10 >= 2 && m10 <= 4) return few;
+  return many;
+}
 
 function groupByDate(orders) {
   const groups = {};
@@ -174,6 +184,12 @@ export default function SalesScreen({ navigation }) {
   const [returnTarget, setReturnTarget] = useState(null);
   const [pinAsk, setPinAsk]             = useState(null); // подтверждение PIN администратора
 
+  // Окно фильтров у кнопки (альбомная ориентация). Растёт из кнопки и закрывается нажатием
+  // вне него; выбор применяется сразу. popMounted держит окно в дереве на время анимации закрытия.
+  const [popMounted, setPopMounted] = useState(false);
+  const [popH, setPopH] = useState(280);
+  const popAnim = useRef(new Animated.Value(0)).current;
+
   const [tourOpen, setTourOpen]       = useState(false);
   const searchHighlight  = useTourHighlight('sales.search');
   const ordersHighlight  = useTourHighlight('sales.orders');
@@ -265,6 +281,59 @@ export default function SalesScreen({ navigation }) {
   const filtersActive = period !== 'today' || payFilter !== 'all';
 
   const toggleOrder = (id) => setExpanded(e => e === id ? null : id);
+
+  const resetFilters = () => { setPeriod('today'); setPayFilter('all'); };
+  const openFilters = () => {
+    if (!isLandscape) { setFiltersOpen(true); return; }          // телефон — нижняя панель
+    if (popMounted) { closeFilters(); return; }
+    setPopMounted(true);
+    popAnim.setValue(0);
+    // пружина без перелёта (демпфирование 1) — «вырастает» из кнопки
+    Animated.spring(popAnim, { toValue: 1, speed: 22, bounciness: 0, useNativeDriver: true }).start();
+  };
+  const closeFilters = () => {
+    Animated.timing(popAnim, { toValue: 0, duration: 140, useNativeDriver: true }).start(() => setPopMounted(false));
+  };
+  // Кнопка «назад» на устройстве сначала закрывает окно
+  useEffect(() => {
+    if (!popMounted) return undefined;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { closeFilters(); return true; });
+    return () => sub.remove();
+  }, [popMounted]);
+
+  // Итог для живого счётчика в окне фильтров
+  const shownOrders = filtered.filter(o => o.status !== 'returned' || payFilter === 'returns');
+  const shownSum = shownOrders.reduce((sm, o) => sm + o.total, 0);
+  const countLabel = `${shownOrders.length}${hasMore ? '+' : ''} ${plural(shownOrders.length, 'заказ', 'заказа', 'заказов')}`;
+  const periodLabel = period === 'custom' ? `${fmtDayLabel(dateFrom)} — ${fmtDayLabel(dateTo)}` : PERIODS.find(x => x.key === period)?.label;
+
+  // Чипы периода и оплаты — общие для окна у кнопки и нижней панели телефона
+  const renderFilterGroups = () => (
+    <>
+      <Text style={styles.filtersSheetLabel}>Период</Text>
+      <View style={styles.chipsWrap}>
+        {PERIODS.map(p => (
+          <Pressable
+            key={p.key}
+            style={[styles.chip, period === p.key && styles.chipOn]}
+            onPress={() => { if (p.key === 'custom') setPicker('range'); else setPeriod(p.key); }}
+          >
+            <Text style={[styles.chipTxt, period === p.key && styles.chipTxtOn]}>
+              {p.key === 'custom' && period === 'custom' ? periodLabel : p.label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      <Text style={[styles.filtersSheetLabel, { marginTop: 18 }]}>Оплата</Text>
+      <View style={styles.chipsWrap}>
+        {PAY_FILTERS.map(f => (
+          <Pressable key={f.key} style={[styles.chip, payFilter === f.key && styles.chipOn]} onPress={() => setPayFilter(f.key)}>
+            <Text style={[styles.chipTxt, payFilter === f.key && styles.chipTxtOn]}>{f.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+    </>
+  );
 
   // Изменение и удаление — только по PIN администратора
   const askPin = (title, message, action) => {
@@ -418,7 +487,7 @@ export default function SalesScreen({ navigation }) {
         )}
 
         {/* ── Список: поиск + заказы ── */}
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: 1, position: 'relative' }}>
           <View style={[styles.searchWrap, { position: 'relative' }, searchHighlight.style]}>
             <View style={styles.searchBox}>
               <Icon name="search" size={20} color={colors.muted} />
@@ -432,18 +501,31 @@ export default function SalesScreen({ navigation }) {
             </View>
             <Pressable
               style={[styles.filtersBtn, filtersActive && styles.filtersBtnActive]}
-              onPress={() => setFiltersOpen(true)}
+              onPress={openFilters}
             >
-              <Icon name="sliders" size={18} color={filtersActive ? colors.orangeLight : colors.textDim} />
-              <Text style={[styles.filtersBtnTxt, filtersActive && styles.filtersBtnTxtActive]}>Фильтры</Text>
+              <Icon name="sliders" size={18} color={filtersActive || popMounted ? colors.orangeLight : colors.textDim} />
+              <Text style={[styles.filtersBtnTxt, (filtersActive || popMounted) && styles.filtersBtnTxtActive]}>Фильтры</Text>
+              {isLandscape && <Text style={[styles.filtersCaret, (filtersActive || popMounted) && { color: colors.orangeLight }]}>{popMounted ? '▴' : '▾'}</Text>}
             </Pressable>
-            {filtersActive && (
-              <Pressable style={styles.filtersClearBtn} onPress={() => { setPeriod('today'); setPayFilter('all'); }} hitSlop={8}>
-                <Icon name="x" size={16} color={colors.textDim} />
-              </Pressable>
-            )}
             {searchHighlight.overlay}
           </View>
+
+          {/* Выбранные фильтры — чипами: состояние видно без открытия окна */}
+          {filtersActive && (
+            <View style={styles.activeRow}>
+              {period !== 'today' && (
+                <Pressable style={styles.activeChip} onPress={() => setPeriod('today')} hitSlop={4}>
+                  <Text style={styles.activeChipTxt}>{periodLabel}</Text><Icon name="x" size={14} color={colors.orangeLight} />
+                </Pressable>
+              )}
+              {payFilter !== 'all' && (
+                <Pressable style={styles.activeChip} onPress={() => setPayFilter('all')} hitSlop={4}>
+                  <Text style={styles.activeChipTxt}>{PAY_FILTERS.find(f => f.key === payFilter)?.label}</Text><Icon name="x" size={14} color={colors.orangeLight} />
+                </Pressable>
+              )}
+              <Pressable onPress={resetFilters} hitSlop={8}><Text style={styles.activeReset}>Сбросить</Text></Pressable>
+            </View>
+          )}
 
           {/* Список заказов */}
           <View style={[{ flex: 1, position: 'relative' }, ordersHighlight.style]}>
@@ -522,6 +604,35 @@ export default function SalesScreen({ navigation }) {
           )}
           {ordersHighlight.overlay}
           </View>
+
+          {popMounted && (
+            <>
+              <Pressable style={styles.popScrim} onPress={closeFilters} />
+              <Animated.View
+                onLayout={e => setPopH(e.nativeEvent.layout.height)}
+                style={[styles.popWrap, {
+                  opacity: popAnim,
+                  transform: [
+                    // растёт из правого верхнего угла (под кнопкой): масштаб + сдвиг, чтобы угол не уезжал
+                    { translateX: popAnim.interpolate({ inputRange: [0, 1], outputRange: [POP_W * 0.04, 0] }) },
+                    { translateY: popAnim.interpolate({ inputRange: [0, 1], outputRange: [-popH * 0.04 - 6, 0] }) },
+                    { scale: popAnim.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) },
+                  ],
+                }]}
+              >
+                {/* Заливка плотная: на Android настоящего размытия нет, а под окном лежит текст списка */}
+                <GlassSurface floating radius={22} tint="32,40,55" alpha={0.97} padding={20} sheen={['rgba(255,255,255,0.10)', 'rgba(255,255,255,0.01)']}>
+                  {renderFilterGroups()}
+                  <View style={styles.popFoot}>
+                    <Pressable onPress={resetFilters} disabled={!filtersActive} hitSlop={8}>
+                      <Text style={[styles.popReset, !filtersActive && { opacity: 0.4 }]}>Сбросить</Text>
+                    </Pressable>
+                    <Text style={styles.popCount}>Найдено <Text style={styles.popCountB}>{countLabel}</Text> · {fmt(shownSum)} ₽</Text>
+                  </View>
+                </GlassSurface>
+              </Animated.View>
+            </>
+          )}
         </View>
 
         {isLandscape && (
@@ -545,31 +656,15 @@ export default function SalesScreen({ navigation }) {
         onClose={() => setPicker(null)}
       />
 
-      {/* Фильтры: период и способ оплаты — чипами */}
-      <Sheet visible={filtersOpen} onClose={() => setFiltersOpen(false)} title="Фильтры">
+      {/* Фильтры на телефоне — компактная нижняя панель (в альбомной — окно у кнопки) */}
+      <Sheet visible={filtersOpen && !isLandscape} onClose={() => setFiltersOpen(false)} title="Фильтры">
         <ScrollView contentContainerStyle={{ padding: 20 }}>
-          <Text style={styles.filtersSheetLabel}>Период</Text>
-          <View style={styles.chipsWrap}>
-            {PERIODS.map(p => (
-              <Pressable
-                key={p.key}
-                style={[styles.chip, period === p.key && styles.chipOn]}
-                onPress={() => { if (p.key === 'custom') setPicker('range'); else setPeriod(p.key); }}
-              >
-                <Text style={[styles.chipTxt, period === p.key && styles.chipTxtOn]}>
-                  {p.key === 'custom' && period === 'custom' ? `${fmtDayLabel(dateFrom)} — ${fmtDayLabel(dateTo)}` : p.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          <Text style={[styles.filtersSheetLabel, { marginTop: 22 }]}>Оплата</Text>
-          <View style={styles.chipsWrap}>
-            {PAY_FILTERS.map(f => (
-              <Pressable key={f.key} style={[styles.chip, payFilter === f.key && styles.chipOn]} onPress={() => setPayFilter(f.key)}>
-                <Text style={[styles.chipTxt, payFilter === f.key && styles.chipTxtOn]}>{f.label}</Text>
-              </Pressable>
-            ))}
+          {renderFilterGroups()}
+          <View style={styles.popFoot}>
+            <Pressable onPress={resetFilters} disabled={!filtersActive} hitSlop={8}>
+              <Text style={[styles.popReset, !filtersActive && { opacity: 0.4 }]}>Сбросить</Text>
+            </Pressable>
+            <Text style={styles.popCount}>Найдено <Text style={styles.popCountB}>{countLabel}</Text> · {fmt(shownSum)} ₽</Text>
           </View>
         </ScrollView>
       </Sheet>
@@ -674,7 +769,17 @@ const styles = StyleSheet.create({
   filtersBtnActive: { backgroundColor: 'rgba(127,168,217,0.18)', borderColor: 'rgba(157,191,230,0.5)' },
   filtersBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.textDim },
   filtersBtnTxtActive: { color: colors.orangeLight },
-  filtersClearBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
+  filtersCaret: { fontFamily: fonts.familySemibold, fontSize: 11, color: colors.textDim, marginLeft: -2 },
+  activeRow:   { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, paddingHorizontal: 12, paddingBottom: 4 },
+  activeChip:  { flexDirection: 'row', alignItems: 'center', gap: 6, height: 34, paddingLeft: 14, paddingRight: 10, borderRadius: 999, backgroundColor: 'rgba(127,168,217,0.18)', borderWidth: 1, borderColor: 'rgba(157,191,230,0.45)' },
+  activeChipTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orangeLight },
+  activeReset: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, paddingHorizontal: 6 },
+  popScrim:    { ...StyleSheet.absoluteFillObject, zIndex: 20 },
+  popWrap:     { position: 'absolute', top: 68, right: 12, width: POP_W, maxWidth: '94%', zIndex: 30, elevation: 30 },
+  popFoot:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.10)' },
+  popReset:    { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
+  popCount:    { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
+  popCountB:   { fontFamily: fonts.familySemibold, color: colors.text },
   filtersSheetLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.textDim, textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 10 },
   chipsWrap:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip:        { height: 40, paddingHorizontal: 18, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
