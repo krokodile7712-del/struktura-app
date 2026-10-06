@@ -68,7 +68,7 @@ export default function PinConfirmModal({ visible, title, message, confirmLabel 
   return (
     <Modal visible={!!visible} transparent animationType="fade" onRequestClose={onCancel}>
       <KeyboardSafe style={styles.root}>
-        <Pressable style={StyleSheet.absoluteFillObject} onPress={onCancel} />
+        <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} />
         <FitView style={styles.box}>
           <Text style={styles.title}>{title}</Text>
           {!!message && <Text style={styles.message}>{message}</Text>}

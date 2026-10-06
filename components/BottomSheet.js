@@ -76,7 +76,7 @@ export default function BottomSheet({
     >
       {/* Затемнение */}
       <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
-        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       </Animated.View>
 
       {/* Лист */}
@@ -140,7 +140,7 @@ export function BottomSheetRow({ icon, label, sub, onPress, active, destructive,
 
 const styles = StyleSheet.create({
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.55)',
   },
   container: {

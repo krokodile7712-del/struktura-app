@@ -631,7 +631,7 @@ export default function SalesScreen({ navigation }) {
           Кнопка «назад» на устройстве закрывает его же (onRequestClose). */}
       <Modal visible={popMounted} transparent animationType="fade" statusBarTranslucent={false} onRequestClose={closeFilters}>
         <View style={{ flex: 1 }}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={closeFilters} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={closeFilters} />
           <Animated.View
             onLayout={e => setPopH(e.nativeEvent.layout.height)}
             style={[styles.popWrap, {
@@ -715,7 +715,7 @@ export default function SalesScreen({ navigation }) {
       {/* Удаление */}
       <Modal visible={!!deleteTarget} transparent animationType="fade" onRequestClose={() => setDeleteTarget(null)}>
         <View style={styles.modalOverlay}>
-          <Pressable style={{ ...StyleSheet.absoluteFillObject }} onPress={() => setDeleteTarget(null)} />
+          <Pressable style={{ ...StyleSheet.absoluteFill }} onPress={() => setDeleteTarget(null)} />
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>Удалить заказ?</Text>
             <Text style={styles.modalDesc}>Заказ на {fmt(deleteTarget?.total)} ₽ будет удалён безвозвратно, товары вернутся на склад. Потребуется PIN администратора.</Text>
@@ -734,7 +734,7 @@ export default function SalesScreen({ navigation }) {
       {/* Возврат */}
       <Modal visible={!!returnTarget} transparent animationType="fade" onRequestClose={() => setReturnTarget(null)}>
         <View style={styles.modalOverlay}>
-          <Pressable style={{ ...StyleSheet.absoluteFillObject }} onPress={() => setReturnTarget(null)} />
+          <Pressable style={{ ...StyleSheet.absoluteFill }} onPress={() => setReturnTarget(null)} />
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>Оформить возврат?</Text>
             <Text style={styles.modalDesc}>Сумма {fmt(returnTarget?.total)} ₽ будет возвращена, товары вернутся на склад. Статус заказа изменится на «Возврат».</Text>

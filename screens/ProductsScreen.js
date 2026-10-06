@@ -1219,7 +1219,7 @@ export default function ProductsScreen({ navigation, route }) {
       {/* Модалка: категория не пуста — куда перенести товары перед удалением */}
       <Modal visible={!!deletePrompt} transparent animationType="fade" onRequestClose={() => setDeletePrompt(null)}>
         <View style={styles.modalOverlay}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setDeletePrompt(null)} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setDeletePrompt(null)} />
           <FitView style={styles.modalBoxSm}>
             <Text style={styles.orderModalTitle}>Перенести товары</Text>
             <Text style={styles.orderModalHint}>
@@ -1266,7 +1266,7 @@ export default function ProductsScreen({ navigation, route }) {
       {/* Категории товаров — список */}
       <Modal visible={catModal} transparent animationType="fade" onRequestClose={() => setCatModal(false)}>
         <View style={styles.modalOverlay}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCatModal(false)} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setCatModal(false)} />
           <FitView style={styles.catModalBox}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Категории товаров</Text>
@@ -1304,7 +1304,7 @@ export default function ProductsScreen({ navigation, route }) {
       {/* Переименование / удаление категории */}
       <Modal visible={!!catModal2} transparent animationType="fade" onRequestClose={() => setCatModal2(null)}>
         <KeyboardSafe style={styles.modalOverlay}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCatModal2(null)} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setCatModal2(null)} />
           <FitView style={[styles.catModalBox, { maxHeight: '70%' }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{catModal2?.oldName}</Text>
@@ -1368,7 +1368,7 @@ export default function ProductsScreen({ navigation, route }) {
       {/* Удаление категории — перенос товаров в другую */}
       <Modal visible={!!catDeletePrompt} transparent animationType="fade" onRequestClose={() => setCatDeletePrompt(null)}>
         <View style={styles.modalOverlay}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCatDeletePrompt(null)} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setCatDeletePrompt(null)} />
           <FitView style={[styles.catModalBox, { maxHeight: '60%' }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Куда перенести товары?</Text>

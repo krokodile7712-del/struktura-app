@@ -78,7 +78,7 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
       {/* Затемнение */}
       <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
-        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       </Animated.View>
 
       {/* Шторка */}
@@ -186,7 +186,7 @@ export default function Drawer({ visible, onClose, navigation, activeScreen }) {
 
 const styles = StyleSheet.create({
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.6)',
     zIndex: 100,
   },

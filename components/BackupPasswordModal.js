@@ -44,7 +44,7 @@ export default function BackupPasswordModal({ visible, mode = 'set', title, mess
   return (
     <Modal visible={!!visible} transparent animationType="fade" onRequestClose={busy ? () => {} : onCancel}>
       <KeyboardSafe style={styles.root}>
-        <Pressable style={StyleSheet.absoluteFillObject} onPress={busy ? undefined : onCancel} />
+        <Pressable style={StyleSheet.absoluteFill} onPress={busy ? undefined : onCancel} />
         <FitView style={styles.box}>
           <Text style={styles.title}>{title}</Text>
           {!!message && <Text style={styles.message}>{message}</Text>}

@@ -27,5 +27,5 @@ export default function ScreenGlow() {
 }
 
 const styles = StyleSheet.create({
-  atmosphere: { ...StyleSheet.absoluteFillObject },
+  atmosphere: { ...StyleSheet.absoluteFill },
 });

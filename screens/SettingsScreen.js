@@ -2389,7 +2389,7 @@ export default function SettingsScreen({ navigation, route }) {
 
       <Modal visible={!!zoneModal} transparent animationType="fade" onRequestClose={() => setZoneModal(null)}>
         <KeyboardSafe style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setZoneModal(null)} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setZoneModal(null)} />
           {zoneModal && (
             <FitView style={[styles.modalInner, { width: '55%', maxWidth: 500, maxHeight: '88%' }]}>
               <View style={styles.modalHeader}>
@@ -2492,7 +2492,7 @@ export default function SettingsScreen({ navigation, route }) {
       {/* Модалка скидки */}
       <Modal visible={!!discountModal} transparent animationType="fade" onRequestClose={() => setDiscountModal(null)}>
         <KeyboardSafe style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setDiscountModal(null)} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setDiscountModal(null)} />
           {discountModal && (
             <FitView style={styles.modalInner}>
               <View style={styles.modalHeader}>
@@ -2521,7 +2521,7 @@ export default function SettingsScreen({ navigation, route }) {
       {/* Пикер добавления товара в скидку на товар */}
       <Modal visible={discAddProductOpen} transparent animationType="fade" onRequestClose={() => setDiscAddProductOpen(false)}>
         <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setDiscAddProductOpen(false)} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setDiscAddProductOpen(false)} />
           <FitView style={[styles.modalInner, { maxHeight: '70%' }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Добавить товар</Text>
@@ -2557,7 +2557,7 @@ export default function SettingsScreen({ navigation, route }) {
       {/* Пикер добавления клиента в личную скидку */}
       <Modal visible={discAddClientOpen} transparent animationType="fade" onRequestClose={() => setDiscAddClientOpen(false)}>
         <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setDiscAddClientOpen(false)} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setDiscAddClientOpen(false)} />
           <FitView style={[styles.modalInner, { maxHeight: '70%' }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Выбрать клиента</Text>
@@ -2593,7 +2593,7 @@ export default function SettingsScreen({ navigation, route }) {
       {/* Ввод процента личной скидки для выбранного клиента */}
       <Modal visible={!!discClientPctModal} transparent animationType="fade" onRequestClose={() => setDiscClientPctModal(null)}>
         <KeyboardSafe style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setDiscClientPctModal(null)} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setDiscClientPctModal(null)} />
           {discClientPctModal && (
             <FitView style={styles.modalInner}>
               <View style={styles.modalHeader}>
@@ -2622,7 +2622,7 @@ export default function SettingsScreen({ navigation, route }) {
       {/* Модалка способа оплаты */}
       <Modal visible={!!payMethodModal} transparent animationType="fade" onRequestClose={() => setPayMethodModal(null)}>
         <KeyboardSafe style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setPayMethodModal(null)} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setPayMethodModal(null)} />
           {payMethodModal && (
             <FitView style={styles.modalInner}>
               <View style={styles.modalHeader}>
@@ -2704,7 +2704,7 @@ export default function SettingsScreen({ navigation, route }) {
 
       <Modal visible={!!empModal} transparent animationType="fade" onRequestClose={() => setEmpModal(null)}>
         <KeyboardSafe style={styles.prodModalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setEmpModal(null)} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setEmpModal(null)} />
           {empModal && (
             <FitView style={styles.empModalBox}>
               {/* Шапка */}
@@ -3039,7 +3039,7 @@ export default function SettingsScreen({ navigation, route }) {
       {/* Модалка «Предпросмотр чека» */}
       <Modal visible={receiptPreview} transparent animationType="fade" onRequestClose={() => setReceiptPreview(false)}>
         <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setReceiptPreview(false)} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setReceiptPreview(false)} />
           {bizDraft && (
           <FitView style={styles.receiptBox}>
             <ScrollView contentContainerStyle={{ padding: 16 }}>
@@ -3081,7 +3081,7 @@ export default function SettingsScreen({ navigation, route }) {
 
       <Modal visible={qrModal} transparent animationType="fade" onRequestClose={() => setQrModal(false)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center', gap: 24 }}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setQrModal(false)} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setQrModal(false)} />
           <Text style={{ fontFamily: fonts.family, fontSize: 20, color: '#fff' }}>
             Онлайн запись
           </Text>
@@ -3108,7 +3108,7 @@ export default function SettingsScreen({ navigation, route }) {
       {/* Модалка «Позиции для записи» */}
       <Modal visible={positionsModal} transparent animationType="fade" onRequestClose={() => setPositionsModal(false)}>
         <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setPositionsModal(false)} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setPositionsModal(false)} />
           <FitView style={[styles.modalInner, { maxHeight: '85%' }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Позиции для записи</Text>
@@ -3186,7 +3186,7 @@ export default function SettingsScreen({ navigation, route }) {
       {/* Модалка описания товара из меню — только для страницы записи */}
       <Modal visible={!!menuDescModal} transparent animationType="fade" onRequestClose={() => setMenuDescModal(null)}>
         <KeyboardSafe style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setMenuDescModal(null)} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setMenuDescModal(null)} />
           {menuDescModal && (
             <FitView style={styles.modalInner}>
               <View style={styles.modalHeader}>
@@ -3213,7 +3213,7 @@ export default function SettingsScreen({ navigation, route }) {
       {/* Модалка своей позиции для записи */}
       <Modal visible={!!customItemModal} transparent animationType="fade" onRequestClose={() => setCustomItemModal(null)}>
         <KeyboardSafe style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCustomItemModal(null)} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setCustomItemModal(null)} />
           {customItemModal && (
             <FitView style={styles.modalInner}>
               <View style={styles.modalHeader}>

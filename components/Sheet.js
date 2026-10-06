@@ -88,7 +88,7 @@ export default function Sheet({ visible, onClose, onBack, title, children, sideW
   return (
     <RNModal transparent visible={shouldRender} animationType="none" onRequestClose={onClose} statusBarTranslucent={!isBottom}>
       <View style={[styles.overlay, isBottom ? { justifyContent: 'flex-end' } : { alignItems: 'flex-end' }]}>
-        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         {/* Отдельная, независимая от общего фона зона закрытия — точно
             повторяет размер реального зазора (столько же, сколько его
             оставляет сама карточка сверху/слева — один и тот же расчёт). */}

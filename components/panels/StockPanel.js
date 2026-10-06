@@ -588,7 +588,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
       {/* Предупреждение при удалении — позиция может использоваться в техкартах */}
       <Modal visible={!!deletePrompt} transparent animationType="fade" onRequestClose={() => setDeletePrompt(null)}>
         <View style={styles.modalOverlay}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setDeletePrompt(null)} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setDeletePrompt(null)} />
           <FitView style={[styles.catModalBox, { maxHeight: '70%' }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Удалить «{deletePrompt?.name}»?</Text>
@@ -794,7 +794,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
       {/* Модалка категорий */}
       <Modal visible={catModal} transparent animationType="fade" onRequestClose={() => setCatModal(false)}>
         <View style={styles.modalOverlay}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCatModal(false)} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setCatModal(false)} />
           <FitView style={styles.catModalBox}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Категории склада</Text>
@@ -832,7 +832,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
       {/* Переименование / удаление категории */}
       <Modal visible={!!catModal2} transparent animationType="fade" onRequestClose={() => setCatModal2(null)}>
         <KeyboardSafe style={styles.modalOverlay}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCatModal2(null)} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setCatModal2(null)} />
           <FitView style={[styles.catModalBox, { maxHeight: '70%' }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{catModal2?.oldName}</Text>
@@ -898,7 +898,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
       {/* Удаление категории — перенос позиций в другую */}
       <Modal visible={!!catDeletePrompt} transparent animationType="fade" onRequestClose={() => setCatDeletePrompt(null)}>
         <View style={styles.modalOverlay}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCatDeletePrompt(null)} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setCatDeletePrompt(null)} />
           <FitView style={[styles.catModalBox, { maxHeight: '60%' }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Куда перенести позиции?</Text>

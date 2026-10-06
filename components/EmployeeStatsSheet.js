@@ -62,7 +62,7 @@ export default function EmployeeStatsSheet({ visible, onClose, userId }) {
     return (
       <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
         <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
           <View style={styles.modalInner} />
         </View>
       </Modal>
@@ -74,7 +74,7 @@ export default function EmployeeStatsSheet({ visible, onClose, userId }) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalRoot}>
-        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={[styles.modalInner, { maxHeight: '85%' }]}>
           <View style={styles.modalHead}>
             <View>

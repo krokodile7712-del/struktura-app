@@ -234,7 +234,7 @@ export default function InventoryCountScreen({ navigation, route }) {
       {/* Модалка итогов */}
       <Modal visible={reviewModal} transparent animationType="fade" onRequestClose={() => setReviewModal(false)}>
         <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setReviewModal(false)} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setReviewModal(false)} />
           <FitView style={[styles.modalInner, { maxHeight: '80%' }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Итоги инвентаризации</Text>

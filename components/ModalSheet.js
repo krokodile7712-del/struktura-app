@@ -41,7 +41,7 @@ export default function ModalSheet({
       onRequestClose={onClose}
     >
       <View style={styles.backdrop}>
-        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={[styles.sheet, { width, maxWidth, maxHeight: '92%' }, style]}>
           {/* Заголовок */}
           <View style={styles.header}>
