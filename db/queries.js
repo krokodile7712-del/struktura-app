@@ -984,6 +984,106 @@ export function getRecentOrders(limit = 50) {
   return db.getAllSync(`SELECT * FROM orders ORDER BY created_at DESC LIMIT ?`, [limit]);
 }
 
+// ─── Раздел «Заказы»: выборка по периоду ───────────────────────────────────
+// Раньше экран брал последние 500 заказов и фильтровал их на месте: при большем
+// числе заказов за неделю/месяц итоги молча занижались; даты считались по UTC.
+// Теперь периоды — календарные дни по МЕСТНОМУ времени (границы переводятся в UTC,
+// потому что время заказов хранится в UTC), а итоги считаются по всем заказам периода.
+
+// 'YYYY-MM-DD' (местная дата) + смещение в днях → начало того дня, ISO (UTC)
+function localDateStartISO(dateStr, addDays = 0) {
+  const [y, m, d] = String(dateStr).split('-').map(Number);
+  return new Date(y, m - 1, d + addDays, 0, 0, 0, 0).toISOString();
+}
+
+// Страница заказов периода с именами кассира и клиента (раньше строки «кассир» и
+// «клиент» не показывались вовсе: таких полей в заказе нет, запроса не было).
+export function getSalesOrders(dateFrom, dateTo, { limit = 300, offset = 0 } = {}) {
+  const db = getDb();
+  return db.getAllSync(
+    `SELECT o.*, u.name AS cashier_name, c.fio AS client_name
+     FROM orders o
+     LEFT JOIN users u ON u.id = o.cashier_id
+     LEFT JOIN clients c ON c.id = o.client_id
+     WHERE o.created_at >= ? AND o.created_at < ?
+     ORDER BY o.created_at DESC LIMIT ? OFFSET ?`,
+    [localDateStartISO(dateFrom), localDateStartISO(dateTo, 1), limit, offset]
+  );
+}
+
+// Позиции сразу для многих заказов одним запросом (раньше — по запросу на заказ)
+export function getOrderItemsBatch(orderIds) {
+  const db = getDb();
+  const map = {};
+  for (let i = 0; i < orderIds.length; i += 400) {
+    const chunk = orderIds.slice(i, i + 400);
+    const rows = db.getAllSync(
+      `SELECT * FROM order_items WHERE order_id IN (${chunk.map(() => '?').join(',')}) ORDER BY id`,
+      chunk
+    );
+    for (const r of rows) {
+      if (!map[r.order_id]) map[r.order_id] = [];
+      map[r.order_id].push(r);
+    }
+  }
+  return map;
+}
+
+// Сводка по заказам: выручка, чек, разбивка по способам оплаты. Смешанная оплата
+// раскладывается по долям (часть наличными, часть картой), прочие способы (QR, СБП и
+// т.п.) — отдельными строками, поэтому части всегда складываются в итог.
+// Возвраты в выручку не входят и считаются отдельно.
+function summarizeSales(rows, payMethods) {
+  let total = 0, count = 0, cash = 0, card = 0, rSum = 0, rCount = 0;
+  const other = {};
+  const addOther = (name, v) => { other[name] = (other[name] || 0) + v; };
+  for (const o of rows) {
+    const t = o.total || 0;
+    if (o.status === 'returned') { rCount++; rSum += t; continue; }
+    total += t; count++;
+    const type = resolveMethodType(o, payMethods);
+    if (type === 'cash') cash += t;
+    else if (type === 'mixed') {
+      const c = o.cash_amount || 0, k = o.card_amount || 0;
+      if (c + k > 0) {
+        cash += c; card += k;
+        const rest = t - c - k;          // расхождение (скидка/правка суммы) — отдельной строкой
+        if (Math.abs(rest) > 0.5) addOther('Смешанная (без разбивки)', rest);
+      } else addOther('Смешанная (без разбивки)', t);
+    } else {
+      const name = String(o.method || '').trim();
+      if (!name || name === 'Карта') card += t; else addOther(name, t);
+    }
+  }
+  return {
+    total, count, avg: count > 0 ? total / count : 0, cash, card,
+    other: Object.keys(other).map(name => ({ name, sum: other[name] })).sort((a, b) => b.sum - a.sum),
+    returns: { count: rCount, sum: rSum },
+  };
+}
+
+// Сводка периода + сравнение с предыдущим. Если период ещё идёт (включает сегодня),
+// сравниваем с тем же отрезком времени прошлого периода: иначе утром любая выручка
+// выглядела бы провалом против целого вчерашнего дня.
+export function getSalesSummary(dateFrom, dateTo) {
+  const db = getDb();
+  const payMethods = getPayMethods();
+  const nowMs = Date.now();
+  const curFrom = localDateStartISO(dateFrom);
+  const curToFull = localDateStartISO(dateTo, 1);
+  const curTo = Date.parse(curToFull) > nowMs ? new Date(nowMs + 1000).toISOString() : curToFull;
+  const days = Math.max(1, Math.round((Date.parse(curToFull) - Date.parse(curFrom)) / 86400000));
+  const prevFrom = localDateStartISO(dateFrom, -days);
+  const prevTo = new Date(Date.parse(prevFrom) + (Date.parse(curTo) - Date.parse(curFrom))).toISOString();
+  const load = (a, b) => db.getAllSync(
+    `SELECT total, method, method_type, cash_amount, card_amount, status FROM orders WHERE created_at >= ? AND created_at < ?`,
+    [a, b]
+  );
+  const cur = summarizeSales(load(curFrom, curTo), payMethods);
+  const prev = summarizeSales(load(prevFrom, prevTo), payMethods);
+  return { ...cur, prev: { total: prev.total, count: prev.count, avg: prev.avg } };
+}
+
 export function getOrderItems(order_id) {
   const db = getDb();
   return db.getAllSync(`SELECT * FROM order_items WHERE order_id = ?`, [order_id]);
@@ -2164,6 +2264,19 @@ export function deleteOrder(order_id) {
 export function updateOrder(order_id, { total, method, method_type }) {
   const db = getDb();
   try { db.execSync(`ALTER TABLE orders ADD COLUMN discount_pct REAL DEFAULT 0`); } catch (_) {}
+  const cur = db.getFirstSync(`SELECT method, method_type, cash_amount, card_amount FROM orders WHERE id = ?`, [order_id]);
+  // Способ оплаты не менялся — разбивку смешанной оплаты не теряем: при новой сумме
+  // части пересчитываются пропорционально (раньше любая правка суммы обнуляла разбивку)
+  if (cur && cur.method === method && (!method_type || cur.method_type === method_type)) {
+    const c = cur.cash_amount || 0, k = cur.card_amount || 0;
+    if (cur.method_type === 'mixed' && c + k > 0) {
+      const newCash = Math.round(total * c / (c + k) * 100) / 100;
+      db.runSync(`UPDATE orders SET total = ?, cash_amount = ?, card_amount = ? WHERE id = ?`, [total, newCash, Math.round((total - newCash) * 100) / 100, order_id]);
+    } else {
+      db.runSync(`UPDATE orders SET total = ? WHERE id = ?`, [total, order_id]);
+    }
+    return;
+  }
   if (method_type) {
     // Смена способа оплаты — сбрасываем суммы смешанной оплаты,
     // чтобы старые cash_amount/card_amount не искажали статистику
