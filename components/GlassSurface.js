@@ -26,13 +26,13 @@ export default function GlassSurface({
   children, style, contentStyle,
   radius = glass.radius.tile, alpha = glass.alpha, blur = glass.blur,
   floating = false, padding = 0,
-  tint, sheen, rimColors,
+  tint, sheen, rimColors, shadowScale = 1,
 }) {
   const rc = rimColors || {};
   const useBlur = Platform.OS !== 'android' || REAL_BLUR_ANDROID;
   return (
     <View style={[{ borderRadius: radius }, style]}>
-      {floating && <FloatShadow radius={radius} />}
+      {floating && <FloatShadow radius={radius} scale={shadowScale} />}
       <View style={[StyleSheet.absoluteFill, { borderRadius: radius, overflow: 'hidden' }]} pointerEvents="none">
         {useBlur && (
           <BlurView
@@ -54,8 +54,8 @@ export default function GlassSurface({
 // Тень «парения»: тонкое кольцо света не нужно, нужна тёмная каёмка снаружи и
 // падающая вниз тень. Кольца рисуются рамкой (borderWidth) без заливки, поэтому
 // под самим стеклом ничего не темнеет.
-function FloatShadow({ radius }) {
-  const w = 7;
+function FloatShadow({ radius, scale = 1 }) {
+  const w = 7 * scale;
   const rings = [0.20, 0.13, 0.075, 0.04];
   return (
     <>
@@ -75,7 +75,7 @@ function FloatShadow({ radius }) {
         );
       })}
       {/* падающая вниз тень — эллипс с мягким спадом (раньше была полоса с жёсткими краями) */}
-      <View pointerEvents="none" style={{ position: 'absolute', left: '3%', right: '3%', top: '100%', height: 56, marginTop: -22 }}>
+      <View pointerEvents="none" style={{ position: 'absolute', left: '3%', right: '3%', top: '100%', height: 56 * scale, marginTop: -22 * scale }}>
         <SoftGlow fill color="0,0,0" alpha={0.55} />
       </View>
     </>

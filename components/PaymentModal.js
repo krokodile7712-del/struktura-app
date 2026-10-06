@@ -3,6 +3,7 @@ import {
   View, Text, Pressable, Modal, Animated, TextInput, ScrollView, StyleSheet, LayoutAnimation,
 } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
+import { LinearGradient } from 'expo-linear-gradient';
 import KeyboardSafe from './KeyboardSafe';
 import GlassSurface from './GlassSurface';
 import SoftGlow from './SoftGlow';
@@ -148,12 +149,33 @@ export default function PaymentModal({
           return (
             <Pressable
               key={m.id != null ? String(m.id) : m.name}
-              style={({ pressed }) => [styles.method, on && styles.methodOn, pressed && { transform: [{ scale: 0.97 }] }]}
+              style={({ pressed }) => [styles.method, pressed && { transform: [{ scale: 0.97 }] }]}
               onPress={() => pickMethod(m.name)}
               accessibilityRole="button" accessibilityState={{ selected: on }}
             >
-              <Icon name={ICON_BY_TYPE[m.type] || 'card'} size={26} color={on ? colors.orangeLight : colors.textDim} />
-              <Text style={[styles.methodTxt, on && { color: colors.orangeLight }]} numberOfLines={1}>{m.name}</Text>
+              {/* Стекло с объёмом: полупрозрачная заливка, блик сверху, светлая кромка, затемнение снизу и мягкая
+                  тень; у выбранного — акцентная заливка и свечение изнутри. Раньше плитки были плоскими. */}
+              <GlassSurface
+                radius={16}
+                floating
+                shadowScale={0.4}
+                tint={on ? '127,168,217' : '150,172,204'}
+                alpha={on ? 0.30 : 0.14}
+                sheen={on ? ['rgba(255,255,255,0.30)', 'rgba(255,255,255,0.03)'] : ['rgba(255,255,255,0.14)', 'rgba(255,255,255,0.01)']}
+                rimColors={on
+                  ? { top: 'rgba(210,230,252,0.75)', left: 'rgba(180,208,240,0.5)', right: 'rgba(157,191,230,0.38)', bottom: 'rgba(157,191,230,0.22)' }
+                  : { top: 'rgba(255,255,255,0.30)', left: 'rgba(255,255,255,0.16)', right: 'rgba(255,255,255,0.10)', bottom: 'rgba(255,255,255,0.05)' }}
+                contentStyle={styles.methodInner}
+              >
+                <LinearGradient
+                  pointerEvents="none"
+                  colors={on ? ['rgba(127,168,217,0)', 'rgba(127,168,217,0.34)'] : ['rgba(0,0,0,0)', 'rgba(0,0,0,0.28)']}
+                  start={{ x: 0, y: 0.4 }} end={{ x: 0, y: 1 }}
+                  style={[StyleSheet.absoluteFill, { borderRadius: 16 }]}
+                />
+                <Icon name={ICON_BY_TYPE[m.type] || 'card'} size={26} color={on ? colors.orangeLight : colors.textDim} />
+                <Text style={[styles.methodTxt, on && { color: colors.orangeLight }]} numberOfLines={1}>{m.name}</Text>
+              </GlassSurface>
             </Pressable>
           );
         })}
@@ -328,8 +350,8 @@ const styles = StyleSheet.create({
   labelSoft:   { fontFamily: fonts.familyMedium, color: colors.muted, marginTop: 18, marginBottom: 10 },
 
   methods:     { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  method:      { flexGrow: 1, flexBasis: 96, height: 84, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 6 },
-  methodOn:    { backgroundColor: 'rgba(127,168,217,0.2)', borderColor: 'rgba(157,191,230,0.55)' },
+  method:      { flexGrow: 1, flexBasis: 96, height: 84, marginBottom: 4 },
+  methodInner: { height: 84, alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 6 },
   methodTxt:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
 
   quick:       { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
