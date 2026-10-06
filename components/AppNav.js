@@ -6,6 +6,7 @@ import { StackActions } from '@react-navigation/native';
 import { colors, fonts, glass } from '../constants/theme';
 import GlassSurface from './GlassSurface';
 import SoftGlow from './SoftGlow';
+import Icon from './Icon';
 import { getSession, can } from '../db/session';
 import { getBusinessProfile } from '../db/queries';
 import Drawer from './Drawer';
@@ -186,11 +187,16 @@ export default function AppNav({ navigation, activeScreen }) {
 
                 <View style={{ flex: 1 }} />
 
-                <View style={styles.narrowDividerWide} />
-                <Pressable style={({ pressed }) => [styles.narrowCta, pressed && { opacity: 0.85 }]}
-                  onPress={() => goToSection('Kassa')}>
-                  <Text style={styles.narrowCtaIcon}>🛒</Text>
-                </Pressable>
+                {/* Кнопка кассы нужна на других экранах; на самой Кассе она лишняя */}
+                {activeScreen !== 'Kassa' && (
+                  <>
+                    <View style={styles.narrowDividerWide} />
+                    <Pressable style={({ pressed }) => [styles.narrowCta, pressed && { opacity: 0.85 }]}
+                      onPress={() => goToSection('Kassa')}>
+                      <Icon name="cart" size={26} color={colors.onAccent} strokeWidth={2} />
+                    </Pressable>
+                  </>
+                )}
               </View>
             )}
           </Animated.View>
@@ -294,7 +300,7 @@ const styles = StyleSheet.create({
   menuItem:        { marginHorizontal: 10, marginBottom: 2, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12, position: 'relative' },
   menuItemActive:  { backgroundColor: 'rgba(255,255,255,0.10)' },
   menuItemInactive:{ marginHorizontal: 10, paddingVertical: 10, paddingHorizontal: 14, opacity: 0.45 },
-  activeBar:       { position: 'absolute', left: -10, top: '25%', bottom: '25%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
+  activeBar:       { position: 'absolute', left: -6, top: '25%', bottom: '25%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
   menuLabel:       { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.textDim },
   menuLabelActive: { color: colors.text },
   menuLabelInactive:{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },

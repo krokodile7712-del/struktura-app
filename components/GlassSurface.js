@@ -3,6 +3,7 @@ import { View, StyleSheet, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { glass, glassFill } from '../constants/theme';
+import SoftGlow from './SoftGlow';
 
 // Настоящее размытие на Android в expo-blur требует отдельной привязки к тому, что
 // размывать (BlurTargetView), и на слабых планшетах может быть тяжёлым. Пока оно
@@ -73,11 +74,10 @@ function FloatShadow({ radius }) {
           />
         );
       })}
-      <LinearGradient
-        pointerEvents="none"
-        colors={['rgba(0,0,0,0.40)', 'rgba(0,0,0,0)']}
-        style={{ position: 'absolute', left: radius * 0.7, right: radius * 0.7, top: '100%', height: 30, marginTop: 4 }}
-      />
+      {/* падающая вниз тень — эллипс с мягким спадом (раньше была полоса с жёсткими краями) */}
+      <View pointerEvents="none" style={{ position: 'absolute', left: '3%', right: '3%', top: '100%', height: 56, marginTop: -22 }}>
+        <SoftGlow fill color="0,0,0" alpha={0.55} />
+      </View>
     </>
   );
 }

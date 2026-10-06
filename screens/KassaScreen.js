@@ -10,6 +10,7 @@ import {
   FlatList, Modal, ActivityIndicator, TextInput, Alert, Animated,
 } from 'react-native';
 import MetalButton from '../components/MetalButton';
+import Icon from '../components/Icon';
 import TopBar from '../components/TopBar';
 import ShiftBanner from '../components/ShiftBanner';
 import InfoTip from '../components/InfoTip';
@@ -900,7 +901,7 @@ export default function KassaScreen({ navigation, route }) {
             {order.length === 0 ? (
               /* Пустое состояние */
               <View style={styles.v2Empty}>
-                <Text style={styles.v2EmptyIcon}>🛒</Text>
+                <Icon name="cart" size={40} color={colors.muted} />
                 <Text style={styles.v2EmptyText}>Корзина пуста</Text>
               </View>
             ) : (
@@ -929,7 +930,7 @@ export default function KassaScreen({ navigation, route }) {
                           {item.name}{item.size ? ` ${item.size}` : ''}
                         </Text>
                         {item.discountPct > 0 && (
-                          <Text style={styles.v2ItemDiscount}>🏷 −{item.discountPct}%</Text>
+                          <Text style={styles.v2ItemDiscount}>−{item.discountPct}%</Text>
                         )}
                       </View>
                       <View style={styles.v2Qty}>
@@ -961,7 +962,7 @@ export default function KassaScreen({ navigation, route }) {
                         ))}
                       </View>
                     )}
-                    {item.note ? <Text style={styles.v2Note}>💬 {item.note}</Text> : null}
+                    {item.note ? <Text style={styles.v2Note}>{item.note}</Text> : null}
                   </Pressable>
                 </SwipeableRow>
               ))
@@ -987,7 +988,7 @@ export default function KassaScreen({ navigation, route }) {
                       {loyaltyModel === 'points' ? (
                         <Text style={styles.v2ClientBal}>★ {forClient.balance||0}</Text>
                       ) : discountAmount > 0 ? (
-                        <Text style={styles.v2ClientBal}>🏷 −{discountAmount} ₽</Text>
+                        <Text style={styles.v2ClientBal}>−{discountAmount} ₽</Text>
                       ) : null}
                     </Pressable>
                     <Pressable onPress={() => updateSlot({ forClient: null, pointsToSpend: '' })} hitSlop={10}>
@@ -997,7 +998,7 @@ export default function KassaScreen({ navigation, route }) {
                   </View>
                 ) : (
                   <Pressable style={[styles.v2Client, styles.v2ClientDiscountBtn, { position: 'relative' }, clientRowHighlight.style]} onPress={() => setClientPickerOpen(true)}>
-                    <Text style={styles.v2ClientAdd} numberOfLines={1}>👤 Клиент</Text>
+                    <View style={styles.v2BtnRow}><Icon name="user" size={18} color={colors.textDim} /><Text style={styles.v2BtnTxt} numberOfLines={1}>Клиент</Text></View>
                     {clientRowHighlight.overlay}
                   </Pressable>
                 )}
@@ -1009,7 +1010,7 @@ export default function KassaScreen({ navigation, route }) {
                   {appliedDiscount ? (
                     <View style={[styles.v2Client, styles.v2ClientFilled, styles.v2ClientDiscountBtn, { position: 'relative' }, discountRowHighlight.style]}>
                       <Pressable style={{ flex: 1, justifyContent: 'center' }} onPress={() => setDiscountDropOpen(true)}>
-                        <Text style={styles.v2ClientFilledName} numberOfLines={1}>🏷 {appliedDiscount.name}</Text>
+                        <Text style={styles.v2ClientFilledName} numberOfLines={1}>{appliedDiscount.name}</Text>
                         {discountAmount > 0 && (
                           <Text style={styles.v2ClientBal}>−{discountAmount} ₽</Text>
                         )}
@@ -1021,7 +1022,7 @@ export default function KassaScreen({ navigation, route }) {
                     </View>
                   ) : (
                     <Pressable style={[styles.v2Client, styles.v2ClientDiscountBtn, { position: 'relative' }, discountRowHighlight.style]} onPress={() => setDiscountDropOpen(true)}>
-                      <Text style={styles.v2ClientAdd} numberOfLines={1}>🏷 Скидка</Text>
+                      <View style={styles.v2BtnRow}><Icon name="tag" size={18} color={colors.textDim} /><Text style={styles.v2BtnTxt} numberOfLines={1}>Скидка</Text></View>
                       {discountRowHighlight.overlay}
                     </Pressable>
                   )}
@@ -1041,28 +1042,28 @@ export default function KassaScreen({ navigation, route }) {
             {/* Иконки-действия */}
             <View style={[styles.v2Acts, { position: 'relative' }, cartActionsHighlight.style]}>
               <Pressable style={styles.v2Act} onPress={() => setNoteModalOpen(true)}>
-                <Text style={styles.v2ActIco}>{orderNote ? '📝' : '✏️'}</Text>
+                <Icon name={orderNote ? 'note' : 'pencil'} size={20} color={orderNote ? colors.orangeLight : colors.textDim} />
                 <Text style={styles.v2ActLbl}>Заметка</Text>
               </Pressable>
               {templatesEnabled && (
                 <Pressable style={styles.v2Act} onPress={() => setTemplatesListOpen(true)}>
-                  <Text style={styles.v2ActIco}>📋</Text>
+                  <Icon name="list" size={20} color={colors.textDim} />
                   <Text style={styles.v2ActLbl}>Шаблоны</Text>
                 </Pressable>
               )}
               {templatesEnabled && order.length > 0 && (
                 <Pressable style={styles.v2Act} onPress={() => { setTemplateNameInput(''); setTemplateModalOpen(true); }}>
-                  <Text style={styles.v2ActIco}>⚡</Text>
+                  <Icon name="zap" size={20} color={colors.textDim} />
                   <Text style={styles.v2ActLbl}>Как шаблон</Text>
                 </Pressable>
               )}
               <Pressable style={styles.v2Act} onPress={parkAndNew}>
-                <Text style={styles.v2ActIco}>⏸</Text>
+                <Icon name="pause" size={20} color={colors.textDim} />
                 <Text style={styles.v2ActLbl}>Отложить</Text>
               </Pressable>
               {order.length > 0 && (
                 <Pressable style={styles.v2Act} onPress={()=>{setOrder([]);setExpandedCartId(null);}}>
-                  <Text style={[styles.v2ActIco,{color:colors.redLight}]}>✕</Text>
+                  <Icon name="x" size={20} color={colors.redLight} />
                   <Text style={[styles.v2ActLbl,{color:colors.redLight}]}>Очистить</Text>
                 </Pressable>
               )}
@@ -1654,7 +1655,7 @@ export default function KassaScreen({ navigation, route }) {
           {itemNoteModal && (
             <FitView style={[styles.modalInner, { width: '45%' }]}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>💬 Заметка к позиции</Text>
+                <Text style={styles.modalTitle}>Заметка к позиции</Text>
                 <Pressable onPress={() => setItemNoteModal(null)} hitSlop={12}>
                   <Text style={styles.modalCloseText}>✕</Text>
                 </Pressable>
@@ -1702,7 +1703,7 @@ export default function KassaScreen({ navigation, route }) {
           {slotEditModal && (
             <FitView style={[styles.modalInner, { width: '45%' }]}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>✏️ Название чека</Text>
+                <Text style={styles.modalTitle}>Название чека</Text>
                 <Pressable onPress={() => setSlotEditModal(null)} hitSlop={12}>
                   <Text style={styles.modalCloseText}>✕</Text>
                 </Pressable>
@@ -1736,7 +1737,7 @@ export default function KassaScreen({ navigation, route }) {
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setNoteModalOpen(false)} />
           <FitView style={[styles.modalInner, { width: '45%' }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>📝 Заметка к заказу</Text>
+              <Text style={styles.modalTitle}>Заметка к заказу</Text>
               <Pressable onPress={() => setNoteModalOpen(false)} hitSlop={12}>
                 <Text style={styles.modalCloseText}>✕</Text>
               </Pressable>
@@ -1971,7 +1972,7 @@ const styles = StyleSheet.create({
   menuItemPressed: { opacity: 0.8 },
   menuItemInCart: { borderColor: 'rgba(127,168,217,0.55)', backgroundColor: 'rgba(127,168,217,0.08)' },
   menuItemName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, textAlign: 'center', letterSpacing: 0.2, lineHeight: 18 },
-  menuItemPrice: { fontFamily: fonts.family, fontSize: 14, color: colors.green, textAlign: 'center' },
+  menuItemPrice: { fontFamily: fonts.family, fontSize: 14, color: colors.orangeLight, textAlign: 'center' },
   menuItemPriceNone: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'center', fontStyle: 'italic' },
   prePaySummary: { padding: 12, backgroundColor: colors.surface, borderRadius: 12, marginBottom: 16, borderWidth: 1, borderColor: colors.border },
   prePaySummaryTitle: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, marginBottom: 6 },
@@ -2213,7 +2214,7 @@ const styles = StyleSheet.create({
   v2ItemPrice:  { fontFamily: fonts.family, fontSize: 16, color: colors.orange, minWidth: 58, textAlign: 'right' },
   v2Mods:       { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 5, marginLeft: 0 },
   v2Mod:        { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
-  v2Note:       { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.green, marginTop: 3 },
+  v2Note:       { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.textDim, marginTop: 3 },
   v2Footer:     { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14, gap: 10 },
   v2ClientDiscountRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
   v2ClientDiscountBtn: { minHeight: 54 },
@@ -2224,6 +2225,8 @@ const styles = StyleSheet.create({
   v2ClientName: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.green, flex: 1 },
   v2ClientBal:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 1 },
   v2ClientX:    { fontSize: 16, color: colors.muted, paddingHorizontal: 4 },
+  v2BtnRow:     { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  v2BtnTxt:     { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
   v2ClientAdd:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim, textAlign: 'center', flex: 1 },
   v2Discount:   { gap: 3, marginTop: 8 },
   v2DiscountApplied: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },

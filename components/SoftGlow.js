@@ -13,12 +13,12 @@ import Svg, { Defs, RadialGradient, Stop, Rect } from 'react-native-svg';
  * - color: 'R,G,B' (например '127,168,217')
  * - alpha: яркость в центре (0–1)
  */
-export default function SoftGlow({ size = 480, color = '127,168,217', alpha = 0.12, style }) {
+export default function SoftGlow({ size = 480, color = '127,168,217', alpha = 0.12, style, fill = false }) {
   const id = useRef('glow' + Math.random().toString(36).slice(2, 9)).current;
   const c = `rgb(${color})`;
   return (
-    <View pointerEvents="none" style={[{ width: size, height: size }, style]}>
-      <Svg width={size} height={size}>
+    <View pointerEvents="none" style={[fill ? { width: '100%', height: '100%' } : { width: size, height: size }, style]}>
+      <Svg width={fill ? '100%' : size} height={fill ? '100%' : size}>
         <Defs>
           <RadialGradient id={id} cx="50%" cy="50%" r="50%">
             <Stop offset="0%"   stopColor={c} stopOpacity={alpha} />
@@ -28,7 +28,7 @@ export default function SoftGlow({ size = 480, color = '127,168,217', alpha = 0.
             <Stop offset="100%" stopColor={c} stopOpacity={0} />
           </RadialGradient>
         </Defs>
-        <Rect x="0" y="0" width={size} height={size} fill={`url(#${id})`} />
+        <Rect x="0" y="0" width={fill ? '100%' : size} height={fill ? '100%' : size} fill={`url(#${id})`} />
       </Svg>
     </View>
   );

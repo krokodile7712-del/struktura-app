@@ -140,7 +140,7 @@ export default function AdminScreen({ navigation }) {
   const revDelta = pctDelta(todayTotal, yest.total);
   const ordDelta = yest.orders > 0 ? todayOrders - yest.orders : null;
   const avgDelta = pctDelta(avgNow, yest.avg);
-  const shareOf = (v) => (todayTotal > 0 ? `${Math.round((v || 0) / todayTotal * 100)}% выручки` : null);
+  const shareOf = (v) => (todayTotal > 0 && v > 0 ? `${Math.round(v / todayTotal * 100)}% выручки` : null);
   const popMax = Math.max(1, ...extras.popular.map(x => x.qty));
   const fmt = (n) => Math.round(n || 0).toLocaleString('ru-RU');
 
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
   revenueInner:{ paddingVertical: 24, paddingLeft: 28, paddingRight: 24, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
   revenueLbl:  { fontFamily: fonts.familySemibold, fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase', color: colors.textDim, marginBottom: 8 },
   revenueVal:  { fontFamily: fonts.display, fontSize: 48, letterSpacing: -1, color: colors.text },
-  statTile:    { minHeight: 116 },
+  statTile:    { minHeight: 132 },
   delta:       { fontFamily: fonts.familySemibold, fontSize: 14, marginTop: 8 },
   shareTxt:    { fontFamily: fonts.familyMedium, fontSize: 14, color: colors.textDim, marginTop: 8 },
   avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.surface3, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', alignItems: 'center', justifyContent: 'center' },
