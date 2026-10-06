@@ -35,9 +35,9 @@ const SCOPE_OPTIONS = [
 // (флаг __demo проверяется перед любым сохранением)
 const DEMO_ACT = { __demo: true, id: 'demo', scope: 'all', status: 'draft', created_at: new Date().toISOString() };
 const DEMO_ITEMS = [
-  { id: 'demo-1', stock_name: 'Молоко, 1 л',       unit: 'л',  expected: 10,  actual: 10 },
-  { id: 'demo-2', stock_name: 'Кофе (зерно)',      unit: 'кг', expected: 5,   actual: 3 },
-  { id: 'demo-3', stock_name: 'Сироп ваниль',      unit: 'мл', expected: 500, actual: 500 },
+  { id: 'demo-1', stock_name: 'Позиция 1',          unit: 'шт', expected: 10,  actual: 10 },
+  { id: 'demo-2', stock_name: 'Позиция 2',          unit: 'кг', expected: 5,   actual: 3 },
+  { id: 'demo-3', stock_name: 'Позиция 3',          unit: 'л',  expected: 500, actual: 500 },
 ];
 
 export default function InventoryScreen({ navigation }) {

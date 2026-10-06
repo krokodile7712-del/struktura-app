@@ -464,7 +464,7 @@ export function initDatabase() {
         'СТРУКТУРА',
         JSON.stringify({ stock: true, shifts: true, clients: true, loyalty: true, modifiers: true, inventory: true, locations: false, zones: false, templates: false }),
         JSON.stringify({ item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' }),
-        JSON.stringify({ barista: 'Бариста', admin: 'Администратор' }),
+        JSON.stringify({ barista: 'Сотрудник', admin: 'Администратор' }),
         JSON.stringify(['мл', 'л', 'г', 'кг', 'шт', 'уп', 'пара']),
         '',
       ]

@@ -671,7 +671,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
               style={[styles.input, { marginBottom: 12 }]}
               value={newItemModal.name}
               onChangeText={v => setNewItemModal(m => ({ ...m, name: v }))}
-              placeholder="напр. Молоко"
+              placeholder="Название позиции"
               placeholderTextColor={colors.muted}
               autoFocus
             />

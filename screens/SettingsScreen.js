@@ -118,14 +118,14 @@ const TERM_CONFIGS = [
     key: 'item',
     icon: '📦',
     title: 'Как называть товар / услугу?',
-    desc: 'Позиция в меню, на складе и в техкартах',
+    desc: 'Позиция в каталоге, на складе и в техкартах',
     presets: ['Товар', 'Услуга', 'Блюдо', 'Позиция', 'Продукт', 'Процедура', 'Изделие'],
   },
   {
     key: 'category',
     icon: '🗂',
     title: 'Как называть категорию?',
-    desc: 'Группировка товаров/услуг в меню кассы',
+    desc: 'Группировка товаров/услуг в каталоге кассы',
     presets: ['Категория', 'Раздел', 'Группа', 'Тип', 'Вид', 'Секция'],
   },
 ];
@@ -309,7 +309,7 @@ export default function SettingsScreen({ navigation, route }) {
   };
   const bulkAddTables = () => {
     if (!zoneModal?.id) return;
-    const prefix = zoneModal.bulkPrefix?.trim() || 'Стол';
+    const prefix = zoneModal.bulkPrefix?.trim() || 'Место';
     const from = parseInt(zoneModal.bulkFrom) || 1;
     const to = parseInt(zoneModal.bulkTo) || from;
     if (from > to || to - from > 99) return;
@@ -1184,7 +1184,7 @@ export default function SettingsScreen({ navigation, route }) {
               <Text style={styles.menuTopTitle}>Зоны и столы</Text>
               <View style={styles.menuFloatBtns} pointerEvents="box-none">
                 <View style={styles.menuFloatRow}>
-                  <Pressable onPress={() => setZoneModal({ name: '', tables: [], newTableInput: '', bulkPrefix: 'Стол', bulkFrom: '', bulkTo: '' })} hitSlop={14} style={[styles.menuBadge, styles.menuBadgeAdd]}>
+                  <Pressable onPress={() => setZoneModal({ name: '', tables: [], newTableInput: '', bulkPrefix: 'Место', bulkFrom: '', bulkTo: '' })} hitSlop={14} style={[styles.menuBadge, styles.menuBadgeAdd]}>
                     <Text style={[styles.menuBadgeText, { color: colors.orange }]}>+</Text>
                   </Pressable>
                 </View>
@@ -1195,7 +1195,7 @@ export default function SettingsScreen({ navigation, route }) {
                 <Pressable
                   key={z.id}
                   style={({ pressed }) => [styles.menuRow, i < zones.length - 1 && styles.menuRowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
-                  onPress={() => setZoneModal({ id: z.id, name: z.name, tables: z.tables || [], newTableInput: '', bulkPrefix: 'Стол', bulkFrom: '', bulkTo: '' })}
+                  onPress={() => setZoneModal({ id: z.id, name: z.name, tables: z.tables || [], newTableInput: '', bulkPrefix: 'Место', bulkFrom: '', bulkTo: '' })}
                 >
                   <Text style={{ fontSize: 18, marginRight: 12 }}>📍</Text>
                   <View style={{ flex: 1 }}>
@@ -2305,7 +2305,7 @@ export default function SettingsScreen({ navigation, route }) {
       if (biz) {
         const products = getAllProductsAdmin();
         await syncServicesToSupabase(biz.id, secret, products);
-        Alert.alert('Синхронизировано', `Меню обновлено: ${products.length} позиций`);
+        Alert.alert('Синхронизировано', `Каталог обновлён: ${products.length} позиций`);
       }
     } catch (e) { Alert.alert('Ошибка', e.message); }
     setSyncing(false);
@@ -2405,7 +2405,7 @@ export default function SettingsScreen({ navigation, route }) {
                     style={[styles.input, { flex: 1 }]}
                     value={zoneModal.name}
                     onChangeText={v => setZoneModal(m => ({ ...m, name: v }))}
-                    placeholder="Зал, Терраса, Бар, Вынос..."
+                    placeholder="Название зоны"
                     placeholderTextColor={colors.muted}
                     autoFocus={!zoneModal.id}
                   />
@@ -2432,13 +2432,13 @@ export default function SettingsScreen({ navigation, route }) {
                   </View>
 
                   {/* Добавить один стол */}
-                  <Text style={styles.fieldLabel}>Добавить стол</Text>
+                  <Text style={styles.fieldLabel}>Добавить место</Text>
                   <View style={{ flexDirection: 'row', gap: 8 }}>
                     <TextInput
                       style={[styles.input, { flex: 1 }]}
                       value={zoneModal.newTableInput || ''}
                       onChangeText={v => setZoneModal(m => ({ ...m, newTableInput: v }))}
-                      placeholder="Стол 1 / VIP / Место у окна"
+                      placeholder="Название места"
                       placeholderTextColor={colors.muted}
                       onSubmitEditing={addTableToZone}
                       returnKeyType="done"
@@ -2451,9 +2451,9 @@ export default function SettingsScreen({ navigation, route }) {
                   <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                     <TextInput
                       style={[styles.input, { flex: 2 }]}
-                      value={zoneModal.bulkPrefix || 'Стол'}
+                      value={zoneModal.bulkPrefix || 'Место'}
                       onChangeText={v => setZoneModal(m => ({ ...m, bulkPrefix: v }))}
-                      placeholder="Стол"
+                      placeholder="Место"
                       placeholderTextColor={colors.muted}
                     />
                     <Text style={{ color: colors.muted, fontFamily: fonts.family }}>с</Text>
@@ -3052,11 +3052,11 @@ export default function SettingsScreen({ navigation, route }) {
 
                 <View style={styles.receiptDivider} />
                 <View style={styles.receiptRow}>
-                  <Text style={styles.receiptItem}>Капучино</Text>
+                  <Text style={styles.receiptItem}>Позиция 1</Text>
                   <Text style={styles.receiptItem}>250 ₽</Text>
                 </View>
                 <View style={styles.receiptRow}>
-                  <Text style={styles.receiptItem}>Круассан</Text>
+                  <Text style={styles.receiptItem}>Позиция 2</Text>
                   <Text style={styles.receiptItem}>180 ₽</Text>
                 </View>
 
@@ -3115,7 +3115,7 @@ export default function SettingsScreen({ navigation, route }) {
               <Pressable onPress={() => setPositionsModal(false)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
             </View>
             <ScrollView>
-              <Text style={[styles.menuTopTitle, { marginTop: 4 }]}>Из меню Кассы</Text>
+              <Text style={[styles.menuTopTitle, { marginTop: 4 }]}>Из каталога Кассы</Text>
               <Text style={[styles.menuItemSub, { marginBottom: 10 }]}>
                 Включённые товары появятся в списке для записи. Можно скрыть то, на что записываться не нужно, и добавить короткое описание для клиентов.
               </Text>
@@ -3152,7 +3152,7 @@ export default function SettingsScreen({ navigation, route }) {
                 </View>
               </View>
               <Text style={[styles.menuItemSub, { marginBottom: 10 }]}>
-                Позиции, которых нет в меню Кассы — например, отдельная услуга или консультация
+                Позиции, которых нет в каталоге Кассы — например, отдельная услуга или консультация
               </Text>
 
               {customItemsLoading ? (

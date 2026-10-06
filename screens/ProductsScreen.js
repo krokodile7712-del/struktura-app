@@ -257,7 +257,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
             color={colors.text}
             value={category}
             onChangeText={setCategory}
-            placeholder={categories.length > 0 ? 'Или впишите новую категорию' : 'Название категории (например, Напитки)'}
+            placeholder={categories.length > 0 ? 'Или впишите новую категорию' : 'Название категории'}
             placeholderTextColor={colors.muted}
           />
           {mainHighlight.overlay}
@@ -1579,7 +1579,7 @@ function ModGroupModal({ group, onSave, onDelete, onClose, stock }) {
               ))}
             </View>
             <Text style={styles.ingHint}>
-              {mode === 'add' ? 'Добавляется к товару за доп. плату' : 'Заменяет ингредиент (напр. тип молока)'}
+              {mode === 'add' ? 'Добавляется к товару за доп. плату' : 'Заменяет материал в техкарте (например, другой вид сырья)'}
             </Text>
 
             <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Варианты</Text>

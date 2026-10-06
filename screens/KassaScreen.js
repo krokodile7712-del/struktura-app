@@ -817,7 +817,7 @@ export default function KassaScreen({ navigation, route }) {
       <View style={{ flex: 1 }}>
         <TopBar title="Касса" onBack={() => goBackSmart(navigation)} navigation={navigation} activeScreen="Kassa" />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 }}>
-          <Text style={styles.emptyTitle}>Меню пустое</Text>
+          <Text style={styles.emptyTitle}>Нет товаров</Text>
           <Text style={styles.emptyHint}>Добавьте товары в разделе Товары</Text>
           <MetalButton title="← Назад" variant="back" onPress={() => goBackSmart(navigation)} />
         </View>
@@ -1572,7 +1572,7 @@ export default function KassaScreen({ navigation, route }) {
                 style={styles.input}
                 value={slotEditModal.name}
                 onChangeText={v => setSlotEditModal(m => ({ ...m, name: v }))}
-                placeholder="Стол 5, Иван..."
+                placeholder="Метка заказа, например имя клиента"
                 placeholderTextColor={colors.muted}
                 autoFocus
               />
@@ -1606,7 +1606,7 @@ export default function KassaScreen({ navigation, route }) {
               style={[styles.input, { height: 100, textAlignVertical: 'top', fontSize: 16 }]}
               value={orderNote}
               onChangeText={setOrderNote}
-              placeholder="Без сахара, на вынос, стол 5..."
+              placeholder="Комментарий к заказу"
               placeholderTextColor={colors.muted}
               multiline
               autoFocus

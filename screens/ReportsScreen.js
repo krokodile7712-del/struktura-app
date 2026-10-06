@@ -329,7 +329,7 @@ export default function ReportsScreen({ navigation }) {
 
                 {pnl.cogs === 0 && (
                   <View style={styles.hintCard}>
-                    <Text style={styles.hintTxt}>Себестоимость = 0. Заполните техкарты в Настройках → Меню и цены чтобы видеть реальную маржу.</Text>
+                    <Text style={styles.hintTxt}>Себестоимость = 0. Заполните техкарты в разделе «Товары», чтобы видеть реальную маржу.</Text>
                   </View>
                 )}
                 {pnlHighlight.overlay}

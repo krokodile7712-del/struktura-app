@@ -180,7 +180,7 @@ export default function AdminScreen({ navigation }) {
           {(stats.lowStockCount > 0 || tourOpen) && (() => {
             const isDemo = !(stats.lowStockCount > 0);
             const demoCount = isDemo ? 2 : stats.lowStockCount;
-            const demoItems = isDemo ? [{ name: 'Стаканы 250мл', 'остаток': 8, unit: 'шт' }, { name: 'Молоко', 'остаток': 1, unit: 'л' }] : (stats.lowStockItems || []);
+            const demoItems = isDemo ? [{ name: 'Позиция 1', 'остаток': 8, unit: 'шт' }, { name: 'Позиция 2', 'остаток': 1, unit: 'шт' }] : (stats.lowStockItems || []);
             return (
             <View style={[{ position: 'relative' }, stockBannerHighlight.style]} onLayout={rememberY('admin.stockBanner')}>
             <Pressable

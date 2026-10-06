@@ -117,7 +117,7 @@ function appendShiftFromApp(params, ss) {
     shiftDate,
     openedAt,
     closedAt || '',
-    params.role || 'Бариста',
+    params.role || 'Сотрудник',
     parseFloat(params.cash_open) || 0,
     parseFloat(params.cash_close) || 0
   ]);

@@ -188,7 +188,7 @@ export default function EquipmentPanel({ navigation }) {
               {/* Срок амортизации */}
               <View style={styles.labelRow}>
                 <Text style={styles.fieldLabel}>Срок амортизации, мес.</Text>
-                <InfoTip title="Амортизация" text="Стоимость равномерно списывается по месяцам — стоимость ÷ срок = сумма в месяц. Например, кофемашина за 90 000 ₽ на 36 месяцев — это 2 500 ₽/мес, независимо от того, сколько на ней сварили кофе." />
+                <InfoTip title="Амортизация" text="Стоимость равномерно списывается по месяцам — стоимость ÷ срок = сумма в месяц. Например, оборудование за 90 000 ₽ на 36 месяцев — это 2 500 ₽/мес, независимо от того, сколько на нём проработали." />
               </View>
               <View style={styles.inputRow}>
                 <TextInput style={[styles.input, { flex: 1 }]} color={colors.text} value={draft.amort_period} onChangeText={v => setDraft(d => ({ ...d, amort_period: v }))} keyboardType="numeric" placeholder="36" placeholderTextColor={colors.muted} />
@@ -260,7 +260,7 @@ export default function EquipmentPanel({ navigation }) {
               {/* Срок амортизации */}
               <View style={styles.labelRow}>
                 <Text style={styles.fieldLabel}>Срок амортизации, мес.</Text>
-                <InfoTip title="Амортизация" text="Стоимость равномерно списывается по месяцам — стоимость ÷ срок = сумма в месяц. Например, кофемашина за 90 000 ₽ на 36 месяцев — это 2 500 ₽/мес, независимо от того, сколько на ней сварили кофе." />
+                <InfoTip title="Амортизация" text="Стоимость равномерно списывается по месяцам — стоимость ÷ срок = сумма в месяц. Например, оборудование за 90 000 ₽ на 36 месяцев — это 2 500 ₽/мес, независимо от того, сколько на нём проработали." />
               </View>
               <View style={styles.inputRow}>
                 <TextInput style={[styles.input, { flex: 1 }]} color={colors.text} value={draft.amort_period} onChangeText={v => setDraft(d => ({ ...d, amort_period: v }))} keyboardType="numeric" placeholder="36" placeholderTextColor={colors.muted} />
