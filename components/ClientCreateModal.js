@@ -11,6 +11,7 @@ import { isPhoneOkOrEmpty, PHONE_ERROR } from '../utils/phone';
 import { useToast } from './Toast';
 import { colors, fonts } from '../constants/theme';
 import { useReduceMotion } from '../hooks/useReduceMotion';
+import { copyText } from '../utils/clipboard';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 const AnimatedPath = Animated.createAnimatedComponent(Path);
@@ -141,10 +142,13 @@ export default function ClientCreateModal({ visible, onClose, onCreated, onOpenC
                 </Svg>
                 <Text style={styles.doneName} numberOfLines={2}>{created.fio}</Text>
                 <Text style={styles.doneSub}>{clientWord} успешно зарегистрирован</Text>
-                <View style={styles.idBox}>
-                  <Text style={styles.idLbl}>ID {clientWord.toLowerCase()}</Text>
+                <Pressable style={({ pressed }) => [styles.idBox, pressed && { opacity: 0.85 }]} onPress={async () => {
+                  const ok = await copyText(created.code);
+                  toast.show(ok ? `ID скопирован: ${created.code}` : 'Не удалось скопировать', ok ? 'info' : 'warn');
+                }}>
+                  <Text style={styles.idLbl}>ID {clientWord.toLowerCase()} · нажмите, чтобы скопировать</Text>
                   <Text style={styles.idVal}>{created.code}</Text>
-                </View>
+                </Pressable>
                 {!!blurb && (
                   <View style={styles.blurb}>
                     <Text style={styles.blurbTitle}>{blurb.title}</Text>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, TouchableOpacity, Modal, TextInput, Share, Animated, LayoutAnimation, Platform, Alert, BackHandler, useWindowDimensions, Dimensions, Image, Clipboard } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, TouchableOpacity, Modal, TextInput, Share, Animated, LayoutAnimation, Platform, Alert, BackHandler, useWindowDimensions, Dimensions, Image } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -42,6 +42,7 @@ import Toggle from '../components/Toggle';
 import { can, getSession, setPermissions, setUserPermissions, clearSession, goBackSmart } from '../db/session';
 import { resetKassaCart } from '../db/cartStore';
 import EmptyState from '../components/EmptyState';
+import { copyText } from '../utils/clipboard';
 import { colors, fonts, spacing } from '../constants/theme';
 import {
   claimBusiness, syncServicesToSupabase,
@@ -1591,8 +1592,7 @@ export default function SettingsScreen({ navigation, route }) {
                   style={[styles.bizFieldRow, styles.menuRowDiv]}
                   onPress={() => {
                     const link = getBookingLink(bookingSlug);
-                    Clipboard.setString(link);
-                    Alert.alert('Скопировано', link);
+                    copyText(link).then(ok => Alert.alert(ok ? 'Скопировано' : 'Не удалось скопировать', link));
                   }}>
                   <Text style={styles.bizFieldLabel}>Ссылка</Text>
                   <Text style={{ fontFamily: fonts.familyRegular, fontSize: 14, color: colors.orange, flex: 1, textAlign: 'right' }} numberOfLines={1}>
