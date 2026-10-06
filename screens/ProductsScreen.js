@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
-  TextInput, Modal, Alert, Animated,
+  TextInput, Modal, Alert, Animated, LayoutAnimation,
 } from 'react-native';
 import TopBar from '../components/TopBar';
 import EmptyState from '../components/EmptyState';
@@ -30,7 +30,9 @@ import {
 import { getDb } from '../db/database';
 import { emit } from '../db/events';
 import { getHomeRoute, goBackSmart, can } from '../db/session';
-import { colors, fonts, anim } from '../constants/theme';
+import { colors, fonts, anim, glass } from '../constants/theme';
+import GlassSurface from '../components/GlassSurface';
+import Icon from '../components/Icon';
 import TourGuide from '../components/TourGuide';
 import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
 import FitView from '../components/FitView';
@@ -84,6 +86,12 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
   const [ingPickerVar, setIngPickerVar] = useState(null); // индекс варианта
   const [expandedVar, setExpandedVar] = useState(-1);
   const [unitOpenVar, setUnitOpenVar] = useState(-1);
+  const [selVar, setSelVar]       = useState(0);       // выбранный размер (индекс)
+  const [editSizes, setEditSizes] = useState(false);   // панель «Изменить размеры»
+  const [unitOpen, setUnitOpen]   = useState(false);   // аккордеон «Единица продажи»
+  const [otherUnit, setOtherUnit] = useState(false);   // «Другая единица» — прежний выбор единиц
+  const [segW, setSegW]           = useState(0);
+  const thumbX = useRef(new Animated.Value(0)).current;
   const [optionsOpen, setOptionsOpen] = useState(selGroups.length > 0);
   const scrollRef = useRef(null);
   const sectionY = useRef({});
@@ -148,6 +156,28 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
 
   const removeIng    = (vi, ii) => setVars(v => v.map((r,j) => j===vi ? { ...r, ings: (Array.isArray(r.ings) ? r.ings : []).filter((_,k)=>k!==ii) } : r));
   const setIngField  = (vi, ii, f, val) => setVars(v => v.map((r,j) => j===vi ? { ...r, ings: (Array.isArray(r.ings) ? r.ings : []).map((ing,k) => k===ii ? {...ing,[f]:val} : ing) } : r));
+  // Размеры: у каждого товара свой набор — от одного варианта до любого числа
+  const addVariantSmart = () => {
+    setVars(v => {
+      const last = v[v.length - 1];
+      const copied = (Array.isArray(last?.ings) ? last.ings : []).filter(i => !isPackaging(i.name)).map(i => ({ ...i }));
+      // Был один безымянный вариант — даём ему имя, иначе в переключателе будет пустая плашка
+      const first = v.length === 1 && !(v[0].label || '').trim() ? [{ ...v[0], label: 'Стандарт' }] : v;
+      return [...first, { id: null, label: v.length === 1 ? 'Большой' : '', price: '', unit: last?.unit || 'шт', deduction_mode: last?.deduction_mode || 'fixed', ings: copied }];
+    });
+    setSelVar(vars.length);
+    setEditSizes(true);
+  };
+  const removeVariantAt = (i) => {
+    if (vars.length <= 1) return;
+    setVars(v => v.filter((_, j) => j !== i));
+    setSelVar(0);
+    if (vars.length === 2) setEditSizes(false);
+  };
+  // Режим расхода и единица продажи — на весь товар (у размеров различаются только цена и количества)
+  const setAllMode = (mode) => setVars(v => v.map(r => ({ ...r, deduction_mode: mode })));
+  const setAllUnit = (u) => { setVars(v => v.map(r => ({ ...r, unit: u }))); };
+  const animateLayout = () => LayoutAnimation.configureNext(LayoutAnimation.create(240, 'easeInEaseOut', 'opacity'));
   const setDeductionMode = (vi, mode) => setVars(v => v.map((r,j) => j===vi ? { ...r, deduction_mode: mode } : r));
 
   const handleSave = () => {
@@ -155,6 +185,14 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
     if (!name.trim()) { Alert.alert('Введите название товара'); return; }
     onSave({ name: name.trim(), category, active, vars, selGroups, discountEligible });
   };
+
+  const selIdx = Math.min(selVar, Math.max(vars.length - 1, 0));
+  const nVars = vars.length;
+  const segLabel = (v, i) => ((v?.label || '').trim() || `Размер ${i + 1}`);
+  useEffect(() => {
+    if (segW <= 0 || nVars > 4) return;
+    Animated.spring(thumbX, { toValue: selIdx * ((segW - 8) / nVars), speed: 22, bounciness: 0, useNativeDriver: true }).start();
+  }, [selIdx, segW, nVars]);
 
   const totalCost = (v) => { const ings = Array.isArray(v?.ings) ? v.ings : []; return ings.reduce((s, ing) => s + (parseFloat(ing?.amount)||0) * (parseFloat(ing?.price_per_unit)||0), 0); };
   const margin    = (v) => { const c = totalCost(v); const p = parseFloat(v.price)||0; return p > 0 && c > 0 ? Math.round((1 - c/p)*100) : null; };
@@ -168,6 +206,29 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
             <Text style={styles.editorSub}>{category}</Text>
           </View>
         )}
+
+        {/* Сводка выбранного размера: цена, себестоимость, маржа (считаются из техкарты) */}
+        {(() => {
+          const sv = vars[selIdx] || vars[0] || {};
+          const c = totalCost(sv); const m = margin(sv); const pr = parseFloat(sv.price) || 0;
+          const variable = sv.deduction_mode === 'variable';
+          return (
+            <View style={styles.kpiRow}>
+              <GlassSurface radius={glass.radius.tile} padding={14} style={{ flex: 1 }}>
+                <Text style={styles.kpiLbl} numberOfLines={1}>Цена{nVars > 1 ? ` · ${segLabel(sv, selIdx)}` : ''}</Text>
+                <Text style={styles.kpiVal}>{pr > 0 ? `${fmt(pr)} ₽` : '—'}</Text>
+              </GlassSurface>
+              <GlassSurface radius={glass.radius.tile} padding={14} style={{ flex: 1 }}>
+                <Text style={styles.kpiLbl}>Себестоимость</Text>
+                <Text style={styles.kpiVal}>{!variable && c > 0 ? `${fmt(Math.round(c))} ₽` : '—'}</Text>
+              </GlassSurface>
+              <GlassSurface radius={glass.radius.tile} padding={14} style={{ flex: 1 }}>
+                <Text style={styles.kpiLbl}>Маржа</Text>
+                <Text style={[styles.kpiVal, !variable && m !== null && { color: m >= 30 ? colors.green : colors.warning }]}>{!variable && m !== null ? `${m}%` : '—'}</Text>
+              </GlassSurface>
+            </View>
+          );
+        })()}
 
         {/* СЕКЦИЯ: Основное */}
         <Text style={styles.sectionTitle}>Основное</Text>
@@ -247,137 +308,163 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
 
         {/* СЕКЦИЯ: Цена и размеры */}
         <Text style={styles.sectionTitle}>Цена и размеры</Text>
-        <View style={styles.labelRow}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-            <Text style={[styles.fieldLabel, { marginTop: 0 }]}>{vars.length > 1 ? 'Размеры / Виды' : 'Цена продажи'}</Text>
-            <InfoTip title="Размеры" text="Один вариант — просто введите цену. Несколько — добавьте S/M/L или виды." />
-          </View>
-        </View>
-
         <View style={[{ position: 'relative' }, priceHighlight.style]} onLayout={rememberY('products.card.price')}>
-        {vars.map((v, vi) => {
-          const cost   = totalCost(v);
-          const mrg    = margin(v);
-          const isOpen = expandedVar === vi;
-          const hasIngs = Array.isArray(v.ings) && v.ings.length > 0;
-          return (
-            <SwipeableRow key={vi} onAction={() => removeVariant(vi)} label="Удалить" disabled={vars.length <= 1}>
-            <View style={styles.varCard}>
-              {/* Верх: название размера + цена */}
-              <View style={styles.varTopRow}>
-                {vars.length > 1 ? (
-                  <TextInput style={styles.varLabelInput} color={colors.text}
-                    value={v.label} onChangeText={val => setVarField(vi, 'label', val)}
-                    placeholder="S, M, L..." placeholderTextColor={colors.muted} />
-                ) : (
-                  <Text style={styles.varTopLabel}>Цена</Text>
-                )}
-                <View style={styles.varPriceWrap}>
-                  <TextInput style={styles.varPriceInput} color={colors.text}
-                    keyboardType="numeric" value={v.price} onChangeText={val => setVarField(vi, 'price', val)}
-                    placeholder="0" placeholderTextColor={colors.muted} />
-                  <Text style={styles.varCurrency}>₽</Text>
-                </View>
-              </View>
-
-              {mrg !== null && (
-                <View style={styles.marginDotRow}>
-                  <View style={[styles.marginDot, { backgroundColor: mrg >= 30 ? colors.green : colors.red }]} />
-                  <Text style={styles.marginDotTxt}>Маржа {mrg}%</Text>
-                </View>
-              )}
-
-              {/* Чипы: единица продажи + ингредиенты */}
-              <View style={styles.varChipsRow}>
-                <Pressable style={styles.miniChip} onPress={() => setUnitOpenVar(o => o === vi ? -1 : vi)}>
-                  <Text style={styles.miniChipTxt}>{v.unit || 'шт'} ▾</Text>
-                </Pressable>
-                {canEditCost ? (
-                  <Pressable
-                    style={[styles.miniChip, hasIngs && styles.miniChipFilled]}
-                    onPress={() => setExpandedVar(hasIngs ? (isOpen ? -1 : vi) : vi)}
-                  >
-                    <Text style={[styles.miniChipTxt, hasIngs && styles.miniChipTxtFilled]}>
-                      🧾 {hasIngs ? `Ингредиенты · ${v.ings.length}` : '+ Ингредиенты'}
-                    </Text>
+          <View style={styles.sectionCard}>
+            {nVars > 1 ? (
+              <>
+                <View style={styles.szHead}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={styles.szLbl}>Размер</Text>
+                    <InfoTip title="Размеры" text="У каждого товара свой набор: один вариант, два, четыре и больше. Цена и количества в техкарте задаются для каждого размера отдельно." />
+                  </View>
+                  <Pressable onPress={() => { animateLayout(); setEditSizes(e => !e); }} hitSlop={8}>
+                    <Text style={styles.szLink}>{editSizes ? 'Готово' : 'Изменить'}</Text>
                   </Pressable>
-                ) : (
-                  <View style={[styles.miniChip, { opacity: 0.4 }]}>
-                    <Text style={styles.miniChipTxt}>Списание · нет доступа</Text>
-                  </View>
-                )}
-                <InfoTip title="Техкарта" text="Список того, что расходуется на одну продажу — ингредиенты, материалы, расходники. Каждая продажа автоматически спишет остаток нужных позиций на складе. Не нужна — просто не добавляйте." />
-              </View>
-
-              {unitOpenVar === vi && (
-                <View style={{ marginTop: 10 }}>
-                  <UnitPicker value={v.unit || 'шт'} onChange={val => setVarField(vi, 'unit', val)} />
                 </View>
-              )}
-
-              {canEditCost && isOpen && (
-                <View style={styles.techBody}>
-                  <View style={styles.modeSwitchRow}>
-                    <Pressable
-                      style={[styles.modeSwitchBtn, (v.deduction_mode || 'fixed') === 'fixed' && styles.modeSwitchBtnActive]}
-                      onPress={() => setDeductionMode(vi, 'fixed')}
-                    >
-                      <Text style={[styles.modeSwitchTxt, (v.deduction_mode || 'fixed') === 'fixed' && styles.modeSwitchTxtActive]}>Фиксированный расход</Text>
+                {/* Сегментированный переключатель (как в iOS): одна «капсула», выбранный размер — на скользящем бегунке */}
+                <View style={styles.segx} onLayout={e => setSegW(e.nativeEvent.layout.width)}>
+                  {nVars <= 4 && segW > 0 && (
+                    <Animated.View pointerEvents="none" style={[styles.segThumb, { width: (segW - 8) / nVars, transform: [{ translateX: thumbX }] }]} />
+                  )}
+                  {nVars <= 4 ? vars.map((v, vi) => (
+                    <Pressable key={vi} style={styles.segItem} onPress={() => setSelVar(vi)}>
+                      <Text style={[styles.segTxt, selIdx === vi && styles.segTxtOn]} numberOfLines={1}>{segLabel(v, vi)}</Text>
                     </Pressable>
-                    <Pressable
-                      style={[styles.modeSwitchBtn, v.deduction_mode === 'variable' && styles.modeSwitchBtnActive]}
-                      onPress={() => setDeductionMode(vi, 'variable')}
-                    >
-                      <Text style={[styles.modeSwitchTxt, v.deduction_mode === 'variable' && styles.modeSwitchTxtActive]}>Расход по факту</Text>
-                    </Pressable>
-                  </View>
-                  <Text style={styles.ingListHint}>
-                    {v.deduction_mode === 'variable'
-                      ? 'Количество каждого материала вводится заново при каждой продаже — цена и списание считаются по факту (подходит, когда расход у каждого клиента разный)'
-                      : 'Сколько расходуется на одну продажу этого товара — при каждом заказе именно столько спишется со склада'}
-                  </Text>
-                  {(Array.isArray(v.ings) ? v.ings : []).map((ing, ii) => (
-                    <View key={ii} style={styles.ingCard}>
-                      <View style={styles.ingCardHead}>
-                        <Text style={styles.ingName} numberOfLines={1}>{ing.name}</Text>
-                        <Pressable onPress={() => removeIng(vi, ii)} hitSlop={10}>
-                          <Text style={{ color: colors.muted, fontSize: 16 }}>✕</Text>
+                  )) : (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                      {vars.map((v, vi) => (
+                        <Pressable key={vi} style={[styles.segItem, { width: 120 }, selIdx === vi && styles.segItemOn]} onPress={() => setSelVar(vi)}>
+                          <Text style={[styles.segTxt, selIdx === vi && styles.segTxtOn]} numberOfLines={1}>{segLabel(v, vi)}</Text>
+                        </Pressable>
+                      ))}
+                    </ScrollView>
+                  )}
+                </View>
+                {editSizes && (
+                  <View style={{ marginBottom: 12 }}>
+                    {vars.map((v, vi) => (
+                      <View key={vi} style={styles.szRow}>
+                        <TextInput style={styles.szInput} color={colors.text} value={v.label}
+                          onChangeText={val => setVarField(vi, 'label', val)}
+                          placeholder="Название размера" placeholderTextColor={colors.muted} />
+                        <Text style={styles.szPrice}>{v.price ? `${fmt(parseFloat(v.price) || 0)} ₽` : '—'}</Text>
+                        <Pressable style={[styles.szRm, vars.length <= 1 && { opacity: 0.25 }]} disabled={vars.length <= 1} onPress={() => removeVariantAt(vi)} hitSlop={8}>
+                          <Icon name="x" size={16} color={colors.muted} />
                         </Pressable>
                       </View>
-                      {v.deduction_mode !== 'variable' && (
-                      <View style={styles.ingFieldRow}>
-                        <Text style={styles.ingFieldLabel}>Расход на 1 продажу</Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <TextInput style={styles.ingInput} color={colors.text}
-                            keyboardType="numeric" value={ing.amount}
-                            onChangeText={val => setIngField(vi, ii, 'amount', val)}
-                            placeholder="0" placeholderTextColor={colors.muted} />
-                          <Text style={styles.ingUnit}>{ing.unit}</Text>
-                        </View>
-                      </View>
-                      )}
-                    </View>
-                  ))}
-                  {vars.length > 1 && !(Array.isArray(v.ings) ? v.ings : []).some(ing => isPackaging(ing.name)) && (
-                    <Text style={styles.packagingHint}>
-                      ⚠️ Стакан и крышка для этого размера ещё не выбраны — добавьте нужные со склада ниже
-                    </Text>
-                  )}
-                  <Pressable style={styles.addIngBtn} onPress={() => { setIngPickerVar(vi); onIngPicker?.(vi, (s) => addIng(vi, s)); }}>
-                    <Text style={styles.addIngTxt}>+ Добавить со склада</Text>
-                  </Pressable>
-                </View>
-              )}
-            </View>
-            </SwipeableRow>
-          );
-        })}
+                    ))}
+                    <Pressable style={styles.szAdd} onPress={addVariantSmart}>
+                      <Icon name="plus" size={16} color={colors.orangeLight} /><Text style={styles.szAddTxt}>Добавить размер</Text>
+                    </Pressable>
+                  </View>
+                )}
+              </>
+            ) : (
+              <View style={styles.oneRow}>
+                <Text style={styles.oneTxt}>Этот товар продаётся одним вариантом</Text>
+                <Pressable onPress={addVariantSmart} hitSlop={8}><Text style={styles.szLink}>+ Размер</Text></Pressable>
+              </View>
+            )}
 
-        <Pressable style={styles.addVarBtnBig} onPress={addVariant}>
-          <Text style={styles.addVarBtnBigTxt}>+ Добавить размер</Text>
-        </Pressable>
-        {priceHighlight.overlay}
+            <Text style={[styles.fieldLabel, { marginTop: 4 }]}>Цена</Text>
+            <View style={styles.priceBox}>
+              <TextInput style={styles.priceBoxInput} color={colors.text} keyboardType="numeric"
+                value={vars[selIdx]?.price || ''} onChangeText={val => setVarField(selIdx, 'price', val.replace(',', '.'))}
+                placeholder="0" placeholderTextColor={colors.muted} />
+              <Text style={styles.varCurrency}>₽</Text>
+            </View>
+
+            {/* Единица продажи — аккордеон: определяет, как считается продажа и списание */}
+            {(() => {
+              const unitValue = vars[0]?.unit || 'шт';
+              const piece = ['шт', 'порция', 'упаковка'].includes(unitValue);
+              return (
+                <View style={styles.acc}>
+                  <Pressable style={styles.accHead} onPress={() => { animateLayout(); setUnitOpen(o => !o); }}>
+                    <Text style={styles.accTitle}>Единица продажи</Text>
+                    <Text style={styles.accVal}>{unitValue}</Text>
+                    <Text style={[styles.accChev, unitOpen && { transform: [{ rotate: '90deg' }] }]}>›</Text>
+                  </Pressable>
+                  {unitOpen && (
+                    <View>
+                      {[{ t: 'Штучно', u: ['шт', 'порция', 'упаковка'] }, { t: 'Объём', u: ['мл', 'л'] }, { t: 'Вес', u: ['г', 'кг'] }].map(g => (
+                        <View key={g.t}>
+                          <Text style={styles.accGrp}>{g.t}</Text>
+                          {g.u.map(u => (
+                            <Pressable key={u} style={[styles.accRow, unitValue === u && styles.accRowOn]} onPress={() => { setAllUnit(u); setOtherUnit(false); }}>
+                              <Text style={styles.accRowTxt}>{u}</Text>
+                              {unitValue === u && <Icon name="check" size={18} color={colors.orange} />}
+                            </Pressable>
+                          ))}
+                        </View>
+                      ))}
+                      <Pressable style={styles.accRow} onPress={() => { animateLayout(); setOtherUnit(o => !o); }}>
+                        <Text style={styles.accRowTxt}>Другая единица…</Text>
+                      </Pressable>
+                      {otherUnit && <View style={{ paddingHorizontal: 16, paddingBottom: 10 }}><UnitPicker value={unitValue} onChange={setAllUnit} /></View>}
+                      <Text style={styles.accHint}>
+                        {piece ? `Одна продажа = 1 ${unitValue}. Расход материалов задаётся в техкарте на эту единицу.`
+                               : `Продажа считается в «${unitValue}»: количество указывается при продаже, материалы списываются пропорционально.`}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              );
+            })()}
+          </View>
+          {priceHighlight.overlay}
         </View>
+
+        {/* СЕКЦИЯ: Техкарта — расход материалов выбранного размера */}
+        <Text style={styles.sectionTitle}>Техкарта{nVars > 1 ? ` · ${segLabel(vars[selIdx], selIdx)}` : ''}</Text>
+        {canEditCost ? (() => {
+          const v = vars[selIdx] || vars[0];
+          const vi = selIdx;
+          const ingsArr = Array.isArray(v?.ings) ? v.ings : [];
+          const variable = v?.deduction_mode === 'variable';
+          return (
+            <View style={styles.sectionCard}>
+              <View style={styles.modeSeg}>
+                <Pressable style={[styles.modeSegBtn, !variable && styles.modeSegBtnOn]} onPress={() => setAllMode('fixed')}>
+                  <Text style={[styles.modeSegTxt, !variable && styles.modeSegTxtOn]}>Фиксированный расход</Text>
+                </Pressable>
+                <Pressable style={[styles.modeSegBtn, variable && styles.modeSegBtnOn]} onPress={() => setAllMode('variable')}>
+                  <Text style={[styles.modeSegTxt, variable && styles.modeSegTxtOn]}>Расход по факту</Text>
+                </Pressable>
+              </View>
+              <Text style={styles.ingListHint}>
+                {variable
+                  ? 'Количество каждого материала вводится заново при каждой продаже на Кассе — цена и списание считаются по факту. Реальный расход попадёт в отчёты.'
+                  : 'Сколько расходуется на одну продажу этого размера — при каждом заказе именно столько спишется со склада.'}
+              </Text>
+              {ingsArr.map((ing, ii) => {
+                const rowCost = (parseFloat(ing.amount) || 0) * (parseFloat(ing.price_per_unit) || 0) * (parseFloat(ing.factor) || 1);
+                return (
+                  <View key={ii} style={styles.ingRow2}>
+                    <Text style={styles.ingName2} numberOfLines={1}>{ing.name}</Text>
+                    {!variable && (
+                      <>
+                        <TextInput style={styles.ingInput2} color={colors.text} keyboardType="numeric" value={ing.amount}
+                          onChangeText={val => setIngField(vi, ii, 'amount', val.replace(',', '.'))} placeholder="0" placeholderTextColor={colors.muted} />
+                        <Text style={styles.ingUnit2}>{ing.unit}</Text>
+                        <Text style={styles.ingCost2}>{rowCost > 0 ? `${rowCost < 10 ? rowCost.toFixed(1).replace('.', ',') : fmt(Math.round(rowCost))} ₽` : ''}</Text>
+                      </>
+                    )}
+                    <Pressable onPress={() => removeIng(vi, ii)} hitSlop={10} style={{ marginLeft: 8 }}><Icon name="x" size={16} color={colors.muted} /></Pressable>
+                  </View>
+                );
+              })}
+              {nVars > 1 && !variable && !ingsArr.some(ing => isPackaging(ing.name)) && (
+                <Text style={styles.packagingHint}>Стакан и крышка для этого размера ещё не выбраны — добавьте нужные со склада, чтобы не списывалась упаковка от другого размера.</Text>
+              )}
+              <Pressable style={styles.addIngBtn} onPress={() => { setIngPickerVar(vi); onIngPicker?.(vi, (st) => addIng(vi, st)); }}>
+                <Text style={styles.addIngTxt}>+ Добавить со склада</Text>
+              </Pressable>
+            </View>
+          );
+        })() : (
+          <View style={styles.sectionCard}><Text style={styles.ingListHint}>Техкарта: нет доступа.</Text></View>
+        )}
 
         {/* СЕКЦИЯ: Опции (модификаторы) */}
         {modifiersEnabled && (
@@ -718,36 +805,55 @@ export default function ProductsScreen({ navigation, route }) {
   };
 
   const handleSave = (data) => {
+    const vs = data.vars || [];
+    const multi = vs.length > 1;
+    // Проверки до записи: цена обязательна (раньше можно было сохранить товар с ценой 0 — он продавался бы бесплатно);
+    // у размеров должны быть разные названия (пустые получают «Размер N»)
+    const labels = vs.map((v, i) => (v.label || '').trim() || (multi ? `Размер ${i + 1}` : ''));
+    for (let i = 0; i < vs.length; i++) {
+      if (vs[i].deduction_mode !== 'variable' && !(parseFloat(vs[i].price) > 0)) {
+        Alert.alert('Укажите цену', multi ? `Для размера «${labels[i]}» не указана цена.` : 'Не указана цена товара.');
+        return;
+      }
+    }
+    const dup = labels.find((l, i) => l && labels.indexOf(l) !== i);
+    if (dup) { Alert.alert('Одинаковые названия', `Размер «${dup}» указан дважды.`); return; }
+    // Цена товара в списке — наименьшая из размеров («от 200 ₽»); раньше бралась цена первого варианта
+    const prices = vs.map(v => parseFloat(v.price) || 0).filter(x => x > 0);
+    const listPrice = prices.length > 0 ? Math.min(...prices) : 0;
+    const db = getDb();
     try {
+      // Товар, размеры, техкарты и модификаторы — одной транзакцией: сбой посередине не оставит «полутовар»
+      db.execSync('BEGIN');
       let pid = selected?.id;
       if (!pid) {
-        pid = insertProduct({ name: data.name, category: data.category, price: parseFloat(data.vars[0]?.price)||0, active: 1 });
-        const db0 = getDb();
-        db0.runSync(`UPDATE products SET discount_eligible=? WHERE id=?`, [data.discountEligible ? 1 : 0, pid]);
+        pid = insertProduct({ name: data.name, category: data.category, price: listPrice, active: 1 });
+        db.runSync(`UPDATE products SET discount_eligible=? WHERE id=?`, [data.discountEligible ? 1 : 0, pid]);
       } else {
-        const db = getDb();
-        db.runSync(`UPDATE products SET name=?, category=?, active=?, price=?, discount_eligible=? WHERE id=?`, [data.name, data.category, data.active ? 1 : 0, parseFloat(data.vars[0]?.price)||0, data.discountEligible ? 1 : 0, pid]);
+        db.runSync(`UPDATE products SET name=?, category=?, active=?, price=?, discount_eligible=? WHERE id=?`, [data.name, data.category, data.active ? 1 : 0, listPrice, data.discountEligible ? 1 : 0, pid]);
       }
-      upsertProductVariants(pid, data.vars.map(v => ({ id: v.id, label: v.label, size: v.label, price: parseFloat(v.price)||0, deduction_mode: v.deduction_mode === 'variable' ? 'variable' : 'fixed', unit: v.unit || 'шт' })));
-      // Техкарты
-      const newVars = getProductVariants(pid);
-      newVars.forEach((v, i) => {
-        const ings = Array.isArray(data.vars[i]?.ings) ? data.vars[i].ings : [];
-        saveCostCardForVariant(v.id, ings.map(ing => ({
-
-          name: ing.name || '',
-          amount: parseFloat(ing.amount)||0,
-          unit: ing.unit || '',
-          pricePerUnit: parseFloat(ing.price_per_unit)||0,
-          factor: 1,
+      const saved = upsertProductVariants(pid, vs.map((v, i) => ({
+        id: v.id, label: labels[i], size: labels[i], price: parseFloat(v.price) || 0,
+        deduction_mode: v.deduction_mode === 'variable' ? 'variable' : 'fixed', unit: v.unit || 'шт',
+      })));
+      // Техкарты — по результату записи (идентификаторы в том же порядке, что и размеры), а не по повторной выборке из базы
+      saved.forEach((sv, i) => {
+        const ings = Array.isArray(vs[i]?.ings) ? vs[i].ings : [];
+        saveCostCardForVariant(sv.id, ings.map(ing => ({
+          name: ing.name || '', amount: parseFloat(ing.amount) || 0, unit: ing.unit || '',
+          pricePerUnit: parseFloat(ing.price_per_unit) || 0, factor: 1,
         })));
       });
-      // Модификаторы
       setProductModifierGroups(pid, data.selGroups || []);
+      db.execSync('COMMIT');
       setSelected(null);
       load();
       emit('productsChanged');
-    } catch(e) { console.error('[handleSave ERROR]', e.message, e.stack?.split('\n')[1]); Alert.alert('Ошибка', e.message); }
+    } catch (e) {
+      try { db.execSync('ROLLBACK'); } catch (_) {}
+      console.error('[handleSave ERROR]', e.message, e.stack?.split('\n')[1]);
+      Alert.alert('Ошибка', 'Товар не сохранён: ' + e.message);
+    }
   };
 
   const handleDelete = (id) => {
@@ -850,10 +956,10 @@ export default function ProductsScreen({ navigation, route }) {
                   </Pressable>
                 )}
                 <Pressable onPress={() => setCatModal(true)} hitSlop={8} style={styles.catBtn}>
-                  <Text style={styles.catBtnText}>⚙</Text>
+                  <Icon name="gear" size={18} color={colors.textDim} />
                 </Pressable>
                 <Pressable onPress={openCategoryMgmt} hitSlop={8} style={styles.catBtn} accessibilityLabel="Категории" accessibilityRole="button">
-                  <Text style={styles.catBtnText}>🏷</Text>
+                  <Icon name="tag" size={18} color={colors.textDim} />
                 </Pressable>
                 {listSearchHighlight.overlay}
               </View>
@@ -896,8 +1002,9 @@ export default function ProductsScreen({ navigation, route }) {
                                   {isActive && <View style={styles.activeBar} />}
                                   <View style={{ flex: 1 }}>
                                     <Text style={[styles.productName, isActive && styles.productNameActive]} numberOfLines={1}>{p.name}</Text>
+                                    {p.variant_count > 1 && <Text style={styles.productSub}>{p.variant_count} {p.variant_count < 5 ? 'размера' : 'размеров'}</Text>}
                                   </View>
-                                  <Text style={styles.productPrice}>{fmt(p.price)} ₽</Text>
+                                  <Text style={styles.productPrice}>{p.variant_count > 1 ? 'от ' : ''}{fmt(p.min_price || p.price)} ₽</Text>
                                   {!p.active && <Text style={styles.inactiveDot}>●</Text>}
                                   <Text style={styles.rowArrow}>›</Text>
                                 </Pressable>
@@ -1797,4 +1904,48 @@ const styles = StyleSheet.create({
   modalTitle:    { fontFamily: fonts.family, fontSize: 20, color: colors.text, flex: 1 },
   closeBtn:      { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   closeTxt:      { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
+  // ── Новый вид карточки товара ──
+  kpiRow:      { flexDirection: 'row', gap: 12, marginBottom: 8 },
+  kpiLbl:      { fontFamily: fonts.familySemibold, fontSize: 12, letterSpacing: 1.1, textTransform: 'uppercase', color: colors.textDim },
+  kpiVal:      { fontFamily: fonts.display, fontSize: 24, color: colors.text, marginTop: 6, letterSpacing: -0.3 },
+  szHead:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  szLbl:       { fontFamily: fonts.familySemibold, fontSize: 12, letterSpacing: 1.1, textTransform: 'uppercase', color: colors.muted },
+  szLink:      { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orangeLight },
+  segx:        { flexDirection: 'row', padding: 4, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', marginBottom: 14, position: 'relative' },
+  segThumb:    { position: 'absolute', top: 4, bottom: 4, left: 4, borderRadius: 11, backgroundColor: 'rgba(150,172,204,0.30)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' },
+  segItem:     { flex: 1, height: 46, alignItems: 'center', justifyContent: 'center', borderRadius: 11 },
+  segItemOn:   { backgroundColor: 'rgba(150,172,204,0.30)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' },
+  segTxt:      { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.textDim, paddingHorizontal: 6 },
+  segTxtOn:    { color: colors.text },
+  szRow:       { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)' },
+  szInput:     { flex: 1, minWidth: 0, height: 40, borderRadius: 10, paddingHorizontal: 12, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', color: colors.text, fontFamily: fonts.familySemibold, fontSize: 15 },
+  szPrice:     { width: 90, textAlign: 'right', fontFamily: fonts.familyMedium, fontSize: 14, color: colors.textDim },
+  szRm:        { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  szAdd:       { flexDirection: 'row', alignItems: 'center', gap: 6, height: 40, marginTop: 4 },
+  szAddTxt:    { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orangeLight },
+  oneRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', marginBottom: 14 },
+  oneTxt:      { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.textDim, flex: 1, marginRight: 10 },
+  priceBox:    { flexDirection: 'row', alignItems: 'center', height: 46, borderRadius: 12, paddingHorizontal: 14, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
+  priceBoxInput:{ flex: 1, padding: 0, color: colors.text, fontFamily: fonts.familySemibold, fontSize: 16 },
+  acc:         { borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', marginTop: 12, overflow: 'hidden' },
+  accHead:     { flexDirection: 'row', alignItems: 'center', height: 54, paddingHorizontal: 16 },
+  accTitle:    { flex: 1, fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
+  accVal:      { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.orangeLight, marginRight: 12 },
+  accChev:     { fontSize: 20, color: colors.muted },
+  accGrp:      { fontFamily: fonts.familySemibold, fontSize: 12, letterSpacing: 1.1, textTransform: 'uppercase', color: colors.muted, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
+  accRow:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 44, paddingHorizontal: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)' },
+  accRowOn:    { backgroundColor: 'rgba(127,168,217,0.08)' },
+  accRowTxt:   { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
+  accHint:     { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, lineHeight: 19, padding: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)' },
+  modeSeg:     { flexDirection: 'row', height: 44, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', overflow: 'hidden', marginBottom: 10 },
+  modeSegBtn:  { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  modeSegBtnOn:{ backgroundColor: 'rgba(127,168,217,0.2)' },
+  modeSegTxt:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
+  modeSegTxtOn:{ color: colors.orangeLight },
+  ingRow2:     { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)' },
+  ingName2:    { flex: 1, fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
+  ingInput2:   { width: 80, height: 38, borderRadius: 10, textAlign: 'right', paddingHorizontal: 10, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', color: colors.text, fontFamily: fonts.familySemibold, fontSize: 15 },
+  ingUnit2:    { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginLeft: 6, width: 38 },
+  ingCost2:    { width: 64, textAlign: 'right', fontFamily: fonts.familyMedium, fontSize: 13, color: colors.textDim },
+  productSub:  { fontFamily: fonts.familyMedium, fontSize: 12, color: colors.muted, marginTop: 2 },
 });
