@@ -7,7 +7,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { getHomeRoute, goBackSmart, getCurrentLocationId, can, getSession } from '../db/session';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
-  FlatList, Modal, ActivityIndicator, TextInput, Alert, Animated,
+  FlatList, Modal, ActivityIndicator, TextInput, Alert, Animated, LayoutAnimation,
 } from 'react-native';
 import MetalButton from '../components/MetalButton';
 import Icon from '../components/Icon';
@@ -18,6 +18,9 @@ import { matchesClientQuery } from '../utils/phone';
 import { maxSpendablePoints } from '../utils/points';
 import PointsSpendPanel from '../components/PointsSpendPanel';
 import PaymentModal from '../components/PaymentModal';
+import GlassSurface from '../components/GlassSurface';
+import AnimatedNumber from '../components/AnimatedNumber';
+import { useReduceMotion } from '../hooks/useReduceMotion';
 import WelcomeBonusBlock from '../components/WelcomeBonusBlock';
 import { syncLoyaltySignups } from '../db/loyaltySync';
 import { getAllProducts, getAllClients, getCategories, getCategoryOrder, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, getAllVariantsWithSku, getZones, getOrderTemplates, saveOrderTemplate, deleteOrderTemplate, applyPendingPriceSchedules, finalizeSale, getOpenShift, getClientById, getWelcomeBonusInfo, getBusinessProfile, getTerms, getLoyaltyConfig, checkSubscriptionBalance, getCostCardForVariant, getAllStock, markTourSeen, setClientDiscountPct, addClientBalance } from '../db/queries';
@@ -27,9 +30,29 @@ import TourGuide from '../components/TourGuide';
 import { useTourHighlight } from '../components/TourRegistry';
 import { useResponsive } from '../hooks/useResponsive';
 import { cartStore } from '../db/cartStore';
-import { colors, fonts, spacing, anim } from '../constants/theme';
+import { colors, fonts, spacing, anim, glass } from '../constants/theme';
 import FitView from '../components/FitView';
 import KeyboardSafe from '../components/KeyboardSafe';
+
+// Счётчик на плитке товара: при изменении количества «пульсирует» (1 → 1,28 → 1 за 0,28 с)
+function CartBadge({ qty }) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const prev = useRef(qty);
+  useEffect(() => {
+    if (qty === prev.current) return;
+    prev.current = qty;
+    scale.setValue(1);
+    Animated.sequence([
+      Animated.timing(scale, { toValue: 1.28, duration: 110, useNativeDriver: true }),
+      Animated.timing(scale, { toValue: 1, duration: 170, useNativeDriver: true }),
+    ]).start();
+  }, [qty]);
+  return (
+    <Animated.View style={[styles.cartBadge, { transform: [{ scale }] }]}>
+      <Text style={styles.cartBadgeText}>{qty}</Text>
+    </Animated.View>
+  );
+}
 
 export default function KassaScreen({ navigation, route }) {
   const loading2 = false; // placeholder
@@ -384,7 +407,12 @@ export default function KassaScreen({ navigation, route }) {
   // строки — кроме позиций с переменным расходом (расход по факту): у них
   // каждое добавление может иметь разные введённые количества ингредиентов,
   // объединять такие позиции в одну строку нельзя.
+  // Плавная перестройка корзины при добавлении/изменении/удалении строк (не при «уменьшении движения»)
+  const reduceMotion = useReduceMotion();
+  const animateCart = () => { if (!reduceMotion) LayoutAnimation.configureNext(LayoutAnimation.create(220, 'easeInEaseOut', 'opacity')); };
+
   const addToCart = (newItem) => {
+    animateCart();
     const addQty = newItem.quantity || 1;
     setOrder(prev => {
       const dupIdx = newItem.variableDeductions ? -1 : prev.findIndex(it =>
@@ -401,6 +429,7 @@ export default function KassaScreen({ navigation, route }) {
 
   // Изменяет количество позиции в корзине (удаляет если <= 0)
   const setItemQty = (id, qty) => {
+    animateCart();
     if (qty <= 0) {
       setOrder(prev => prev.filter(i => i.id !== id));
       if (expandedCartId === id) setExpandedCartId(null);
@@ -649,6 +678,7 @@ export default function KassaScreen({ navigation, route }) {
   };
 
   const removeFromOrder = (id) => {
+    animateCart();
     setOrder(prev => prev.filter(i => i.id !== id));
     if (expandedCartId === id) setExpandedCartId(null);
   };
@@ -846,7 +876,7 @@ export default function KassaScreen({ navigation, route }) {
               </Pressable>
               {zones.map(z => (
                 <Pressable key={z.id} style={[styles.zoneChip, activeZone?.id === z.id && styles.zoneChipActive]} onPress={() => setActiveZone(z)}>
-                  <Text style={[styles.zoneChipText, activeZone?.id === z.id && styles.zoneChipTextActive]}>📍 {z.name}</Text>
+                  <Text style={[styles.zoneChipText, activeZone?.id === z.id && styles.zoneChipTextActive]}>{z.name}</Text>
                 </Pressable>
               ))}
             </ScrollView>
@@ -886,8 +916,8 @@ export default function KassaScreen({ navigation, route }) {
                   onLeftAction={() => setItemNoteModal({ id: item.id, note: item.note || '' })}
                   leftLabel={item.note ? 'Заметка' : '+ Заметка'}
                   leftColor={colors.indigo}
-                  style={{ marginHorizontal: 10, marginBottom: 6 }}
-                  radius={12}
+                  style={{ marginHorizontal: 12, marginBottom: 0 }}
+                  radius={0}
                 >
                   <Pressable
                     style={({ pressed }) => [styles.v2Item, pressed && { opacity: 0.85 }]}
@@ -895,7 +925,6 @@ export default function KassaScreen({ navigation, route }) {
                     onLongPress={() => setItemNoteModal({ id: item.id, note: item.note || '' })}
                     delayLongPress={280}
                   >
-                    <View style={styles.v2ItemAccentBar} />
                     {/* Строка: название · − qty + · цена */}
                     <View style={styles.v2ItemRow}>
                       <View style={{ flex: 1 }}>
@@ -1003,14 +1032,32 @@ export default function KassaScreen({ navigation, route }) {
               )}
             </View>
 
-            {/* Итого */}
-            <View style={[styles.v2Total, { position: 'relative' }, cartActionsHighlight.style]}>
-              <Text style={styles.v2TotalLabel}>
-                {`${order.reduce((s,i)=>s+(i.quantity||1),0)} поз.`}
-              </Text>
-              <Text style={styles.v2TotalAmt}>{`${total} ₽`}</Text>
-              {cartActionsHighlight.overlay}
-            </View>
+            {/* Итог и оплата — стеклянная плитка (как плитки «Обзора»): суммы, крупный итог, кнопка */}
+            <GlassSurface radius={glass.radius.tile} padding={16} style={{ position: 'relative' }}>
+              {(discountAmount > 0 || pointsDiscount > 0) && (
+                <>
+                  <View style={styles.sumRow}><Text style={styles.sumLbl}>Сумма</Text><Text style={styles.sumVal}>{rawTotal} ₽</Text></View>
+                  <View style={styles.sumRow}>
+                    <Text style={styles.sumLbl} numberOfLines={1}>{effectiveDiscount?.name || (pointsDiscount > 0 ? 'Скидка баллами' : 'Скидка')}</Text>
+                    <Text style={[styles.sumVal, { color: colors.green }]}>−{discountAmount + pointsDiscount} ₽</Text>
+                  </View>
+                </>
+              )}
+              <View style={styles.totRow}>
+                <Text style={styles.totLbl}>{`К оплате · ${order.reduce((s2, i) => s2 + (i.quantity || 1), 0)} поз.`}</Text>
+                <AnimatedNumber value={total} style={styles.totVal} />
+              </View>
+              <Pressable
+                style={({ pressed }) => [styles.v2Pay, order.length === 0 && styles.v2PayOff, pressed && order.length > 0 && { transform: [{ scale: 0.98 }] }, { position: 'relative' }, payBtnHighlight.style]}
+                onPress={() => order.length > 0 && openPrePay()}
+                disabled={order.length === 0}
+              >
+                <Text style={styles.v2PayTxt}>
+                  {order.length === 0 ? 'Выберите товар' : `Оплатить ${total} ₽`}
+                </Text>
+                {payBtnHighlight.overlay}
+              </Pressable>
+            </GlassSurface>
 
             {/* Иконки-действия */}
             <View style={[styles.v2Acts, { position: 'relative' }, cartActionsHighlight.style]}>
@@ -1043,17 +1090,6 @@ export default function KassaScreen({ navigation, route }) {
               {cartActionsHighlight.overlay}
             </View>
 
-            {/* Оплатить */}
-            <Pressable
-              style={({pressed})=>[styles.v2Pay, order.length===0 && styles.v2PayOff, pressed && order.length>0 && {opacity:0.88}, { position: 'relative' }, payBtnHighlight.style]}
-              onPress={()=>order.length>0 && openPrePay()}
-              disabled={order.length===0}
-            >
-              <Text style={styles.v2PayTxt}>
-                {order.length===0 ? 'Выберите товар' : `К оплате  ${total} ₽`}
-              </Text>
-              {payBtnHighlight.overlay}
-            </Pressable>
 
           </View>
         
@@ -1125,14 +1161,17 @@ export default function KassaScreen({ navigation, route }) {
         {/* ── Центр: поиск + сетка товаров ── */}
         <View style={[styles.left, { position: 'relative' }, productGridHighlight.style]}>
           <View style={styles.searchWrap}>
-            <TextInput
-              style={styles.searchInput}
-              value={searchQuery}
-              onChangeText={v => { setSearchQuery(v); }}
-              placeholder="Поиск..."
-              placeholderTextColor={colors.muted}
-              clearButtonMode="while-editing"
-            />
+            <View style={styles.searchBox}>
+              <Icon name="search" size={20} color={colors.muted} />
+              <TextInput
+                style={styles.searchInput}
+                value={searchQuery}
+                onChangeText={v => { setSearchQuery(v); }}
+                placeholder="Поиск товара"
+                placeholderTextColor={colors.muted}
+                clearButtonMode="while-editing"
+              />
+            </View>
           </View>
           <Animated.ScrollView contentContainerStyle={styles.menuGrid} style={{ opacity: gridFadeAnim }}>
             {filteredProducts.map((item) => {
@@ -1148,11 +1187,7 @@ export default function KassaScreen({ navigation, route }) {
                   ]}
                   onPress={() => openModal(item)}
                 >
-                  {cartQty > 0 && (
-                    <View style={styles.cartBadge}>
-                      <Text style={styles.cartBadgeText}>{cartQty}</Text>
-                    </View>
-                  )}
+                  {cartQty > 0 && <CartBadge qty={cartQty} />}
                   <Text style={styles.menuItemName}>{item.name}</Text>
                   {price > 0
                     ? <Text style={styles.menuItemPrice}>{hasRange ? `от ${price}` : price} ₽</Text>
@@ -1838,13 +1873,13 @@ const styles = StyleSheet.create({
   layout: { flex: 1, flexDirection: 'row' },
 
   /* ── Категории (вертикальный рейл) ── */
-  catRail:          { width: 88, backgroundColor: colors.surface, borderRightWidth: 1, borderRightColor: colors.border, paddingVertical: 10 },
-  catRailItem:      { alignItems: 'center', justifyContent: 'center', minHeight: 64, paddingVertical: 12, paddingHorizontal: 8, position: 'relative' },
-  catRailItemActive:{ backgroundColor: 'rgba(127,168,217,0.08)' },
-  catRailLabel:     { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textAlign: 'center', lineHeight: 15 },
-  catRailLabelActive:{ color: colors.orange },
-  catRailBar:       { position: 'absolute', left: 0, top: '22%', bottom: '22%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
-  left: { flex: 1, backgroundColor: colors.bg, marginHorizontal: 2 },
+  catRail:          { width: 128, backgroundColor: 'transparent', paddingTop: 12, paddingLeft: 12, paddingRight: 8 },
+  catRailItem:      { justifyContent: 'center', minHeight: 46, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, marginBottom: 4, position: 'relative' },
+  catRailItemActive:{ backgroundColor: 'rgba(127,168,217,0.16)' },
+  catRailLabel:     { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim, lineHeight: 18 },
+  catRailLabelActive:{ color: colors.orangeLight },
+  catRailBar:       { position: 'absolute', left: -8, top: 12, bottom: 12, width: 3, borderRadius: 2, backgroundColor: colors.orange },
+  left: { flex: 1, backgroundColor: 'transparent', marginHorizontal: 2 },
   catList: { paddingHorizontal: 10, paddingVertical: 6 },
   catBtn: { height: 34, paddingHorizontal: 14, borderRadius: 17, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'transparent', flexDirection: 'row', alignItems: 'center', gap: 5, marginRight: 6 },
   catBtnActive: { borderColor: 'rgba(127,168,217,0.7)', backgroundColor: 'rgba(127,168,217,0.12)' },
@@ -1852,13 +1887,13 @@ const styles = StyleSheet.create({
   catIcon: { fontSize: 14 },
   catLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, letterSpacing: 0.5 },
   catLabelActive: { color: colors.orange },
-  menuGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, padding: 12, alignContent: 'flex-start' },
-  menuItem: { width: '31%', minWidth: 112, minHeight: 84, paddingVertical: 16, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', position: 'relative', gap: 6 },
-  menuItemPressed: { opacity: 0.8 },
-  menuItemInCart: { borderColor: 'rgba(127,168,217,0.55)', backgroundColor: 'rgba(127,168,217,0.08)' },
-  menuItemName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, textAlign: 'center', letterSpacing: 0.2, lineHeight: 18 },
-  menuItemPrice: { fontFamily: fonts.family, fontSize: 14, color: colors.orangeLight, textAlign: 'center' },
-  menuItemPriceNone: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'center', fontStyle: 'italic' },
+  menuGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, padding: 12, alignContent: 'flex-start' },
+  menuItem: { width: '31%', minWidth: 120, minHeight: 104, padding: 16, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', backgroundColor: colors.surface, alignItems: 'flex-start', justifyContent: 'space-between', position: 'relative' },
+  menuItemPressed: { transform: [{ scale: 0.97 }] },
+  menuItemInCart: { borderColor: 'rgba(157,191,230,0.5)', backgroundColor: 'rgba(127,168,217,0.10)' },
+  menuItemName: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text, textAlign: 'left', lineHeight: 20 },
+  menuItemPrice: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.orangeLight, textAlign: 'left' },
+  menuItemPriceNone: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'left', fontStyle: 'italic' },
   prePaySummary: { padding: 12, backgroundColor: colors.surface, borderRadius: 12, marginBottom: 16, borderWidth: 1, borderColor: colors.border },
   prePaySummaryTitle: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, marginBottom: 6 },
   prePaySummaryItem: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginBottom: 2 },
@@ -2008,10 +2043,11 @@ const styles = StyleSheet.create({
   noteModalBtnPrimaryText: { fontFamily: fonts.family, fontSize: 14, color: colors.onAccent },
   noteModalBtnSecondary: { paddingVertical: 14, paddingHorizontal: 18, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(219,129,120,0.4)', alignItems: 'center' },
   noteModalBtnSecondaryText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.redLight },
-  cartBadge: { position: 'absolute', top: -6, right: -6, minWidth: 20, height: 20, borderRadius: 10, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center', zIndex: 1, paddingHorizontal: 4 },
-  cartBadgeText: { fontFamily: fonts.familySemibold, fontSize: 12, color: '#000' },
-  searchWrap: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 6 },
-  searchInput: { padding: 13, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 14, color: colors.text, fontSize: 16, fontFamily: fonts.family },
+  cartBadge: { position: 'absolute', top: -7, right: -7, minWidth: 26, height: 26, borderRadius: 13, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center', zIndex: 1, paddingHorizontal: 7 },
+  cartBadgeText: { fontFamily: fonts.family, fontSize: 14, color: colors.onAccent },
+  searchWrap: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 8 },
+  searchBox: { flexDirection: 'row', alignItems: 'center', gap: 10, height: 48, borderRadius: 14, paddingHorizontal: 16, backgroundColor: colors.surface, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' },
+  searchInput: { flex: 1, padding: 0, color: colors.text, fontSize: 16, fontFamily: fonts.familyRegular },
   orderNotePreview: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.indigo, paddingHorizontal: 14, paddingBottom: 4, fontStyle: 'italic' },
   orderHeaderBtn: { paddingVertical: 8, paddingHorizontal: 13, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: colors.surface },
   orderHeaderBtnActive: { borderColor: 'rgba(127,168,217,0.5)', backgroundColor: 'rgba(127,168,217,0.1)' },
@@ -2087,25 +2123,25 @@ const styles = StyleSheet.create({
   v2EmptyIcon:  { fontSize: 36 },
   v2EmptyText:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   v2ListWrap:   { paddingTop: 6, paddingBottom: 8 },
-  v2Item:       { paddingVertical: 12, paddingHorizontal: 14, paddingLeft: 17, backgroundColor: colors.surface2, borderRadius: 12, position: 'relative', overflow: 'hidden' },
+  v2Item:       { paddingVertical: 12, paddingHorizontal: 4, backgroundColor: 'transparent', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.07)', position: 'relative' },
   v2ItemAccentBar: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: colors.orange },
   v2ItemRow:    { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  v2ItemName:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, flex: 1, lineHeight: 18 },
+  v2ItemName:   { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text, flex: 1, lineHeight: 20 },
   v2ItemDiscount: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.orange, marginTop: 2 },
   v2Qty:        { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  v2QtyBtn:     { width: 26, height: 26, borderRadius: 8, backgroundColor: 'rgba(127,168,217,0.12)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.3)', alignItems: 'center', justifyContent: 'center' },
-  v2QtyBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.orange, lineHeight: 20 },
-  v2QtyVal:     { fontFamily: fonts.family, fontSize: 16, color: colors.text, minWidth: 18, textAlign: 'center' },
-  v2ItemPrice:  { fontFamily: fonts.family, fontSize: 16, color: colors.orange, minWidth: 58, textAlign: 'right' },
+  v2QtyBtn:     { width: 32, height: 32, borderRadius: 10, backgroundColor: colors.surface3, alignItems: 'center', justifyContent: 'center' },
+  v2QtyBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 18, color: colors.textDim, lineHeight: 22 },
+  v2QtyVal:     { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text, minWidth: 22, textAlign: 'center' },
+  v2ItemPrice:  { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text, minWidth: 64, textAlign: 'right' },
   v2Mods:       { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 5, marginLeft: 0 },
   v2Mod:        { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
   v2Note:       { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.textDim, marginTop: 3 },
-  v2Footer:     { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14, gap: 10 },
+  v2Footer:     { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 14, gap: 10 },
   v2ClientDiscountRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
   v2ClientDiscountBtn: { minHeight: 54 },
-  v2Client:     { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, paddingVertical: 12, paddingHorizontal: 12 },
-  v2ClientFilled: { backgroundColor: 'rgba(127,168,217,0.1)', borderColor: colors.orange },
-  v2ClientFilledName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
+  v2Client:     { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', paddingVertical: 12, paddingHorizontal: 12 },
+  v2ClientFilled: { backgroundColor: 'rgba(127,168,217,0.12)', borderColor: 'rgba(157,191,230,0.5)' },
+  v2ClientFilledName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orangeLight },
   v2ClientDot:  { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.green },
   v2ClientName: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.green, flex: 1 },
   v2ClientBal:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 1 },
@@ -2120,13 +2156,18 @@ const styles = StyleSheet.create({
   v2TotalLabel: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
   v2TotalAmt:   { fontFamily: fonts.family, fontSize: 28, color: colors.text },
   v2Acts:       { flexDirection: 'row', gap: 6 },
-  v2Act:        { flex: 1, alignItems: 'center', gap: 3, paddingVertical: 8, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.05)' },
+  v2Act:        { flex: 1, alignItems: 'center', gap: 3, paddingVertical: 8, borderRadius: 12 },
   v2ActIco:     { fontSize: 16 },
   v2ActLbl:     { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
-  v2Pay:        { paddingVertical: 16, borderRadius: 16, backgroundColor: colors.orange, alignItems: 'center' },
-  v2PayOff:     { backgroundColor: 'rgba(255,255,255,0.08)' },
-  v2PayTxt:     { fontFamily: fonts.family, fontSize: 18, color: colors.onAccent, letterSpacing: 0.3 },
-
+  sumRow:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  sumLbl:       { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.textDim, flex: 1, marginRight: 10 },
+  sumVal:       { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
+  totRow:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 6, marginBottom: 14 },
+  totLbl:       { fontFamily: fonts.familySemibold, fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase', color: colors.textDim, paddingBottom: 6 },
+  totVal:       { fontFamily: fonts.display, fontSize: 44, color: colors.text, letterSpacing: -1.5 },
+  v2Pay:        { height: 56, borderRadius: 16, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center' },
+  v2PayOff:     { opacity: 0.35 },
+  v2PayTxt:     { fontFamily: fonts.family, fontSize: 18, color: colors.onAccent },
   // ── Портрет: свёрнутая полоска корзины снизу ──
   cartStripCollapsed: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -2151,7 +2192,7 @@ const styles = StyleSheet.create({
   catChipTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
   catChipTxtActive: { color: colors.orange },
 
-  orderPanel: { width: '33%', minWidth: 240, borderLeftWidth: 1, borderLeftColor: colors.border, backgroundColor: colors.surface },
+  orderPanel: { width: '33%', minWidth: 260, borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.07)', backgroundColor: 'rgba(21,27,34,0.45)' },
   orderHeader: { paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   orderHeaderBtns: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, flex: 1, justifyContent: 'flex-end' },
   orderHeaderText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 2 },
@@ -2159,19 +2200,19 @@ const styles = StyleSheet.create({
   // Слоты парковки
   slotBar: { maxHeight: 44, borderBottomWidth: 1, borderBottomColor: colors.border },
   slotBarInner: { paddingHorizontal: 10, paddingVertical: 8, gap: 6, flexDirection: 'row', alignItems: 'center' },
-  slotTab: { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  slotTabActive: { borderColor: 'rgba(127,168,217,0.6)', backgroundColor: 'rgba(127,168,217,0.15)' },
-  slotTabText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
-  slotTabTextActive: { color: colors.indigo },
-  slotTabNew: { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)', borderStyle: 'dashed' },
-  slotTabNewText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.orange },
+  slotTab: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  slotTabActive: { borderColor: 'rgba(157,191,230,0.5)', backgroundColor: 'rgba(127,168,217,0.2)' },
+  slotTabText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
+  slotTabTextActive: { color: colors.orangeLight },
+  slotTabNew: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  slotTabNewText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
   // Зоны
   zoneBar: { maxHeight: 44, borderBottomWidth: 1, borderBottomColor: colors.border },
   zoneBarInner: { paddingHorizontal: 10, paddingVertical: 8, gap: 6, flexDirection: 'row', alignItems: 'center' },
-  zoneChip: { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  zoneChipActive: { borderColor: 'rgba(127,168,217,0.5)', backgroundColor: 'rgba(127,168,217,0.12)' },
-  zoneChipText: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
-  zoneChipTextActive: { color: colors.orange },
+  zoneChip: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  zoneChipActive: { borderColor: 'rgba(157,191,230,0.5)', backgroundColor: 'rgba(127,168,217,0.2)' },
+  zoneChipText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
+  zoneChipTextActive: { color: colors.orangeLight },
   orderItemName: { fontFamily: fonts.family, fontSize: 14, color: colors.text },
   orderItemMod: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
   orderItemPrice: { fontFamily: fonts.family, fontSize: 14, color: colors.text },
