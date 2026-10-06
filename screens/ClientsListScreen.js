@@ -23,6 +23,7 @@ import Icon from '../components/Icon';
 import SoftGlow from '../components/SoftGlow';
 import ClientEditModal from '../components/ClientEditModal';
 import ClientBonusModal from '../components/ClientBonusModal';
+import ClientCreateModal from '../components/ClientCreateModal';
 
 // Перенесено из LoyaltyScreen.js (экран удалён — дублировал список клиентов,
 // единственная уникальная часть была эта сводка по модели лояльности)
@@ -348,6 +349,7 @@ export default function ClientsListScreen({ navigation, route, initialClientId }
   const [query, setQuery]       = useState('');
   const [sortMode, setSortMode] = useState('name'); // name | added
   const [popOpen, setPopOpen] = useState(false);       // окно «Фильтры»
+  const [createOpen, setCreateOpen] = useState(false); // окно «Новый клиент»
   const [popAnchor, setPopAnchor] = useState({ top: 76, right: 12 });
   const fbtnRef = useRef(null);
   const openFilters = () => {
@@ -511,7 +513,7 @@ export default function ClientsListScreen({ navigation, route, initialClientId }
           <Icon name="sliders" size={18} color={sortMode !== 'name' || popOpen ? colors.orangeLight : colors.textDim} />
           <Text style={[styles.tbFiltTxt, (sortMode !== 'name' || popOpen) && { color: colors.orangeLight }]}>Фильтры</Text>
         </Pressable>
-        <GlassButton tone="accent" icon="plus" label={terms.client} height={54} onPress={() => navigation.navigate('Reg')} />
+        <GlassButton tone="accent" icon="plus" label={terms.client} height={54} onPress={() => setCreateOpen(true)} />
         {searchHighlight.overlay}
       </View>
       {sortMode !== 'name' && (
@@ -557,7 +559,7 @@ export default function ClientsListScreen({ navigation, route, initialClientId }
                 <View style={styles.emptyIco}><Icon name="users" size={34} color={colors.textDim} /></View>
                 <Text style={styles.emptyTitle}>{clients.length === 0 ? 'Нет клиентов' : 'Никого не найдено'}</Text>
                 <Text style={styles.emptyText}>{clients.length === 0 ? 'Зарегистрируйте первого клиента — он появится в списке, а на Кассе его можно будет выбрать.' : 'Попробуйте другой запрос.'}</Text>
-                {clients.length === 0 && <GlassButton tone="accent" icon="plus" label="Зарегистрировать клиента" height={50} onPress={() => navigation.navigate('Reg')} />}
+                {clients.length === 0 && <GlassButton tone="accent" icon="plus" label="Зарегистрировать клиента" height={50} onPress={() => setCreateOpen(true)} />}
               </View>
             ) : (
               <View style={styles.clientsCard}>
@@ -633,6 +635,22 @@ export default function ClientsListScreen({ navigation, route, initialClientId }
           </Sheet>
         )}
       </View>
+
+      {/* Новый клиент — всплывающее окно (раньше — отдельная страница) */}
+      <ClientCreateModal
+        visible={createOpen}
+        isNarrow={!isLandscape}
+        onClose={() => setCreateOpen(false)}
+        onCreated={() => load()}
+        onOpenCard={(id) => {
+          setCreateOpen(false);
+          try { const c = getAllClients().find(x => x.id === id); if (c) selectClient(c); } catch (e) { console.error(e); }
+        }}
+        onFirstOrder={(c) => {
+          setCreateOpen(false);
+          navigation.navigate('Kassa', { forClient: { id: c.id, fio: c.fio, balance: 0, discount_pct: 0 } });
+        }}
+      />
 
       {/* Окно «Фильтры» — под кнопкой, в прозрачном слое: тап вне окна закрывает */}
       <Modal visible={popOpen} transparent animationType="fade" onRequestClose={() => setPopOpen(false)}>

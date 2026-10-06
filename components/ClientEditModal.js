@@ -10,19 +10,19 @@ import { useReduceMotion } from '../hooks/useReduceMotion';
 
 const digits = (v) => String(v || '').replace(/\D/g, '');
 const fmt = (n) => Math.round(Number(n) || 0).toLocaleString('ru-RU');
-const initials = (name) => {
+export const initials = (name) => {
   const p = String(name || '').trim().split(/\s+/);
   return ((p[0]?.[0] || '?') + (p[1]?.[0] || '')).toUpperCase();
 };
 // Дата рождения «ДД.ММ.ГГГГ»: маска при вводе и проверка существования даты
-const maskBirth = (v) => {
+export const maskBirth = (v) => {
   const d = digits(v).slice(0, 8);
   let o = d.slice(0, 2);
   if (d.length > 2) o += '.' + d.slice(2, 4);
   if (d.length > 4) o += '.' + d.slice(4, 8);
   return o;
 };
-const birthError = (s) => {
+export const birthError = (s) => {
   if (!s) return '';
   const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(s);
   if (!m) return 'Дата в формате ДД.ММ.ГГГГ';

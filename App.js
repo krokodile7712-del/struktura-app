@@ -32,8 +32,6 @@ import ShiftScreen from './screens/ShiftScreen';
 import ShiftCloseScreen from './screens/ShiftCloseScreen';
 import SalesScreen from './screens/SalesScreen';
 import BookingsScreen from './screens/BookingsScreen';
-import RegScreen from './screens/RegScreen';
-import RegResultScreen from './screens/RegResultScreen';
 import SearchScreen from './screens/SearchScreen';
 import ClientsListScreen from './screens/ClientsListScreen';
 import FinancesScreen from './screens/FinancesScreen';
@@ -164,8 +162,6 @@ export default function App() {
             <Stack.Screen name="ShiftClose"  component={ShiftCloseScreen} />
             <Stack.Screen name="Sales"       component={SalesScreen} />
             <Stack.Screen name="Bookings"    component={BookingsScreen} />
-            <Stack.Screen name="Reg"         component={RegScreen} />
-            <Stack.Screen name="RegResult"   component={RegResultScreen} />
             <Stack.Screen name="Search"      component={SearchScreen} />
             <Stack.Screen name="ClientsList" component={ClientsListScreen} />
             <Stack.Screen name="Products"    component={ProductsScreen} />
