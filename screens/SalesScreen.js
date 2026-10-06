@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
-  Modal, TextInput, Alert, Animated, BackHandler,
+  Modal, TextInput, Alert, Animated, Dimensions,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
@@ -189,7 +189,6 @@ export default function SalesScreen({ navigation }) {
   const [popMounted, setPopMounted] = useState(false);
   const [popH, setPopH] = useState(280);
   const popAnim = useRef(new Animated.Value(0)).current;
-  const rootRef = useRef(null);   // корень экрана — окно и «ловушка» нажатий лежат на его уровне,
   const btnRef  = useRef(null);   // кнопка «Фильтры» — к ней привязывается окно
   const [anchor, setAnchor] = useState({ top: 76, right: 12 });
 
@@ -289,30 +288,22 @@ export default function SalesScreen({ navigation }) {
   const openFilters = () => {
     if (!isLandscape) { setFiltersOpen(true); return; }          // телефон — нижняя панель
     if (popMounted) { closeFilters(); return; }
-    const show = (a) => {
-      setAnchor(a);
-      setPopMounted(true);
-      popAnim.setValue(0);
-      // пружина без перелёта (демпфирование 1) — «вырастает» из кнопки
-      Animated.spring(popAnim, { toValue: 1, speed: 22, bounciness: 0, useNativeDriver: true }).start();
-    };
+    const begin = (a) => { setAnchor(a); popAnim.setValue(0); setPopMounted(true); };
     try {
-      // Обе точки меряем в координатах окна и берём разность — не зависит от строки состояния
+      // Положение кнопки в координатах окна; Modal без прозрачной строки состояния
+      // использует те же координаты, поэтому окно встаёт точно под кнопку.
       btnRef.current.measureInWindow((bx, by, bw, bh) => {
-        rootRef.current.measureInWindow((rx, ry, rw) => {
-          show({ top: by + bh - ry + 8, right: Math.max(8, rx + rw - (bx + bw)) });
-        });
+        const W = Dimensions.get('window').width;
+        begin({ top: by + bh + 8, right: Math.max(8, W - (bx + bw)) });
       });
-    } catch (e) { show({ top: 76, right: 12 }); }
+    } catch (e) { begin({ top: 76, right: 12 }); }
   };
   const closeFilters = () => {
     Animated.timing(popAnim, { toValue: 0, duration: 140, useNativeDriver: true }).start(() => setPopMounted(false));
   };
-  // Кнопка «назад» на устройстве сначала закрывает окно
+  // Окно «вырастает» из кнопки: пружина без перелёта (демпфирование 1)
   useEffect(() => {
-    if (!popMounted) return undefined;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => { closeFilters(); return true; });
-    return () => sub.remove();
+    if (popMounted) Animated.spring(popAnim, { toValue: 1, speed: 22, bounciness: 0, useNativeDriver: true }).start();
   }, [popMounted]);
 
   // Итог для живого счётчика в окне фильтров
@@ -449,7 +440,7 @@ export default function SalesScreen({ navigation }) {
   };
 
   return (
-    <View ref={rootRef} collapsable={false} style={styles.root}>
+    <View style={styles.root}>
       <ScreenGlow />
       {/* подсветка за правой панелью — стеклянным плиткам сводки нужно что-то просвечивать */}
       {isLandscape && <SoftGlow size={560} color="127,168,217" alpha={0.20} style={{ position: 'absolute', right: -170, top: 40 }} />}
@@ -634,11 +625,12 @@ export default function SalesScreen({ navigation }) {
         )}
       </View>
 
-      {/* Окно фильтров и «ловушка» нажатий — на уровне всего экрана: нажатие в любом месте,
-      кроме самого окна, закрывает его (шапка, список, сводка). */}
-      {popMounted && (
-        <>
-          <Pressable style={styles.popScrim} onPress={closeFilters} />
+      {/* Окно фильтров — в прозрачном системном окне (Modal): оно всегда выше всего экрана, включая
+          боковую панель, и принимает любое касание вне самого окна — по нему окно закрывается.
+          Кнопка «назад» на устройстве закрывает его же (onRequestClose). */}
+      <Modal visible={popMounted} transparent animationType="none" onRequestClose={closeFilters}>
+        <View style={{ flex: 1 }}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={closeFilters} />
           <Animated.View
             onLayout={e => setPopH(e.nativeEvent.layout.height)}
             style={[styles.popWrap, {
@@ -652,7 +644,7 @@ export default function SalesScreen({ navigation }) {
               ],
             }]}
           >
-            {/* Заливка плотная: на Android настоящего размытия нет, а под окном лежит текст списка */}
+            {/* Заливка плотная: на Android настоящего размытия нет, а под окном виден список */}
             <GlassSurface floating radius={22} tint="32,40,55" alpha={0.97} padding={20} sheen={['rgba(255,255,255,0.10)', 'rgba(255,255,255,0.01)']}>
               {renderFilterGroups()}
               <View style={styles.popFoot}>
@@ -663,8 +655,8 @@ export default function SalesScreen({ navigation }) {
               </View>
             </GlassSurface>
           </Animated.View>
-        </>
-      )}
+        </View>
+      </Modal>
 
       {/* Пикер периода — один календарь, тап на начало и конец */}
       <DatePicker
@@ -794,8 +786,7 @@ const styles = StyleSheet.create({
   activeChip:  { flexDirection: 'row', alignItems: 'center', gap: 6, height: 34, paddingLeft: 14, paddingRight: 10, borderRadius: 999, backgroundColor: 'rgba(127,168,217,0.18)', borderWidth: 1, borderColor: 'rgba(157,191,230,0.45)' },
   activeChipTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orangeLight },
   activeReset: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, paddingHorizontal: 6 },
-  popScrim:    { ...StyleSheet.absoluteFillObject, zIndex: 20 },
-  popWrap:     { position: 'absolute', width: POP_W, maxWidth: '94%', zIndex: 30, elevation: 30 },
+  popWrap:     { position: 'absolute', width: POP_W, maxWidth: '94%' },
   popFoot:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.10)' },
   popReset:    { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
   popCount:    { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
