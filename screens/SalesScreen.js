@@ -189,6 +189,9 @@ export default function SalesScreen({ navigation }) {
   const [popMounted, setPopMounted] = useState(false);
   const [popH, setPopH] = useState(280);
   const popAnim = useRef(new Animated.Value(0)).current;
+  const rootRef = useRef(null);   // корень экрана — окно и «ловушка» нажатий лежат на его уровне,
+  const btnRef  = useRef(null);   // кнопка «Фильтры» — к ней привязывается окно
+  const [anchor, setAnchor] = useState({ top: 76, right: 12 });
 
   const [tourOpen, setTourOpen]       = useState(false);
   const searchHighlight  = useTourHighlight('sales.search');
@@ -286,10 +289,21 @@ export default function SalesScreen({ navigation }) {
   const openFilters = () => {
     if (!isLandscape) { setFiltersOpen(true); return; }          // телефон — нижняя панель
     if (popMounted) { closeFilters(); return; }
-    setPopMounted(true);
-    popAnim.setValue(0);
-    // пружина без перелёта (демпфирование 1) — «вырастает» из кнопки
-    Animated.spring(popAnim, { toValue: 1, speed: 22, bounciness: 0, useNativeDriver: true }).start();
+    const show = (a) => {
+      setAnchor(a);
+      setPopMounted(true);
+      popAnim.setValue(0);
+      // пружина без перелёта (демпфирование 1) — «вырастает» из кнопки
+      Animated.spring(popAnim, { toValue: 1, speed: 22, bounciness: 0, useNativeDriver: true }).start();
+    };
+    try {
+      // Обе точки меряем в координатах окна и берём разность — не зависит от строки состояния
+      btnRef.current.measureInWindow((bx, by, bw, bh) => {
+        rootRef.current.measureInWindow((rx, ry, rw) => {
+          show({ top: by + bh - ry + 8, right: Math.max(8, rx + rw - (bx + bw)) });
+        });
+      });
+    } catch (e) { show({ top: 76, right: 12 }); }
   };
   const closeFilters = () => {
     Animated.timing(popAnim, { toValue: 0, duration: 140, useNativeDriver: true }).start(() => setPopMounted(false));
@@ -435,7 +449,7 @@ export default function SalesScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.root}>
+    <View ref={rootRef} collapsable={false} style={styles.root}>
       <ScreenGlow />
       {/* подсветка за правой панелью — стеклянным плиткам сводки нужно что-то просвечивать */}
       {isLandscape && <SoftGlow size={560} color="127,168,217" alpha={0.20} style={{ position: 'absolute', right: -170, top: 40 }} />}
@@ -500,6 +514,8 @@ export default function SalesScreen({ navigation }) {
               />
             </View>
             <Pressable
+              ref={btnRef}
+              collapsable={false}
               style={[styles.filtersBtn, filtersActive && styles.filtersBtnActive]}
               onPress={openFilters}
             >
@@ -605,34 +621,6 @@ export default function SalesScreen({ navigation }) {
           {ordersHighlight.overlay}
           </View>
 
-          {popMounted && (
-            <>
-              <Pressable style={styles.popScrim} onPress={closeFilters} />
-              <Animated.View
-                onLayout={e => setPopH(e.nativeEvent.layout.height)}
-                style={[styles.popWrap, {
-                  opacity: popAnim,
-                  transform: [
-                    // растёт из правого верхнего угла (под кнопкой): масштаб + сдвиг, чтобы угол не уезжал
-                    { translateX: popAnim.interpolate({ inputRange: [0, 1], outputRange: [POP_W * 0.04, 0] }) },
-                    { translateY: popAnim.interpolate({ inputRange: [0, 1], outputRange: [-popH * 0.04 - 6, 0] }) },
-                    { scale: popAnim.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) },
-                  ],
-                }]}
-              >
-                {/* Заливка плотная: на Android настоящего размытия нет, а под окном лежит текст списка */}
-                <GlassSurface floating radius={22} tint="32,40,55" alpha={0.97} padding={20} sheen={['rgba(255,255,255,0.10)', 'rgba(255,255,255,0.01)']}>
-                  {renderFilterGroups()}
-                  <View style={styles.popFoot}>
-                    <Pressable onPress={resetFilters} disabled={!filtersActive} hitSlop={8}>
-                      <Text style={[styles.popReset, !filtersActive && { opacity: 0.4 }]}>Сбросить</Text>
-                    </Pressable>
-                    <Text style={styles.popCount}>Найдено <Text style={styles.popCountB}>{countLabel}</Text> · {fmt(shownSum)} ₽</Text>
-                  </View>
-                </GlassSurface>
-              </Animated.View>
-            </>
-          )}
         </View>
 
         {isLandscape && (
@@ -645,6 +633,38 @@ export default function SalesScreen({ navigation }) {
           </View>
         )}
       </View>
+
+      {/* Окно фильтров и «ловушка» нажатий — на уровне всего экрана: нажатие в любом месте,
+      кроме самого окна, закрывает его (шапка, список, сводка). */}
+      {popMounted && (
+        <>
+          <Pressable style={styles.popScrim} onPress={closeFilters} />
+          <Animated.View
+            onLayout={e => setPopH(e.nativeEvent.layout.height)}
+            style={[styles.popWrap, {
+              top: anchor.top, right: anchor.right,
+              opacity: popAnim,
+              transform: [
+                // растёт из правого верхнего угла (под кнопкой): масштаб + сдвиг, чтобы угол не уезжал
+                { translateX: popAnim.interpolate({ inputRange: [0, 1], outputRange: [POP_W * 0.04, 0] }) },
+                { translateY: popAnim.interpolate({ inputRange: [0, 1], outputRange: [-popH * 0.04 - 6, 0] }) },
+                { scale: popAnim.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) },
+              ],
+            }]}
+          >
+            {/* Заливка плотная: на Android настоящего размытия нет, а под окном лежит текст списка */}
+            <GlassSurface floating radius={22} tint="32,40,55" alpha={0.97} padding={20} sheen={['rgba(255,255,255,0.10)', 'rgba(255,255,255,0.01)']}>
+              {renderFilterGroups()}
+              <View style={styles.popFoot}>
+                <Pressable onPress={resetFilters} disabled={!filtersActive} hitSlop={8}>
+                  <Text style={[styles.popReset, !filtersActive && { opacity: 0.4 }]}>Сбросить</Text>
+                </Pressable>
+                <Text style={styles.popCount}>Найдено <Text style={styles.popCountB}>{countLabel}</Text> · {fmt(shownSum)} ₽</Text>
+              </View>
+            </GlassSurface>
+          </Animated.View>
+        </>
+      )}
 
       {/* Пикер периода — один календарь, тап на начало и конец */}
       <DatePicker
@@ -775,7 +795,7 @@ const styles = StyleSheet.create({
   activeChipTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orangeLight },
   activeReset: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, paddingHorizontal: 6 },
   popScrim:    { ...StyleSheet.absoluteFillObject, zIndex: 20 },
-  popWrap:     { position: 'absolute', top: 68, right: 12, width: POP_W, maxWidth: '94%', zIndex: 30, elevation: 30 },
+  popWrap:     { position: 'absolute', width: POP_W, maxWidth: '94%', zIndex: 30, elevation: 30 },
   popFoot:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.10)' },
   popReset:    { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
   popCount:    { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
