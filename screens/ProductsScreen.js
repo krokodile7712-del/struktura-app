@@ -131,12 +131,6 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
   }, [activeTourKey]);
 
 
-  // Слова-метки упаковки, зависящей от размера — её НЕ копируем в новый
-  // вариант автоматически, иначе можно случайно получить, например,
-  // "большой капучино" с маленьким стаканом и крышкой от прошлого размера
-  const PACKAGING_WORDS = ['стакан', 'крышк'];
-  const isPackaging = (name) => PACKAGING_WORDS.some(w => (name || '').toLowerCase().includes(w));
-
   const addVariant = () => setVars(v => {
     const last = v[v.length - 1];
     const lastIngs = Array.isArray(last?.ings) ? last.ings : [];
@@ -144,7 +138,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
     // остаётся только поправить количества под новый объём. Упаковку
     // (стакан/крышку) не копируем намеренно — её обязательно выбирают
     // заново под конкретный размер, чтобы не свести не тот размер стакана
-    const copiedIngs = lastIngs.filter(ing => !isPackaging(ing.name)).map(ing => ({ ...ing }));
+    const copiedIngs = lastIngs.map(ing => ({ ...ing }));
     return [...v, { id: null, label: '', price: '', deduction_mode: last?.deduction_mode || 'fixed', ings: copiedIngs }];
   });
   const removeVariant= (i) => setVars(v => v.filter((_,j) => j !== i));
@@ -160,7 +154,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
   const addVariantSmart = () => {
     setVars(v => {
       const last = v[v.length - 1];
-      const copied = (Array.isArray(last?.ings) ? last.ings : []).filter(i => !isPackaging(i.name)).map(i => ({ ...i }));
+      const copied = (Array.isArray(last?.ings) ? last.ings : []).map(i => ({ ...i }));
       // Был один безымянный вариант — даём ему имя, иначе в переключателе будет пустая плашка
       const first = v.length === 1 && !(v[0].label || '').trim() ? [{ ...v[0], label: 'Стандарт' }] : v;
       return [...first, { id: null, label: v.length === 1 ? 'Большой' : '', price: '', unit: last?.unit || 'шт', deduction_mode: last?.deduction_mode || 'fixed', ings: copied }];
@@ -454,9 +448,6 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
                   </View>
                 );
               })}
-              {nVars > 1 && !variable && !ingsArr.some(ing => isPackaging(ing.name)) && (
-                <Text style={styles.packagingHint}>Стакан и крышка для этого размера ещё не выбраны — добавьте нужные со склада, чтобы не списывалась упаковка от другого размера.</Text>
-              )}
               <Pressable style={styles.addIngBtn} onPress={() => { setIngPickerVar(vi); onIngPicker?.(vi, (st) => addIng(vi, st)); }}>
                 <Text style={styles.addIngTxt}>+ Добавить со склада</Text>
               </Pressable>
@@ -1783,7 +1774,6 @@ const styles = StyleSheet.create({
   techBody:   { padding: 12, borderTopWidth: 1, borderTopColor: colors.border },
   ingRow:     { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
   ingListHint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, lineHeight: 17, marginBottom: 10 },
-  packagingHint: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.amber || '#D9AC62', lineHeight: 17, marginBottom: 10, marginTop: 2 },
   modeSwitchRow: { flexDirection: 'row', backgroundColor: colors.surface2, borderRadius: 10, padding: 3, marginBottom: 10 },
   modeSwitchBtn: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
   modeSwitchBtnActive: { backgroundColor: colors.orange },
