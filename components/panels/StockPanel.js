@@ -1,40 +1,102 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
-  TextInput, Modal, Animated,
+  TextInput, Modal, Animated, LayoutAnimation,
 } from 'react-native';
-import EmptyState from '../EmptyState';
+import { useFocusEffect } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
-  getAllStock, addPurchase, updateMaxOstatok, insertStockItem, getAvgCostLast10,
-  getProductsUsingStockName, deleteStockItem,
-  setStockForLocation, adjustStockForLocation,
-  getStockHistory, getLocations,
-  getBusinessProfile, updateStockThreshold, insertExpense,
+  getAllStock, getStockForLocation, addPurchase, adjustStock, setStockSellPrice,
+  insertStockItem, getAvgCostLast10, getProductsUsingStockName, deleteStockItem,
+  getLocations, getBusinessProfile, updateStockThreshold,
 } from '../../db/queries';
 import { getDb } from '../../db/database';
 import { can, getCurrentLocationId, setCurrentLocationId } from '../../db/session';
-import { colors, fonts, spacing } from '../../constants/theme';
+import { colors, fonts, spacing, glass } from '../../constants/theme';
 import { useToast } from '../Toast';
 import Sheet from '../Sheet';
+import GlassSurface from '../GlassSurface';
+import Icon from '../Icon';
 import { useResponsive } from '../../hooks/useResponsive';
+import { useReduceMotion } from '../../hooks/useReduceMotion';
 import { useTourHighlight } from '../TourRegistry';
 import InfoTip from '../InfoTip';
 import UnitPicker from '../UnitPicker';
 import FitView from '../FitView';
 import KeyboardSafe from '../KeyboardSafe';
 
-function updateStockLocal(itemId, newValue) {
-  const db = getDb();
-  db.runSync('UPDATE stock SET остаток = ? WHERE id = ?', [newValue, itemId]);
-  db.runSync('UPDATE stock SET max_ostatok = MAX(COALESCE(max_ostatok,0), ?) WHERE id = ?', [newValue, itemId]);
-}
+// Число из поля ввода: понимает и запятую, и точку («0,5» раньше читалось как 0)
+const parseNum = (v) => {
+  const n = parseFloat(String(v ?? '').replace(',', '.').replace(/\s/g, ''));
+  return isNaN(n) ? 0 : n;
+};
+const fmtNum = (n) => (Math.round((Number(n) || 0) * 1000) / 1000).toLocaleString('ru-RU', { maximumFractionDigits: 3 });
+const toField = (n) => String(Math.round(n * 1000) / 1000).replace('.', ',');
+// Состояние позиции: «в минусе» / «скоро закончится» (остаток не выше порога) / «в норме»
+const statusOf = (item) => {
+  const q = item['остаток'] ?? 0;
+  const t = item['порог'] || 0;
+  return q < 0 ? 'neg' : (t > 0 && q <= t ? 'low' : 'ok');
+};
 
 const MODES = [
-  { key: 'purchase', label: 'Закупка',    desc: 'Добавить с фиксацией цены', icon: '🛒', tint: colors.orange },
-  { key: 'add',      label: 'Добавить',   desc: 'Пополнить остаток', icon: '➕', tint: colors.green },
-  { key: 'subtract', label: 'Списать',    desc: 'Уменьшить (брак, расход)', icon: '➖', tint: colors.red },
-  { key: 'set',      label: 'Установить', desc: 'Задать точное значение', icon: '✏️', tint: '#7FA8D9' },
+  { key: 'purchase', label: 'Закупка',    desc: 'Принять с ценой',      icon: 'cart',   primary: true },
+  { key: 'add',      label: 'Добавить',   desc: 'Пополнить остаток',    icon: 'plus' },
+  { key: 'subtract', label: 'Списать',    desc: 'Брак, расход',         icon: 'minus' },
+  { key: 'set',      label: 'Установить', desc: 'Точное значение',      icon: 'pencil' },
 ];
+
+// Действие со склада — стеклянная плитка с объёмом (как способы оплаты на Кассе)
+function ActionTile({ icon, title, sub, primary, onPress }) {
+  return (
+    <Pressable style={({ pressed }) => [styles.actWrap, pressed && { transform: [{ scale: 0.97 }] }]} onPress={onPress} accessibilityRole="button">
+      <GlassSurface
+        radius={16} floating shadowScale={0.4}
+        tint={primary ? '127,168,217' : '150,172,204'}
+        alpha={primary ? 0.30 : 0.14}
+        sheen={primary ? ['rgba(255,255,255,0.30)', 'rgba(255,255,255,0.03)'] : ['rgba(255,255,255,0.14)', 'rgba(255,255,255,0.01)']}
+        rimColors={primary
+          ? { top: 'rgba(210,230,252,0.75)', left: 'rgba(180,208,240,0.5)', right: 'rgba(157,191,230,0.38)', bottom: 'rgba(157,191,230,0.22)' }
+          : { top: 'rgba(255,255,255,0.30)', left: 'rgba(255,255,255,0.16)', right: 'rgba(255,255,255,0.10)', bottom: 'rgba(255,255,255,0.05)' }}
+        contentStyle={styles.actInner}
+      >
+        <LinearGradient
+          pointerEvents="none"
+          colors={primary ? ['rgba(127,168,217,0)', 'rgba(127,168,217,0.34)'] : ['rgba(0,0,0,0)', 'rgba(0,0,0,0.28)']}
+          start={{ x: 0, y: 0.4 }} end={{ x: 0, y: 1 }}
+          style={[StyleSheet.absoluteFill, { borderRadius: 16 }]}
+        />
+        <View style={[styles.actIcon, primary && styles.actIconPri]}>
+          <Icon name={icon} size={22} color={primary ? colors.orangeLight : colors.textDim} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.actTitle, primary && { color: colors.orangeLight }]}>{title}</Text>
+          <Text style={styles.actSub}>{sub}</Text>
+        </View>
+      </GlassSurface>
+    </Pressable>
+  );
+}
+
+function FilterChip({ label, on, onPress, count, tone }) {
+  return (
+    <Pressable style={[styles.fChip, on && styles.fChipOn]} onPress={onPress}>
+      <Text style={[styles.fChipTxt, on && styles.fChipTxtOn]}>{label}</Text>
+      {count != null && <Text style={[styles.fChipCnt, { color: tone === 'danger' ? colors.red : colors.warning }]}>{count}</Text>}
+    </Pressable>
+  );
+}
+
+function StatusPill({ status }) {
+  const txt = status === 'neg' ? 'В минусе' : status === 'low' ? 'Скоро закончится' : 'В норме';
+  const color = status === 'neg' ? colors.red : status === 'low' ? colors.warning : colors.green;
+  const border = status === 'neg' ? 'rgba(219,129,120,0.45)' : status === 'low' ? 'rgba(217,172,98,0.45)' : 'rgba(120,183,150,0.4)';
+  return (
+    <View style={[styles.pill, { borderColor: border }]}>
+      <Text style={[styles.pillTxt, { color }]}>{txt}</Text>
+    </View>
+  );
+}
 
 // Единая реализация Склада — используется и отдельным экраном (StockScreen),
 // и встроенной панелью внутри Admin/Dashboard (раньше это были два отдельных
@@ -45,29 +107,29 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
   const stockLowHighlight    = useTourHighlight('products.stock.low');
   const { isLandscape } = useResponsive();
   const toast = useToast();
+  const reduceMotion = useReduceMotion();
   const [stock, setStock]           = useState([]);
   const [search, setSearch]         = useState('');
   const [viewMode, setViewMode]     = useState('categories'); // categories | list
+  const [statusFilter, setStatusFilter] = useState('all');    // all | low | neg
   const [selected, setSelected]     = useState(null);
   const editorFadeAnim = useRef(new Animated.Value(0)).current;
 
-  // Плавное появление карточки при выборе позиции (альбомная) — тот же
-  // приём, что и в Товарах, для единообразия
+  // Плавное появление карточки при выборе позиции (альбомная)
   useEffect(() => {
     if (selected) {
-      editorFadeAnim.setValue(0);
-      Animated.timing(editorFadeAnim, { toValue: 1, duration: 260, useNativeDriver: true }).start();
+      editorFadeAnim.setValue(reduceMotion ? 1 : 0);
+      if (!reduceMotion) Animated.timing(editorFadeAnim, { toValue: 1, duration: 260, useNativeDriver: true }).start();
     }
-  }, [selected]);
+  }, [selected?.id]);
   useEffect(() => { onSelectedChange?.(!!selected); }, [selected]);
   const [mode, setMode]             = useState(null);
   const [qty, setQty]               = useState('');
-  const [price, setPrice]           = useState('');
-  const [history, setHistory]       = useState([]);
+  const [price, setPrice]           = useState('');   // сумма закупки
+  const [sellDraft, setSellDraft]   = useState('');   // цена за единицу при расходе по факту (черновик поля)
+  const [thrDraft, setThrDraft]     = useState(null); // порог в редактировании (null — не редактируется)
   const [avgCost, setAvgCost]       = useState(0);
   const [deletePrompt, setDeletePrompt] = useState(null); // {id, name, usedIn: [{id,name}]}
-  const [lowStockSheetOpen, setLowStockSheetOpen] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
   const [locations, setLocations]   = useState([]);
   const [selectedLocId, setSelectedLocId] = useState(null);
   const [locEnabled, setLocEnabled] = useState(false);
@@ -76,42 +138,48 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
   const [stockCats, setStockCats]   = useState([]);
   const [catModal2, setCatModal2]   = useState(null); // {oldName, newName}
   const [catDeletePrompt, setCatDeletePrompt] = useState(null); // {name, count, moveTo}
-  const [expenseBridge, setExpenseBridge] = useState(null); // {name, amount} — после закупки, предложение добавить как расход
 
-  const openMode = (key) => {
-    setMode(key);
-    setQty('');
-    setPrice('');
-  };
+  const animate = () => { if (!reduceMotion) LayoutAnimation.configureNext(LayoutAnimation.create(240, 'easeInEaseOut', 'opacity')); };
 
-  const closeSlidePanel = () => {
-    setMode(null);
-    setQty('');
-    setPrice('');
+  const openMode = (key) => { animate(); setMode(key); setQty(''); setPrice(''); };
+  const closeSlidePanel = () => { animate(); setMode(null); setQty(''); setPrice(''); };
+
+  // Остатки: при включённом модуле «Локации» — остатки выбранной локации, иначе общие.
+  // Раньше список всегда показывал общий остаток, поэтому после операции в локации число на экране не менялось.
+  const readStock = (on = locEnabled, loc = selectedLocId) => (on && loc ? getStockForLocation(loc) : getAllStock());
+  const applyStock = (rows, keepId) => {
+    setStock(rows);
+    setStockCats([...new Set(rows.map(s => s.category || 'Без категории'))].sort());
+    if (keepId != null) {
+      const u = rows.find(s => s.id === keepId);
+      if (u) { setSelected(u); try { setAvgCost(getAvgCostLast10(u.name)); } catch (_) {} }
+      else setSelected(null);
+    }
   };
+  const reload = (keepId = selected?.id ?? null, on, loc) => { try { applyStock(readStock(on, loc), keepId); } catch (e) { console.error(e); } };
 
   useEffect(() => {
     try {
       const profile = getBusinessProfile();
       const locOn = profile?.modules?.locations === true;
+      let locId = null;
       setLocEnabled(locOn);
       if (locOn) {
-        const locs = getLocations();
-        setLocations(locs);
-        setSelectedLocId(getCurrentLocationId());
+        setLocations(getLocations());
+        locId = getCurrentLocationId();
+        setSelectedLocId(locId);
       }
-      const allStock = getAllStock();
-      setStock(allStock);
-      setStockCats([...new Set(allStock.map(s => s.category || 'Без категории'))].sort());
+      applyStock(readStock(locOn, locId), null);
     } catch (e) { console.error(e); }
   }, []);
+
+  // При возврате на экран остатки перечитываются: за это время могли пройти продажи
+  useFocusEffect(useCallback(() => { reload(); }, [locEnabled, selectedLocId]));
 
   useEffect(() => {
     if (openCreateSignal) setNewItemModal({ name: '', unit: 'шт', category: '', threshold: '', initialStock: '' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openCreateSignal]);
-
-  const reload = () => { try { setStock(getAllStock()); } catch (_) {} };
 
   const saveNewItem = () => {
     if (!newItemModal?.name?.trim()) return;
@@ -119,38 +187,51 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
       name: newItemModal.name,
       unit: newItemModal.unit?.trim() || 'шт',
       category: newItemModal.category?.trim() || 'Прочее',
-      threshold: parseFloat(newItemModal.threshold) || 0,
-      initialQty: parseFloat(newItemModal.initialStock) || 0,
+      threshold: parseNum(newItemModal.threshold),
+      initialQty: parseNum(newItemModal.initialStock),
     });
     if (!res.ok) { toast.show(res.error, 'warn'); return; }
-    reload();
-    setStockCats(prev => [...new Set([...prev, newItemModal.category?.trim() || 'Прочее'])].sort());
     setNewItemModal(null);
-    const created = getAllStock().find(s => s.id === res.id);
+    reload(res.id);
+    const created = readStock().find(s => s.id === res.id);
     if (created) selectItem(created);
   };
 
   const selectItem = (item) => {
+    animate();
     setSelected(item);
     setMode(null);
     setQty('');
     setPrice('');
-    setShowHistory(false);
-    try { setHistory(getStockHistory(item.id).slice(0, 10)); } catch (_) { setHistory([]); }
+    setThrDraft(null);
+    setSellDraft(item.sell_price > 0 ? toField(item.sell_price) : '');
     try { setAvgCost(getAvgCostLast10(item.name)); } catch (_) { setAvgCost(0); }
   };
 
-  const saveSellPrice = (newPrice) => {
+  // Цена за единицу при «расходе по факту»
+  const saveSellPrice = () => {
     if (!selected) return;
-    const p = parseFloat(newPrice);
-    if (isNaN(p) || p < 0) return;
+    const empty = String(sellDraft).trim() === '';
+    const p = empty ? 0 : parseNum(sellDraft);
+    if (!empty && (!isFinite(p) || p < 0)) { toast.show('Введите цену числом', 'warn'); return; }
     try {
-      const db = getDb();
-      db.runSync(`UPDATE stock SET sell_price = ? WHERE id = ?`, [p, selected.id]);
-      reload();
-      setSelected(m => ({ ...m, sell_price: p }));
-      toast.show(`Цена продажи ${p} ₽/ед. сохранена ✓`, 'info');
-    } catch(e) { console.error(e); toast.show('Ошибка сохранения', 'warn'); }
+      setStockSellPrice(selected.id, p);
+      reload(selected.id);
+      toast.show(p > 0 ? `Цена ${fmtNum(p)} ₽ за ${selected.unit} сохранена` : 'Цена за единицу снята', 'info');
+    } catch (e) { console.error(e); toast.show('Не удалось сохранить цену', 'warn'); }
+  };
+
+  // Порог «скоро закончится» — раньше задавался только при создании позиции и потом не менялся
+  const saveThreshold = () => {
+    if (!selected || thrDraft === null) return;
+    const t = String(thrDraft).trim() === '' ? 0 : parseNum(thrDraft);
+    if (!isFinite(t) || t < 0) { toast.show('Введите порог числом', 'warn'); return; }
+    try {
+      updateStockThreshold(selected.id, t);
+      setThrDraft(null);
+      reload(selected.id);
+      toast.show(t > 0 ? `Порог ${fmtNum(t)} ${selected.unit} сохранён` : 'Порог снят', 'info');
+    } catch (e) { console.error(e); toast.show('Не удалось сохранить порог', 'warn'); }
   };
 
   const requestDelete = () => {
@@ -166,288 +247,247 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
     toast.show(`«${deletePrompt.name}» удалено со склада`, 'info');
     setDeletePrompt(null);
     setSelected(null);
-    reload();
+    reload(null);
   };
+
+  // Ввод количества: цифры, запятая, точка
+  const onQtyChange = (v) => setQty(String(v).replace(/[^0-9.,]/g, ''));
+  const onPriceChange = (v) => setPrice(String(v).replace(/[^0-9.,]/g, ''));
+  const stepQty = (delta) => setQty(toField(Math.max(0, parseNum(qty) + delta)));
+
+  const curQty = selected?.['остаток'] ?? 0;
+  const nQty = parseNum(qty);
+  const nSum = parseNum(price);
+  // «Станет»: считается от текущего остатка; списание больше остатка уводит в минус (как и продажа), но с предупреждением
+  const previewQty = mode === 'set' ? nQty : mode === 'subtract' ? curQty - nQty : curQty + nQty;
+  const previewStatus = previewQty < 0 ? 'neg' : ((selected?.['порог'] || 0) > 0 && previewQty <= selected['порог'] ? 'low' : 'ok');
+  const canConfirm = !!mode && (
+    mode === 'set' ? qty !== '' && isFinite(nQty) && nQty >= 0
+    : mode === 'purchase' ? nQty > 0 && nSum > 0
+    : nQty > 0
+  );
+  const actionLabel = !canConfirm ? 'Применить'
+    : `${({ purchase: 'Принять', add: 'Добавить', subtract: 'Списать', set: 'Установить' })[mode]} ${fmtNum(nQty)} ${selected?.unit || ''}`.trim();
+  const hintText = mode === 'purchase'
+    ? (nQty > 0 && nSum > 0
+        ? `≈ ${fmtNum(nSum / nQty)} ₽ за ${selected?.unit}. Сумма автоматически попадёт в «Расходы» (категория «Закупка»).`
+        : nQty > 0 ? 'Укажите сумму закупки — или выберите «Добавить», если цена неизвестна.' : 'Введите количество и сумму закупки.')
+    : mode === 'subtract' && nQty > curQty
+      ? `Списываем больше, чем есть: остаток уйдёт в минус на ${fmtNum(nQty - Math.max(curQty, 0))} ${selected?.unit}.`
+      : mode === 'set' ? 'Остаток станет ровно таким.' : '';
 
   const confirm = () => {
-    if (!selected || !qty) return;
-    const n = parseFloat(qty);
-    if (isNaN(n) || n < 0) return;
+    if (!selected || !canConfirm) return;
     try {
-      const id  = selected.id;
-      const name = selected.name;
-      const cur  = selected['остаток'] || 0;
+      const locId = locEnabled && selectedLocId ? selectedLocId : null;
       if (mode === 'purchase') {
-        const totalSum = parseFloat(price) || 0;
-        const perUnit = n > 0 ? totalSum / n : 0;
-        addPurchase(name, n, perUnit);
-        setTimeout(() => { try { updateMaxOstatok(id); } catch (_) {} }, 80);
-        if (totalSum > 0) setExpenseBridge({ name, amount: totalSum });
-      } else if (locEnabled && selectedLocId) {
-        if (mode === 'add')      adjustStockForLocation(id, selectedLocId, n);
-        if (mode === 'subtract') adjustStockForLocation(id, selectedLocId, -n);
-        if (mode === 'set')      setStockForLocation(id, selectedLocId, n);
+        addPurchase(selected.name, nQty, nSum / nQty, locId);
+        toast.show(`Закупка записана · расход ${fmtNum(nSum)} ₽ добавлен`, 'info');
       } else {
-        if (mode === 'add')      updateStockLocal(id, cur + n);
-        if (mode === 'subtract') updateStockLocal(id, Math.max(0, cur - n));
-        if (mode === 'set')      updateStockLocal(id, n);
+        adjustStock({ stockId: selected.id, mode, qty: nQty, locationId: locId });
+        toast.show('Остаток обновлён', 'info');
       }
-      const fresh = getAllStock();
-      setStock(fresh);
-      const updated = fresh.find(s => s.id === id);
-      setMode(null);
-      setQty('');
-      setPrice('');
-      if (updated) {
-        setSelected(updated);
-        try { setHistory(getStockHistory(id).slice(0, 10)); } catch (_) {}
-        try { setAvgCost(getAvgCostLast10(name)); } catch (_) {}
-      }
-    } catch (e) { console.error(e); }
+      setMode(null); setQty(''); setPrice('');
+      reload(selected.id);
+    } catch (e) {
+      console.error(e);
+      toast.show('Не удалось сохранить: ничего не записано, попробуйте ещё раз', 'warn');
+    }
   };
 
+  const counts = {
+    low: stock.filter(i => statusOf(i) === 'low').length,
+    neg: stock.filter(i => statusOf(i) === 'neg').length,
+  };
   const filtered = stock.filter(i =>
-    (!search.trim() || i.name?.toLowerCase().includes(search.toLowerCase()))
+    (!search.trim() || i.name?.toLowerCase().includes(search.toLowerCase())) &&
+    (statusFilter === 'all' || statusOf(i) === statusFilter)
   );
   const cats = [...new Set(filtered.map(i => i.category || 'Без категории'))].sort();
 
-  const previewQty = (() => {
-    const n = parseFloat(qty) || 0;
-    const cur = selected?.['остаток'] || 0;
-    if (mode === 'add')      return cur + n;
-    if (mode === 'subtract') return Math.max(0, cur - n);
-    if (mode === 'set')      return n;
-    if (mode === 'purchase') return cur + n;
-    return cur;
-  })();
-
-  const actionLabel = (() => {
-    const n = parseFloat(qty);
-    if (!n || !mode) return 'Применить';
-    const u = selected?.unit || '';
-    if (mode === 'purchase') return `Принять ${n} ${u}`;
-    if (mode === 'add')      return `Добавить ${n} ${u}`;
-    if (mode === 'subtract') return `Списать ${n} ${u}`;
-    if (mode === 'set')      return `Установить ${n} ${u}`;
-    return 'Применить';
-  })();
-
-  const renderItemRow = (item, isLast) => {
-    const cur   = item['остаток'] ?? 0;
-    const thr   = item['порог']   ?? 0;
-    const isNeg = cur < 0;
-    const isLow = thr > 0 && cur <= thr;
-    const isOk  = !isNeg && !isLow;
-    const isActive = selected?.id === item.id;
-
+  const renderRow = (item, first, highlightFirst) => {
+    const cur = item['остаток'] ?? 0;
+    const thr = item['порог'] || 0;
+    const st = statusOf(item);
+    const active = selected?.id === item.id;
     return (
       <Pressable
         key={item.id}
         style={({ pressed }) => [
-          styles.row,
-          !isLast && styles.rowDivider,
-          isActive && styles.rowActive,
-          pressed && !isActive && styles.rowPressed,
+          styles.row2, !first && styles.rowDiv2, active && styles.rowActive2,
+          pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
+          highlightFirst && { position: 'relative' }, highlightFirst && stockItemHighlight.style,
         ]}
         onPress={() => can('view_stock') && selectItem(item)}
       >
-        {isActive && <View style={styles.activeBar} />}
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.itemName, isActive && { color: colors.orange }]} numberOfLines={1}>{item.name}</Text>
-          {thr > 0 && (
-            <Text style={styles.itemThreshold}>порог {thr} {item.unit}</Text>
-          )}
+        {active && <View style={styles.rowBar2} />}
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={styles.rName} numberOfLines={1}>{item.name}</Text>
+          {thr > 0 && <Text style={styles.rThr}>порог {fmtNum(thr)} {item.unit}</Text>}
         </View>
-
-        <View style={styles.itemRight}>
-          <Text style={[
-            styles.itemQty,
-            isOk && styles.qtyOk,
-            isNeg && styles.qtyNeg,
-            isLow && !isNeg && styles.qtyLow,
-          ]}>
-            {cur} <Text style={styles.itemUnit}>{item.unit}</Text>
-          </Text>
-        </View>
-
-        <Text style={styles.rowArrow}>›</Text>
+        <Text style={[styles.rQty, st === 'low' && { color: colors.warning }, st === 'neg' && { color: colors.red }]}>
+          {fmtNum(cur)}<Text style={styles.rUnit}> {item.unit}</Text>
+        </Text>
+        {highlightFirst && stockItemHighlight.overlay}
       </Pressable>
     );
   };
 
-  const detailContent = (
-        selected && (mode ? (
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
-            <Text style={styles.slidePanelDesc}>{MODES.find(m => m.key === mode)?.desc}</Text>
 
-            <Text style={styles.inputLabel}>Количество, {selected?.unit}</Text>
-            <TextInput
-              style={styles.inputField}
-              value={qty}
-              onChangeText={setQty}
-              keyboardType="numeric"
-              placeholder="0"
-              placeholderTextColor={colors.muted}
-              autoFocus
-            />
-
-            {mode === 'purchase' && (
-              <>
-                <Text style={styles.inputLabel}>Сумма закупки, ₽</Text>
-                <TextInput
-                  style={styles.inputField}
-                  value={price}
-                  onChangeText={setPrice}
-                  keyboardType="numeric"
-                  placeholder="0"
-                  placeholderTextColor={colors.muted}
-                />
-                {!!qty && !!price && parseFloat(qty) > 0 && (
-                  <Text style={styles.purchasePerUnitHint}>
-                    ≈ {(parseFloat(price) / parseFloat(qty)).toFixed(2)} ₽/{selected?.unit}
-                  </Text>
-                )}
-                <Text style={styles.purchaseExpenseNote}>💡 Сумма автоматически попадёт в Расходы, категория «Закупка»</Text>
-              </>
-            )}
-
-            {qty !== '' && (
-              <View style={styles.previewBox}>
-                <Text style={styles.previewLabel}>Станет</Text>
-                <Text style={[
-                  styles.previewVal,
-                  previewQty < 0 && styles.qtyNeg,
-                  selected?.['порог'] > 0 && previewQty <= selected['порог'] && previewQty >= 0 && styles.qtyLow,
-                ]}>
-                  {previewQty.toFixed(1)} {selected?.unit}
-                </Text>
-              </View>
-            )}
-
-            <Pressable
-              style={({ pressed }) => [styles.confirmBtn, !qty && styles.confirmBtnOff, pressed && qty && { opacity: 0.88 }]}
-              onPress={confirm} disabled={!qty}
-            >
-              <Text style={styles.confirmBtnText}>{actionLabel}</Text>
-            </Pressable>
-          </ScrollView>
-        ) : (
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 22 }}>
-
-            {/* Текущий остаток */}
-            <View style={styles.curBox}>
-              <View style={styles.curRow}>
-                <View>
-                  <Text style={styles.curLabel}>Текущий остаток</Text>
-                  <Text style={[
-                    styles.curVal,
-                    selected['остаток'] < 0 && styles.qtyNeg,
-                    selected['порог'] > 0 && selected['остаток'] <= selected['порог'] && styles.qtyLow,
-                  ]}>
-                    {selected['остаток']} <Text style={styles.curUnit}>{selected.unit}</Text>
-                  </Text>
-                </View>
-                {selected['порог'] > 0 && (
-                  <View style={styles.curThrBox}>
-                    <Text style={styles.curThrLabel}>порог</Text>
-                    <Text style={styles.curThrVal}>{selected['порог']} {selected.unit}</Text>
-                  </View>
-                )}
-                {!can('edit_thresholds') && selected['порог'] > 0 && (
-                  <Text style={{ fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 4 }}>Изменение порога недоступно</Text>
-                )}
-              </View>
-
-              <View style={styles.priceRow}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={styles.curAvg}>Себестоимость:</Text>
-                  <InfoTip title="Себестоимость" text="Считается автоматически по последним закупкам этой позиции — не редактируется вручную. Если закупок ещё не было, тут прочерк, пока не оформите первую («Закупка»)." />
-                </View>
-                <Text style={styles.curAvgVal}>
-                  {avgCost > 0 ? `${avgCost} ₽/ед.` : '— (нет закупок)'}
-                </Text>
-              </View>
-
-              <View style={[styles.priceRow, { marginTop: 10 }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={styles.curAvg}>Цена продажи:</Text>
-                  <InfoTip title="Цена продажи" text="Сколько это стоит клиенту за единицу — используется, когда позицию продают напрямую (например, краску на развес) или добавляют в заказ по факту расхода. Отдельно от себестоимости." />
-                </View>
-                <TextInput
-                  color={colors.text}
-                  style={styles.priceInput}
-                  keyboardType="numeric"
-                  value={String(selected.sell_price || '')}
-                  placeholder="0"
-                  placeholderTextColor={colors.muted}
-                  onChangeText={v => setSelected(m => ({ ...m, sell_price: v }))}
-                />
-                <Text style={styles.curAvg}>₽/ед.</Text>
-                <Pressable
-                  style={({ pressed }) => [styles.priceSaveBtn, pressed && { opacity: 0.7, backgroundColor: 'rgba(127,168,217,0.3)' }]}
-                  onPress={() => saveSellPrice(String(selected.sell_price || ''))}
-                >
-                  <Text style={styles.priceSaveTxt}>✓</Text>
-                </Pressable>
-              </View>
-            </View>
-
-            {/* Режимы */}
-            {!can('edit_stock') ? (
-              <View style={{ paddingVertical: 16, alignItems: 'center' }}>
-                <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted }}>Изменение остатков недоступно</Text>
-              </View>
-            ) : (
-              <View style={styles.modeList}>
-                {MODES.filter(m => m.key !== 'set' || can('edit_thresholds')).map((m) => (
-                  <Pressable
-                    key={m.key}
-                    style={({ pressed }) => [
-                      styles.modeRow,
-                      pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
-                    ]}
-                    onPress={() => openMode(m.key)}
-                  >
-                    <View style={[styles.modeIconBadge, { backgroundColor: `${m.tint}22`, borderColor: `${m.tint}55` }]}>
-                      <Text style={styles.modeIconTxt}>{m.icon}</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.modeLabel}>{m.label}</Text>
-                      <Text style={styles.modeDesc}>{m.desc}</Text>
-                    </View>
-                    <Text style={styles.modeArrow}>›</Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-
-            {history.length > 0 && (
-              <Pressable style={styles.histToggle} onPress={() => setShowHistory(v => !v)}>
-                <Text style={styles.histToggleText}>{showHistory ? '▲' : '▼'} История движения</Text>
+  // ── Правая часть: редактор операции или карточка позиции ──
+  const editorContent = selected && mode ? (
+    <View style={{ flex: 1 }}>
+      <View style={styles.edHead}>
+        <Pressable onPress={closeSlidePanel} hitSlop={10}><Text style={styles.edBack}>‹ Назад</Text></Pressable>
+        <Text style={styles.edTitle}>{MODES.find(m => m.key === mode)?.label}</Text>
+      </View>
+      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
+        <View style={styles.fld}>
+          <Text style={styles.fldLbl}>Количество</Text>
+          <TextInput
+            style={styles.fldInput} value={qty} onChangeText={onQtyChange}
+            keyboardType="decimal-pad" placeholder="0" placeholderTextColor="rgba(255,255,255,0.22)" autoFocus
+          />
+          <Text style={styles.fldUnit}>{selected.unit}</Text>
+          <Pressable style={styles.stepBtn} onPress={() => stepQty(-1)} hitSlop={6}><Icon name="minus" size={20} color={colors.textDim} /></Pressable>
+          <Pressable style={styles.stepBtn} onPress={() => stepQty(1)} hitSlop={6}><Icon name="plus" size={20} color={colors.textDim} /></Pressable>
+        </View>
+        {mode !== 'set' && (
+          <View style={styles.qdRow}>
+            {[1, 5, 10].map(v => (
+              <Pressable key={v} style={styles.qdChip} onPress={() => stepQty(v)}>
+                <Text style={styles.qdTxt}>+{v}</Text>
               </Pressable>
-            )}
-            {showHistory && history.map((h, i) => (
-              <View key={i} style={styles.histRow}>
-                <Text style={styles.histDate}>{h.date?.slice(0, 10) || '—'}</Text>
-                <Text style={styles.histQty}>{h.qty > 0 ? '+' : ''}{h.qty} {selected.unit}</Text>
-                {h.price > 0 && <Text style={styles.histPrice}>{h.price} ₽/ед.</Text>}
-              </View>
             ))}
+          </View>
+        )}
+        {mode === 'purchase' && (
+          <View style={styles.fld}>
+            <Text style={styles.fldLbl}>Сумма закупки</Text>
+            <TextInput
+              style={styles.fldInput} value={price} onChangeText={onPriceChange}
+              keyboardType="decimal-pad" placeholder="0" placeholderTextColor="rgba(255,255,255,0.22)"
+            />
+            <Text style={styles.fldUnit}>₽</Text>
+          </View>
+        )}
+        <GlassSurface radius={18} padding={18}>
+          <View style={styles.preRow}>
+            <Text style={styles.preLbl}>Станет</Text>
+            <Text style={[styles.preVal, previewStatus === 'low' && { color: colors.warning }, previewStatus === 'neg' && { color: colors.red }]}>
+              {fmtNum(previewQty)}<Text style={styles.heroUnit}> {selected.unit}</Text>
+            </Text>
+          </View>
+        </GlassSurface>
+        {!!hintText && (
+          <Text style={[styles.hint2, mode === 'subtract' && nQty > curQty && { color: colors.warning }, mode === 'purchase' && nQty > 0 && nSum > 0 && { color: colors.green }]}>
+            {hintText}
+          </Text>
+        )}
+      </ScrollView>
+      <Pressable
+        style={({ pressed }) => [styles.confirm2, !canConfirm && styles.confirm2Off, pressed && canConfirm && { transform: [{ scale: 0.98 }] }]}
+        onPress={confirm} disabled={!canConfirm}
+      >
+        <Text style={styles.confirm2Txt}>{actionLabel}</Text>
+      </Pressable>
+    </View>
+  ) : null;
 
-            {can('edit_stock') && (
-              <Pressable style={styles.deleteItemBtn} onPress={requestDelete}>
-                <Text style={styles.deleteItemTxt}>Удалить позицию</Text>
+  const cardContent = selected && !mode ? (() => {
+    const st = statusOf(selected);
+    const thr = selected['порог'] || 0;
+    const canThr = can('edit_thresholds');
+    return (
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }} keyboardShouldPersistTaps="handled">
+        <View style={styles.dHead}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={styles.dTitle} numberOfLines={2}>{selected.name}</Text>
+            {thrDraft === null ? (
+              <Pressable disabled={!canThr} onPress={() => setThrDraft(thr > 0 ? toField(thr) : '')} hitSlop={6}>
+                <Text style={styles.dSub}>
+                  {selected.category || 'Без категории'}{thr > 0 ? ` · порог ${fmtNum(thr)} ${selected.unit}` : (canThr ? ' · задать порог' : '')}
+                </Text>
               </Pressable>
+            ) : (
+              <View style={styles.thrEdit}>
+                <TextInput style={styles.thrInput} value={thrDraft} onChangeText={v => setThrDraft(String(v).replace(/[^0-9.,]/g, ''))}
+                  keyboardType="decimal-pad" placeholder="Порог" placeholderTextColor={colors.muted} autoFocus />
+                <Text style={styles.dSub}>{selected.unit}</Text>
+                <Pressable style={styles.miniBtn} onPress={saveThreshold}><Icon name="check" size={18} color={colors.orangeLight} /></Pressable>
+                <Pressable style={[styles.miniBtn, { backgroundColor: 'rgba(255,255,255,0.06)' }]} onPress={() => setThrDraft(null)}><Icon name="x" size={18} color={colors.textDim} /></Pressable>
+              </View>
             )}
-          </ScrollView>
-        ))
-  );
+          </View>
+          <StatusPill status={st} />
+        </View>
+
+        <GlassSurface radius={glass.radius.tile} style={{ marginBottom: 12 }}>
+          <View style={styles.stripe2} />
+          <View style={{ paddingVertical: 20, paddingLeft: 26, paddingRight: 22 }}>
+            <Text style={styles.tileLbl}>Текущий остаток</Text>
+            <Text style={[styles.heroVal, st === 'low' && { color: colors.warning }, st === 'neg' && { color: colors.red }]}>
+              {fmtNum(curQty)}<Text style={styles.heroUnit}> {selected.unit}</Text>
+            </Text>
+          </View>
+        </GlassSurface>
+
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          <GlassSurface radius={glass.radius.tile} padding={16} style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={styles.tileLbl}>Себестоимость</Text>
+              <InfoTip title="Себестоимость" text="Средняя цена за единицу по последним 10 закупкам этой позиции (закупки без цены не учитываются). Считается автоматически и в карточке, и в техкартах. Если закупок ещё не было — прочерк, пока не оформите первую («Закупка»)." />
+            </View>
+            <Text style={styles.tileVal}>{avgCost > 0 ? `${fmtNum(avgCost)} ₽/${selected.unit}` : '—'}</Text>
+            <Text style={styles.tileSmall}>по последним 10 закупкам</Text>
+          </GlassSurface>
+          <GlassSurface radius={glass.radius.tile} padding={16} style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={styles.tileLbl}>Цена за ед.</Text>
+              <InfoTip title="Цена за единицу" text="Сколько клиент платит за единицу этого материала при «расходе по факту» на Кассе: итог позиции = базовая цена + количество × эта цена. Если цена 0 — материал спишется со склада, но в счёт не попадёт. На цену обычных товаров не влияет — она задаётся в разделе «Товары»." />
+            </View>
+            <View style={styles.sellRow}>
+              <TextInput
+                style={styles.sellInput} value={sellDraft}
+                onChangeText={v => setSellDraft(String(v).replace(/[^0-9.,]/g, ''))}
+                keyboardType="decimal-pad" placeholder="0" placeholderTextColor="rgba(255,255,255,0.22)"
+                editable={can('edit_stock')}
+              />
+              <Text style={[styles.fldUnit, { fontSize: 15, minWidth: 0, marginRight: 8 }]}>₽/{selected.unit}</Text>
+              {can('edit_stock') && (
+                <Pressable style={styles.miniBtn} onPress={saveSellPrice} hitSlop={6}><Icon name="check" size={18} color={colors.orangeLight} /></Pressable>
+              )}
+            </View>
+            <Text style={styles.tileSmall}>при расходе по факту</Text>
+          </GlassSurface>
+        </View>
+
+        {!can('edit_stock') ? (
+          <Text style={styles.lockNote}>Изменение остатков недоступно — попросите администратора выдать право «Редактирование склада».</Text>
+        ) : (
+          <View style={styles.actGrid}>
+            {MODES.filter(m => m.key !== 'set' || can('edit_thresholds')).map(m => (
+              <ActionTile key={m.key} icon={m.icon} title={m.label} sub={m.desc} primary={m.primary} onPress={() => openMode(m.key)} />
+            ))}
+          </View>
+        )}
+
+        {can('edit_stock') && (
+          <Pressable onPress={requestDelete} style={{ alignSelf: 'flex-end', marginTop: 18 }}>
+            <Text style={styles.delLink}>Удалить позицию</Text>
+          </Pressable>
+        )}
+      </ScrollView>
+    );
+  })() : null;
+
+  const detailContent = editorContent || cardContent;
 
   return (
-    <View style={[styles.layout, isLandscape && { flexDirection: 'row' }]}>
+    <View style={[styles.layout2, isLandscape && { flexDirection: 'row' }]}>
 
-      {/* Список — на всю ширину в портрете, узкой колонкой слева в альбомной */}
-      <View style={[styles.left, isLandscape && styles.leftLandscape]}>
+      {/* Список — карточкой слева (альбомная) или на всю ширину (портрет) */}
+      <View style={[styles.lcard, isLandscape && styles.lcardLand]}>
 
         {locEnabled && locations.length > 0 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false}
@@ -455,7 +495,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
             {locations.map(l => (
               <Pressable key={l.id}
                 style={[styles.locChip, selectedLocId === l.id && styles.locChipActive]}
-                onPress={() => { setCurrentLocationId(l.id); setSelectedLocId(l.id); reload(); }}>
+                onPress={() => { setCurrentLocationId(l.id); setSelectedLocId(l.id); reload(selected?.id ?? null, true, l.id); }}>
                 <Text style={[styles.locChipText, selectedLocId === l.id && styles.locChipActive]}>
                   {l.name}
                 </Text>
@@ -464,124 +504,105 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
           </ScrollView>
         )}
 
-        <View style={[styles.searchWrap, { position: 'relative' }, stockSearchHighlight.style]}>
-          <TextInput
-            style={[styles.searchInput, { flex: 1 }]}
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Поиск..."
-            placeholderTextColor={colors.muted}
-          />
+        <View style={[styles.toolbar, { position: 'relative' }, stockSearchHighlight.style]}>
+          <View style={styles.searchBox}>
+            <Icon name="search" size={20} color={colors.muted} />
+            <TextInput
+              style={styles.searchInput2} value={search} onChangeText={setSearch}
+              placeholder="Поиск" placeholderTextColor={colors.muted}
+            />
+          </View>
           {!hideOwnCreateButton && (
-          <Pressable onPress={() => setNewItemModal({ name: '', unit: 'шт', category: '', threshold: '', initialStock: '' })} hitSlop={8} style={styles.addStockBtn}>
-            <Text style={styles.addStockBtnText}>+ Позиция</Text>
-          </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.addBtn2, pressed && { opacity: 0.88 }]}
+              onPress={() => setNewItemModal({ name: '', unit: 'шт', category: '', threshold: '', initialStock: '' })}
+            >
+              <Icon name="plus" size={18} color={colors.onAccent} />
+              <Text style={styles.addBtn2Txt}>Позиция</Text>
+            </Pressable>
           )}
-          <Pressable onPress={() => setLowStockSheetOpen(true)} hitSlop={8} style={[styles.catBtn, { position: 'relative' }, stockLowHighlight.style]}>
-            <Text style={styles.catBtnText}>⚠️</Text>
-            {stockLowHighlight.overlay}
-          </Pressable>
-          <Pressable onPress={() => setCatModal(true)} hitSlop={8} style={styles.catBtn}>
-            <Text style={styles.catBtnText}>⚙</Text>
+          <Pressable style={styles.gearBtn} onPress={() => setCatModal(true)} accessibilityLabel="Категории склада">
+            <Icon name="gear" size={20} color={colors.textDim} />
           </Pressable>
           {stockSearchHighlight.overlay}
         </View>
 
-        <View style={styles.filterRow}>
-          <View style={styles.viewSwitch}>
-            <Pressable style={[styles.viewSwitchBtn, viewMode === 'categories' && styles.viewSwitchBtnActive]} onPress={() => setViewMode('categories')}>
-              <Text style={[styles.viewSwitchTxt, viewMode === 'categories' && styles.viewSwitchTxtActive]}>По категориям</Text>
-            </Pressable>
-            <Pressable style={[styles.viewSwitchBtn, viewMode === 'list' && styles.viewSwitchBtnActive]} onPress={() => setViewMode('list')}>
-              <Text style={[styles.viewSwitchTxt, viewMode === 'list' && styles.viewSwitchTxtActive]}>Список</Text>
-            </Pressable>
-          </View>
-        </View>
-
-        <View style={[{ flex: 1, position: 'relative' }, stockItemHighlight.style]}>
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.inner, filtered.length === 0 && { flexGrow: 1, justifyContent: 'center' }]}
-          keyboardShouldPersistTaps="handled">
-          {filtered.length === 0 ? (
-            stock.length === 0 ? (
-              <EmptyState icon="📦" title="Склад пуст"
-                text="Добавьте первую позицию — то, что физически заканчивается: ингредиенты, расходники, товары для перепродажи."
-                action={hideOwnCreateButton ? undefined : '+ Добавить позицию'}
-                onAction={hideOwnCreateButton ? undefined : () => setNewItemModal({ name: '', unit: 'шт', category: '', threshold: '', initialStock: '' })} />
-            ) : (
-              <EmptyState icon="✅" title="Ничего не найдено"
-                text="Попробуйте другой поиск" />
-            )
-          ) : viewMode === 'list' ? (
-            <View style={styles.catCard}>
-              {[...filtered].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ru')).map((item, idx, arr) =>
-                renderItemRow(item, idx === arr.length - 1)
-              )}
+        {stock.length > 0 && (
+          <View style={styles.chipsRow}>
+            <FilterChip label="Все" on={statusFilter === 'all'} onPress={() => setStatusFilter('all')} />
+            <View style={{ position: 'relative' }}>
+              <FilterChip label="Заканчивается" on={statusFilter === 'low'} count={counts.low} tone="warn" onPress={() => setStatusFilter(f => f === 'low' ? 'all' : 'low')} />
+              {stockLowHighlight.overlay}
             </View>
-          ) : cats.map(cat => {
-            const items = [...filtered.filter(i => (i.category || 'Без категории') === cat)]
-              .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ru'));
-            const hasLow = items.some(i => i['порог'] > 0 && i['остаток'] <= i['порог']);
-            return (
-              <View key={cat} style={styles.catGroup}>
-                <View style={styles.catHeadRow}>
-                  <Text style={[styles.catName, hasLow && styles.catNameWarn]}>{cat}</Text>
-                  <Text style={styles.catCount}>{items.length}</Text>
-                  {hasLow && <Text style={styles.catWarnDot}>⚠️</Text>}
-                </View>
+            <FilterChip label="В минусе" on={statusFilter === 'neg'} count={counts.neg} tone="danger" onPress={() => setStatusFilter(f => f === 'neg' ? 'all' : 'neg')} />
+            <View style={styles.vSwitch}>
+              <Pressable style={[styles.vSwitchBtn, viewMode === 'categories' && styles.vSwitchOn]} onPress={() => setViewMode('categories')} accessibilityLabel="По категориям">
+                <Icon name="grid" size={16} color={viewMode === 'categories' ? colors.orangeLight : colors.muted} />
+              </Pressable>
+              <Pressable style={[styles.vSwitchBtn, viewMode === 'list' && styles.vSwitchOn]} onPress={() => setViewMode('list')} accessibilityLabel="Списком">
+                <Icon name="rows" size={16} color={viewMode === 'list' ? colors.orangeLight : colors.muted} />
+              </Pressable>
+            </View>
+          </View>
+        )}
 
-                <View style={styles.catCard}>
-                  {items.map((item, idx) => renderItemRow(item, idx === items.length - 1))}
+        {stock.length === 0 ? (
+          <View style={styles.emptyBox}>
+            <View style={styles.emptyIco}><Icon name="package" size={34} color={colors.textDim} /></View>
+            <Text style={styles.emptyTitle}>Склад пуст</Text>
+            <Text style={styles.emptyText}>Добавьте первую позицию — то, что физически заканчивается: ингредиенты, расходники, товары для перепродажи.</Text>
+            {!hideOwnCreateButton && (
+              <Pressable style={({ pressed }) => [styles.emptyCta, pressed && { opacity: 0.88 }]}
+                onPress={() => setNewItemModal({ name: '', unit: 'шт', category: '', threshold: '', initialStock: '' })}>
+                <Icon name="plus" size={18} color={colors.onAccent} />
+                <Text style={styles.emptyCtaTxt}>Добавить позицию</Text>
+              </Pressable>
+            )}
+          </View>
+        ) : filtered.length === 0 ? (
+          <View style={styles.emptyBox}><Text style={styles.emptyText}>{search ? 'Ничего не найдено' : 'В этой группе позиций нет'}</Text></View>
+        ) : (
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+            {viewMode === 'categories' ? cats.map((cat, ci) => {
+              const items = filtered.filter(i => (i.category || 'Без категории') === cat);
+              return (
+                <View key={cat}>
+                  <View style={styles.grpHead}><Text style={styles.grpName}>{cat}</Text><Text style={styles.grpCnt}>{items.length}</Text></View>
+                  <View style={styles.grpCard}>
+                    {items.map((it, idx) => renderRow(it, idx === 0, ci === 0 && idx === 0))}
+                  </View>
                 </View>
+              );
+            }) : (
+              <View style={[styles.grpCard, { marginTop: 8 }]}>
+                {[...filtered].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ru')).map((it, idx) => renderRow(it, idx === 0, idx === 0))}
               </View>
-            );
-          })}
-        </ScrollView>
-        {stockItemHighlight.overlay}
-        </View>
+            )}
+          </ScrollView>
+        )}
       </View>
 
       {isLandscape ? (
-        /* Альбомная ориентация — карточка товара постоянной панелью справа от списка */
-        <View style={styles.landscapeDetail}>
+        /* Правая карточка: позиция или подсказка */
+        <View style={styles.rcard}>
           {selected ? (
-            <Animated.View
-              key={selected?.id}
-              style={{
-                flex: 1,
-                opacity: editorFadeAnim,
-                transform: [{
-                  translateY: editorFadeAnim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }),
-                }],
-              }}
-            >
-              <View style={styles.landscapeHeader}>
-                <Text style={styles.landscapeHeaderTxt} numberOfLines={1}>
-                  {mode ? MODES.find(m => m.key === mode)?.label : selected?.name}
-                </Text>
-                {mode && (
-                  <Pressable onPress={closeSlidePanel} hitSlop={12} style={styles.landscapeBackBtn}>
-                    <Text style={styles.landscapeBackTxt}>‹ Назад</Text>
-                  </Pressable>
-                )}
-              </View>
-              {detailContent}
-            </Animated.View>
+            <Animated.View style={{ flex: 1, opacity: editorFadeAnim }}>{detailContent}</Animated.View>
           ) : (
-            <View style={styles.emptyRight}>
-              <Text style={{ fontSize: 48 }}>📦</Text>
-              <Text style={styles.emptyRightTxt}>Выберите товар</Text>
+            <View style={[styles.emptyBox, { opacity: 0.7 }]}>
+              <View style={styles.emptyIco}><Icon name="package" size={34} color={colors.textDim} /></View>
+              <Text style={[styles.emptyTitle, { fontSize: 17, color: colors.textDim, marginBottom: 0 }]}>Выберите позицию</Text>
             </View>
           )}
         </View>
       ) : (
-        /* Портретная ориентация — карточка товара выезжающим слоем поверх списка */
+        /* Портретная ориентация — карточка позиции выезжающим слоем поверх списка */
         <Sheet
           visible={!!selected}
-          onClose={() => setSelected(null)}
+          onClose={() => { setSelected(null); setMode(null); }}
           onBack={mode ? closeSlidePanel : undefined}
           title={mode ? MODES.find(m => m.key === mode)?.label : selected?.name}
         >
-          {detailContent}
+          <View style={{ padding: 16, flex: 1 }}>{detailContent}</View>
         </Sheet>
       )}
 
@@ -636,78 +657,6 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
           </FitView>
         </View>
       </Modal>
-
-      {/* Мостик Склад → Расход: закупка материала обновляет только себестоимость
-          (среднюю цену для техкарт), деньги как трата нигде не отражаются, пока
-          не заведены отдельно — предлагаем сразу, с уже подставленной суммой */}
-      <Sheet visible={!!expenseBridge} onClose={() => setExpenseBridge(null)} title="Добавить как расход?">
-        <View style={{ padding: 20 }}>
-          <View style={styles.bridgeAmountBox}>
-            <Text style={styles.bridgeAmountVal}>{Math.round(expenseBridge?.amount || 0).toLocaleString('ru-RU')} ₽</Text>
-            <Text style={styles.bridgeAmountLbl}>{expenseBridge?.name}</Text>
-          </View>
-          <Pressable
-            style={styles.bridgeAddBtn}
-            onPress={() => {
-              try {
-                insertExpense({
-                  date: new Date().toISOString().slice(0, 10),
-                  category: 'Материалы',
-                  amount: expenseBridge.amount,
-                  comment: expenseBridge.name,
-                  location_id: getCurrentLocationId(),
-                });
-                toast.show('Расход добавлен', 'success');
-              } catch (e) { console.error(e); }
-              setExpenseBridge(null);
-            }}
-          >
-            <Text style={styles.bridgeAddBtnTxt}>Добавить расход</Text>
-          </Pressable>
-          <Pressable style={styles.bridgeSkipBtn} onPress={() => setExpenseBridge(null)}>
-            <Text style={styles.bridgeSkipBtnTxt}>Пропустить</Text>
-          </Pressable>
-        </View>
-      </Sheet>
-
-      {/* Отдельный экран — всё, что скоро закончится, в одном месте */}
-      <Sheet visible={lowStockSheetOpen} onClose={() => setLowStockSheetOpen(false)} title="Скоро закончится">
-        <ScrollView contentContainerStyle={{ padding: 16 }}>
-          {(() => {
-            const negItems = stock.filter(s => (s['остаток'] ?? 0) < 0);
-            const lowItems = stock.filter(s => {
-              const cur = s['остаток'] ?? 0;
-              const thr = s['порог'] ?? 0;
-              return cur >= 0 && thr > 0 && cur <= thr;
-            });
-            if (negItems.length === 0 && lowItems.length === 0) {
-              return (
-                <EmptyState icon="✅" title="Всё в норме" text="Ни одна позиция не приближается к порогу" />
-              );
-            }
-            return (
-              <>
-                {negItems.length > 0 && (
-                  <>
-                    <Text style={styles.lowSheetSectionTitle}>В минусе</Text>
-                    <View style={styles.catCard}>
-                      {negItems.map((item, idx) => renderItemRow(item, idx === negItems.length - 1))}
-                    </View>
-                  </>
-                )}
-                {lowItems.length > 0 && (
-                  <>
-                    <Text style={[styles.lowSheetSectionTitle, { marginTop: negItems.length > 0 ? 20 : 0 }]}>Ниже порога</Text>
-                    <View style={styles.catCard}>
-                      {lowItems.map((item, idx) => renderItemRow(item, idx === lowItems.length - 1))}
-                    </View>
-                  </>
-                )}
-              </>
-            );
-          })()}
-        </ScrollView>
-      </Sheet>
 
       {/* Новая позиция склада — выезжающий слой */}
       <Sheet visible={!!newItemModal} onClose={() => setNewItemModal(null)} title="Новая позиция склада">
@@ -1140,4 +1089,85 @@ const styles = StyleSheet.create({
   purchasePerUnitHint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.green, textAlign: 'center', marginBottom: 4 },
   purchaseExpenseNote: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 4 },
   histPrice:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.orange, flex: 1, textAlign: 'right' },
+  // ── Новый вид склада (карточки, стеклянные плитки, действия) ──
+  layout2:     { flex: 1, padding: 12 },
+  lcard:       { backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', padding: 16, flex: 1 },
+  lcardLand:   { flex: 0, width: '38%', maxWidth: 480, marginRight: 12 },
+  rcard:       { flex: 1, backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', padding: 24 },
+  toolbar:     { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  searchBox:   { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, height: 46, borderRadius: 14, paddingHorizontal: 14, backgroundColor: colors.bg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' },
+  searchInput2:{ flex: 1, padding: 0, color: colors.text, fontSize: 16, fontFamily: fonts.familyRegular },
+  addBtn2:     { flexDirection: 'row', alignItems: 'center', gap: 6, height: 46, paddingHorizontal: 16, borderRadius: 14, backgroundColor: colors.orange },
+  addBtn2Txt:  { fontFamily: fonts.family, fontSize: 15, color: colors.onAccent },
+  gearBtn:     { width: 46, height: 46, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
+  chipsRow:    { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  fChip:       { flexDirection: 'row', alignItems: 'center', height: 34, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', marginRight: 6 },
+  fChipOn:     { backgroundColor: 'rgba(127,168,217,0.2)', borderColor: 'rgba(157,191,230,0.5)' },
+  fChipTxt:    { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
+  fChipTxtOn:  { color: colors.orangeLight },
+  fChipCnt:    { fontFamily: fonts.familySemibold, fontSize: 13, marginLeft: 6 },
+  vSwitch:     { flexDirection: 'row', height: 34, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', overflow: 'hidden', marginLeft: 'auto' },
+  vSwitchBtn:  { width: 38, alignItems: 'center', justifyContent: 'center' },
+  vSwitchOn:   { backgroundColor: 'rgba(127,168,217,0.2)' },
+  grpHead:     { flexDirection: 'row', alignItems: 'baseline', paddingHorizontal: 4, paddingTop: 12, paddingBottom: 6 },
+  grpName:     { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
+  grpCnt:      { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginLeft: 8 },
+  grpCard:     { backgroundColor: colors.bg, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', overflow: 'hidden' },
+  row2:        { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 16, position: 'relative' },
+  rowDiv2:     { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)' },
+  rowActive2:  { backgroundColor: 'rgba(127,168,217,0.10)' },
+  rowBar2:     { position: 'absolute', left: 0, top: 12, bottom: 12, width: 3, borderTopRightRadius: 2, borderBottomRightRadius: 2, backgroundColor: colors.orange },
+  rName:       { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
+  rThr:        { fontFamily: fonts.familyMedium, fontSize: 12, color: colors.muted, marginTop: 2 },
+  rQty:        { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text, marginLeft: 12 },
+  rUnit:       { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
+  emptyBox:    { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16 },
+  emptyIco:    { width: 76, height: 76, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
+  emptyTitle:  { fontFamily: fonts.familySemibold, fontSize: 20, color: colors.text, marginBottom: 8 },
+  emptyText:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', lineHeight: 21, maxWidth: 300, marginBottom: 20 },
+  emptyCta:    { flexDirection: 'row', alignItems: 'center', gap: 8, height: 48, paddingHorizontal: 24, borderRadius: 14, backgroundColor: colors.orange },
+  emptyCtaTxt: { fontFamily: fonts.family, fontSize: 15, color: colors.onAccent },
+  dHead:       { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 16 },
+  dTitle:      { fontFamily: fonts.display, fontSize: 26, color: colors.text, letterSpacing: -0.3 },
+  dSub:        { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 3 },
+  thrEdit:     { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
+  thrInput:    { width: 110, height: 40, borderRadius: 10, paddingHorizontal: 12, backgroundColor: colors.bg, borderWidth: 1, borderColor: 'rgba(157,191,230,0.5)', color: colors.text, fontFamily: fonts.familySemibold, fontSize: 16 },
+  miniBtn:     { width: 40, height: 40, borderRadius: 10, backgroundColor: 'rgba(127,168,217,0.2)', alignItems: 'center', justifyContent: 'center' },
+  pill:        { height: 28, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center', marginLeft: 12 },
+  pillTxt:     { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.textDim },
+  stripe2:     { position: 'absolute', left: 0, top: 24, bottom: 24, width: 3, borderTopRightRadius: 2, borderBottomRightRadius: 2, backgroundColor: colors.orange },
+  tileLbl:     { fontFamily: fonts.familySemibold, fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase', color: colors.textDim },
+  heroVal:     { fontFamily: fonts.display, fontSize: 52, color: colors.text, letterSpacing: -1.6, marginTop: 8 },
+  heroUnit:    { fontFamily: fonts.familyMedium, fontSize: 22, color: colors.orangeLight, letterSpacing: 0 },
+  tileVal:     { fontFamily: fonts.familySemibold, fontSize: 22, color: colors.text, marginTop: 8, letterSpacing: -0.2 },
+  tileSmall:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 3 },
+  sellRow:     { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+  sellInput:   { flex: 1, minWidth: 0, padding: 0, color: colors.text, fontFamily: fonts.familySemibold, fontSize: 22 },
+  actGrid:     { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 },
+  actWrap:     { flexGrow: 1, flexBasis: '45%' },
+  actInner:    { height: 76, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 },
+  actIcon:     { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.07)', alignItems: 'center', justifyContent: 'center', marginRight: 14 },
+  actIconPri:  { backgroundColor: 'rgba(127,168,217,0.3)' },
+  actTitle:    { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
+  actSub:      { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 1 },
+  lockNote:    { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 16, lineHeight: 19 },
+  delLink:     { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, paddingVertical: 8 },
+  edHead:      { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
+  edBack:      { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.orangeLight, marginRight: 16 },
+  edTitle:     { fontFamily: fonts.familySemibold, fontSize: 20, color: colors.text },
+  fld:         { flexDirection: 'row', alignItems: 'center', height: 76, borderRadius: 18, paddingHorizontal: 20, marginBottom: 12, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
+  fldLbl:      { width: 130, fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
+  fldInput:    { flex: 1, minWidth: 0, textAlign: 'right', padding: 0, fontFamily: fonts.display, fontSize: 34, color: colors.text, letterSpacing: -0.6 },
+  fldUnit:     { fontFamily: fonts.familyMedium, fontSize: 20, color: colors.orangeLight, marginLeft: 10, minWidth: 26 },
+  stepBtn:     { width: 44, height: 44, borderRadius: 12, backgroundColor: colors.surface3, alignItems: 'center', justifyContent: 'center', marginLeft: 10 },
+  qdRow:       { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  qdChip:      { height: 36, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
+  qdTxt:       { fontFamily: fonts.familyMedium, fontSize: 14, color: colors.muted },
+  preRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
+  preLbl:      { fontFamily: fonts.familySemibold, fontSize: 13, letterSpacing: 1.3, textTransform: 'uppercase', color: colors.textDim },
+  preVal:      { fontFamily: fonts.display, fontSize: 30, color: colors.text, letterSpacing: -0.5 },
+  hint2:       { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 12, lineHeight: 19, marginHorizontal: 2 },
+  confirm2:    { marginTop: 14, height: 58, borderRadius: 16, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center' },
+  confirm2Off: { opacity: 0.35 },
+  confirm2Txt: { fontFamily: fonts.family, fontSize: 18, color: colors.onAccent },
 });

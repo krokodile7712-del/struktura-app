@@ -21,7 +21,7 @@ import AppBackground from './components/AppBackground';
 import { ToastProvider } from './components/Toast';
 import { TourRegistryProvider } from './components/TourRegistry';
 import OnboardingScreen from './screens/OnboardingScreen';
-import { migrateClientPhones } from './db/queries';
+import { migrateClientPhones, recalcStockCostsOnce } from './db/queries';
 import { initDatabase } from './db/database';
 import { startAutoSync } from './db/sync';
 
@@ -97,6 +97,8 @@ export default function App() {
       // Разовое приведение номеров клиентов к формату +7 (9XX) XXX-XX-XX —
       // сбой миграции не должен мешать запуску приложения
       try { migrateClientPhones(); } catch (e) { console.error('[phones] миграция не выполнена:', e); }
+      // Разовый пересчёт себестоимости по правилу «последние 10 закупок» — сбой не должен мешать запуску
+      try { recalcStockCostsOnce(); } catch (e) { console.error('[cost] пересчёт не выполнен:', e); }
       startAutoSync(30 * 1000);
       // Стартовых сотрудников нет: пока в базе нет ни одного, открываем только
       // мастер регистрации, где администратор сам придумывает PIN. Флаг

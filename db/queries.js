@@ -2619,54 +2619,75 @@ export function updateMaxOstatok(stockId) {
   } catch (_) {}
 }
 
-export function addPurchase(stockName, qty, pricePerUnit) {
+// Единое правило себестоимости: средневзвешенная цена по ПОСЛЕДНИМ 10 закупкам позиции (закупки
+// без цены не учитываются). Одно число и на карточке склада, и в техкартах (раньше на карточке было
+// «последние 10», а в техкарты уходило «среднее за всё время» — для одной позиции получались два разных числа,
+// например 180 и 183,33 ₽).
+const COST_WINDOW = 10;
+function weightedAvgLastPurchases(db, stockName, count = COST_WINDOW) {
+  const rows = db.getAllSync(
+    `SELECT qty, price_per_unit FROM purchases
+     WHERE LOWER(stock_name) = LOWER(?) AND price_per_unit > 0 AND qty > 0
+     ORDER BY created_at DESC, id DESC LIMIT ?`,
+    [stockName, count]
+  );
+  const totalQty = rows.reduce((sum, r) => sum + r.qty, 0);
+  const totalSum = rows.reduce((sum, r) => sum + r.qty * r.price_per_unit, 0);
+  return totalQty > 0 ? Math.round((totalSum / totalQty) * 100) / 100 : 0;
+}
+
+// Закупка: остаток растёт, пересчитывается средняя цена (последние 10 закупок), обновляются техкарты и
+// записывается расход «Закупка» — всё одной транзакцией. Закупка без цены (≤ 0) цену не трогает: иначе
+// она занижала бы себестоимость во всех техкартах (100 л «без цены» роняли среднюю со 150 до 25 ₽) и
+// писала расход на 0 ₽; такое количество просто добавляется к остатку.
+// locationId — если включён модуль «Локации», остаток растёт в выбранной локации (раньше — всегда в общем).
+export function addPurchase(stockName, qty, pricePerUnit, locationId = null) {
   initPurchasesTable();
   const db = getDb();
+  if (!(qty > 0) || !isFinite(qty)) throw new Error('Количество закупки должно быть больше нуля');
+  const hasPrice = pricePerUnit > 0 && isFinite(pricePerUnit);
   const now = new Date().toISOString();
-  const total = qty * pricePerUnit;
+  const total = hasPrice ? qty * pricePerUnit : 0;
+  const stockRow = db.getFirstSync(`SELECT id, unit FROM stock WHERE LOWER(name) = LOWER(?)`, [stockName]);
+  if (!stockRow) throw new Error('Позиция склада не найдена');
 
-  // Записываем закупку
-  db.runSync(
-    `INSERT INTO purchases (stock_name, qty, price_per_unit, total, created_at) VALUES (?, ?, ?, ?, ?)`,
-    [stockName, qty, pricePerUnit, total, now]
-  );
-
-  // Пересчитываем среднюю цену по всем закупкам этого товара
-  const rows = db.getAllSync(
-    `SELECT qty, price_per_unit FROM purchases WHERE LOWER(stock_name) = LOWER(?)`,
-    [stockName]
-  );
-  const totalQty = rows.reduce((s, r) => s + r.qty, 0);
-  const totalSum = rows.reduce((s, r) => s + r.qty * r.price_per_unit, 0);
-  const avgPrice = totalQty > 0 ? Math.round((totalSum / totalQty) * 100) / 100 : pricePerUnit;
-
-  // Обновляем склад
-  db.runSync(
-    `UPDATE stock SET остаток = остаток + ?, avg_price = ?, last_price = ? WHERE LOWER(name) = LOWER(?)`,
-    [qty, avgPrice, pricePerUnit, stockName]
-  );
-
-  // Обновляем price_per_unit во всех техкартах где используется этот ингредиент
-  db.runSync(
-    `UPDATE cost_ingredients SET price_per_unit = ?
-     WHERE LOWER(name) = LOWER(?)`,
-    [avgPrice, stockName]
-  );
-
-  // Фиксируем закупку как расход — чтобы она попадала в отчёты и Расходы
+  db.execSync('BEGIN');
   try {
-    const shift = getOpenShift();
-    const stockItem = db.getFirstSync(`SELECT unit FROM stock WHERE LOWER(name) = LOWER(?)`, [stockName]);
-    insertExpense({
-      date: now.slice(0, 10),
-      category: 'Закупка',
-      amount: total,
-      comment: `${stockName}, ${qty} ${stockItem?.unit || ''}`.trim(),
-      shift_id: shift?.id || null,
-    });
-  } catch (e) { console.error('[addPurchase] Ошибка записи расхода:', e); }
+    // Остаток: прямо в базе («остаток = остаток + qty»), округление до 3 знаков (0,1 + 0,2 без хвостов)
+    if (locationId) {
+      adjustStockForLocation(stockRow.id, locationId, qty);
+      db.runSync(`UPDATE stock_by_location SET остаток = ROUND(остаток, 3) WHERE stock_id = ? AND location_id = ?`, [stockRow.id, locationId]);
+    } else {
+      db.runSync(`UPDATE stock SET остаток = ROUND(остаток + ?, 3) WHERE id = ?`, [qty, stockRow.id]);
+    }
+    db.runSync(`UPDATE stock SET max_ostatok = MAX(COALESCE(max_ostatok, 0), COALESCE((SELECT SUM(остаток) FROM stock_by_location WHERE stock_id = ?), остаток)) WHERE id = ?`, [stockRow.id, stockRow.id]);
 
-  return { avgPrice, totalQty };
+    let avgPrice = 0;
+    if (hasPrice) {
+      db.runSync(
+        `INSERT INTO purchases (stock_name, qty, price_per_unit, total, created_at) VALUES (?, ?, ?, ?, ?)`,
+        [stockName, qty, pricePerUnit, total, now]
+      );
+      avgPrice = weightedAvgLastPurchases(db, stockName);
+      db.runSync(`UPDATE stock SET avg_price = ?, last_price = ? WHERE id = ?`, [avgPrice, pricePerUnit, stockRow.id]);
+      // Та же цена — во всех техкартах, где используется этот ингредиент
+      db.runSync(`UPDATE cost_ingredients SET price_per_unit = ? WHERE LOWER(name) = LOWER(?)`, [avgPrice, stockName]);
+      // Закупка — расход (попадает в отчёты и «Расходы»); единственное место, где он создаётся
+      insertExpense({
+        date: now.slice(0, 10),
+        category: 'Закупка',
+        amount: total,
+        comment: `${stockName}, ${qty} ${stockRow.unit || ''}`.trim(),
+        shift_id: getOpenShift()?.id || null,
+        location_id: locationId || null,
+      });
+    }
+    db.execSync('COMMIT');
+    return { avgPrice, hasPrice };
+  } catch (e) {
+    try { db.execSync('ROLLBACK'); } catch (_) {}
+    throw e;
+  }
 }
 
 export function getPurchaseHistory(stockName) {
@@ -2763,24 +2784,66 @@ export function getNextStepsStatus() {
 
 
 // Средняя себестоимость по последним N закупкам (взвешенная по объёму)
-export function getAvgCostLast10(stockName, count = 10) {
+export function getAvgCostLast10(stockName, count = COST_WINDOW) {
   const db = getDb();
   try {
     initPurchasesTable();
-    const rows = db.getAllSync(
-      `SELECT qty, price_per_unit FROM purchases
-       WHERE LOWER(stock_name) = LOWER(?) ORDER BY created_at DESC LIMIT ?`,
-      [stockName, count]
-    );
-    if (rows.length === 0) {
-      // Fallback: avg_price из stock
-      const s = db.getFirstSync(`SELECT avg_price FROM stock WHERE LOWER(name) = LOWER(?)`, [stockName]);
-      return s?.avg_price || 0;
-    }
-    const totalQty = rows.reduce((s, r) => s + r.qty, 0);
-    const totalSum = rows.reduce((s, r) => s + r.qty * r.price_per_unit, 0);
-    return totalQty > 0 ? Math.round((totalSum / totalQty) * 100) / 100 : 0;
+    const avg = weightedAvgLastPurchases(db, stockName, count);
+    if (avg > 0) return avg;
+    // Закупок с ценой ещё не было — запасной вариант: цена из карточки позиции (создание «товар + склад»)
+    const s = db.getFirstSync(`SELECT avg_price FROM stock WHERE LOWER(name) = LOWER(?)`, [stockName]);
+    return s?.avg_price || 0;
   } catch (_) { return 0; }
+}
+
+// Один раз после перехода на правило «последние 10 закупок» пересчитывает уже накопленные цены
+// (старые значения были «средним за всё время»). Запускается при старте приложения.
+export function recalcStockCostsOnce() {
+  const db = getDb();
+  try {
+    if (getSetting('costRuleLast10') === '1') return false;
+    initPurchasesTable();
+    const names = db.getAllSync(`SELECT DISTINCT stock_name AS n FROM purchases WHERE price_per_unit > 0`);
+    for (const { n } of names) {
+      const avg = weightedAvgLastPurchases(db, n);
+      if (avg > 0) {
+        db.runSync(`UPDATE stock SET avg_price = ? WHERE LOWER(name) = LOWER(?)`, [avg, n]);
+        db.runSync(`UPDATE cost_ingredients SET price_per_unit = ? WHERE LOWER(name) = LOWER(?)`, [avg, n]);
+      }
+    }
+    setSetting('costRuleLast10', '1');
+    return true;
+  } catch (e) { console.error('[recalcStockCostsOnce]', e); return false; }
+}
+
+// Ручные операции с остатком — «Добавить», «Списать», «Установить». Считаются ПРЯМО В БАЗЕ
+// («остаток = остаток + N»), а не от числа, которое запомнил экран: раньше при открытом экране
+// и продажах за это время остаток после «Добавить 5» получался завышенным (15 вместо 12). Списание больше
+// остатка больше не обрезается молча до нуля — остаток уходит в минус (как и при продаже), экран об этом предупреждает.
+// Возвращает новый остаток (в выбранной локации или общий).
+export function adjustStock({ stockId, mode, qty, locationId = null }) {
+  const db = getDb();
+  if (!['add', 'subtract', 'set'].includes(mode)) throw new Error('Неизвестная операция');
+  if (!isFinite(qty) || qty < 0) throw new Error('Некорректное количество');
+  if (locationId) {
+    if (mode === 'add') adjustStockForLocation(stockId, locationId, qty);
+    else if (mode === 'subtract') adjustStockForLocation(stockId, locationId, -qty);
+    else setStockForLocation(stockId, locationId, qty);
+    db.runSync(`UPDATE stock_by_location SET остаток = ROUND(остаток, 3) WHERE stock_id = ? AND location_id = ?`, [stockId, locationId]);
+    return db.getFirstSync(`SELECT остаток AS q FROM stock_by_location WHERE stock_id = ? AND location_id = ?`, [stockId, locationId])?.q ?? 0;
+  }
+  if (mode === 'add') db.runSync(`UPDATE stock SET остаток = ROUND(остаток + ?, 3) WHERE id = ?`, [qty, stockId]);
+  else if (mode === 'subtract') db.runSync(`UPDATE stock SET остаток = ROUND(остаток - ?, 3) WHERE id = ?`, [qty, stockId]);
+  else db.runSync(`UPDATE stock SET остаток = ROUND(?, 3) WHERE id = ?`, [qty, stockId]);
+  db.runSync(`UPDATE stock SET max_ostatok = MAX(COALESCE(max_ostatok, 0), остаток) WHERE id = ?`, [stockId]);
+  return db.getFirstSync(`SELECT остаток AS q FROM stock WHERE id = ?`, [stockId])?.q ?? 0;
+}
+
+// Цена за единицу при «расходе по факту» (карточка «Цена за ед.» на складе)
+export function setStockSellPrice(stockId, price) {
+  const db = getDb();
+  if (!isFinite(price) || price < 0) throw new Error('Некорректная цена');
+  db.runSync(`UPDATE stock SET sell_price = ? WHERE id = ?`, [price, stockId]);
 }
 
 // Создаёт черновой акт инвентаризации.

@@ -1533,7 +1533,7 @@ const styles = StyleSheet.create({
   leftLandscape: { flex: 0, width: '38%', maxWidth: 480, marginLeft: 0, marginTop: 12, marginBottom: 12, marginRight: 0, borderRadius: 16, borderWidth: 1, borderColor: colors.borderHi, overflow: 'hidden' },
 
   tabBar: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border },
-  tabBarOuter: { flexDirection: 'row', gap: 8, paddingHorizontal: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.borderHi, backgroundColor: colors.surface2 },
+  tabBarOuter: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 0 },
 
   fab: {
     position: 'absolute', right: 20, bottom: 92,
@@ -1556,10 +1556,10 @@ const styles = StyleSheet.create({
   combSaveBtn: { backgroundColor: colors.orange, borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginTop: 16 },
   combSaveTxt: { fontFamily: fonts.family, fontSize: 16, color: colors.onAccent },
 
-  tabBtn: { flex: 1, paddingVertical: 14, alignItems: 'center', borderRadius: 12 },
-  tabBtnActive: { backgroundColor: 'rgba(127,168,217,0.14)' },
-  tabTxt: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
-  tabTxtActive: { color: colors.orange },
+  tabBtn: { flex: 1, height: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
+  tabBtnActive: { backgroundColor: 'rgba(127,168,217,0.2)', borderColor: 'rgba(157,191,230,0.5)' },
+  tabTxt: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.textDim },
+  tabTxtActive: { color: colors.orangeLight },
 
   searchWrap: { padding: 10, borderBottomWidth: 1, borderBottomColor: colors.borderHi, position: 'relative' },
   searchInput:{ backgroundColor: colors.surface3, borderRadius: 10, paddingVertical: 13, paddingHorizontal: 12, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 16 },
