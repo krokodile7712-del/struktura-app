@@ -1,646 +1,296 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import {
-  View, Text, StyleSheet, ScrollView, Pressable,
-  Modal, Animated,
-} from 'react-native';
-import TopBar from '../components/TopBar';
-import Sheet from '../components/Sheet';
-import { useResponsive } from '../hooks/useResponsive';
-import Toggle from '../components/Toggle';
-import InfoTip from '../components/InfoTip';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, Modal, Dimensions, LayoutAnimation } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import {
-  getPnL, getPnLFull, getTopProducts, getRevenueByDay,
-  getBusinessMetrics, getBusinessProfile,
-  getOrdersByHour, getRevenueByEmployee, getPaymentBreakdown,
-  markTourSeen,
-} from '../db/queries';
-import { getHomeRoute, goBackSmart, can } from '../db/session';
-import DatePicker from '../components/DatePicker';
-import { colors, fonts } from '../constants/theme';
+import TopBar from '../components/TopBar';
 import TourGuide from '../components/TourGuide';
+import DatePicker from '../components/DatePicker';
+import Toggle from '../components/Toggle';
+import GlassSurface from '../components/GlassSurface';
+import GlassSegmented from '../components/GlassSegmented';
+import Icon from '../components/Icon';
+import SoftGlow from '../components/SoftGlow';
 import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
+import { useResponsive } from '../hooks/useResponsive';
+import { getBusinessProfile, markTourSeen } from '../db/queries';
+import { getReport, prevPeriod, localDate } from '../db/reports';
+import { goBackSmart, can } from '../db/session';
+import { colors, fonts, glass } from '../constants/theme';
 
-// ─── Утилиты ─────────────────────────────────────────────────────────────────
-const todayStr    = () => new Date().toISOString().slice(0, 10);
-const nDaysAgo    = n => { const d = new Date(); d.setDate(d.getDate()-n); return d.toISOString().slice(0,10); };
-const startOfWeek = () => { const d = new Date(); d.setDate(d.getDate() - d.getDay() + 1); return d.toISOString().slice(0,10); };
-const startOfMonth= () => `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-01`;
-const startOfYear = () => `${new Date().getFullYear()}-01-01`;
-const fmt = n => (n || 0).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-const prevPeriod  = (from, to) => {
-  const f = new Date(from), t = new Date(to);
-  const diff = t - f;
-  const pTo   = new Date(f - 1);
-  const pFrom = new Date(pTo - diff);
-  return { from: pFrom.toISOString().slice(0,10), to: pTo.toISOString().slice(0,10) };
-};
-
+// Отчётность: четыре вкладки на единой модели db/reports.js — каждая цифра считается один раз и
+// показывается в одном месте (раньше «P&L», «Полный» и правая панель считали и показывали «чистую прибыль» по-разному).
+const ago = n => { const d = new Date(); d.setDate(d.getDate() - n); return localDate(d); };
+const monday = () => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return localDate(d); };
 const PRESETS = [
-  { key: 'today',   label: 'Сегодня', from: todayStr,     to: todayStr },
-  { key: 'week',    label: 'Неделя',  from: startOfWeek,  to: todayStr },
-  { key: 'month',   label: 'С начала месяца', from: startOfMonth, to: todayStr },
-  { key: 'month30', label: '30 дней', from: () => nDaysAgo(29), to: todayStr },
-  { key: 'quarter', label: 'Квартал', from: () => nDaysAgo(89), to: todayStr },
-  { key: 'year',    label: 'Год',     from: startOfYear,  to: todayStr },
-  { key: 'custom',  label: 'Свой',    from: () => nDaysAgo(29), to: todayStr },
+  { key: 'today', label: 'Сегодня', from: () => ago(0) }, { key: 'week', label: 'Неделя', from: monday },
+  { key: 'month', label: 'С начала месяца', from: () => localDate().slice(0, 8) + '01' }, { key: 'month30', label: '30 дней', from: () => ago(29) },
+  { key: 'quarter', label: 'Квартал', from: () => ago(89) }, { key: 'year', label: 'Год', from: () => localDate().slice(0, 4) + '-01-01' },
 ];
+const TABS = [{ key: 'sum', label: 'Итоги' }, { key: 'profit', label: 'Прибыль' }, { key: 'kpi', label: 'Показатели' }, { key: 'charts', label: 'Графики' }];
+const fmt = n => Math.round(n || 0).toLocaleString('ru-RU');
+const pct = n => `${(Math.round((n || 0) * 10) / 10).toString().replace('.', ',')}%`;
+const dm = k => (k.length === 7 ? `${k.slice(5)}.${k.slice(2, 4)}` : k.slice(8) + '.' + k.slice(5, 7));
+const ddmm = s => s.split('-').reverse().join('.');
 
-const TABS = [
-  { key: 'pnl',     label: 'P&L'    },
-  { key: 'full',    label: 'Полный' },
-  { key: 'metrics', label: 'KPI'    },
-  { key: 'charts',  label: 'Графики'},
-];
-
-// ─── Компоненты ──────────────────────────────────────────────────────────────
-
-function BarChart({ data, valueKey = 'total', labelKey = 'label', color = colors.orange, unit = '₽' }) {
-  if (!data || data.length === 0) return <Text style={styles.emptyHint}>Нет данных за выбранный период</Text>;
-  const max = Math.max(...data.map(d => d[valueKey] || 0), 1);
+function Tile({ label, value, delta, style, big }) {
   return (
-    <View style={{ paddingVertical: 8 }}>
-      {data.map((d, i) => (
-        <View key={i} style={styles.barRow}>
-          <Text style={styles.barLabel} numberOfLines={1}>{d[labelKey]}</Text>
-          <View style={styles.barTrack}>
-            <View style={[styles.barFill, { width: `${Math.round((d[valueKey]||0) / max * 100)}%`, backgroundColor: color }]} />
-          </View>
-          <Text style={styles.barValue}>{fmt(d[valueKey])} {unit}</Text>
-        </View>
-      ))}
-    </View>
+    <GlassSurface radius={glass.radius.tile} padding={big ? 22 : 16} style={style}>
+      <Text style={s.kl}>{label}</Text>
+      <Text style={big ? s.big : s.val}>{value}</Text>
+      {delta}
+    </GlassSurface>
   );
 }
+const Card = ({ title, children }) => <View style={s.card}>{!!title && <Text style={s.cardT}>{title}</Text>}{children}</View>;
 
-function HeatMap({ data }) {
-  if (!data || data.length === 0) return <Text style={styles.emptyHint}>Нет данных</Text>;
-  const max = Math.max(...data.map(d => d.count || 0), 1);
-  return (
-    <View style={styles.heatMapWrap}>
-      {data.map((d, i) => {
-        const opacity = 0.1 + (d.count || 0) / max * 0.9;
-        return (
-          <View key={i} style={styles.heatCell}>
-            <View style={[styles.heatBar, { opacity, backgroundColor: colors.orange }]} />
-            <Text style={styles.heatLabel}>{d.hour}</Text>
-          </View>
-        );
-      })}
-    </View>
-  );
-}
-
-function MetricRow({ label, value, sub, color, delta, tip, isLast }) {
-  return (
-    <View style={[styles.metricRow, !isLast && styles.rowDiv]}>
-      <View style={{ flex: 1 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Text style={styles.metricLabel}>{label}</Text>
-          {tip && <InfoTip title={label} text={tip} />}
-        </View>
-        {sub ? <Text style={styles.metricSub}>{sub}</Text> : null}
-      </View>
-      <View style={{ alignItems: 'flex-end' }}>
-        <Text style={[styles.metricValue, color && { color }]}>{value}</Text>
-        {delta && (
-          <Text style={[styles.deltaText, { color: delta.value >= 0 ? colors.green : colors.red }]}>
-            {delta.label}
-          </Text>
-        )}
-      </View>
-    </View>
-  );
-}
-
-// ─── Экран ───────────────────────────────────────────────────────────────────
 export default function ReportsScreen({ navigation }) {
   const { isLandscape } = useResponsive();
-  const [preset, setPreset]         = useState('week');
-  const [customFrom, setCustomFrom] = useState(nDaysAgo(29));
-  const [customTo, setCustomTo]     = useState(todayStr());
-  const [showCustom, setShowCustom] = useState(false);
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [tab, setTab]               = useState('pnl');
-  const [compare, setCompare]       = useState(false);
-  const [picker, setPicker]         = useState(null);
-  const [tourOpen, setTourOpen]     = useState(false);
+  const [preset, setPreset] = useState('week');
+  const [range, setRange] = useState({ from: ago(29), to: localDate() });
+  const [tab, setTab] = useState('sum');
+  const [compare, setCompare] = useState(true);
+  const [r, setR] = useState(null);
+  const [prev, setPrev] = useState(null);
+  const [isCoffee, setIsCoffee] = useState(false);
+  const [popOpen, setPopOpen] = useState(false);
+  const [anchor, setAnchor] = useState({ top: 70, right: 20 });
+  const [picker, setPicker] = useState(null);   // 'from' | 'to'
+  const [open, setOpen] = useState(null);       // раскрытая строка прибыли
+  const [topMode, setTopMode] = useState('qty');
+  const [sel, setSel] = useState(null);         // выбранный столбец графика
+  const [tourOpen, setTourOpen] = useState(false);
+  const btnRef = useRef(null);
   const activeTourKey = useTourActiveKey();
-  const filtersHighlight = useTourHighlight('reports.filters');
-  const pnlHighlight     = useTourHighlight('reports.pnl');
-  const fullHighlight    = useTourHighlight('reports.full');
-  const metricsHighlight = useTourHighlight('reports.metrics');
-  const chartsHighlight  = useTourHighlight('reports.charts');
+  const hl = { sum: useTourHighlight('reports.summary'), profit: useTourHighlight('reports.profit'), kpi: useTourHighlight('reports.metrics'), charts: useTourHighlight('reports.charts') };
+  const filtersHl = useTourHighlight('reports.filters');
 
-  const [pnl, setPnl]                     = useState(null);
-  const [pnlFull, setPnlFull]             = useState(null);
-  const [metrics, setMetrics]             = useState([]);
-  const [pnlPrev, setPnlPrev]             = useState(null);
-  const [revenueByDay, setRevenueByDay]   = useState([]);
-  const [topProducts, setTopProducts]     = useState([]);
-  const [ordersByHour, setOrdersByHour]   = useState([]);
-  const [byEmployee, setByEmployee]       = useState([]);
-  const [payBreakdown, setPayBreakdown]   = useState([]);
-
-  // Анимации
-  const fadeAnim  = useState(new Animated.Value(0))[0];
-  const tabAnim   = useState(new Animated.Value(1))[0];
-  const slideAnim = useState(new Animated.Value(16))[0];
-
-  const getRange = useCallback(() => {
-    if (preset === 'custom') return { from: customFrom, to: customTo };
-    const p = PRESETS.find(p => p.key === preset);
-    return { from: p.from(), to: p.to() };
-  }, [preset, customFrom, customTo]);
-
+  const period = () => (preset === 'custom' ? range : { from: PRESETS.find(p => p.key === preset).from(), to: localDate() });
   const load = useCallback(() => {
-    const { from, to } = getRange();
     try {
-      const profile = getBusinessProfile();
-      const bPreset = profile?.preset || 'custom';
-      const cur = getPnL(from, to);
-      setPnl(cur);
-      setRevenueByDay(getRevenueByDay(from, to).map(r => ({ label: r.day.slice(5).replace('-','.'), total: Math.round(r.total) })));
-      setTopProducts(getTopProducts(from, to, 8).map(r => ({ label: r.name, total: r.qty })));
-      setPnlFull(getPnLFull(from, to));
-      setMetrics(getBusinessMetrics(getPnLFull(from, to), bPreset));
-      setOrdersByHour(getOrdersByHour(from, to));
-      setByEmployee(getRevenueByEmployee(from, to));
-      setPayBreakdown(getPaymentBreakdown(from, to));
-      if (compare) {
-        const prev = prevPeriod(from, to);
-        setPnlPrev(getPnL(prev.from, prev.to));
-      } else { setPnlPrev(null); }
-    } catch(e) { console.error(e); }
-
-    // Анимация появления данных
-    fadeAnim.setValue(0);
-    slideAnim.setValue(12);
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: true }),
-      Animated.spring(slideAnim, { toValue: 0, tension: 80, friction: 12, useNativeDriver: true }),
-    ]).start();
-  }, [getRange, compare]);
-
+      const { from, to } = period();
+      setR(getReport(from, to));
+      const pp = prevPeriod(from, to);
+      setPrev(compare ? getReport(pp.from, pp.to) : null);
+      setIsCoffee(getBusinessProfile()?.preset === 'coffee');
+    } catch (e) { console.error(e); }
+  }, [preset, range, compare]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
+  useEffect(() => { setSel(null); }, [tab, preset, range]);
 
-  const switchTab = (key) => {
-    Animated.timing(tabAnim, { toValue: 0, duration: 120, useNativeDriver: true }).start(() => {
-      setTab(key);
-      Animated.spring(tabAnim, { toValue: 1, tension: 80, friction: 12, useNativeDriver: true }).start();
-    });
-  };
-
-  // Тур раздела «Отчётность» — по разделу целиком, не по каждой строке
-  // отдельно (у многих метрик уже есть свои подсказки ⓘ с объяснением)
-  const tourSteps = [
-    { key: 'reports.filters', title: 'Период', text: 'Выберите «Сегодня», «Неделя», «Месяц» или свой период — все вкладки пересчитаются под него.' },
-    { key: 'reports.pnl',     title: 'P&L', text: 'Прибыли и убытки за период — выручка, себестоимость, во что вылилось и что осталось чистыми. У каждой строки есть ⓘ с объяснением, что это значит.' },
-    { key: 'reports.full',    title: 'Полный P&L', text: 'То же самое, но подробнее — расходы разложены по статьям: накладные, зарплата, амортизация — видно, куда именно уходит прибыль.' },
-    { key: 'reports.metrics', title: 'KPI', text: 'Показатели здоровья бизнеса — у каждого есть «норма» для сравнения и отметка ✓/! — сразу видно, что в порядке, а что стоит проверить.' },
-    { key: 'reports.charts',  title: 'Графики', text: 'Выручка по дням, загруженные часы и самые продаваемые товары — наглядно, без чтения цифр.' },
+  const steps = [
+    { key: 'reports.filters', title: 'Период', text: 'Выберите «Сегодня», «Неделя», «Месяц» или свой период — все вкладки пересчитаются. Можно включить сравнение с прошлым периодом.' },
+    { key: 'reports.summary', title: 'Итоги', text: 'Чистая прибыль, выручка, заказы, средний чек и способы оплаты — главное за период одним взглядом.' },
+    { key: 'reports.profit', title: 'Прибыль', text: 'Путь от выручки до чистой прибыли. Нажмите на строку с стрелкой — увидите, из чего она состоит.' },
+    { key: 'reports.metrics', title: 'Показатели', text: 'Здоровье бизнеса: доля зарплаты, себестоимость, точка безубыточности и запас прочности, эффективность сотрудников.' },
+    { key: 'reports.charts', title: 'Графики', text: 'Выручка по дням, загруженные часы и самые продаваемые товары — наглядно.' },
   ];
-  const tourStepKeys = new Set(tourSteps.map(s => s.key));
-  const tabByStepKey = { 'reports.pnl': 'pnl', 'reports.full': 'full', 'reports.metrics': 'metrics', 'reports.charts': 'charts' };
-
-  // Автозапуск при первом визите в раздел
+  const tabByKey = { 'reports.summary': 'sum', 'reports.profit': 'profit', 'reports.metrics': 'kpi', 'reports.charts': 'charts' };
+  useEffect(() => { if (tabByKey[activeTourKey]) setTab(tabByKey[activeTourKey]); }, [activeTourKey]);
   useEffect(() => {
-    try {
-      const p = getBusinessProfile();
-      if (!p?.tours_seen?.Reports) {
-        const t = setTimeout(() => setTourOpen(true), 500);
-        return () => clearTimeout(t);
-      }
-    } catch (_) {}
+    try { if (!getBusinessProfile()?.tours_seen?.Reports) { const t = setTimeout(() => setTourOpen(true), 500); return () => clearTimeout(t); } } catch (_) {}
   }, []);
 
-  // Каждый шаг про конкретную вкладку сам её открывает
-  useEffect(() => {
-    if (tabByStepKey[activeTourKey]) switchTab(tabByStepKey[activeTourKey]);
-  }, [activeTourKey]);
-
   if (!can('view_reports')) return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <TopBar title="Отчётность" onBack={() => goBackSmart(navigation)} />
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
-        <Text style={{ fontFamily: fonts.family, fontSize: 18, color: colors.text, textAlign: 'center' }}>Нет доступа</Text>
-        <Text style={{ fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', marginTop: 8 }}>Обратитесь к администратору.</Text>
-      </View>
-    </View>
+    <View style={s.root}><TopBar title="Отчётность" onBack={() => goBackSmart(navigation)} />
+      <View style={s.center}><Text style={s.emptyT}>Нет доступа</Text><Text style={s.emptyX}>Обратитесь к администратору</Text></View></View>
   );
 
-  const totalPay = payBreakdown.reduce((s, p) => s + (p.total || 0), 0);
+  const openPop = () => {
+    try { btnRef.current.measureInWindow((x, y, w, h) => { setAnchor({ top: y + h + 8, right: Math.max(8, Dimensions.get('window').width - (x + w)) }); setPopOpen(true); }); }
+    catch (_) { setPopOpen(true); }
+  };
+  const label = preset === 'custom' ? `${ddmm(range.from).slice(0, 5)} — ${ddmm(range.to).slice(0, 5)}` : PRESETS.find(p => p.key === preset).label;
+  const Delta = ({ a, b, invert }) => {
+    if (!prev || !b) return null;
+    const d = (a - b) / Math.abs(b) * 100, good = invert ? d < 0 : d > 0;
+    return <Text style={[s.delta, Math.abs(d) >= 0.05 && { color: good ? colors.green : colors.warning }]}>{d > 0 ? '↑' : '↓'} {Math.abs(d).toFixed(1).replace('.', ',')}% к прошлому</Text>;
+  };
+  const empty = !r || (r.orders === 0 && r.expenses === 0 && r.fixed === 0);
 
-  const rangeLabel = preset === 'custom'
-    ? `${customFrom.slice(5).replace('-','.')} — ${customTo.slice(5).replace('-','.')}`
-    : PRESETS.find(p => p.key === preset)?.label || '';
+  // ── строка цепочки прибыли ──
+  const Row = ({ k, name, sub, amount, kind, items }) => {
+    const isOpen = open === k, can_ = items && items.length > 0;
+    return (
+      <>
+        <Pressable disabled={!can_} style={[s.row, kind === 'sub' && s.rowSub, kind === 'total' && s.rowTotal]}
+          onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.create(220, 'easeInEaseOut', 'opacity')); setOpen(isOpen ? null : k); }}>
+          <View style={{ flex: 1 }}><Text style={s.rowN}>{name}</Text>{!!sub && <Text style={s.rowS}>{sub}</Text>}</View>
+          <Text style={s.rowP}>{r.revenue ? pct(Math.abs(amount) / r.revenue * 100) : ''}</Text>
+          <Text style={[s.rowA, kind === 'cost' && { color: colors.red }, kind === 'total' && { color: amount >= 0 ? colors.green : colors.red, fontSize: 24 }]}>{kind === 'cost' ? '−' : ''}{fmt(Math.abs(amount))} ₽</Text>
+          <Text style={[s.chev, isOpen && { transform: [{ rotate: '90deg' }] }]}>{can_ ? '›' : ''}</Text>
+        </Pressable>
+        {isOpen && can_ && <View style={s.det}>{items.map((x, i) => <View key={i} style={s.detRow}><Text style={s.detN}>{x.name}</Text><Text style={s.detA}>{fmt(x.sum)} ₽</Text></View>)}</View>}
+      </>
+    );
+  };
+
+  const Bars = ({ data, k, label, val, color }) => {
+    const m = Math.max(1, ...data.map(val));
+    return (
+      <View style={s.chart}>
+        {data.map((d, i) => {
+          const on = sel && sel.k === k && sel.i === i;
+          return (
+            <Pressable key={i} style={s.col} onPress={() => setSel(on ? null : { k, i })}>
+              <Text style={[s.colV, on && { color: colors.text }]} numberOfLines={1}>{data.length <= 13 || on ? fmt(val(d)) : ''}</Text>
+              <View style={[s.bar, { height: Math.max(4, val(d) / m * 150), backgroundColor: color, opacity: sel && !on ? 0.45 : 1 }]} />
+              <Text style={s.colL} numberOfLines={1}>{label(d)}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    );
+  };
+
+  const kpi = r && [
+    { ok: r.payrollPct < 35, n: 'Зарплата к выручке', x: 'норма: до 35%', v: pct(r.payrollPct) },
+    { ok: isCoffee ? r.cogsPct < 30 : null, n: 'Себестоимость к выручке', x: isCoffee ? 'норма для кофейни: 25–30%' : 'зависит от отрасли — ориентируйтесь на свою историю', v: pct(r.cogsPct) },
+    ...(r.breakEven != null ? [
+      { ok: null, n: 'Точка безубыточности', x: `выручка за период, покрывающая постоянные затраты (${fmt(r.fixed)} ₽)`, v: `${fmt(r.breakEven)} ₽` },
+      { ok: r.safetyPct >= 0, n: 'Запас прочности', x: 'насколько выручка выше точки безубыточности', v: pct(r.safetyPct) }] : []),
+    ...(r.perShift != null ? [{ ok: null, n: 'Выручка за смену', x: `смен за период: ${r.shiftsCount}`, v: `${fmt(r.perShift)} ₽` }] : []),
+  ];
+
+  const page = !r ? null : empty ? (
+    <View style={s.center}><Text style={s.emptyT}>Нет данных за период</Text><Text style={s.emptyX}>Измените период или оформите первые заказы</Text></View>
+  ) : tab === 'sum' ? (
+    <>
+      <Tile big label="Чистая прибыль" value={`${fmt(r.net)} ₽`} delta={<Delta a={r.net} b={prev?.net} />} style={{ marginBottom: 12 }} />
+      <View style={s.grid}>
+        <Tile label="Выручка" value={`${fmt(r.revenue)} ₽`} delta={<Delta a={r.revenue} b={prev?.revenue} />} style={s.cell} />
+        <Tile label="Заказов" value={String(r.orders)} delta={<Delta a={r.orders} b={prev?.orders} />} style={s.cell} />
+        <Tile label="Средний чек" value={`${fmt(r.avgCheck)} ₽`} delta={<Delta a={r.avgCheck} b={prev?.avgCheck} />} style={s.cell} />
+        <Tile label="Валовая маржа" value={pct(r.grossPct)} delta={<Delta a={r.grossPct} b={prev?.grossPct} />} style={s.cell} />
+      </View>
+      <Card title="Способы оплаты">
+        {r.payments.length === 0 ? <Text style={s.emptyX}>Нет оплат</Text> : <>
+          <View style={s.stack}>{r.payments.map((p, i) => <View key={i} style={{ flex: p.sum, backgroundColor: PAY[i % PAY.length] }} />)}</View>
+          {r.payments.map((p, i) => <View key={i} style={s.pr}><View style={[s.dot, { backgroundColor: PAY[i % PAY.length] }]} /><Text style={s.prN}>{p.name}</Text><Text style={s.prP}>{pct(p.sum / r.payments.reduce((a, x) => a + x.sum, 0) * 100)}</Text><Text style={s.prV}>{fmt(p.sum)} ₽</Text></View>)}</>}
+      </Card>
+      {r.returns.count > 0 && <View style={s.warn}><Text style={s.warnT}>Возвраты: {r.returns.count} на {fmt(r.returns.sum)} ₽ — в выручку не входят.</Text></View>}
+    </>
+  ) : tab === 'profit' ? (
+    <>
+      <View style={s.card}>
+        <Row k="rev" kind="sub" name="Выручка" sub={`заказов: ${r.orders}`} amount={r.revenue} />
+        <Row k="cogs" kind="cost" name="Себестоимость" sub="по техкартам проданных позиций" amount={r.cogs} />
+        {r.purchasesAsCost > 0 && <Row k="buy" kind="cost" name="Закупки материалов" sub="себестоимость не заполнена — закупки считаются затратами" amount={r.purchasesAsCost} />}
+        <Row k="gross" kind="sub" name="Валовая прибыль" sub="выручка − себестоимость" amount={r.gross} />
+        <Row k="exp" kind="cost" name="Расходы" sub="из раздела «Расходы», без закупок материалов" amount={r.expenses} items={r.expItems} />
+        <Row k="oh" kind="cost" name="Накладные" sub="аренда и др. за период" amount={r.overhead} items={r.overheadItems} />
+        <Row k="sal" kind="cost" name="Зарплата" sub="по сменам" amount={r.salary} items={r.salaryItems} />
+        <Row k="dep" kind="cost" name="Амортизация" sub="оборудование" amount={r.depreciation} />
+        <Row k="net" kind="total" name="Чистая прибыль" sub="после всех затрат" amount={r.net} />
+      </View>
+      {r.purchasesAsCost > 0
+        ? <View style={s.warn}><Text style={s.warnT}>Себестоимость = 0: заполните техкарты в разделе «Товары» — тогда закупки не будут вычитаться как затраты, а прибыль станет точнее.</Text></View>
+        : r.purchases > 0 && <Card><View style={s.pr}><View style={{ flex: 1 }}><Text style={s.rowN}>Закупки материалов за период</Text><Text style={s.rowS}>Не вычитаются отдельно: материалы уже учтены через себестоимость проданного — затраты не считаются дважды.</Text></View><Text style={s.prV}>{fmt(r.purchases)} ₽</Text></View></Card>}
+    </>
+  ) : tab === 'kpi' ? (
+    <>
+      <View style={s.card}>{kpi.map((k, i) => (
+        <View key={i} style={[s.kp, i > 0 && s.kpDiv]}><View style={[s.dot, { backgroundColor: k.ok == null ? colors.muted : k.ok ? colors.green : colors.warning, marginRight: 14 }]} />
+          <View style={{ flex: 1 }}><Text style={s.rowN}>{k.n}</Text><Text style={s.rowS}>{k.x}</Text></View><Text style={s.kv}>{k.v}</Text></View>))}</View>
+      <Card title="Эффективность сотрудников">
+        {r.employees.length === 0 ? <Text style={s.emptyX}>Нет данных</Text> : r.employees.map((e, i) => <View key={i} style={s.pr}><Text style={s.prN}>{e.name}</Text><Text style={s.prP}>{e.orders} заказов · ср. чек {fmt(e.sum / e.orders)} ₽</Text><Text style={s.prV}>{fmt(e.sum)} ₽</Text></View>)}
+      </Card>
+    </>
+  ) : (
+    <>
+      <Card title={r.byDay.length && r.byDay[0].key.length === 7 ? 'Выручка по месяцам' : 'Выручка по дням'}>
+        <Bars k="day" data={r.byDay} val={d => d.total} label={d => dm(d.key)} color={colors.orange} />
+      </Card>
+      <Card title="Пиковые часы · заказов по часам">
+        <Bars k="hr" data={r.byHour} val={d => d.orders} label={d => String(d.hour).padStart(2, '0')} color={colors.indigo} />
+      </Card>
+      <Card>
+        <View style={s.topHead}><Text style={s.cardT}>Топ товаров</Text><View style={{ width: 280 }}><GlassSegmented height={36} items={[{ key: 'qty', label: 'По количеству' }, { key: 'sum', label: 'По выручке' }]} value={topMode} onChange={setTopMode} /></View></View>
+        {[...r.top].sort((a, b) => b[topMode] - a[topMode]).map((t, i, a) => (
+          <View key={i} style={s.hb}><Text style={s.hbN} numberOfLines={1}>{t.name}</Text>
+            <View style={s.hbB}><View style={[s.hbF, { width: `${t[topMode] / Math.max(1, a[0][topMode]) * 100}%` }]} /></View>
+            <Text style={s.hbV}>{topMode === 'qty' ? `${t.qty} шт` : `${fmt(t.sum)} ₽`}</Text></View>))}
+        {r.top.length === 0 && <Text style={s.emptyX}>Нет продаж</Text>}
+      </Card>
+    </>
+  );
 
   return (
-    <View style={styles.root}>
-      <TopBar
-        title="Отчётность"
-        onBack={() => goBackSmart(navigation)}
-        navigation={navigation}
-        activeScreen="Reports"
-        rightElement={
-          <Pressable style={styles.tourBtn} onPress={() => setTourOpen(true)} hitSlop={10} accessibilityLabel="Подсказка" accessibilityRole="button">
-            <Text style={styles.tourBtnTxt}>?</Text>
-          </Pressable>
-        }
-      />
-
-      <View style={{ flex: 1, flexDirection: isLandscape ? 'row' : 'column' }}>
-
-        {/* ── Отчётность: вкладки и контент — сужены в альбомной ── */}
-        <View style={{ flex: 1 }}>
-          {/* Табы + кнопка фильтров */}
-          <View style={styles.tabBarRow}>
-            <View style={styles.tabBar}>
-              {TABS.map(t => (
-                <Pressable
-                  key={t.key}
-                  style={[styles.tabBtn, tab === t.key && styles.tabBtnActive]}
-                  onPress={() => switchTab(t.key)}
-                >
-                  <Text style={[styles.tabTxt, tab === t.key && styles.tabTxtActive]}>{t.label}</Text>
-                </Pressable>
-              ))}
-            </View>
-            <Pressable onPress={() => setFiltersOpen(true)} hitSlop={8} style={[styles.filtersBtn, { position: 'relative' }, filtersHighlight.style]}>
-              <Text style={styles.filtersBtnTxt}>⚙ Период</Text>
-              {filtersHighlight.overlay}
-            </Pressable>
-            {/* Кнопка «Экспорт» убрана: она выгружала ВСЮ базу (клиентов, продажи, отпечатки PIN,
-                секрет облачной записи) обычным текстом через меню «Поделиться». Резервная копия
-                теперь — только в Настройках, под паролем (см. db/backupCrypto.js). Экспорт самого
-                отчёта нужно делать отдельно и только с данными отчёта. */}
-          </View>
-
-          {/* Контент вкладки */}
-          <Animated.ScrollView
-            style={{ opacity: tabAnim.interpolate ? tabAnim : fadeAnim }}
-            contentContainerStyle={styles.tabContent}
-            showsVerticalScrollIndicator={false}
-          >
-
-            {/* P&L */}
-            {tab === 'pnl' && pnl && (
-              <Animated.View style={[{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], position: 'relative' }, pnlHighlight.style]}>
-                <View style={styles.card}>
-                  <MetricRow label="Выручка" value={`${fmt(pnl.revenue)} ₽`}
-                    color={colors.orange}
-                    sub={`${pnl.orderCount} заказов · ср. чек ${fmt(pnl.avgCheck)} ₽`}
-                    delta={compare && pnlPrev ? { value: Math.round((pnl.revenue - pnlPrev.revenue) / Math.abs(pnlPrev.revenue || 1) * 100), label: `${pnl.revenue >= pnlPrev.revenue ? '+' : ''}${Math.round((pnl.revenue - pnlPrev.revenue) / Math.abs(pnlPrev.revenue || 1) * 100)}%` } : null}
-                    tip="Сумма всех оплаченных заказов за период." />
-                  <MetricRow label="Себестоимость" value={`${fmt(pnl.cogs)} ₽`}
-                    sub={pnl.revenue > 0 ? `${Math.round(pnl.cogs / pnl.revenue * 100)}% от выручки` : ''}
-                    tip="Затраты на ингредиенты по техкартам." />
-                  <MetricRow label="Валовая прибыль" value={`${fmt(pnl.grossProfit)} ₽`}
-                    color={pnl.grossProfit >= 0 ? colors.green : colors.red}
-                    sub={`Маржа ${pnl.grossMarginPct}%`}
-                    tip="Выручка − Себестоимость. До учёта расходов." />
-                  <MetricRow label="Расходы" value={`${fmt(pnl.expenses)} ₽`}
-                    sub="Из раздела Расходы"
-                    tip="Аренда, зарплата и другие записи из Расходов." isLast />
-                </View>
-
-                <View style={[styles.profitCard, { borderColor: pnl.netProfit >= 0 ? 'rgba(120,183,150,0.4)' : 'rgba(219,129,120,0.4)', backgroundColor: pnl.netProfit >= 0 ? 'rgba(120,183,150,0.07)' : 'rgba(219,129,120,0.07)' }]}>
-                  <Text style={styles.profitLabel}>Чистая прибыль</Text>
-                  <Text style={[styles.profitVal, { color: pnl.netProfit >= 0 ? colors.green : colors.red }]}>
-                    {pnl.netProfit >= 0 ? '+' : ''}{fmt(pnl.netProfit)} ₽
-                  </Text>
-                  <Text style={styles.profitSub}>Чистая маржа: {pnl.netMarginPct}%</Text>
-                </View>
-
-                {payBreakdown.length > 0 && (
-                  <View style={[styles.card, { marginTop: 10 }]}>
-                    <Text style={styles.cardTitle}>Способы оплаты</Text>
-                    {payBreakdown.map((p, i) => (
-                      <View key={i} style={[styles.metricRow, i < payBreakdown.length-1 && styles.rowDiv]}>
-                        <Text style={styles.metricLabel}>{p.pay_method || 'Другое'}</Text>
-                        <View style={{ alignItems: 'flex-end' }}>
-                          <Text style={styles.metricValue}>{fmt(p.total)} ₽</Text>
-                          <Text style={styles.metricSub}>{totalPay > 0 ? Math.round(p.total / totalPay * 100) : 0}% · {p.count} зак.</Text>
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                )}
-
-                {pnl.cogs === 0 && (
-                  <View style={styles.hintCard}>
-                    <Text style={styles.hintTxt}>Себестоимость = 0. Заполните техкарты в разделе «Товары», чтобы видеть реальную маржу.</Text>
-                  </View>
-                )}
-                {pnlHighlight.overlay}
-              </Animated.View>
-            )}
-
-            {/* Полный P&L */}
-            {tab === 'full' && pnlFull && (
-              <Animated.View style={[{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], position: 'relative' }, fullHighlight.style]}>
-                <View style={styles.card}>
-                  <Text style={styles.cardTitle}>Управленческий P&L</Text>
-                  {[
-                    { label: 'Выручка',            val: pnlFull.revenue,         color: colors.orange },
-                    { label: '− Себестоимость',     val: -pnlFull.cogs,           color: colors.red },
-                    { label: '= Валовая прибыль',   val: pnlFull.grossProfit,     bold: true, color: pnlFull.grossProfit >= 0 ? colors.green : colors.red },
-                    { label: '− Прямые расходы',    val: -pnlFull.expenses,       color: colors.amber },
-                    { label: '− Накладные',         val: -pnlFull.overheadTotal,  color: colors.amber },
-                    { label: '− Зарплата',          val: -pnlFull.salaryTotal,    color: colors.amber },
-                    { label: '− Амортизация',       val: -pnlFull.deprTotal,      color: colors.amber },
-                    { label: '= Чистая прибыль',    val: pnlFull.fullNetProfit,   bold: true, color: pnlFull.fullNetProfit >= 0 ? colors.green : colors.red },
-                  ].map((row, i, arr) => (
-                    <View key={i} style={[styles.metricRow, i < arr.length-1 && styles.rowDiv]}>
-                      <Text style={[styles.metricLabel, row.bold && { fontFamily: fonts.familySemibold, color: colors.text }]}>{row.label}</Text>
-                      <Text style={[styles.metricValue, { color: row.color }, row.bold && { fontSize: 18 }]}>
-                        {row.val >= 0 ? '+' : ''}{fmt(Math.round(row.val))} ₽
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-                {fullHighlight.overlay}
-              </Animated.View>
-            )}
-
-            {/* KPI */}
-            {tab === 'metrics' && (
-              <Animated.View style={[{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], position: 'relative' }, metricsHighlight.style]}>
-                {metrics.length > 0 ? (
-                  <View style={styles.card}>
-                    {metrics.map((m, i) => (
-                      <View key={m.key} style={[styles.metricRow, i < metrics.length-1 && styles.rowDiv]}>
-                        <View style={{ flex: 1 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Text style={styles.metricLabel}>{m.label}</Text>
-                            {m.tip && <InfoTip title={m.label} text={m.tip} />}
-                          </View>
-                          {m.benchmark && <Text style={styles.metricSub}>Норма: {m.benchmark}</Text>}
-                        </View>
-                        <View style={{ alignItems: 'flex-end', flexDirection: 'row', gap: 8 }}>
-                          <Text style={[styles.metricValue, { color: m.ok ? colors.green : m.warn ? colors.red : colors.text }]}>{m.value}</Text>
-                          {m.ok   && <Text style={{ fontSize: 12, color: colors.green }}>✓</Text>}
-                          {m.warn && <Text style={{ fontSize: 12, color: colors.red }}>!</Text>}
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                ) : (
-                  <View style={styles.hintCard}>
-                    <Text style={styles.hintTxt}>KPI появятся когда будут данные. Для расширенных показателей заполните техкарты, ставки сотрудников и накладные расходы.</Text>
-                  </View>
-                )}
-
-                {byEmployee.length > 0 && (
-                  <View style={[styles.card, { marginTop: 10 }]}>
-                    <Text style={styles.cardTitle}>Эффективность сотрудников</Text>
-                    {byEmployee.map((e, i) => (
-                      <View key={i} style={[styles.metricRow, i < byEmployee.length-1 && styles.rowDiv]}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.metricLabel}>{e.name}</Text>
-                          <Text style={styles.metricSub}>{e.orders} заказов</Text>
-                        </View>
-                        <Text style={styles.metricValue}>{fmt(e.revenue)} ₽</Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
-                {metricsHighlight.overlay}
-              </Animated.View>
-            )}
-
-            {/* Графики */}
-            {tab === 'charts' && (
-              <Animated.View style={[{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], position: 'relative' }, chartsHighlight.style]}>
-                <View style={styles.card}>
-                  <Text style={styles.cardTitle}>Выручка по дням</Text>
-                  <BarChart data={revenueByDay} color={colors.orange} unit="₽" />
-                </View>
-
-                <View style={[styles.card, { marginTop: 10 }]}>
-                  <Text style={styles.cardTitle}>Пиковые часы</Text>
-                  <Text style={[styles.hintTxt, { paddingHorizontal: 14 }]}>Количество заказов по часам — видно когда наплыв клиентов</Text>
-                  <HeatMap data={ordersByHour} />
-                </View>
-
-                <View style={[styles.card, { marginTop: 10 }]}>
-                  <Text style={styles.cardTitle}>Топ товаров</Text>
-                  <BarChart data={topProducts} color={colors.indigo} unit="шт" />
-                </View>
-                {chartsHighlight.overlay}
-              </Animated.View>
-            )}
-
-          </Animated.ScrollView>
-        </View>
-
-        {isLandscape && pnl && (
-          /* Альбомная — быстрый обзор постоянной панелью справа, виден на любой вкладке */
-          <View style={styles.sidePanel}>
-            <Text style={styles.sideLabel}>Выручка за период</Text>
-            <Text style={styles.sideVal}>{fmt(pnl.revenue)} ₽</Text>
-            <Text style={styles.sideSub}>{pnl.orderCount} заказов</Text>
-
-            <View style={styles.sideDivider} />
-
-            <Text style={styles.sideLabel}>Чистая прибыль</Text>
-            <Text style={[styles.sideVal, { fontSize: 28, color: pnl.netProfit >= 0 ? colors.green : colors.red }]}>
-              {pnl.netProfit >= 0 ? '+' : ''}{fmt(pnl.netProfit)} ₽
-            </Text>
-            <Text style={styles.sideSub}>Маржа {pnl.netMarginPct}%</Text>
-
-            {payBreakdown.length > 0 && (
-              <>
-                <View style={styles.sideDivider} />
-                <Text style={styles.sideLabel}>Способы оплаты</Text>
-                <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 4 }}>
-                  {payBreakdown.map((p, i) => (
-                    <View key={i} style={styles.catRow}>
-                      <Text style={styles.catName}>{p.pay_method || 'Другое'}</Text>
-                      <Text style={styles.catVal}>{fmt(p.total)} ₽</Text>
-                    </View>
-                  ))}
-                </ScrollView>
-              </>
-            )}
-          </View>
-        )}
+    <View style={s.root}>
+      <TopBar title="Отчётность" onBack={() => goBackSmart(navigation)} navigation={navigation} activeScreen="Reports"
+        rightElement={<Pressable style={s.tourBtn} onPress={() => setTourOpen(true)} hitSlop={10} accessibilityLabel="Подсказка"><Text style={s.tourTxt}>?</Text></Pressable>} />
+      <View style={[s.glow]} pointerEvents="none"><SoftGlow size={620} color="127,168,217" alpha={0.15} style={{ position: 'absolute', left: -170, top: -150 }} /></View>
+      <View style={[s.tb, { position: 'relative' }, filtersHl.style]}>
+        <View style={{ flex: 1, maxWidth: 640 }}><GlassSegmented items={TABS} value={tab} onChange={k => { setTab(k); setOpen(null); }} height={46} /></View>
+        {compare && <Text style={s.cmp}>↑ сравнение включено</Text>}
+        <Pressable ref={btnRef} collapsable={false} style={[s.pbtn, popOpen && s.pbtnOn]} onPress={openPop}>
+          <Icon name="calendar" size={18} color={colors.textDim} /><Text style={s.pbtnT}>{label}</Text><Text style={s.car}>▾</Text>
+        </Pressable>
+        {filtersHl.overlay}
       </View>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+        <View style={{ position: 'relative' }}>{page}{hl[tab].overlay}</View>
+      </ScrollView>
 
-      <Sheet visible={filtersOpen} onClose={() => setFiltersOpen(false)} title="Период и итоги">
-        <ScrollView contentContainerStyle={{ padding: 20 }}>
-          <Text style={styles.sectionLabel}>Период</Text>
-          <View style={styles.presetList}>
-            {PRESETS.map(p => (
-              <Pressable
-                key={p.key}
-                style={({ pressed }) => [
-                  styles.presetBtn,
-                  preset === p.key && styles.presetBtnActive,
-                  pressed && { opacity: 0.75 },
-                ]}
-                onPress={() => p.key === 'custom' ? setShowCustom(true) : setPreset(p.key)}
-              >
-                {preset === p.key && <View style={styles.presetActiveBar} />}
-                <Text style={[styles.presetTxt, preset === p.key && styles.presetTxtActive]}>
-                  {p.key === 'custom' && preset === 'custom' ? rangeLabel : p.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          <View style={styles.divider} />
-
-          {pnl && (
-            <>
-              <Text style={styles.sectionLabel}>Итоги</Text>
-              {[
-                { label: 'Выручка',  value: `${fmt(pnl.revenue)} ₽`,    color: colors.text },
-                { label: 'Заказов',  value: pnl.orderCount,              color: colors.text },
-                { label: 'Ср. чек', value: `${fmt(pnl.avgCheck)} ₽`,   color: colors.text },
-                { label: 'Прибыль',  value: `${pnl.netProfit >= 0 ? '+' : ''}${fmt(pnl.netProfit)} ₽`, color: pnl.netProfit >= 0 ? colors.green : colors.red },
-              ].map((s, i) => (
-                <View key={i} style={styles.statRow}>
-                  <Text style={styles.statLabel}>{s.label}</Text>
-                  <Text style={[styles.statVal, { color: s.color }]}>{s.value}</Text>
-                </View>
-              ))}
-
-              <View style={styles.divider} />
-
-              <View style={styles.compareRow}>
-                <Text style={styles.compareTxt}>Сравнить</Text>
-                <Toggle value={compare} onValueChange={v => setCompare(v)} size="sm" />
+      <Modal visible={popOpen} transparent animationType="fade" onRequestClose={() => setPopOpen(false)}>
+        <View style={{ flex: 1 }}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setPopOpen(false)} />
+          <View style={[s.pop, { top: anchor.top, right: anchor.right }]}>
+            <GlassSurface floating radius={22} tint="32,40,55" alpha={0.97} padding={20} sheen={['rgba(255,255,255,0.10)', 'rgba(255,255,255,0.01)']}>
+              <Text style={s.popL}>Период</Text>
+              <View style={s.chips}>
+                {[...PRESETS, { key: 'custom', label: 'Свой период…' }].map(p => (
+                  <Pressable key={p.key} style={[s.chip, preset === p.key && s.chipOn]}
+                    onPress={() => { if (p.key === 'custom') { setPopOpen(false); setPicker('from'); } else { setPreset(p.key); setPopOpen(false); } }}>
+                    <Text style={[s.chipT, preset === p.key && { color: colors.orangeLight }]}>{p.label}</Text></Pressable>))}
               </View>
-            </>
-          )}
-        </ScrollView>
-      </Sheet>
-
-      <DatePicker visible={picker === 'from'} value={customFrom}
-        onChange={v => { setCustomFrom(v); setPreset('custom'); setPicker(null); }}
-        onClose={() => setPicker(null)} title="Начало периода" />
-      <DatePicker visible={picker === 'to'} value={customTo}
-        onChange={v => { setCustomTo(v); setPreset('custom'); setPicker(null); }}
-        onClose={() => setPicker(null)} title="Конец периода" />
-
-      {/* Модалка свой период */}
-      <Sheet visible={showCustom} onClose={() => setShowCustom(false)} title="Свой период">
-        <View style={{ padding: 20 }}>
-            <Text style={styles.fieldLabel}>Начало</Text>
-            <Pressable style={styles.dateBtn} onPress={() => { setShowCustom(false); setPicker('from'); }}>
-              <Text style={styles.dateTxt}>{customFrom.split('-').reverse().join('.')}</Text>
-              <Text style={styles.dateIcon}>📅</Text>
-            </Pressable>
-            <Text style={styles.fieldLabel}>Конец</Text>
-            <Pressable style={styles.dateBtn} onPress={() => { setShowCustom(false); setPicker('to'); }}>
-              <Text style={styles.dateTxt}>{customTo.split('-').reverse().join('.')}</Text>
-              <Text style={styles.dateIcon}>📅</Text>
-            </Pressable>
-            <Pressable style={styles.applyBtn} onPress={() => { setPreset('custom'); setShowCustom(false); }}>
-              <Text style={styles.applyTxt}>Применить</Text>
-            </Pressable>
+              <Text style={[s.popL, { marginTop: 16 }]}>Сравнение</Text>
+              <View style={s.tg}><Text style={s.tgT}>С прошлым периодом</Text><Toggle value={compare} onValueChange={setCompare} /></View>
+              {!!r && <View style={s.popF}><Text style={s.popR}>{ddmm(r.from)} — {ddmm(r.to)}</Text></View>}
+            </GlassSurface>
+          </View>
         </View>
-      </Sheet>
+      </Modal>
 
-      <TourGuide
-        visible={tourOpen}
-        onClose={() => { setTourOpen(false); markTourSeen('Reports'); }}
-        steps={tourSteps}
-      />
+      <DatePicker visible={picker === 'from'} value={range.from} title="Начало периода" onClose={() => setPicker(null)}
+        onChange={v => { setRange(x => ({ ...x, from: v })); setPicker('to'); }} />
+      <DatePicker visible={picker === 'to'} value={range.to} title="Конец периода" onClose={() => setPicker(null)}
+        onChange={v => { setRange(x => ({ ...x, to: v })); setPreset('custom'); setPicker(null); }} />
+      <TourGuide visible={tourOpen} onClose={() => { setTourOpen(false); markTourSeen('Reports'); }} steps={steps} />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  root:    { flex: 1, backgroundColor: colors.bg },
-
-  sectionLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8 },
-  divider: { height: 1, backgroundColor: colors.border, marginVertical: 14 },
-
-  presetList:    { gap: 2 },
-  presetBtn:     { paddingVertical: 15, paddingHorizontal: 14, borderRadius: 12, position: 'relative' },
-  presetBtnActive: { backgroundColor: 'rgba(127,168,217,0.08)' },
-  presetActiveBar: { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
-  presetTxt:     { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
-  presetTxtActive: { color: colors.orange },
-
-  statRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 7 },
-  statLabel:{ fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
-  statVal:  { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
-
-  compareRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  compareTxt: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
-
-  // ── Боковая панель быстрого обзора (альбомная) ──
-  sidePanel:  { width: '40%', maxWidth: 320, borderLeftWidth: 1, borderLeftColor: colors.border, backgroundColor: colors.surface, padding: 20 },
-  sideLabel:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
-  sideVal:    { fontFamily: fonts.family, fontSize: 28, color: colors.orange, marginTop: 6 },
-  sideSub:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
-  sideDivider:{ height: 1, backgroundColor: colors.border, marginVertical: 16 },
-  catRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 9 },
-  catName:    { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, flex: 1 },
-  catVal:     { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
-
-  tabBarRow: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: colors.border },
-  tabBar:  { flexDirection: 'row', flex: 1 },
-  filtersBtn:  { paddingHorizontal: 12, paddingVertical: 9, marginRight: 10, borderRadius: 10, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
-  filtersBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
-  tabBtn:  { flex: 1, paddingVertical: 14, alignItems: 'center' },
-  tabBtnActive: { borderBottomWidth: 2, borderBottomColor: colors.orange },
-  tabTxt:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
-  tabTxtActive: { color: colors.orange },
-  tabContent: { padding: 16, paddingBottom: 32, width: '100%', maxWidth: 720, alignSelf: 'center' },
-
-  // Карточки
-  card:    { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
-  cardTitle:{ fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, padding: 14, paddingBottom: 8 },
-  rowDiv:  { borderTopWidth: 1, borderTopColor: colors.border },
-
-  metricRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14 },
-  metricLabel: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
-  metricValue: { fontFamily: fonts.family, fontSize: 18, color: colors.text },
-  metricSub:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 2 },
-  deltaText:   { fontFamily: fonts.familySemibold, fontSize: 12 },
-
-  profitCard:  { borderRadius: 16, borderWidth: 1, padding: 20, marginTop: 10, alignItems: 'center' },
-  profitLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8 },
-  profitVal:   { fontFamily: fonts.family, fontSize: 36, marginBottom: 4 },
-  profitSub:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
-
-  hintCard:  { backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, padding: 16, marginTop: 10 },
-  hintTxt:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, lineHeight: 22 },
-  emptyHint: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', padding: 20 },
-
-  // Бар-чарт
-  barRow:   { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, gap: 8, marginBottom: 8 },
-  barLabel: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, width: 70, textAlign: 'right' },
-  barTrack: { flex: 1, height: 14, backgroundColor: colors.surface2, borderRadius: 7, overflow: 'hidden' },
-  barFill:  { height: '100%', borderRadius: 7 },
-  barValue: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.text, width: 65, textAlign: 'right' },
-
-  // Тепловая карта
-  heatMapWrap: { flexDirection: 'row', gap: 3, paddingHorizontal: 14, paddingBottom: 14, paddingTop: 4 },
-  heatCell:    { flex: 1, alignItems: 'center', gap: 4 },
-  heatBar:     { width: '100%', height: 28, borderRadius: 4 },
-  heatLabel:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
-
-  // Экспорт
-  exportBtn:    { paddingVertical: 8, paddingHorizontal: 12, marginRight: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)', backgroundColor: 'rgba(127,168,217,0.08)' },
-  tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(127,168,217,0.1)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)', alignItems: 'center', justifyContent: 'center' },
-  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, color: colors.orange },
-  exportBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
-
-  // Модалка
-  modalRoot:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 24 },
-  modalBox:   { width: '100%', maxWidth: 360, backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, padding: 24 },
-  modalTitle: { fontFamily: fonts.family, fontSize: 18, color: colors.text, marginBottom: 16 },
-  modalCloseBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' },
-  modalCloseTxt: { fontSize: 14, color: colors.muted, fontFamily: fonts.familySemibold },
-  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 6, marginTop: 14 },
-  dateBtn:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 13 },
-  dateTxt:    { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
-  dateIcon:   { fontSize: 16 },
-  applyBtn:   { marginTop: 20, paddingVertical: 15, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
-  applyTxt:   { fontFamily: fonts.family, fontSize: 16, color: colors.onAccent },
+const PAY = ['#9DBFE6', '#A5A8D4', '#78B796', '#D9AC62', '#DB8178'];
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg }, glow: { ...StyleSheet.absoluteFill, overflow: 'hidden' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
+  emptyT: { fontFamily: fonts.family, fontSize: 18, color: colors.text, textAlign: 'center' }, emptyX: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', marginTop: 8 },
+  tourBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(127,168,217,0.1)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.3)', alignItems: 'center', justifyContent: 'center' }, tourTxt: { fontFamily: fonts.family, fontSize: 18, color: colors.orange },
+  tb: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingTop: 14 },
+  cmp: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.green, marginLeft: 'auto' },
+  pbtn: { flexDirection: 'row', alignItems: 'center', gap: 8, height: 50, paddingHorizontal: 18, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', marginLeft: 'auto' }, pbtnOn: { backgroundColor: 'rgba(127,168,217,0.18)', borderColor: 'rgba(157,191,230,0.5)' },
+  pbtnT: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text }, car: { fontSize: 11, color: colors.muted },
+  kl: { fontFamily: fonts.familySemibold, fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase', color: colors.textDim },
+  val: { fontFamily: fonts.display, fontSize: 26, color: colors.text, marginTop: 6, letterSpacing: -0.4 }, big: { fontFamily: fonts.display, fontSize: 56, color: colors.text, marginTop: 8, letterSpacing: -1.8 },
+  delta: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted, marginTop: 6 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 12 }, cell: { flexGrow: 1, flexBasis: '22%', minWidth: 160 },
+  card: { backgroundColor: colors.surface, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', paddingHorizontal: 20, paddingVertical: 8, marginBottom: 12 },
+  cardT: { fontFamily: fonts.familySemibold, fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase', color: colors.muted, marginTop: 10, marginBottom: 8 },
+  stack: { flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden', marginBottom: 10, backgroundColor: 'rgba(255,255,255,0.06)' },
+  pr: { flexDirection: 'row', alignItems: 'center', paddingVertical: 9 }, dot: { width: 9, height: 9, borderRadius: 5, marginRight: 10 },
+  prN: { flex: 1, fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text }, prP: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginRight: 16 }, prV: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
+  warn: { padding: 14, borderRadius: 14, backgroundColor: 'rgba(217,172,98,0.08)', borderWidth: 1, borderColor: 'rgba(217,172,98,0.25)', marginBottom: 12 }, warnT: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.warning, lineHeight: 19 },
+  row: { flexDirection: 'row', alignItems: 'center', minHeight: 62, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)' }, rowSub: { backgroundColor: 'rgba(127,168,217,0.06)', marginHorizontal: -20, paddingHorizontal: 20 }, rowTotal: { minHeight: 72 },
+  rowN: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text }, rowS: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
+  rowP: { width: 64, textAlign: 'right', fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted }, rowA: { width: 140, textAlign: 'right', fontFamily: fonts.familySemibold, fontSize: 18, color: colors.text }, chev: { width: 24, textAlign: 'center', fontSize: 20, color: colors.muted },
+  det: { paddingLeft: 16, paddingBottom: 8 }, detRow: { flexDirection: 'row', paddingVertical: 5 }, detN: { flex: 1, fontFamily: fonts.familyRegular, fontSize: 14, color: colors.textDim }, detA: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, marginRight: 88 },
+  kp: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14 }, kpDiv: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)' }, kv: { fontFamily: fonts.display, fontSize: 22, color: colors.text },
+  chart: { flexDirection: 'row', alignItems: 'flex-end', height: 210, gap: 8, paddingTop: 8 }, col: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', height: '100%' },
+  bar: { width: '100%', maxWidth: 70, borderTopLeftRadius: 8, borderTopRightRadius: 8, borderBottomLeftRadius: 3, borderBottomRightRadius: 3 },
+  colV: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.textDim, marginBottom: 6 }, colL: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 8 },
+  topHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }, hb: { flexDirection: 'row', alignItems: 'center', marginVertical: 7 },
+  hbN: { width: 130, fontFamily: fonts.familyRegular, fontSize: 14, color: colors.textDim }, hbB: { flex: 1, height: 12, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.06)', overflow: 'hidden' }, hbF: { height: 12, borderRadius: 6, backgroundColor: colors.indigo }, hbV: { width: 110, textAlign: 'right', fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
+  pop: { position: 'absolute', width: 420, maxWidth: '94%' }, popL: { fontFamily: fonts.familySemibold, fontSize: 12, letterSpacing: 1.3, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, chip: { height: 40, paddingHorizontal: 16, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' }, chipOn: { backgroundColor: 'rgba(127,168,217,0.22)', borderColor: 'rgba(157,191,230,0.5)' }, chipT: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
+  tg: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, tgT: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
+  popF: { marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)' }, popR: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
 });

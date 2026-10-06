@@ -1023,7 +1023,7 @@ export function getRecentOrders(limit = 50) {
 // потому что время заказов хранится в UTC), а итоги считаются по всем заказам периода.
 
 // 'YYYY-MM-DD' (местная дата) + смещение в днях → начало того дня, ISO (UTC)
-function localDateStartISO(dateStr, addDays = 0) {
+export function localDateStartISO(dateStr, addDays = 0) {
   const [y, m, d] = String(dateStr).split('-').map(Number);
   return new Date(y, m - 1, d + addDays, 0, 0, 0, 0).toISOString();
 }
@@ -1065,7 +1065,7 @@ export function getOrderItemsBatch(orderIds) {
 // раскладывается по долям (часть наличными, часть картой), прочие способы (QR, СБП и
 // т.п.) — отдельными строками, поэтому части всегда складываются в итог.
 // Возвраты в выручку не входят и считаются отдельно.
-function summarizeSales(rows, payMethods) {
+export function summarizeSales(rows, payMethods) {
   let total = 0, count = 0, cash = 0, card = 0, rSum = 0, rCount = 0;
   const other = {};
   const addOther = (name, v) => { other[name] = (other[name] || 0) + v; };
@@ -2683,7 +2683,7 @@ export function addPurchase(stockName, qty, pricePerUnit, locationId = null) {
       db.runSync(`UPDATE cost_ingredients SET price_per_unit = ? WHERE LOWER(name) = LOWER(?)`, [avgPrice, stockName]);
       // Закупка — расход (попадает в отчёты и «Расходы»); единственное место, где он создаётся
       insertExpense({
-        date: now.slice(0, 10),
+        date: new Date().toLocaleDateString('sv-SE'),   // местная дата ГГГГ-ММ-ДД
         category: 'Закупка',
         amount: total,
         comment: `${stockName}, ${qty} ${stockRow.unit || ''}`.trim(),
@@ -3268,7 +3268,7 @@ export function getOrdersByPeriod(dateFrom, dateTo, includeReturned = false) {
 // ─── Блок Г: P&L + Графики ──────────────────────────────────────────────────
 
 // Вычисляет COGS (себестоимость) для списка заказов
-function calcCOGS(orders) {
+export function calcCOGS(orders) {
   const db = getDb();
   let total = 0;
   for (const order of orders) {
@@ -3293,58 +3293,6 @@ function calcCOGS(orders) {
     }
   }
   return Math.round(total * 100) / 100;
-}
-
-// P&L за период
-export function getPnL(dateFrom, dateTo) {
-  const db = getDb();
-  const orders = getOrdersByPeriod(dateFrom, dateTo, false);
-  const revenue = orders.reduce((s, o) => s + o.total, 0);
-  const cogs    = calcCOGS(orders);
-  const grossProfit = revenue - cogs;
-
-  const expenses = db.getAllSync(
-    `SELECT SUM(amount) as total FROM expenses WHERE date >= ? AND date <= ?`,
-    [dateFrom, dateTo]
-  );
-  const totalExpenses = expenses[0]?.total || 0;
-  const netProfit = grossProfit - totalExpenses;
-
-  return {
-    revenue: Math.round(revenue * 100) / 100,
-    cogs:    Math.round(cogs * 100) / 100,
-    grossProfit: Math.round(grossProfit * 100) / 100,
-    expenses: Math.round(totalExpenses * 100) / 100,
-    netProfit: Math.round(netProfit * 100) / 100,
-    grossMarginPct: revenue > 0 ? Math.round(grossProfit / revenue * 1000) / 10 : 0,
-    netMarginPct:   revenue > 0 ? Math.round(netProfit   / revenue * 1000) / 10 : 0,
-    orderCount: orders.length,
-    avgCheck: orders.length > 0 ? Math.round(revenue / orders.length * 100) / 100 : 0,
-  };
-}
-
-// Выручка по дням для графика
-export function getRevenueByDay(dateFrom, dateTo) {
-  const db = getDb();
-  return db.getAllSync(
-    `SELECT SUBSTR(created_at, 1, 10) as day, SUM(total) as total, COUNT(*) as orders
-     FROM orders WHERE created_at >= ? AND created_at <= ? AND (status IS NULL OR status != 'returned')
-     GROUP BY day ORDER BY day`,
-    [dateFrom + 'T00:00:00', dateTo + 'T23:59:59']
-  );
-}
-
-// Топ товаров по количеству продаж
-export function getTopProducts(dateFrom, dateTo, limit = 10) {
-  const db = getDb();
-  return db.getAllSync(
-    `SELECT oi.name, SUM(oi.quantity) as qty, SUM(oi.price * oi.quantity) as revenue
-     FROM order_items oi
-     JOIN orders o ON o.id = oi.order_id
-     WHERE o.created_at >= ? AND o.created_at <= ? AND (o.status IS NULL OR o.status != 'returned')
-     GROUP BY oi.name ORDER BY qty DESC LIMIT ?`,
-    [dateFrom + 'T00:00:00', dateTo + 'T23:59:59', limit]
-  );
 }
 
 // ─── Блок Г: Плановые цены ──────────────────────────────────────────────────
@@ -3673,7 +3621,7 @@ function calcSingleSalary(user, revenue, hours) {
 // ─── Фаза 7: Полный управленческий P&L ──────────────────────────────────────
 
 // Количество смен за период
-function getShiftsInPeriod(dateFrom, dateTo) {
+export function getShiftsInPeriod(dateFrom, dateTo) {
   const db = getDb();
   try {
     return db.getAllSync(
@@ -3736,189 +3684,6 @@ export function ensureDailyDepreciationExpense() {
   } catch (e) { console.error('[ensureDailyDepreciationExpense] накладные:', e); }
 }
 
-// Полный P&L с накладными, зарплатой и амортизацией
-export function getPnLFull(dateFrom, dateTo) {
-  // Базовый P&L (выручка, COGS, расходы)
-  const base = getPnL(dateFrom, dateTo);
-  const days = Math.max(1, Math.round(
-    (new Date(dateTo) - new Date(dateFrom)) / 86400000
-  ) + 1);
-
-  // ── Накладные расходы за период ──
-  let overheadTotal = 0;
-  try {
-    const overheads = getOverheadItems();
-    for (const oh of overheads) {
-      const monthly = oh.period === 'year'  ? oh.amount / 12
-                    : oh.period === 'week'  ? oh.amount * 4.33
-                    : oh.amount;
-      overheadTotal += monthly * (days / 30);
-    }
-  } catch (_) {}
-  overheadTotal = Math.round(overheadTotal);
-
-  // ── Зарплата за период ──
-  let salaryTotal = 0;
-  try {
-    const shifts = getShiftsInPeriod(dateFrom, dateTo);
-    const db = getDb();
-    for (const shift of shifts) {
-      const user = shift.employee_name
-        ? db.getFirstSync(`SELECT * FROM users WHERE name = ?`, [shift.employee_name])
-        : null;
-      if (user && user.salary_amount > 0) {
-        const hours = shift.closed_at
-          ? Math.round((new Date(shift.closed_at) - new Date(shift.opened_at)) / 3600000)
-          : 8;
-        switch (user.salary_type) {
-          case 'shift':       salaryTotal += user.salary_amount; break;
-          case 'hourly':      salaryTotal += user.salary_amount * hours; break;
-          case 'monthly':     salaryTotal += user.salary_amount / 22; break;
-          case 'revenue_pct': salaryTotal += (base.revenue * user.salary_amount / 100) / Math.max(1, shifts.length); break;
-          default:            salaryTotal += user.salary_amount;
-        }
-      } else if (!user) {
-        // Среднее по всем сотрудникам
-        salaryTotal += calcShiftSalaryCost({ revenueInShift: base.revenue / Math.max(1, shifts.length) });
-      }
-    }
-  } catch (_) {}
-  salaryTotal = Math.round(salaryTotal);
-
-  // ── Крупные покупки за период, растянутые по месяцам (Инвестиции) ──
-  let deprTotal = 0;
-  try {
-    const investments = getInvestments();
-    for (const inv of investments) {
-      if (!inv.amount || inv.amount === 0) continue;
-      if (inv.amort_months > 0) {
-        deprTotal += (inv.amount / inv.amort_months) * (days / 30);
-      }
-    }
-  } catch (_) {}
-  deprTotal = Math.round(deprTotal);
-
-  // ── Итоговые показатели ──
-  const totalCosts    = base.cogs + base.expenses + overheadTotal + salaryTotal + deprTotal;
-  const fullNetProfit = base.revenue - totalCosts;
-  const fullNetMarginPct = base.revenue > 0
-    ? Math.round(fullNetProfit / base.revenue * 1000) / 10
-    : 0;
-
-  return {
-    ...base,
-    overheadTotal,
-    salaryTotal,
-    deprTotal,
-    totalCosts,
-    fullNetProfit,
-    fullNetMarginPct,
-    // Метрики для типа бизнеса
-    foodCostPct:  base.revenue > 0 ? Math.round(base.cogs / base.revenue * 1000) / 10 : 0,
-    primeCostPct: base.revenue > 0 ? Math.round((base.cogs + salaryTotal) / base.revenue * 1000) / 10 : 0,
-    grossMarginPct: base.grossMarginPct,
-    laborCostPct: base.revenue > 0 ? Math.round(salaryTotal / base.revenue * 1000) / 10 : 0,
-    breakEvenMonthly: (overheadTotal + salaryTotal + deprTotal + base.expenses) > 0 && base.grossMarginPct > 0
-      ? Math.round((overheadTotal + salaryTotal + deprTotal + base.expenses) / (base.grossMarginPct / 100))
-      : 0,
-    shiftsCount: (() => { try { return getShiftsInPeriod(dateFrom, dateTo).length; } catch(_) { return 0; } })(),
-    avgCheckPerShift: (() => {
-      const sc = (() => { try { return getShiftsInPeriod(dateFrom, dateTo).length; } catch(_) { return 0; } })();
-      return sc > 0 ? Math.round(base.revenue / sc) : 0;
-    })(),
-  };
-}
-
-// ─── Метрики по типу бизнеса ─────────────────────────────────────────────────
-export function getBusinessMetrics(pnlFull, businessPreset) {
-  const metrics = [];
-  const { revenue, foodCostPct, primeCostPct, grossMarginPct, laborCostPct,
-          orderCount, avgCheck, shiftsCount, avgCheckPerShift, breakEvenMonthly } = pnlFull;
-
-  // Метрика себестоимости материалов/ингредиентов показывается всем, у кого
-  // включён склад — это не зависит от типа бизнеса: парикмахерская расходует
-  // краску и шампунь так же, как кофейня — молоко и зёрна.
-  const stockEnabled = !!getBusinessProfile()?.modules?.stock;
-  const isCoffee = businessPreset === 'coffee';
-
-  if (stockEnabled) {
-    metrics.push({
-      key: 'foodCost',
-      label: isCoffee ? 'Food Cost %' : 'Себестоимость %',
-      value: `${foodCostPct}%`,
-      benchmark: isCoffee ? '< 30%' : null,
-      ok: isCoffee ? (foodCostPct > 0 && foodCostPct < 30) : undefined,
-      warn: isCoffee ? foodCostPct >= 30 : undefined,
-      tip: isCoffee
-        ? 'Доля себестоимости в выручке. Норма для кофейни: 25–30%. Выше 35% — пора пересматривать рецептуру или поставщиков.'
-        : 'Доля себестоимости материалов и ингредиентов в выручке. Норма сильно зависит от отрасли — ориентируйтесь на свою историю, а не на чужие цифры.',
-    });
-    if (isCoffee) {
-      metrics.push({
-        key: 'primeCost',
-        label: 'Prime Cost %',
-        value: `${primeCostPct}%`,
-        benchmark: '< 60%',
-        ok: primeCostPct > 0 && primeCostPct < 60,
-        warn: primeCostPct >= 60,
-        tip: 'Себестоимость + Зарплата / Выручка. Главный показатель эффективности F&B. Норма: 55–60%.',
-      });
-    }
-  }
-
-  if (businessPreset === 'retail' || !businessPreset) {
-    metrics.push({
-      key: 'grossMargin',
-      label: 'Валовая маржа',
-      value: `${grossMarginPct}%`,
-      benchmark: '> 40%',
-      ok: grossMarginPct > 40,
-      warn: grossMarginPct <= 40,
-      tip: 'Процент валовой прибыли от выручки. Для розницы норма зависит от категории: продукты 20–35%, одежда 50–70%.',
-    });
-  }
-
-  metrics.push({
-    key: 'laborCost',
-    label: 'Зарплатный фонд %',
-    value: `${laborCostPct}%`,
-    benchmark: '< 35%',
-    ok: laborCostPct > 0 && laborCostPct < 35,
-    warn: laborCostPct >= 35,
-    tip: 'Доля зарплат в выручке. Норма для большинства бизнесов: 25–35%.',
-  });
-
-  metrics.push({
-    key: 'avgCheck',
-    label: 'Средний чек',
-    value: `${avgCheck.toLocaleString('ru-RU')} ₽`,
-    benchmark: null,
-    tip: 'Средняя сумма одного заказа за период.',
-  });
-
-  if (shiftsCount > 0) {
-    metrics.push({
-      key: 'revenuePerShift',
-      label: 'Выручка за смену',
-      value: `${avgCheckPerShift.toLocaleString('ru-RU')} ₽`,
-      benchmark: null,
-      tip: 'Средняя выручка за одну рабочую смену.',
-    });
-  }
-
-  if (breakEvenMonthly > 0) {
-    metrics.push({
-      key: 'breakEven',
-      label: 'Точка безубыточности',
-      value: `${breakEvenMonthly.toLocaleString('ru-RU')} ₽/мес`,
-      benchmark: null,
-      tip: 'Сколько нужно выручки в месяц чтобы покрыть все постоянные расходы (накладные + зарплата + амортизация).',
-    });
-  }
-
-  return metrics;
-}
-
 // Единственного активного администратора удалить нельзя. Возвращает {ok} или {ok:false, error}
 export function deleteUser(id) {
   return Auth.deleteUser(getDb(), getSession()?.id ?? null, id);
@@ -3971,52 +3736,6 @@ export function saveUserPermissions(userId, permissions) {
 }
 
 // ─── Аналитика для отчётности ─────────────────────────────────────────────────
-
-export function getOrdersByHour(from, to) {
-  const db = getDb();
-  try {
-    return db.getAllSync(
-      `SELECT strftime('%H', created_at) as hour, COUNT(*) as count, SUM(total) as total
-       FROM orders WHERE date(created_at) BETWEEN ? AND ? AND (status IS NULL OR status != 'returned')
-       GROUP BY hour ORDER BY hour`,
-      [from, to]
-    );
-  } catch (_) { return []; }
-}
-
-export function getRevenueByEmployee(from, to) {
-  const db = getDb();
-  try {
-    return db.getAllSync(
-      `SELECT u.name, COUNT(o.id) as orders, SUM(o.total) as revenue
-       FROM orders o JOIN users u ON o.cashier_id = u.id
-       WHERE date(o.created_at) BETWEEN ? AND ? AND (o.status IS NULL OR o.status != 'returned')
-       GROUP BY u.id ORDER BY revenue DESC`,
-      [from, to]
-    );
-  } catch (_) { return []; }
-}
-
-export function getPaymentBreakdown(from, to) {
-  const db = getDb();
-  try {
-    const rows = db.getAllSync(
-      `SELECT method, method_id, COUNT(*) as count, SUM(total) as total
-       FROM orders WHERE date(created_at) BETWEEN ? AND ? AND (status IS NULL OR status != 'returned')
-       GROUP BY COALESCE(NULLIF(method_id, ''), method) ORDER BY total DESC`,
-      [from, to]
-    );
-    // Переименование способа оплаты в Настройках не должно "раздваивать"
-    // историю в отчётах — группируем по id (если он есть у заказа), а
-    // название всегда берём АКТУАЛЬНОЕ. Для заказов без id (способ оплаты
-    // был удалён, или очень старая запись) — используем сохранённый текст.
-    const payMethods = getPayMethods();
-    return rows.map(r => {
-      const m = r.method_id ? payMethods.find(p => String(p.id) === String(r.method_id)) : null;
-      return { pay_method: m ? m.name : (r.method || 'Другое'), count: r.count, total: r.total };
-    });
-  } catch (_) { return []; }
-}
 
 export function upsertProductVariants(productId, vars) {
   const db = getDb();
