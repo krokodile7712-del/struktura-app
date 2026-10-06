@@ -288,7 +288,7 @@ export default function SalesScreen({ navigation }) {
   const openFilters = () => {
     if (!isLandscape) { setFiltersOpen(true); return; }          // телефон — нижняя панель
     if (popMounted) { closeFilters(); return; }
-    const begin = (a) => { setAnchor(a); popAnim.setValue(0); setPopMounted(true); };
+    const begin = (a) => { setAnchor(a); setPopMounted(true); };
     try {
       // Положение кнопки в координатах окна; Modal без прозрачной строки состояния
       // использует те же координаты, поэтому окно встаёт точно под кнопку.
@@ -298,12 +298,13 @@ export default function SalesScreen({ navigation }) {
       });
     } catch (e) { begin({ top: 76, right: 12 }); }
   };
-  const closeFilters = () => {
-    Animated.timing(popAnim, { toValue: 0, duration: 140, useNativeDriver: true }).start(() => setPopMounted(false));
-  };
-  // Окно «вырастает» из кнопки: пружина без перелёта (демпфирование 1)
+  const closeFilters = () => setPopMounted(false);
+  // Окно «вырастает» из кнопки при показе: пружина без перелёта (демпфирование 1). Анимация на
+  // стороне JS (не нативная) — это маленькое окно, а закрытие от неё больше не зависит.
   useEffect(() => {
-    if (popMounted) Animated.spring(popAnim, { toValue: 1, speed: 22, bounciness: 0, useNativeDriver: true }).start();
+    if (!popMounted) return;
+    popAnim.setValue(0);
+    Animated.spring(popAnim, { toValue: 1, speed: 22, bounciness: 0, useNativeDriver: false }).start();
   }, [popMounted]);
 
   // Итог для живого счётчика в окне фильтров
@@ -628,7 +629,7 @@ export default function SalesScreen({ navigation }) {
       {/* Окно фильтров — в прозрачном системном окне (Modal): оно всегда выше всего экрана, включая
           боковую панель, и принимает любое касание вне самого окна — по нему окно закрывается.
           Кнопка «назад» на устройстве закрывает его же (onRequestClose). */}
-      <Modal visible={popMounted} transparent animationType="none" onRequestClose={closeFilters}>
+      <Modal visible={popMounted} transparent animationType="fade" statusBarTranslucent={false} onRequestClose={closeFilters}>
         <View style={{ flex: 1 }}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={closeFilters} />
           <Animated.View
