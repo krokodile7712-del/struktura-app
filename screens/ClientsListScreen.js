@@ -9,7 +9,7 @@ import Sheet from '../components/Sheet';
 import { useFocusEffect } from '@react-navigation/native';
 import { getAllClients, searchClients, getClientOrders, getTerms, pluralizeRu, countRu,
          getLoyaltyConfig, updateClientNote, getClientById, getBusinessProfile, markTourSeen } from '../db/queries';
-import { updateClient, findClientByPhone, getSetting, setSetting, expireWelcomeBonuses } from '../db/queries';
+import { updateClient, findClientByPhone, getSetting, setSetting, expireWelcomeBonuses, addClientBalance } from '../db/queries';
 import WelcomeBonusBlock from '../components/WelcomeBonusBlock';
 import { syncLoyaltySignups, deleteClientEverywhere } from '../db/loyaltySync';
 import { useToast } from '../components/Toast';
@@ -22,6 +22,7 @@ import GlassButton from '../components/GlassButton';
 import Icon from '../components/Icon';
 import SoftGlow from '../components/SoftGlow';
 import ClientEditModal from '../components/ClientEditModal';
+import ClientBonusModal from '../components/ClientBonusModal';
 
 // Перенесено из LoyaltyScreen.js (экран удалён — дублировал список клиентов,
 // единственная уникальная часть была эта сводка по модели лояльности)
@@ -72,6 +73,7 @@ function ClientCard({ client, onNewOrder, onSaved, onDeleted, loyaltyModel, loya
   const [, setTick] = useState(0); // перерисовать блок бонуса после активации
   const isAdmin = getSession()?.role === 'admin';
   const [deleting, setDeleting] = useState(false);
+  const [bonusOpen, setBonusOpen] = useState(false);   // окно «Начислить баллы»
 
   // Удаление клиента: из приложения и, если он регистрировался по QR, копии в облаке
   const toast = useToast();
@@ -114,6 +116,16 @@ function ClientCard({ client, onNewOrder, onSaved, onDeleted, loyaltyModel, loya
     if (!isPhoneOkOrEmpty(ph)) return PHONE_ERROR + ' — или очистите поле.';
     const dup = (ph || '').trim() ? findClientByPhone(ph, client.id) : null;
     return dup ? `Этот номер записан на клиента «${dup.fio}».` : '';
+  };
+  // Ручное начисление (компенсация, поощрение): «баланс = баланс + N» прямо в базе
+  const addBonus = (amount) => {
+    try {
+      const added = addClientBalance(client.id, amount);
+      client.balance = (client.balance || 0) + added;
+      onSaved?.();
+      toast.show(`${loyaltyModel === 'subscription' ? 'Добавлено визитов' : 'Начислено баллов'}: ${added}`);
+      return { ok: true };
+    } catch (e) { console.error(e); return { ok: false, message: 'Не удалось начислить. Попробуйте ещё раз.' }; }
   };
   const saveFromModal = (v) => {
     const pe = validatePhone(v.phone);
@@ -272,6 +284,9 @@ function ClientCard({ client, onNewOrder, onSaved, onDeleted, loyaltyModel, loya
       {/* Действия */}
       <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
         <GlassButton tone="accent" icon="plus" label="Новый заказ" height={54} style={{ flex: 1 }} onPress={() => onNewOrder(client)} />
+        {can('manage_loyalty') && loyaltyModel !== 'discount' && (
+          <GlassButton icon="plus" label={loyaltyModel === 'subscription' ? 'Добавить визиты' : 'Начислить баллы'} height={54} style={{ flex: 1 }} onPress={() => setBonusOpen(true)} />
+        )}
         {can('edit_clients') && <GlassButton label="Изменить" height={54} style={{ flex: 1 }} onPress={() => setEditing(true)} />}
       </View>
 
@@ -314,6 +329,7 @@ function ClientCard({ client, onNewOrder, onSaved, onDeleted, loyaltyModel, loya
       </View>
 
     </ScrollView>
+    <ClientBonusModal visible={bonusOpen} client={client} model={loyaltyModel} onConfirm={addBonus} onClose={() => setBonusOpen(false)} />
     <ClientEditModal
       visible={editing} client={client} onClose={() => setEditing(false)}
       canLoyalty={can('manage_loyalty')} loyaltyModel={loyaltyModel}
