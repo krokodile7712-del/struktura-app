@@ -17,9 +17,10 @@ import InfoTip from '../components/InfoTip';
 import { matchesClientQuery } from '../utils/phone';
 import { maxSpendablePoints } from '../utils/points';
 import PointsSpendPanel from '../components/PointsSpendPanel';
+import PaymentModal from '../components/PaymentModal';
 import WelcomeBonusBlock from '../components/WelcomeBonusBlock';
 import { syncLoyaltySignups } from '../db/loyaltySync';
-import { getAllProducts, getAllClients, getCategories, getCategoryOrder, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, getAllVariantsWithSku, getZones, getOrderTemplates, saveOrderTemplate, deleteOrderTemplate, applyPendingPriceSchedules, createOrder, getOpenShift, getClientById, getWelcomeBonusInfo, addClientVisit, getBusinessProfile, getTerms, getLoyaltyConfig, spendPoints, checkSubscriptionBalance, getCostCardForVariant, getAllStock, markTourSeen, setClientDiscountPct, addClientBalance } from '../db/queries';
+import { getAllProducts, getAllClients, getCategories, getCategoryOrder, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, getAllVariantsWithSku, getZones, getOrderTemplates, saveOrderTemplate, deleteOrderTemplate, applyPendingPriceSchedules, finalizeSale, getOpenShift, getClientById, getWelcomeBonusInfo, getBusinessProfile, getTerms, getLoyaltyConfig, checkSubscriptionBalance, getCostCardForVariant, getAllStock, markTourSeen, setClientDiscountPct, addClientBalance } from '../db/queries';
 import { subscribe } from '../db/events';
 import Sheet from '../components/Sheet';
 import TourGuide from '../components/TourGuide';
@@ -222,8 +223,6 @@ export default function KassaScreen({ navigation, route }) {
 
   // Оплата (значение способа/смешанной оплаты используется в предмодалке ── Оплата)
   const [payMethod, setPayMethod] = useState('Наличные'); // Наличные | Карта | QR | Смешанная
-  const [mixedCash, setMixedCash] = useState('');
-  const [mixedCard, setMixedCard] = useState('');
 
   useEffect(() => { loadData(); }, []);
 
@@ -743,33 +742,13 @@ export default function KassaScreen({ navigation, route }) {
     setPrePayOpen(true);
   };
 
-  const handleMixedCashChange = (v) => {
-    setMixedCash(v);
-    const cashNum = parseFloat(v) || 0;
-    const rest = Math.max(0, total - cashNum);
-    setMixedCard(rest > 0 ? String(rest) : '');
-  };
-  const handleMixedCardChange = (v) => {
-    setMixedCard(v);
-    const cardNum = parseFloat(v) || 0;
-    const rest = Math.max(0, total - cardNum);
-    setMixedCash(rest > 0 ? String(rest) : '');
-  };
-
-  const confirmPay = () => {
-    if (order.length === 0) return;
-    const selectedMethod = payMethods.find(m => m.name === payMethod) || { type: 'card' };
-    const isMixed = selectedMethod.type === 'mixed';
-    const isCash  = selectedMethod.type === 'cash';
-    let cashAmount = 0, cardAmount = 0;
-    if (isMixed) {
-      cashAmount = parseFloat(mixedCash) || 0;
-      cardAmount = parseFloat(mixedCard) || 0;
-    } else if (isCash) {
-      cashAmount = total;
-    } else {
-      cardAmount = total;
-    }
+  // Проведение оплаты. Вызывается из окна оплаты (PaymentModal): там же защита от двойного нажатия,
+  // проверка смешанной суммы и подсчёт сдачи. Возвращает { ok, notes, warnings } или { ok: false, message }.
+  // Продажа записывается одной транзакцией (finalizeSale): заказ, позиции, склад, баллы и визит клиента —
+  // либо всё, либо ничего. Корзина очищается только после успешной записи.
+  const performPayment = ({ methodName, cashAmount, cardAmount }) => {
+    if (order.length === 0) return { ok: false, message: 'Корзина пуста' };
+    const selectedMethod = payMethods.find(m => m.name === methodName) || { type: 'card' };
     try {
       const currentUser = getSession();
       // Баллы, которые реально пошли в скидку после лимитов (а не введённое число) —
@@ -778,8 +757,8 @@ export default function KassaScreen({ navigation, route }) {
       const pointsUsed = (forClient?.id && loyaltyModel === 'points' && loyaltyConfig.allow_spend && pointsDiscount > 0)
         ? Math.min(Math.floor(parseFloat(pointsToSpend) || 0), Math.ceil(pointsDiscount / pvNow))
         : 0;
-      const { stockWarnings } = createOrder({
-        total, method: payMethod, methodType: selectedMethod.type, methodId: selectedMethod.id,
+      const sale = finalizeSale({
+        total, method: methodName, methodType: selectedMethod.type, methodId: selectedMethod.id,
         shift_id: currentShift?.id || null,
         client_id: forClient?.id || null,
         cashier_id: currentUser?.id || null,
@@ -792,28 +771,22 @@ export default function KassaScreen({ navigation, route }) {
         pointsSpent: pointsUsed,
         pointsDiscount: pointsUsed > 0 ? pointsDiscount : 0,
       });
-      if (forClient?.id) {
-        if (pointsUsed > 0) spendPoints(forClient.id, pointsUsed);
-        const visitResult = addClientVisit(forClient.id, total); // total = после скидки
-      }
       setExpandedCartId(null);
       closeSlot(activeSlotId);
-      // Fix 3: обратная связь по баллам
-      let toastMsg = `Оплата ${total} ₽ принята ✓`;
+
+      const notes = [];
       if (forClient?.id) {
-        if (loyaltyModel === 'points') {
-          const earned = Math.round(total * (loyaltyConfig.earn_pct ?? 10) / 100);
-          if (earned > 0) toastMsg += `  •  +${earned} балл.`;
-        } else if (loyaltyModel === 'subscription') {
-          toastMsg += `  •  -1 визит`;
-        }
+        if (loyaltyModel === 'points' && sale.loyalty?.pointsEarned > 0) notes.push(`Клиенту начислено ${sale.loyalty.pointsEarned} балл.`);
+        else if (loyaltyModel === 'subscription') notes.push('Списан 1 визит абонемента');
       }
-      toast.show(toastMsg);
-      if (stockWarnings && stockWarnings.length > 0) {
-        const lines = stockWarnings.map(w => `${w.name}: ${w.amount.toFixed(1)} ${w.unit || ''}`).join('\n');
-        Alert.alert('⚠️ Склад ушёл в минус', lines);
-      }
-    } catch (e) { console.error('[KassaScreen] createOrder error:', e); }
+      // Предупреждения склада показываем в окне «Оплачено», а не блокирующим окном поверх него
+      const warnings = (sale.stockWarnings || []).map(w => `Склад в минусе: ${w.name} ${w.amount.toFixed(1)} ${w.unit || ''}`.trim());
+      if (sale.deductionErrors > 0) warnings.push('Остатки склада обновлены не по всем позициям — проверьте склад');
+      return { ok: true, notes, warnings };
+    } catch (e) {
+      console.error('[KassaScreen] оплата не проведена:', e);
+      return { ok: false, message: 'Не удалось провести оплату. Ничего не записано, деньги не учтены — попробуйте ещё раз.' };
+    }
   };
 
   if (loading) {
@@ -1295,124 +1268,36 @@ export default function KassaScreen({ navigation, route }) {
       </Sheet>
 
 
-      {/* ── Предмодалка оплаты — клиент / скидка / баллы ── */}
-      <Modal visible={prePayOpen} transparent animationType="fade" onRequestClose={() => setPrePayOpen(false)}>
-        <KeyboardSafe style={styles.paySheetRoot}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setPrePayOpen(false)} />
-          <FitView style={styles.paySheet} phoneStyle={{ flexDirection: 'column', height: '92%' }}>
-
-            {/* ══ ЛЕВАЯ КОЛОНКА: Состав заказа ══ */}
-            <View style={[styles.payLeft, isNarrow && { flex: 4, padding: 16, borderRightWidth: 0, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)' }]}>
-              <View style={styles.payLeftHead}>
-                <Text style={styles.paySheetTitle}>Заказ</Text>
-                <Text style={styles.paySheetSub}>{order.reduce((s,i)=>s+(i.quantity||1),0)} позиций</Text>
-              </View>
-              <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-                {order.map((item, i) => (
-                  <View key={i} style={[styles.payOrderItem, i < order.length-1 && styles.payOrderItemDiv]}>
-                    <Text style={styles.payOrderName} numberOfLines={1}>
-                      {item.name}{item.size ? ` ${item.size}` : ''}
-                      {item.quantity > 1 ? ` ×${item.quantity}` : ''}
-                    </Text>
-                    <Text style={styles.payOrderPrice}>{(item.price*(item.quantity||1)).toFixed(0)} ₽</Text>
-                  </View>
-                ))}
-              </ScrollView>
-              {/* Итого слева */}
-              <View style={styles.payLeftTotal}>
-                {(discountAmount > 0 || pointsDiscount > 0) && (
-                  <View style={styles.payTotalRow}>
-                    <Text style={styles.payTotalRowLbl}>Скидка</Text>
-                    <Text style={[styles.payTotalRowVal, { color: colors.green }]}>−{discountAmount + pointsDiscount} ₽</Text>
-                  </View>
-                )}
-                <View style={styles.payTotalRow}>
-                  <Text style={styles.payTotalBigLbl}>Итого</Text>
-                  <Text style={styles.payTotalBigVal}>{total} ₽</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Разделитель */}
-            {!isNarrow && <View style={styles.payDivider} />}
-
-            {/* ══ ПРАВАЯ КОЛОНКА: Оплата ══ */}
-            <View style={[styles.payRight, isNarrow && { flex: 6, padding: 16 }]}>
-              <View style={styles.payRightHead}>
-                <Text style={styles.paySheetTitle}>Оплата</Text>
-                <Pressable onPress={() => setPrePayOpen(false)} hitSlop={14} style={styles.payCloseBtn}>
-                  <Text style={styles.payCloseTxt}>✕</Text>
-                </Pressable>
-              </View>
-
-              <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-
-              {/* Баллы: раскрывающаяся строка управления списанием */}
-              {loyaltyModel === 'points' && loyaltyConfig.allow_spend && forClient && (forClient.balance||0) > 0 && (
-                <PointsSpendPanel
-                  balance={Math.floor(forClient.balance || 0)}
-                  maxPoints={maxPointsAllowed}
-                  limitPct={loyaltyConfig.max_spend_pct}
-                  value={pointsToSpend}
-                  onChange={setPointsToSpend}
-                  pointsDiscount={pointsDiscount}
-                  total={total}
-                />
-              )}
-
-              {/* Способ оплаты */}
-              <Text style={styles.payMethodsLabel}>Способ оплаты</Text>
-              <View style={styles.payMethodsRow}>
-                {payMethods.map(m => (
-                  <Pressable
-                    key={m.id}
-                    style={[styles.payMethodChip, payMethod === m.name && styles.payMethodChipActive]}
-                    onPress={() => setPayMethod(m.name)}
-                  >
-                    {m.icon ? <Text style={styles.payMethodChipIcon}>{m.icon}</Text> : null}
-                    <Text style={[styles.payMethodChipTxt, payMethod === m.name && { color: colors.orange }]}>{m.name}</Text>
-                  </Pressable>
-                ))}
-              </View>
-
-              {/* Смешанная */}
-              {payMethods.find(m => m.name === payMethod)?.type === 'mixed' && (
-                <View style={styles.mixedPayBox}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 }}>
-                    <Text style={styles.mixedPayHint}>Впишите одну сумму — вторая подставится сама</Text>
-                    <InfoTip title="Смешанная оплата" text="Укажите, сколько клиент платит наличными или картой — оставшаяся часть суммы автоматически подставится во второе поле." />
-                  </View>
-                  <View style={styles.mixedPayRow}>
-                    <Text style={styles.mixedPayLabel}>Наличными</Text>
-                    <TextInput style={styles.mixedPayInput} placeholder="0" placeholderTextColor={colors.muted} keyboardType="numeric" value={mixedCash} onChangeText={handleMixedCashChange} />
-                    <Text style={styles.mixedPayUnit}>₽</Text>
-                  </View>
-                  <View style={styles.mixedPayRow}>
-                    <Text style={styles.mixedPayLabel}>Картой</Text>
-                    <TextInput style={styles.mixedPayInput} placeholder="0" placeholderTextColor={colors.muted} keyboardType="numeric" value={mixedCard} onChangeText={handleMixedCardChange} />
-                    <Text style={styles.mixedPayUnit}>₽</Text>
-                  </View>
-                </View>
-              )}
-
-              </ScrollView>
-            {/* Принять */}
-              <View style={{ gap: 8, paddingTop: 8 }}>
-                <Pressable
-                  style={({ pressed }) => [styles.payConfirmBtn, pressed && { opacity: 0.88 }]}
-                  onPress={() => { setPrePayOpen(false); confirmPay(); }}
-                >
-                  <Text style={styles.payConfirmText}>Принять оплату · {total} ₽</Text>
-                </Pressable>
-                <Pressable style={styles.prePayCancelBtn} onPress={() => setPrePayOpen(false)}>
-                  <Text style={styles.prePayCancelText}>Вернуться к заказу</Text>
-                </Pressable>
-              </View>
-            </View>
-
-          </FitView>
-        </KeyboardSafe>
-      </Modal>
+      {/* ── Окно оплаты: способ, наличные со сдачей, смешанная, подтверждение «Оплачено» ── */}
+      <PaymentModal
+        visible={prePayOpen}
+        onClose={() => setPrePayOpen(false)}
+        isNarrow={isNarrow}
+        lines={order.map((item, i) => ({
+          key: String(item.id ?? i),
+          label: `${item.name}${item.size ? ` ${item.size}` : ''}${item.quantity > 1 ? ` × ${item.quantity}` : ''}`,
+          sum: item.price * (item.quantity || 1),
+        }))}
+        subtotal={rawTotal}
+        discountAmount={discountAmount + pointsDiscount}
+        discountLabel={effectiveDiscount?.name || (pointsDiscount > 0 ? 'Скидка баллами' : 'Скидка')}
+        total={total}
+        methods={payMethods}
+        selected={payMethod}
+        onSelect={setPayMethod}
+        extra={loyaltyModel === 'points' && loyaltyConfig.allow_spend && forClient && (forClient.balance || 0) > 0 ? (
+          <PointsSpendPanel
+            balance={Math.floor(forClient.balance || 0)}
+            maxPoints={maxPointsAllowed}
+            limitPct={loyaltyConfig.max_spend_pct}
+            value={pointsToSpend}
+            onChange={setPointsToSpend}
+            pointsDiscount={pointsDiscount}
+            total={total}
+          />
+        ) : null}
+        onSubmit={performPayment}
+      />
 
       {/* ── Modal пикер клиентов (поверх модалки оплаты) ── */}
       <Modal visible={clientPickerOpen} transparent animationType="fade" onRequestClose={() => setClientPickerOpen(false)}>

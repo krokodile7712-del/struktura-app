@@ -953,6 +953,7 @@ export function createOrder({ total, method, methodType, methodId, shift_id, cli
   const orderId = result.lastInsertRowId;
 
   const stockWarnings = [];
+  let deductionErrors = 0;   // сколько позиций не удалось списать со склада (раньше — молча)
   for (const item of items) {
     // size/milk/syrup оставлены для обратной совместимости отображения в Продажах;
     // размер варианта дублируется в size как читаемая метка, модификаторы — в JSON
@@ -968,7 +969,7 @@ export function createOrder({ total, method, methodType, methodId, shift_id, cli
     try {
       const warnings = deductStockForOrderItem(itemResult.lastInsertRowId, item, locationId || null);
       stockWarnings.push(...warnings);
-    } catch (e) { console.error('[createOrder] Ошибка списания склада:', e); }
+    } catch (e) { deductionErrors++; console.error('[createOrder] Ошибка списания склада:', e); }
   }
 
   try {
@@ -976,7 +977,29 @@ export function createOrder({ total, method, methodType, methodId, shift_id, cli
     if (profile?.auto_fiscal === '1') addToFiscalQueue(orderId, false);
   } catch (e) { console.error('[createOrder] Ошибка автофискализации:', e); }
 
-  return { orderId, stockWarnings };
+  return { orderId, stockWarnings, deductionErrors };
+}
+
+// Продажа целиком — ОДНОЙ транзакцией: заказ, позиции, списание склада, баллы и визит клиента.
+// Раньше это были отдельные запросы: сбой посередине оставлял «полузаказ» (заказ без позиций или
+// без списания баллов), а при повторной оплате получался дубль. Теперь при любой ошибке всё
+// откатывается, и в базе нет ничего от неудавшейся продажи.
+export function finalizeSale(args) {
+  const db = getDb();
+  db.execSync('BEGIN');
+  try {
+    const res = createOrder(args);
+    let loyalty = null;
+    if (args.client_id) {
+      if (args.pointsSpent > 0) spendPoints(args.client_id, args.pointsSpent);
+      loyalty = addClientVisit(args.client_id, args.total);
+    }
+    db.execSync('COMMIT');
+    return { ...res, loyalty };
+  } catch (e) {
+    try { db.execSync('ROLLBACK'); } catch (_) {}
+    throw e;
+  }
 }
 
 export function getRecentOrders(limit = 50) {
