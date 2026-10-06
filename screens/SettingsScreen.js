@@ -2476,7 +2476,7 @@ export default function SettingsScreen({ navigation, route }) {
                     />
                     <MetalButton title="Добавить" variant="default" onPress={bulkAddTables} style={{ flex: 2 }} />
                   </View>
-                  <Hint>Например: префикс "Стол", с 1 по 10 → создаст Стол 1, Стол 2 ... Стол 10</Hint>
+                  <Hint>Например: префикс "Место", с 1 по 10 → создаст Место 1, Место 2 ... Место 10</Hint>
 
                   {/* Удалить зону */}
                   <MetalButton title="Удалить зону" variant="danger" onPress={removeZone} style={{ marginTop: 12 }} />
