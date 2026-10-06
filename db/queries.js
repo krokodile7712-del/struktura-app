@@ -957,13 +957,22 @@ export function createOrder({ total, method, methodType, methodId, shift_id, cli
   for (const item of items) {
     // size/milk/syrup оставлены для обратной совместимости отображения в Продажах;
     // размер варианта дублируется в size как читаемая метка, модификаторы — в JSON
+    // «Расход по факту»: фактический расход материалов сохраняется вместе со стоимостью единицы на момент
+    // продажи — по нему считается реальная себестоимость позиции (раньше отчёты брали количества из техкарты).
+    let varJson = null;
+    if (Array.isArray(item.variableDeductions) && item.variableDeductions.length > 0) {
+      varJson = JSON.stringify(item.variableDeductions.map(d => ({
+        name: d.name, amount: d.amount,
+        cost: db.getFirstSync(`SELECT avg_price FROM stock WHERE LOWER(name) = LOWER(?)`, [d.name])?.avg_price || 0,
+      })));
+    }
     const itemResult = db.runSync(
-      `INSERT INTO order_items (order_id, product_id, variant_id, name, size, milk, syrup, price, modifiers, quantity, note)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO order_items (order_id, product_id, variant_id, name, size, milk, syrup, price, modifiers, quantity, note, var_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         orderId, item.product_id || null, item.variant_id || null, item.name,
         item.size || '', item.milk || '', item.syrup || '', item.price,
-        JSON.stringify(item.modifiers || []), item.quantity || 1, item.note || '',
+        JSON.stringify(item.modifiers || []), item.quantity || 1, item.note || '', varJson,
       ]
     );
     try {
@@ -3266,6 +3275,9 @@ function calcCOGS(orders) {
     const items = db.getAllSync(`SELECT * FROM order_items WHERE order_id = ?`, [order.id]);
     for (const item of items) {
       const qty = item.quantity || 1;
+      if (item.var_json) {   // «расход по факту» — реальный расход × цена единицы на момент продажи
+        try { total += JSON.parse(item.var_json).reduce((s, d) => s + (d.amount || 0) * (d.cost || 0), 0) * qty; continue; } catch (_) {}
+      }
       let card = null;
       if (item.variant_id) {
         card = db.getFirstSync(`SELECT * FROM cost_cards WHERE variant_id = ?`, [item.variant_id]);

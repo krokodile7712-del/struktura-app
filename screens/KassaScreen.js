@@ -18,6 +18,8 @@ import { matchesClientQuery } from '../utils/phone';
 import { maxSpendablePoints } from '../utils/points';
 import PointsSpendPanel from '../components/PointsSpendPanel';
 import PaymentModal from '../components/PaymentModal';
+import VariableDeductModal from '../components/VariableDeductModal';
+import { getSetting, setSetting } from '../db/queries';
 import GlassSurface from '../components/GlassSurface';
 import AnimatedNumber from '../components/AnimatedNumber';
 import { useReduceMotion } from '../hooks/useReduceMotion';
@@ -538,63 +540,50 @@ export default function KassaScreen({ navigation, route }) {
   // материала ушло именно на этот заказ — расход у каждого клиента разный).
   // Если передан existingItem — это редактирование уже добавленной в
   // корзину позиции, поля предзаполняются её сохранёнными значениями.
+  const VAR_STEP = { 'г': 10, 'мл': 10, 'кг': 0.1, 'л': 0.1, 'шт': 1 };
   const openVariableDeductSheet = (product, variant, existingItem) => {
     let ingNames = [];
-    try {
-      const card = getCostCardForVariant(variant.id);
-      ingNames = (card?.ingredients || []).map(i => i.name);
-    } catch (_) {}
+    try { ingNames = (getCostCardForVariant(variant.id)?.ingredients || []).map(i => i.name); } catch (_) {}
     let stock = [];
     try { stock = getAllStock(); } catch (_) {}
-    const existingByName = {};
-    (existingItem?.variableDeductions || []).forEach(d => { existingByName[d.name] = d.amount; });
+    const existing = {};
+    (existingItem?.variableDeductions || []).forEach(d => { existing[d.name] = d.amount; });
+    let last = null;
+    try { last = JSON.parse(getSetting(`varLast:${variant.id}`) || 'null'); } catch (_) {}
     const ings = ingNames.map(name => {
-      const stockRow = stock.find(s => (s.name || '').toLowerCase() === name.toLowerCase());
+      const row = stock.find(r => (r.name || '').toLowerCase() === name.toLowerCase());
+      const unit = row?.unit || '';
       return {
-        name,
-        unit: stockRow?.unit || '',
-        sellPrice: parseFloat(stockRow?.sell_price) || 0,
-        qty: existingByName[name] != null ? String(existingByName[name]) : '',
+        name, unit, price: parseFloat(row?.sell_price) || 0,
+        stock: row ? (row['остаток'] ?? 0) : null,
+        step: VAR_STEP[unit] || 1,
+        qty: existing[name] != null ? existing[name] : 0,
       };
     });
-    setVariableItem({
-      product, variant,
-      basePrice: String(variant.price || 0),
-      ings,
-    });
+    setVariableItem({ product, variant, base: existingItem?.variableBase ?? (variant.price || 0), ings, last });
     setEditingVariableItemId(existingItem?.id || null);
   };
 
-  const variableTotal = () => {
-    if (!variableItem) return 0;
-    const base = parseFloat(variableItem.basePrice) || 0;
-    const ingsSum = variableItem.ings.reduce((s, i) => s + (parseFloat(i.qty) || 0) * i.sellPrice, 0);
-    return base + ingsSum;
-  };
-
-  const confirmVariableAdd = () => {
+  // Подтверждение: итог уже посчитан окном (строки округлены до рубля, итог = их сумма — чек сходится)
+  const confirmVariableAdd = (res) => {
     if (!variableItem) return;
     const { product, variant, ings } = variableItem;
-    const variableDeductions = ings
-      .filter(i => parseFloat(i.qty) > 0)
-      .map(i => ({ name: i.name, amount: parseFloat(i.qty) }));
-
+    const variableDeductions = res.ings;
+    const variableSummary = res.ings.map(d => `${d.name} ${String(d.amount).replace('.', ',')} ${ings.find(i => i.name === d.name)?.unit || ''}`.trim()).join(' · ');
+    try { // запоминаем количества для «Как в прошлый раз»
+      const map = {}; res.ings.forEach(d => { map[d.name] = d.amount; });
+      setSetting(`varLast:${variant.id}`, JSON.stringify(map));
+    } catch (_) {}
     if (editingVariableItemId) {
-      // Редактирование уже добавленной позиции — обновляем на месте
       setOrder(prev => prev.map(it => it.id === editingVariableItemId
-        ? { ...it, price: variableTotal(), variableDeductions }
-        : it
-      ));
+        ? { ...it, price: res.total, variableDeductions, variableBase: res.base, variableSummary } : it));
     } else {
       addToCart({
         id: Date.now() + Math.random(),
-        product_id: product.id,
-        variant_id: variant.id,
-        name: product.name,
-        size: variant.label || '',
-        price: variableTotal(),
-        modifiers: [],
-        variableDeductions,
+        product_id: product.id, variant_id: variant.id,
+        name: product.name, size: variant.label || '',
+        price: res.total, modifiers: [],
+        variableDeductions, variableBase: res.base, variableSummary,
       });
     }
     setVariableItem(null);
@@ -931,6 +920,7 @@ export default function KassaScreen({ navigation, route }) {
                         <Text style={styles.v2ItemName} numberOfLines={2}>
                           {item.name}{item.size ? ` ${item.size}` : ''}
                         </Text>
+                        {!!item.variableSummary && <Text style={styles.v2ItemMats} numberOfLines={2}>{item.variableSummary}</Text>}
                         {item.discountPct > 0 && (
                           <Text style={styles.v2ItemDiscount}>−{item.discountPct}%</Text>
                         )}
@@ -1241,67 +1231,17 @@ export default function KassaScreen({ navigation, route }) {
         )}
       </Animated.View>
 
-      {/* Расход по факту — база + количество каждого материала вводится на месте */}
-      <Sheet
+      {/* Расход по факту — база + количество каждого материала (цифровая клавиатура, «как в прошлый раз») */}
+      <VariableDeductModal
         visible={!!variableItem}
-        onClose={() => { setVariableItem(null); setEditingVariableItemId(null); }}
         title={variableItem?.product?.name}
-      >
-        {variableItem && (
-          <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-              <Text style={styles.varLabel}>Базовая цена услуги</Text>
-              <InfoTip title="Базовая цена" text="Стоимость самой работы, без расходников — можно поправить именно для этого заказа." />
-            </View>
-            <TextInput
-              color={colors.text}
-              style={styles.varInput}
-              keyboardType="numeric"
-              value={variableItem.basePrice}
-              onChangeText={v => setVariableItem(m => ({ ...m, basePrice: v }))}
-              placeholder="0"
-              placeholderTextColor={colors.muted}
-            />
-
-            <Text style={[styles.varLabel, { marginTop: 18, marginBottom: 8 }]}>Расход материалов на этот заказ</Text>
-            {variableItem.ings.length === 0 ? (
-              <Text style={{ fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted }}>
-                Для этой услуги не указаны возможные материалы — задайте их в Товарах → техкарта.
-              </Text>
-            ) : variableItem.ings.map((ing, idx) => (
-              <View key={idx} style={styles.varIngRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.varIngName}>{ing.name}</Text>
-                  <Text style={styles.varIngPrice}>{ing.sellPrice} ₽/{ing.unit}</Text>
-                </View>
-                <TextInput
-                  color={colors.text}
-                  style={styles.varIngInput}
-                  keyboardType="numeric"
-                  value={ing.qty}
-                  onChangeText={v => setVariableItem(m => ({
-                    ...m,
-                    ings: m.ings.map((it, i) => i === idx ? { ...it, qty: v } : it),
-                  }))}
-                  placeholder="0"
-                  placeholderTextColor={colors.muted}
-                />
-                <Text style={styles.varIngUnit}>{ing.unit}</Text>
-              </View>
-            ))}
-
-            <View style={styles.varTotalBox}>
-              <Text style={styles.varTotalLabel}>Итого за позицию</Text>
-              <Text style={styles.varTotalVal}>{variableTotal().toFixed(0)} ₽</Text>
-            </View>
-
-            <Pressable style={styles.varConfirmBtn} onPress={confirmVariableAdd}>
-              <Text style={styles.varConfirmTxt}>Добавить в заказ</Text>
-            </Pressable>
-          </ScrollView>
-        )}
-      </Sheet>
-
+        base={variableItem?.base || 0}
+        ings={variableItem?.ings || []}
+        last={variableItem?.last || null}
+        isNarrow={isNarrow}
+        onConfirm={confirmVariableAdd}
+        onClose={() => { setVariableItem(null); setEditingVariableItemId(null); }}
+      />
 
       {/* ── Окно оплаты: способ, наличные со сдачей, смешанная, подтверждение «Оплачено» ── */}
       <PaymentModal
@@ -2126,6 +2066,7 @@ const styles = StyleSheet.create({
   v2Item:       { paddingVertical: 12, paddingHorizontal: 4, backgroundColor: 'transparent', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.07)', position: 'relative' },
   v2ItemAccentBar: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: colors.orange },
   v2ItemRow:    { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  v2ItemMats:   { fontFamily: fonts.familyMedium, fontSize: 12, color: colors.muted, marginTop: 2 },
   v2ItemName:   { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text, flex: 1, lineHeight: 20 },
   v2ItemDiscount: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.orange, marginTop: 2 },
   v2Qty:        { flexDirection: 'row', alignItems: 'center', gap: 6 },
