@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, FlatList, Animated, Linking, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, FlatList, Animated, Linking, Alert, Modal, Dimensions } from 'react-native';
 import TopBar from '../components/TopBar';
 import TourGuide from '../components/TourGuide';
 import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
@@ -16,7 +16,12 @@ import { useToast } from '../components/Toast';
 import PhoneInput from '../components/PhoneInput';
 import { isPhoneOkOrEmpty, isNonStandardPhone, toStoredPhone, PHONE_ERROR } from '../utils/phone';
 import { getHomeRoute, goBackSmart, getSession, can } from '../db/session';
-import { colors, fonts } from '../constants/theme';
+import { colors, fonts, glass } from '../constants/theme';
+import GlassSurface from '../components/GlassSurface';
+import GlassButton from '../components/GlassButton';
+import Icon from '../components/Icon';
+import SoftGlow from '../components/SoftGlow';
+import ClientEditModal from '../components/ClientEditModal';
 
 // Перенесено из LoyaltyScreen.js (экран удалён — дублировал список клиентов,
 // единственная уникальная часть была эта сводка по модели лояльности)
@@ -34,6 +39,9 @@ const MODEL_INFO = {
     desc: 'Клиенты покупают фиксированное количество посещений вперёд.',
   },
 };
+
+// Инициалы для кружка: две буквы имени и фамилии
+const initials = (name) => { const p = String(name || '').trim().split(/\s+/); return ((p[0]?.[0] || '?') + (p[1]?.[0] || '')).toUpperCase(); };
 
 function fmtDate(iso) {
   if (!iso) return '';
@@ -66,24 +74,19 @@ function ClientCard({ client, onNewOrder, onSaved, onDeleted, loyaltyModel, loya
   const [deleting, setDeleting] = useState(false);
 
   // Удаление клиента: из приложения и, если он регистрировался по QR, копии в облаке
-  const askDelete = () => {
+  const toast = useToast();
+  const deleteText = (() => {
     let hasCloud = false;
     try { hasCloud = !!(client.phone && getBusinessProfile()?.booking_slug); } catch (_) {}
     const bal = Math.floor(client.balance || 0);
-    Alert.alert(
-      'Удалить клиента?',
-      `${client.fio}\n\nКарточка${bal > 0 ? `, ${bal} баллов на счёте` : ''} и приветственный бонус будут удалены безвозвратно. ` +
+    return `${client.fio}\n\nКарточка${bal > 0 ? `, ${bal} баллов на счёте` : ''} и приветственный бонус будут удалены. ` +
       'Заказы останутся в продажах, но без привязки к клиенту.' +
-      (hasCloud ? '\n\nКопия его регистрации в облаке тоже будет стёрта.' : ''),
-      [
-        { text: 'Отмена', style: 'cancel' },
-        { text: 'Удалить', style: 'destructive', onPress: async () => {
-          setDeleting(true);
-          try { onDeleted?.(await deleteClientEverywhere(client.id)); }
-          catch (e) { console.error(e); Alert.alert('Не удалось удалить клиента'); setDeleting(false); }
-        } },
-      ]
-    );
+      (hasCloud ? '\n\nКопия его регистрации в облаке тоже будет стёрта.' : '');
+  })();
+  const runDelete = async () => {
+    setDeleting(true);
+    try { onDeleted?.(await deleteClientEverywhere(client.id)); }
+    catch (e) { console.error(e); Alert.alert('Не удалось удалить клиента'); setDeleting(false); }
   };
   const cardHighlight = useTourHighlight('clients.card', 18);
 
@@ -105,28 +108,24 @@ function ClientCard({ client, onNewOrder, onSaved, onDeleted, loyaltyModel, loya
   const avgCheck = orders.length > 0
     ? Math.round(orders.reduce((s, o) => s + o.total, 0) / orders.length) : 0;
 
-  const handleSave = () => {
-    // Номер проверяем, только если его меняли: у клиента со старым номером
-    // (например, городским) остальные данные должны сохраняться как раньше
-    if (phone.trim() !== (client.phone || '').trim()) {
-      if (!isPhoneOkOrEmpty(phone)) {
-        Alert.alert('Номер телефона', PHONE_ERROR + ' — или очистите поле.');
-        return;
-      }
-      const dup = phone.trim() ? findClientByPhone(phone, client.id) : null;
-      if (dup) {
-        Alert.alert('Номер уже занят', `Этот номер записан на клиента «${dup.fio}».`);
-        return;
-      }
-    }
+  // Номер проверяем, только если его меняли: у клиента со старым номером остальные данные сохраняются как раньше
+  const validatePhone = (ph) => {
+    if ((ph || '').trim() === (client.phone || '').trim()) return '';
+    if (!isPhoneOkOrEmpty(ph)) return PHONE_ERROR + ' — или очистите поле.';
+    const dup = (ph || '').trim() ? findClientByPhone(ph, client.id) : null;
+    return dup ? `Этот номер записан на клиента «${dup.fio}».` : '';
+  };
+  const saveFromModal = (v) => {
+    const pe = validatePhone(v.phone);
+    if (pe) return { ok: false, message: pe };
     try {
-      updateClient(client.id, { fio: fio.trim(), phone: phone.trim(), balance: parseFloat(balance)||0, discount_pct: parseFloat(discountPct)||0, birth_date: birthDate.trim() });
-      client.fio = fio.trim(); client.phone = toStoredPhone(phone);
-      client.balance = parseFloat(balance)||0; client.discount_pct = parseFloat(discountPct)||0;
-      client.birth_date = birthDate.trim();
-      setEditing(false);
+      updateClient(client.id, { fio: v.fio, phone: v.phone.trim(), balance: v.balance || 0, discount_pct: v.discount || 0, birth_date: v.birth });
+      client.fio = v.fio; client.phone = toStoredPhone(v.phone);
+      client.balance = v.balance || 0; client.discount_pct = v.discount || 0; client.birth_date = v.birth;
       onSaved?.();
-    } catch (e) { console.error(e); }
+      toast.show('Сохранено');
+      return { ok: true };
+    } catch (e) { console.error(e); return { ok: false, message: 'Не удалось сохранить. Попробуйте ещё раз.' }; }
   };
 
   const handleSaveNote = () => {
@@ -140,13 +139,18 @@ function ClientCard({ client, onNewOrder, onSaved, onDeleted, loyaltyModel, loya
   })();
 
   return (
+    <View style={{ flex: 1 }}>
+    <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]} pointerEvents="none">
+      <SoftGlow size={520} color="127,168,217" alpha={0.16} style={{ position: 'absolute', left: -140, top: -110 }} />
+      <SoftGlow size={460} color="127,168,217" alpha={0.11} style={{ position: 'absolute', right: -160, bottom: -130 }} />
+    </View>
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 24, paddingBottom: 32 }} showsVerticalScrollIndicator={false} nestedScrollEnabled keyboardShouldPersistTaps="handled">
 
       <View style={[{ position: 'relative', marginBottom: 4 }, cardHighlight.style]}>
       {/* Шапка */}
       <View style={[styles.cardHead, { flexDirection: 'row', alignItems: 'center' }]}>
         <View style={styles.avatar}>
-          <Text style={styles.avatarTxt}>{(client.fio||'?').charAt(0).toUpperCase()}</Text>
+          <Text style={styles.avatarTxt}>{initials(client.fio)}</Text>
         </View>
         <View style={{ flex: 1, marginLeft: 14 }}>
           <Text style={[styles.cardName, { textAlign: 'left' }]} numberOfLines={1}>{client.fio}</Text>
@@ -156,13 +160,14 @@ function ClientCard({ client, onNewOrder, onSaved, onDeleted, loyaltyModel, loya
       </View>
 
       {/* Баллы / визиты */}
-      <View style={styles.balanceBox}>
-        <Text style={styles.balanceNum}>{client.balance || 0}</Text>
-        <Text style={styles.balanceLbl}>
-          {loyaltyModel === 'subscription' ? 'визитов' : loyaltyModel === 'points' ? 'баллов' : `скидка ${loyaltyConfig?.pct||0}%`}
-        </Text>
-        {client.discount_pct > 0 && <Text style={styles.personalDiscount}>🏷 Личная скидка {client.discount_pct}%</Text>}
-      </View>
+      <GlassSurface radius={glass.radius.tile} style={{ marginBottom: 12 }}>
+        <View style={styles.cStripe} />
+        <View style={{ paddingVertical: 20, paddingLeft: 26, paddingRight: 22 }}>
+          <Text style={styles.cTileLbl}>{loyaltyModel === 'subscription' ? 'Визитов' : loyaltyModel === 'points' ? 'Баллов' : `Скидка ${loyaltyConfig?.pct || 0}%`}</Text>
+          <Text style={styles.cHeroVal}>{loyaltyModel === 'discount' ? `${loyaltyConfig?.pct || 0}%` : (client.balance || 0)}</Text>
+          {client.discount_pct > 0 && <Text style={styles.cHeroSub}>Личная скидка {client.discount_pct}%</Text>}
+        </View>
+      </GlassSurface>
       {cardHighlight.overlay}
       </View>
 
@@ -178,16 +183,16 @@ function ClientCard({ client, onNewOrder, onSaved, onDeleted, loyaltyModel, loya
       />
 
       {/* Статистика */}
-      <View style={styles.statsRow}>
+      <View style={{ flexDirection: 'row', gap: 12, marginBottom: 14 }}>
         {[
-          { val: client.visits || 0, lbl: 'визитов' },
-          { val: (client.total_sum||0).toLocaleString('ru-RU'), lbl: 'сумма ₽' },
-          { val: avgCheck.toLocaleString('ru-RU'), lbl: 'ср. чек ₽' },
-        ].map((s, i) => (
-          <View key={i} style={styles.statBox}>
-            <Text style={styles.statVal}>{s.val}</Text>
-            <Text style={styles.statLbl}>{s.lbl}</Text>
-          </View>
+          { val: client.visits || 0, lbl: 'Визитов' },
+          { val: `${(client.total_sum || 0).toLocaleString('ru-RU')} ₽`, lbl: 'Сумма' },
+          { val: `${avgCheck.toLocaleString('ru-RU')} ₽`, lbl: 'Средний чек' },
+        ].map((st, k) => (
+          <GlassSurface key={k} radius={glass.radius.tile} padding={14} style={{ flex: 1 }}>
+            <Text style={styles.cTileLbl}>{st.lbl}</Text>
+            <Text style={styles.cTileVal}>{st.val}</Text>
+          </GlassSurface>
         ))}
       </View>
 
@@ -265,50 +270,10 @@ function ClientCard({ client, onNewOrder, onSaved, onDeleted, loyaltyModel, loya
       </View>
 
       {/* Действия */}
-      <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
-        <Pressable style={({ pressed }) => [styles.btn, { flex: 1 }, pressed && { opacity: 0.88 }]}
-          onPress={() => onNewOrder(client)}>
-          <Text style={styles.btnTxt}>＋ Новый заказ</Text>
-        </Pressable>
-        {can('edit_clients') && (
-          <Pressable style={({ pressed }) => [styles.btnSec, { flex: 1 }, pressed && { opacity: 0.88 }]}
-            onPress={() => setEditing(e => !e)}>
-            <Text style={styles.btnSecTxt}>{editing ? 'Скрыть' : '✎ Редактировать'}</Text>
-          </Pressable>
-        )}
+      <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+        <GlassButton tone="accent" icon="plus" label="Новый заказ" height={54} style={{ flex: 1 }} onPress={() => onNewOrder(client)} />
+        {can('edit_clients') && <GlassButton label="Изменить" height={54} style={{ flex: 1 }} onPress={() => setEditing(true)} />}
       </View>
-
-      {/* Редактирование */}
-      {editing && (
-        <View style={styles.editBox}>
-          {[
-            { label: 'ФИО', val: fio, set: setFio, kb: 'default' },
-            { label: 'Телефон', val: phone, set: setPhone, kb: 'phone-pad', isPhone: true },
-            ...(can('manage_loyalty') ? [{ label: loyaltyModel === 'subscription' ? 'Визитов' : 'Баллов', val: balance, set: setBalance, kb: 'numeric' }] : []),
-            { label: 'Личная скидка %', val: discountPct, set: setDiscountPct, kb: 'numeric' },
-            { label: 'Дата рождения', val: birthDate, set: setBirthDate, kb: 'numbers-and-punctuation', placeholder: '01.01.1990' },
-          ].map(f => (
-            <View key={f.label}>
-              <Text style={styles.fieldLbl}>{f.label}</Text>
-              {f.isPhone ? (
-                <PhoneInput color={colors.text} style={styles.input} value={f.val} onChangeText={f.set}
-                  placeholderTextColor={colors.muted} />
-              ) : (
-                <TextInput color={colors.text} style={styles.input} value={f.val} onChangeText={f.set}
-                  keyboardType={f.kb} placeholder={f.placeholder} placeholderTextColor={colors.muted} />
-              )}
-            </View>
-          ))}
-          <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-            <Pressable style={[styles.btn, { flex: 1 }]} onPress={handleSave}>
-              <Text style={styles.btnTxt}>Сохранить</Text>
-            </Pressable>
-            <Pressable style={[styles.btnSec, { flex: 1 }]} onPress={() => setEditing(false)}>
-              <Text style={styles.btnSecTxt}>Отмена</Text>
-            </Pressable>
-          </View>
-        </View>
-      )}
 
       {/* История заказов */}
       <View style={[styles.section, { marginTop: 20 }]}>
@@ -348,13 +313,14 @@ function ClientCard({ client, onNewOrder, onSaved, onDeleted, loyaltyModel, loya
         )}
       </View>
 
-      {isAdmin && (
-        <Pressable style={[styles.delBtn, deleting && { opacity: 0.4 }]} disabled={deleting} onPress={askDelete}>
-          <Text style={styles.delBtnTxt}>{deleting ? 'Удаляем…' : 'Удалить клиента'}</Text>
-        </Pressable>
-      )}
-
     </ScrollView>
+    <ClientEditModal
+      visible={editing} client={client} onClose={() => setEditing(false)}
+      canLoyalty={can('manage_loyalty')} loyaltyModel={loyaltyModel}
+      validatePhone={validatePhone} onSave={saveFromModal}
+      canDelete={isAdmin} deleteText={deleteText} deleting={deleting} onDelete={runDelete}
+    />
+    </View>
   );
 }
 
@@ -365,6 +331,17 @@ export default function ClientsListScreen({ navigation, route, initialClientId }
   routeRef.current = route;
   const [query, setQuery]       = useState('');
   const [sortMode, setSortMode] = useState('name'); // name | added
+  const [popOpen, setPopOpen] = useState(false);       // окно «Фильтры»
+  const [popAnchor, setPopAnchor] = useState({ top: 76, right: 12 });
+  const fbtnRef = useRef(null);
+  const openFilters = () => {
+    try {
+      fbtnRef.current.measureInWindow((bx, by, bw, bh) => {
+        setPopAnchor({ top: by + bh + 8, right: Math.max(8, Dimensions.get('window').width - (bx + bw)) });
+        setPopOpen(true);
+      });
+    } catch (e) { setPopOpen(true); }
+  };
   const [clients, setClients]   = useState([]);
   const [selected, setSelected] = useState(null);
   const cardAnim = useState(new Animated.Value(0))[0];
@@ -507,14 +484,32 @@ export default function ClientsListScreen({ navigation, route, initialClientId }
         }
       />
 
+      {/* Верхняя строка: поиск на всю ширину, «Фильтры», «+ Клиент» */}
+      <View style={[styles.tb, { position: 'relative' }, searchHighlight.style]}>
+        <View style={styles.tbSearch}>
+          <Icon name="search" size={22} color={colors.muted} />
+          <TextInput color={colors.text} style={styles.tbInput} value={query} onChangeText={setQuery}
+            placeholder="Поиск по имени, телефону или коду" placeholderTextColor={colors.muted} />
+        </View>
+        <Pressable ref={fbtnRef} collapsable={false} style={[styles.tbFilt, sortMode !== 'name' && styles.tbFiltOn]} onPress={openFilters}>
+          <Icon name="sliders" size={18} color={sortMode !== 'name' || popOpen ? colors.orangeLight : colors.textDim} />
+          <Text style={[styles.tbFiltTxt, (sortMode !== 'name' || popOpen) && { color: colors.orangeLight }]}>Фильтры</Text>
+        </Pressable>
+        <GlassButton tone="accent" icon="plus" label={terms.client} height={54} onPress={() => navigation.navigate('Reg')} />
+        {searchHighlight.overlay}
+      </View>
+      {sortMode !== 'name' && (
+        <View style={styles.afil}>
+          <Pressable style={styles.afChip} onPress={() => setSortMode('name')} hitSlop={4}>
+            <Text style={styles.afChipTxt}>Сначала новые</Text><Icon name="x" size={14} color={colors.orangeLight} />
+          </Pressable>
+          <Pressable onPress={() => setSortMode('name')} hitSlop={8}><Text style={styles.afReset}>Сбросить</Text></Pressable>
+        </View>
+      )}
+
       <View key={isLandscape ? 'landscape' : 'portrait'} style={[styles.layout, !isLandscape && { flexDirection: 'column' }]}>
         {/* Левая колонка — список */}
         <View style={[styles.listCol, !isLandscape && { width: undefined, maxWidth: undefined, flex: 1, margin: 0, borderRadius: 0, borderWidth: 0, borderRightWidth: 0 }]}>
-          <View style={[{ position: 'relative' }, searchHighlight.style]}>
-          <Pressable style={styles.addBtnBig} onPress={() => navigation.navigate('Reg')}>
-            <Text style={styles.addBtnBigTxt}>+ Зарегистрировать клиента</Text>
-          </Pressable>
-
           <Pressable onPress={() => setLoyaltySummaryOpen(v => !v)} style={styles.loyaltyStrip}>
             <View>
               <Text style={styles.loyaltyStripLabel}>{MODEL_INFO[loyaltyModel]?.label || 'Лояльность'}</Text>
@@ -538,38 +533,16 @@ export default function ClientsListScreen({ navigation, route, initialClientId }
             </View>
           )}
 
-          <View style={styles.searchWrap}>
-            <TextInput
-              color={colors.text}
-              style={styles.searchInput}
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Поиск..."
-              placeholderTextColor={colors.muted}
-            />
-          </View>
-
-          <View style={styles.sortRow}>
-            <Pressable style={[styles.sortChip, sortMode === 'name' && styles.sortChipActive]} onPress={() => setSortMode('name')}>
-              <Text style={[styles.sortChipTxt, sortMode === 'name' && styles.sortChipTxtActive]}>По алфавиту</Text>
-            </Pressable>
-            <Pressable style={[styles.sortChip, sortMode === 'added' && styles.sortChipActive]} onPress={() => setSortMode('added')}>
-              <Text style={[styles.sortChipTxt, sortMode === 'added' && styles.sortChipTxtActive]}>Сначала новые</Text>
-            </Pressable>
-            <Pressable style={styles.sortChip} onPress={refreshSignups}>
-              <Text style={styles.sortChipTxt}>↻ QR-регистрации</Text>
-            </Pressable>
-          </View>
-          {searchHighlight.overlay}
-          </View>
 
           <View style={[{ flex: 1, position: 'relative' }, listHighlight.style]}>
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 16 }}>
             {filtered.length === 0 ? (
-              <EmptyState icon="👥" title="Нет клиентов"
-                text={clients.length === 0 ? 'Зарегистрируйте первого клиента' : 'Ничего не найдено'}
-                action={clients.length === 0 ? 'Зарегистрировать клиента' : undefined}
-                onAction={clients.length === 0 ? () => navigation.navigate('Reg') : undefined} />
+              <View style={styles.emptyBox}>
+                <View style={styles.emptyIco}><Icon name="users" size={34} color={colors.textDim} /></View>
+                <Text style={styles.emptyTitle}>{clients.length === 0 ? 'Нет клиентов' : 'Никого не найдено'}</Text>
+                <Text style={styles.emptyText}>{clients.length === 0 ? 'Зарегистрируйте первого клиента — он появится в списке, а на Кассе его можно будет выбрать.' : 'Попробуйте другой запрос.'}</Text>
+                {clients.length === 0 && <GlassButton tone="accent" icon="plus" label="Зарегистрировать клиента" height={50} onPress={() => navigation.navigate('Reg')} />}
+              </View>
             ) : (
               <View style={styles.clientsCard}>
                 {filtered.map((c, idx) => {
@@ -584,16 +557,16 @@ export default function ClientsListScreen({ navigation, route, initialClientId }
                       ]}
                       onPress={() => selectClient(c)}
                     >
-                      <View style={[styles.listAvatar, isActive && styles.listAvatarActive]}>
-                        <Text style={[styles.listAvatarTxt, isActive && { color: colors.onAccent }]}>
-                          {(c.fio||'?').charAt(0).toUpperCase()}
-                        </Text>
+                      <View style={[styles.cAv, isActive && styles.cAvOn]}>
+                        <Text style={[styles.cAvTxt, isActive && { color: colors.onAccent }]}>{initials(c.fio)}</Text>
                       </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.clientName, isActive && { color: colors.greenLight }]}>{c.fio}</Text>
-                        <Text style={styles.clientSub}>
-                          {loyaltyModel === 'points' ? `★ ${c.balance||0}` : `${c.visits||0} визит.`} · {c.visits||0} поз.
-                        </Text>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text style={styles.cName} numberOfLines={1}>{c.fio}</Text>
+                        {!!c.phone && <Text style={styles.cSub} numberOfLines={1}>{c.phone}</Text>}
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={styles.cBal}>{loyaltyModel === 'discount' ? (c.visits || 0) : (c.balance || 0)}</Text>
+                        <Text style={styles.cBalLbl}>{loyaltyModel === 'points' ? 'баллов' : 'визитов'}</Text>
                       </View>
                       {isActive && <View style={styles.activeBar} />}
                     </Pressable>
@@ -621,16 +594,10 @@ export default function ClientsListScreen({ navigation, route, initialClientId }
                 />
               </Animated.View>
             ) : (
-              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                <View style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-                  <Text style={{ fontSize: 36, opacity: 0.6 }}>👤</Text>
-                </View>
-                <Text style={{ fontFamily: fonts.family, fontSize: 18, color: colors.text }}>
-                  Выберите клиента
-                </Text>
-                <Text style={{ fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 6 }}>
-                  Карточка с баллами, историей и заметками откроется здесь
-                </Text>
+              <View style={[styles.emptyBox, { opacity: 0.75 }]}>
+                <View style={styles.emptyIco}><Icon name="user" size={34} color={colors.textDim} /></View>
+                <Text style={[styles.emptyTitle, { fontSize: 17, color: colors.textDim }]}>Выберите клиента</Text>
+                <Text style={[styles.emptyText, { marginBottom: 0 }]}>Карточка с баллами, историей и заметками откроется здесь</Text>
               </View>
             )}
           </View>
@@ -650,6 +617,33 @@ export default function ClientsListScreen({ navigation, route, initialClientId }
           </Sheet>
         )}
       </View>
+
+      {/* Окно «Фильтры» — под кнопкой, в прозрачном слое: тап вне окна закрывает */}
+      <Modal visible={popOpen} transparent animationType="fade" onRequestClose={() => setPopOpen(false)}>
+        <View style={{ flex: 1 }}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setPopOpen(false)} />
+          <View style={[styles.popWrap, { top: popAnchor.top, right: popAnchor.right }]}>
+            <GlassSurface floating radius={22} tint="32,40,55" alpha={0.97} padding={20} sheen={['rgba(255,255,255,0.10)', 'rgba(255,255,255,0.01)']}>
+              <Text style={styles.popLbl}>Сортировка</Text>
+              <View style={styles.popChips}>
+                {[{ k: 'name', t: 'По алфавиту' }, { k: 'added', t: 'Сначала новые' }].map(o => (
+                  <Pressable key={o.k} style={[styles.popChip, sortMode === o.k && styles.popChipOn]} onPress={() => setSortMode(o.k)}>
+                    <Text style={[styles.popChipTxt, sortMode === o.k && { color: colors.orangeLight }]}>{o.t}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={[styles.popLbl, { marginTop: 16 }]}>QR-регистрации</Text>
+              <GlassButton icon="refresh" label="Загрузить новые" height={46} onPress={() => { setPopOpen(false); refreshSignups(); }} />
+              <View style={styles.popFoot}>
+                <Pressable onPress={() => setSortMode('name')} disabled={sortMode === 'name'} hitSlop={8}>
+                  <Text style={[styles.popReset, sortMode === 'name' && { opacity: 0.4 }]}>Сбросить</Text>
+                </Pressable>
+                <Text style={styles.popCount}>Найдено <Text style={styles.popCountB}>{countRu(filtered.length, terms.client.toLowerCase())}</Text></Text>
+              </View>
+            </GlassSurface>
+          </View>
+        </View>
+      </Modal>
 
       <TourGuide
         visible={tourOpen}
@@ -755,4 +749,41 @@ const styles = StyleSheet.create({
   orderItem:     { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
   orderItemName: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, flex: 1 },
   orderItemPrice:{ fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+  // ── Новый вид экрана «Клиенты» ──
+  tb:          { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 2 },
+  tbSearch:    { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, height: 54, borderRadius: 16, paddingHorizontal: 18, backgroundColor: colors.surface, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' },
+  tbInput:     { flex: 1, padding: 0, color: colors.text, fontSize: 17, fontFamily: fonts.familyMedium },
+  tbFilt:      { flexDirection: 'row', alignItems: 'center', gap: 8, height: 54, paddingHorizontal: 20, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  tbFiltOn:    { backgroundColor: 'rgba(127,168,217,0.18)', borderColor: 'rgba(157,191,230,0.5)' },
+  tbFiltTxt:   { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.textDim },
+  afil:        { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingTop: 10 },
+  afChip:      { flexDirection: 'row', alignItems: 'center', gap: 6, height: 34, paddingLeft: 14, paddingRight: 10, borderRadius: 999, backgroundColor: 'rgba(127,168,217,0.18)', borderWidth: 1, borderColor: 'rgba(157,191,230,0.45)' },
+  afChipTxt:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orangeLight },
+  afReset:     { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, paddingHorizontal: 6 },
+  popWrap:     { position: 'absolute', width: 400, maxWidth: '94%' },
+  popLbl:      { fontFamily: fonts.familySemibold, fontSize: 12, letterSpacing: 1.3, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10 },
+  popChips:    { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  popChip:     { height: 40, paddingHorizontal: 18, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
+  popChipOn:   { backgroundColor: 'rgba(127,168,217,0.22)', borderColor: 'rgba(157,191,230,0.5)' },
+  popChipTxt:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
+  popFoot:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.10)' },
+  popReset:    { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
+  popCount:    { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
+  popCountB:   { fontFamily: fonts.familySemibold, color: colors.text },
+  cAv:         { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(127,168,217,0.16)', borderWidth: 1, borderColor: 'rgba(157,191,230,0.3)' },
+  cAvOn:       { backgroundColor: colors.orange },
+  cAvTxt:      { fontFamily: fonts.family, fontSize: 15, color: colors.orangeLight },
+  cName:       { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
+  cSub:        { fontFamily: fonts.familyMedium, fontSize: 12, color: colors.muted, marginTop: 2 },
+  cBal:        { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.orangeLight },
+  cBalLbl:     { fontFamily: fonts.familyMedium, fontSize: 12, color: colors.muted, marginTop: 2 },
+  cStripe:     { position: 'absolute', left: 0, top: 24, bottom: 24, width: 3, borderTopRightRadius: 2, borderBottomRightRadius: 2, backgroundColor: colors.orange },
+  cTileLbl:    { fontFamily: fonts.familySemibold, fontSize: 12, letterSpacing: 1.1, textTransform: 'uppercase', color: colors.textDim },
+  cTileVal:    { fontFamily: fonts.display, fontSize: 22, color: colors.text, marginTop: 6, letterSpacing: -0.3 },
+  cHeroVal:    { fontFamily: fonts.display, fontSize: 52, color: colors.text, marginTop: 6, letterSpacing: -1.6 },
+  cHeroSub:    { fontFamily: fonts.familyMedium, fontSize: 14, color: colors.textDim, marginTop: 6 },
+  emptyBox:    { alignItems: 'center', justifyContent: 'center', padding: 24, flexGrow: 1 },
+  emptyIco:    { width: 76, height: 76, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
+  emptyTitle:  { fontFamily: fonts.familySemibold, fontSize: 20, color: colors.text, marginBottom: 8 },
+  emptyText:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', lineHeight: 21, maxWidth: 300, marginBottom: 20 },
 });
