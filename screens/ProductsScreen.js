@@ -33,6 +33,9 @@ import { getHomeRoute, goBackSmart, can } from '../db/session';
 import { colors, fonts, anim, glass } from '../constants/theme';
 import GlassSurface from '../components/GlassSurface';
 import Icon from '../components/Icon';
+import GlassButton from '../components/GlassButton';
+import GlassSegmented from '../components/GlassSegmented';
+import SoftGlow from '../components/SoftGlow';
 import TourGuide from '../components/TourGuide';
 import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
 import FitView from '../components/FitView';
@@ -90,8 +93,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
   const [editSizes, setEditSizes] = useState(false);   // панель «Изменить размеры»
   const [unitOpen, setUnitOpen]   = useState(false);   // аккордеон «Единица продажи»
   const [otherUnit, setOtherUnit] = useState(false);   // «Другая единица» — прежний выбор единиц
-  const [segW, setSegW]           = useState(0);
-  const thumbX = useRef(new Animated.Value(0)).current;
+
   const [optionsOpen, setOptionsOpen] = useState(selGroups.length > 0);
   const scrollRef = useRef(null);
   const sectionY = useRef({});
@@ -183,15 +185,17 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
   const selIdx = Math.min(selVar, Math.max(vars.length - 1, 0));
   const nVars = vars.length;
   const segLabel = (v, i) => ((v?.label || '').trim() || `Размер ${i + 1}`);
-  useEffect(() => {
-    if (segW <= 0 || nVars > 4) return;
-    Animated.spring(thumbX, { toValue: selIdx * ((segW - 8) / nVars), speed: 22, bounciness: 0, useNativeDriver: true }).start();
-  }, [selIdx, segW, nVars]);
 
   const totalCost = (v) => { const ings = Array.isArray(v?.ings) ? v.ings : []; return ings.reduce((s, ing) => s + (parseFloat(ing?.amount)||0) * (parseFloat(ing?.price_per_unit)||0), 0); };
   const margin    = (v) => { const c = totalCost(v); const p = parseFloat(v.price)||0; return p > 0 && c > 0 ? Math.round((1 - c/p)*100) : null; };
 
   return (
+      <View style={{ flex: 1 }}>
+      {/* Подсветка за стеклянными плитками и кнопками: стеклу нужно, что просвечивать */}
+      <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]} pointerEvents="none">
+        <SoftGlow size={560} color="127,168,217" alpha={0.17} style={{ position: 'absolute', left: -150, top: -120 }} />
+        <SoftGlow size={520} color="127,168,217" alpha={0.12} style={{ position: 'absolute', right: -170, bottom: -140 }} />
+      </View>
       <ScrollView ref={scrollRef} contentContainerStyle={styles.editorContent} keyboardShouldPersistTaps="handled">
 
         {/* Шапка */}
@@ -316,15 +320,12 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
                   </Pressable>
                 </View>
                 {/* Сегментированный переключатель (как в iOS): одна «капсула», выбранный размер — на скользящем бегунке */}
-                <View style={styles.segx} onLayout={e => setSegW(e.nativeEvent.layout.width)}>
-                  {nVars <= 4 && segW > 0 && (
-                    <Animated.View pointerEvents="none" style={[styles.segThumb, { width: (segW - 8) / nVars, transform: [{ translateX: thumbX }] }]} />
-                  )}
-                  {nVars <= 4 ? vars.map((v, vi) => (
-                    <Pressable key={vi} style={styles.segItem} onPress={() => setSelVar(vi)}>
-                      <Text style={[styles.segTxt, selIdx === vi && styles.segTxtOn]} numberOfLines={1}>{segLabel(v, vi)}</Text>
-                    </Pressable>
-                  )) : (
+                {nVars <= 4 ? (
+                  <View style={{ marginBottom: 14 }}>
+                    <GlassSegmented items={vars.map((v, vi) => ({ key: vi, label: segLabel(v, vi) }))} value={selIdx} onChange={setSelVar} height={50} />
+                  </View>
+                ) : (
+                  <View style={styles.segx}>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                       {vars.map((v, vi) => (
                         <Pressable key={vi} style={[styles.segItem, { width: 120 }, selIdx === vi && styles.segItemOn]} onPress={() => setSelVar(vi)}>
@@ -332,8 +333,8 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
                         </Pressable>
                       ))}
                     </ScrollView>
-                  )}
-                </View>
+                  </View>
+                )}
                 {editSizes && (
                   <View style={{ marginBottom: 12 }}>
                     {vars.map((v, vi) => (
@@ -373,7 +374,8 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
               const unitValue = vars[0]?.unit || 'шт';
               const piece = ['шт', 'порция', 'упаковка'].includes(unitValue);
               return (
-                <View style={styles.acc}>
+                <GlassSurface radius={14} alpha={0.12} style={{ marginTop: 12 }}>
+                <View style={{ borderRadius: 14, overflow: 'hidden' }}>
                   <Pressable style={styles.accHead} onPress={() => { animateLayout(); setUnitOpen(o => !o); }}>
                     <Text style={styles.accTitle}>Единица продажи</Text>
                     <Text style={styles.accVal}>{unitValue}</Text>
@@ -403,6 +405,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
                     </View>
                   )}
                 </View>
+                </GlassSurface>
               );
             })()}
           </View>
@@ -418,13 +421,9 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
           const variable = v?.deduction_mode === 'variable';
           return (
             <View style={styles.sectionCard}>
-              <View style={styles.modeSeg}>
-                <Pressable style={[styles.modeSegBtn, !variable && styles.modeSegBtnOn]} onPress={() => setAllMode('fixed')}>
-                  <Text style={[styles.modeSegTxt, !variable && styles.modeSegTxtOn]}>Фиксированный расход</Text>
-                </Pressable>
-                <Pressable style={[styles.modeSegBtn, variable && styles.modeSegBtnOn]} onPress={() => setAllMode('variable')}>
-                  <Text style={[styles.modeSegTxt, variable && styles.modeSegTxtOn]}>Расход по факту</Text>
-                </Pressable>
+              <View style={{ marginBottom: 10 }}>
+                <GlassSegmented items={[{ key: 'fixed', label: 'Фиксированный расход' }, { key: 'variable', label: 'Расход по факту' }]}
+                  value={variable ? 'variable' : 'fixed'} onChange={setAllMode} height={44} />
               </View>
               <Text style={styles.ingListHint}>
                 {variable
@@ -448,9 +447,8 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
                   </View>
                 );
               })}
-              <Pressable style={styles.addIngBtn} onPress={() => { setIngPickerVar(vi); onIngPicker?.(vi, (st) => addIng(vi, st)); }}>
-                <Text style={styles.addIngTxt}>+ Добавить со склада</Text>
-              </Pressable>
+              <GlassButton icon="plus" label="Добавить со склада" height={46} style={{ marginTop: 12, alignSelf: 'flex-start' }}
+                onPress={() => { setIngPickerVar(vi); onIngPicker?.(vi, (st) => addIng(vi, st)); }} />
             </View>
           );
         })() : (
@@ -513,29 +511,24 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
           <Text style={styles.demoNote}>Это пример — реальный товар создаётся точно так же</Text>
         ) : !canEditProducts ? null : (
         <>
-        <Pressable style={styles.saveBtn} onPress={handleSave}>
-          <Text style={styles.saveBtnTxt}>{isNew ? 'Создать товар' : 'Сохранить изменения'}</Text>
-        </Pressable>
+        <GlassButton tone="accent" height={58} style={{ marginTop: 8 }} label={isNew ? 'Создать товар' : 'Сохранить изменения'} onPress={handleSave} />
 
         {!isNew && (
           <View style={styles.dangerRow}>
-            <Pressable style={styles.deactivateBtn} onPress={() => { onToggleActive(product); }}>
-              <Text style={styles.deactivateTxt}>{active ? 'Деактивировать' : 'Активировать'}</Text>
-            </Pressable>
-            <Pressable style={styles.deleteBtn} onPress={() => {
+            <GlassButton style={{ flex: 1 }} label={active ? 'Деактивировать' : 'Активировать'} onPress={() => { onToggleActive(product); }} />
+            <GlassButton tone="danger" style={{ flex: 1 }} label="Удалить" onPress={() => {
               Alert.alert('Удалить товар?', `«${product.name}» будет удалён.`, [
                 { text: 'Отмена' },
                 { text: 'Удалить', style: 'destructive', onPress: () => onDelete(product.id) }
               ]);
-            }}>
-              <Text style={styles.deleteTxt}>Удалить</Text>
-            </Pressable>
+            }} />
           </View>
         )}
         </>
         )}
 
       </ScrollView>
+      </View>
   );
 }
 
