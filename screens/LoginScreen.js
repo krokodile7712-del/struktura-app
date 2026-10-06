@@ -5,6 +5,7 @@ import { useRef } from 'react';
 import { attemptLogin, getLoginLock, getBusinessProfile, getUserPermissions } from '../db/queries';
 import { setSession, setPermissions } from '../db/session';
 import { colors, fonts } from '../constants/theme';
+import { BUILD_ID } from '../constants/build';
 
 // PIN — от 4 до 6 цифр (то же, что допускают формы создания сотрудника).
 // Раньше экран принимал ровно 4 цифры и сам проверял на четвёртой, поэтому
@@ -195,6 +196,7 @@ export default function LoginScreen({ navigation, route, embedded = false, onUnl
         PIN-код — от 4 до 6 цифр. Назначает администратор в разделе «Сотрудники».
       </Text>
 
+      <Text style={styles.build}>Сборка {BUILD_ID}</Text>
     </SafeAreaView>
     </TouchableWithoutFeedback>
   );
@@ -234,6 +236,7 @@ const styles = StyleSheet.create({
   keyEnterOff:{ backgroundColor: 'transparent', borderColor: 'transparent' },
   keyEnterTxt:{ fontSize: 28, color: '#0A121C' },
 
+  build:     { fontFamily: fonts.familyMedium, fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 14, opacity: 0.8 },
   hint:      { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'center', maxWidth: 280, lineHeight: 18 },
   hiddenInput: { position: 'absolute', width: 0, height: 0, opacity: 0 },
 });
