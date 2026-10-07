@@ -809,6 +809,7 @@ export default function SettingsScreen({ navigation, route }) {
     payment:   useTourHighlight('settings.nav.payment', 16),
     discounts: useTourHighlight('settings.nav.discounts', 16),
     stock:     useTourHighlight('settings.nav.stock', 16),
+    locations: useTourHighlight('settings.nav.locations', 16),
     business:  useTourHighlight('settings.nav.business', 16),
     system:    useTourHighlight('settings.nav.system', 16),
   };
@@ -2354,7 +2355,7 @@ export default function SettingsScreen({ navigation, route }) {
                     styles.navItem,
                     selectedSection === s.key && styles.navItemActive,
                     { position: 'relative' },
-                    sectionHighlights[s.key].style,
+                    sectionHighlights[s.key]?.style,
                     pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
                   ]}
                   onPress={() => setSelectedSection(s.key)}
@@ -2365,7 +2366,7 @@ export default function SettingsScreen({ navigation, route }) {
                   </Text>
                   {selectedSection === s.key && !isPhone && <View style={styles.navActiveBar} />}
                   {isPhone && <Text style={styles.navArrow}>›</Text>}
-                  {sectionHighlights[s.key].overlay}
+                  {sectionHighlights[s.key]?.overlay}
                 </Pressable>
               ))}
             </ScrollView>
