@@ -19,9 +19,10 @@ import {
 
 import AppBackground from './components/AppBackground';
 import { ToastProvider } from './components/Toast';
+import WorkstationGate from './components/WorkstationGate';
 import { TourRegistryProvider } from './components/TourRegistry';
 import OnboardingScreen from './screens/OnboardingScreen';
-import { migrateClientPhones, recalcStockCostsOnce, migrateExpensesV2 } from './db/queries';
+import { migrateClientPhones, recalcStockCostsOnce, migrateExpensesV2, migrateWarehousesV1 } from './db/queries';
 import { initDatabase } from './db/database';
 import { startAutoSync } from './db/sync';
 
@@ -39,7 +40,6 @@ import AdminScreen from './screens/AdminScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import MigrateScreen from './screens/MigrateScreen';
 import ProductsScreen from './screens/ProductsScreen';
-import LocationsScreen from './screens/LocationsScreen';
 import EmployeesScreen from './screens/EmployeesScreen';
 import InventoryScreen from './screens/InventoryScreen';
 import ReportsScreen from './screens/ReportsScreen';
@@ -74,7 +74,7 @@ export default function App() {
   // App.js, а не внутри каждого экрана. Список экранов, у которых она есть
   // (все, кроме служебных вроде Login/Onboarding/Shift/Search и т.п.,
   // где навигация не нужна вовсе).
-  const NAV_SCREENS = ['Products', 'Admin', 'Dashboard', 'Sales', 'ClientsList', 'Reports', 'Expenses', 'Finances', 'Locations', 'Inventory', 'Kassa', 'Equipment', 'Investments', 'Overheads', 'WorkJournal', 'Bookings', 'Employees', 'Settings'];
+  const NAV_SCREENS = ['Products', 'Admin', 'Dashboard', 'Sales', 'ClientsList', 'Reports', 'Expenses', 'Finances', 'Inventory', 'Kassa', 'Equipment', 'Investments', 'Overheads', 'WorkJournal', 'Bookings', 'Employees', 'Settings'];
 
   const [fontsLoaded] = useFonts({
     Manrope_400Regular,
@@ -96,6 +96,7 @@ export default function App() {
       try { migrateClientPhones(); } catch (e) { console.error('[phones] миграция не выполнена:', e); }
       // Разовый пересчёт себестоимости по правилу «последние 10 закупок» — сбой не должен мешать запуску
       try { recalcStockCostsOnce(); } catch (e) { console.error('[cost] пересчёт не выполнен:', e); }
+      try { migrateWarehousesV1(); } catch (e) { console.error('[склады] миграция не выполнена:', e); }
       try { migrateExpensesV2(); } catch (e) { console.error('[expenses] миграция не выполнена:', e); }
       startAutoSync(30 * 1000);
       // Стартовых сотрудников нет: пока в базе нет ни одного, открываем только
@@ -167,7 +168,6 @@ export default function App() {
             <Stack.Screen name="Products"    component={ProductsScreen} />
             <Stack.Screen name="Finances"    component={FinancesScreen} />
             <Stack.Screen name="Migrate"     component={MigrateScreen} />
-            <Stack.Screen name="Locations"      component={LocationsScreen} />
             <Stack.Screen name="Employees"      component={EmployeesScreen} />
             <Stack.Screen name="Inventory"      component={InventoryScreen} />
             <Stack.Screen name="Reports"        component={ReportsScreen} />
@@ -180,6 +180,7 @@ export default function App() {
           </View>
         </AppBackground>
       </NavigationContainer>
+      <WorkstationGate route={currentRoute} active={NAV_SCREENS.includes(currentRoute)} />
       </LockGuard>
       </TourRegistryProvider>
       </ToastProvider>

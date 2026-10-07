@@ -246,6 +246,45 @@ export function initDatabase() {
     );
   `);
 
+  // Склады внутри локации (у каждого свои остатки), рабочие места (планшет/касса со складом списания),
+  // перемещения между складами. Названия складов в перемещениях сохраняются текстом — склад можно удалить, история останется.
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS warehouses (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      location_id INTEGER NOT NULL,
+      name        TEXT NOT NULL,
+      is_main     INTEGER DEFAULT 0,
+      active      INTEGER DEFAULT 1,
+      created_at  TEXT DEFAULT ''
+    );
+    CREATE TABLE IF NOT EXISTS workstations (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      location_id  INTEGER NOT NULL,
+      warehouse_id INTEGER NOT NULL,
+      name         TEXT NOT NULL,
+      active       INTEGER DEFAULT 1
+    );
+    CREATE TABLE IF NOT EXISTS stock_transfers (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      created_at   TEXT NOT NULL,
+      from_id      INTEGER,
+      to_id        INTEGER,
+      from_name    TEXT DEFAULT '',
+      to_name      TEXT DEFAULT '',
+      user_name    TEXT DEFAULT '',
+      note         TEXT DEFAULT ''
+    );
+    CREATE TABLE IF NOT EXISTS stock_transfer_items (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      transfer_id   INTEGER NOT NULL,
+      stock_id      INTEGER,
+      stock_name    TEXT DEFAULT '',
+      unit          TEXT DEFAULT '',
+      qty           REAL NOT NULL,
+      cost_per_unit REAL DEFAULT 0
+    );
+  `);
+
   // Остатки склада по локациям — заполняется только когда модуль "Локации" включён.
   // Уникальная пара stock_id + location_id гарантирует одну запись на позицию/локацию.
   db.execSync(`
@@ -388,7 +427,9 @@ export function initDatabase() {
     `ALTER TABLE orders   ADD COLUMN location_id INTEGER`,
     `ALTER TABLE shifts   ADD COLUMN location_id INTEGER`,
     `ALTER TABLE expenses ADD COLUMN location_id INTEGER`,
-    `ALTER TABLE users    ADD COLUMN location_id INTEGER`, // точка по умолчанию, не ограничение доступа
+    `ALTER TABLE users    ADD COLUMN location_id INTEGER`,
+    `ALTER TABLE inventory_acts ADD COLUMN warehouse_id INTEGER`,
+    `ALTER TABLE inventory_acts ADD COLUMN warehouse_name TEXT DEFAULT ''`, // точка по умолчанию, не ограничение доступа
 
     // KPI сотрудника — тем же паттерном, что зарплата (вид + план + период)
     `ALTER TABLE users ADD COLUMN kpi_type   TEXT DEFAULT ''`,   // '' | revenue | orders | avg_check | services | returning_clients
@@ -480,6 +521,8 @@ export function initDatabase() {
       created_at   TEXT NOT NULL,
       location_id  INTEGER,
       location_name TEXT DEFAULT '',
+      warehouse_id INTEGER,
+      warehouse_name TEXT DEFAULT '',
       scope        TEXT DEFAULT 'all',
       scope_value  TEXT DEFAULT '',
       status       TEXT DEFAULT 'draft',

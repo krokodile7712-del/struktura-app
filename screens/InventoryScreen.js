@@ -12,10 +12,10 @@ import { useToast } from '../components/Toast';
 import { useResponsive } from '../hooks/useResponsive';
 import { useTourHighlight } from '../components/TourRegistry';
 import {
-  getAllStock, getBusinessProfile, markTourSeen, getLocations, getInventoryActs, getInventoryAct, getInventoryDraft,
+  getAllStock, getBusinessProfile, markTourSeen, getWarehouses, getWorkContext, getInventoryActs, getInventoryAct, getInventoryDraft,
   createInventoryAct, setInventoryItemActual, confirmInventoryAct, deleteInventoryAct,
 } from '../db/queries';
-import { goBackSmart, getCurrentLocationId } from '../db/session';
+import { goBackSmart } from '../db/session';
 import { colors, fonts, glass } from '../constants/theme';
 
 // Инвентаризация: подсчёт запоминается (черновик не стирается), «по системе» берётся в момент ввода факта,
@@ -25,9 +25,9 @@ const q = n => (Math.round((n || 0) * 1000) / 1000).toLocaleString('ru-RU', { ma
 const rub = n => Math.round(n || 0).toLocaleString('ru-RU');
 const sgn = n => (n > 0 ? '+' : '−');
 const dateOf = iso => { try { return new Date(iso).toLocaleDateString('ru-RU'); } catch (_) { return ''; } };
-const scopeText = a => (a.scope === 'category' ? `Категория: ${a.scope_value}` : a.scope === 'manual' ? `Выбранные позиции: ${String(a.scope_value).split(',').filter(Boolean).length}` : 'Весь склад');
+const scopeText = (a, multi) => (a.scope === 'category' ? `Категория: ${a.scope_value}` : a.scope === 'manual' ? `Выбранные позиции: ${String(a.scope_value).split(',').filter(Boolean).length}` : 'Весь склад');
 
-export default function InventoryScreen({ navigation }) {
+export default function InventoryScreen({ navigation, route }) {
   const { isLandscape } = useResponsive();
   const toast = useToast();
   const [acts, setActs] = useState([]);
@@ -37,6 +37,8 @@ export default function InventoryScreen({ navigation }) {
   const [flt, setFlt] = useState('all');
   const [stock, setStock] = useState([]);
   const [newOpen, setNewOpen] = useState(false);
+  const [whs, setWhs] = useState([]);                // склады: акт всегда по одному складу
+  const [whSel, setWhSel] = useState(null);
   const [scope, setScope] = useState('all');
   const [scopeCat, setScopeCat] = useState('');
   const [scopeIds, setScopeIds] = useState([]);
@@ -51,11 +53,16 @@ export default function InventoryScreen({ navigation }) {
   }, []);
   const load = useCallback((pick) => {
     try {
-      const list = getInventoryActs(); setActs(list); setStock(getAllStock());
+      const list = getInventoryActs(); setActs(list); setStock(getAllStock()); setWhs(getWarehouses());
       openAct(pick || sel || (getInventoryDraft()?.id) || list[0]?.id || null);
     } catch (e) { console.error(e); }
   }, [sel]);
-  useFocusEffect(useCallback(() => { load(); }, []));
+  useFocusEffect(useCallback(() => {
+    load();
+    // Переход из «Склада» (инвентаризация этого склада) — сразу открываем новый акт для него
+    const w = route?.params?.warehouseId;
+    if (w) { setScope('all'); setWhSel(w); setNewOpen(true); navigation?.setParams?.({ warehouseId: null }); }
+  }, []));
 
   const steps = [
     { key: 'inventory.addBtn', title: 'Новый акт', text: 'Отсюда начинается инвентаризация: весь склад, категория или выбранные позиции. Подсчёт можно прервать и продолжить позже.' },
@@ -101,10 +108,7 @@ export default function InventoryScreen({ navigation }) {
       const scopeValue = scope === 'category' ? scopeCat : scope === 'manual' ? scopeIds.join(',') : '';
       if (scope === 'category' && !scopeCat) { toast.show('Выберите категорию', 'warn'); return; }
       if (scope === 'manual' && scopeIds.length === 0) { toast.show('Отметьте позиции', 'warn'); return; }
-      const locOn = getBusinessProfile()?.modules?.locations === true;
-      const locId = locOn ? getCurrentLocationId() : null;
-      const locName = locId ? (getLocations().find(l => l.id === locId)?.name || '') : '';
-      const id = createInventoryAct({ scope, scopeValue, locationId: locId, locationName: locName, replaceDraft: !!draft });
+      const id = createInventoryAct({ scope, scopeValue, warehouseId: whSel || getWorkContext().warehouseId, replaceDraft: !!draft });
       setNewOpen(false); load(id);
     } catch (e) { console.error(e); toast.show('Не удалось создать акт', 'warn'); }
   };
@@ -148,7 +152,7 @@ export default function InventoryScreen({ navigation }) {
   ) : (
     <ScrollView showsVerticalScrollIndicator={false}>
       <View style={st.dh}><Text style={st.dT}>Акт от {dateOf(act.created_at)}</Text><Pill d={false} /></View>
-      <Text style={st.cX2}>{scopeText(act)}{act.location_name ? ` · ${act.location_name}` : ''}. Остатки приведены к факту, продажи во время подсчёта сохранены.</Text>
+      <Text style={st.cX2}>{scopeText(act)}{whs.length > 1 && act.warehouse_name ? ` · склад «${act.warehouse_name}»` : ''}. Остатки приведены к факту, продажи во время подсчёта сохранены.</Text>
       <View style={st.box}>{items.filter(i => i.actual !== null && Math.abs(i.diff_qty || 0) > 1e-9).length === 0 ? <Text style={st.cX}>Расхождений не было</Text>
         : items.filter(i => i.actual !== null && Math.abs(i.diff_qty || 0) > 1e-9).map(i => <View key={i.id} style={st.lr}><Text style={st.lN}>{i.stock_name}</Text><Text style={st.lV}>{sgn(i.diff_qty)}{q(Math.abs(i.diff_qty))} {i.unit} · {sgn(i.diff_money)}{rub(Math.abs(i.diff_money))} ₽</Text></View>)}</View>
       <Text style={st.cX2}>Итог: <Text style={{ color: lastTotal(act) < 0 ? '#E9A9A2' : colors.green, fontFamily: fonts.familySemibold }}>{sgn(lastTotal(act))}{rub(Math.abs(lastTotal(act)))} ₽</Text>. Сумма учтена в отчёте «Прибыль» строкой «Недостачи» или «Излишки».</Text>
@@ -162,7 +166,7 @@ export default function InventoryScreen({ navigation }) {
       <View style={StyleSheet.absoluteFill} pointerEvents="none"><SoftGlow size={620} color="127,168,217" alpha={0.14} style={{ position: 'absolute', left: -170, top: -150 }} /></View>
       <View style={st.tb}>
         <Text style={st.hint}>Сверка фактических остатков с системой: помогает найти недостачи и излишки</Text>
-        <View style={{ position: 'relative', ...hl.add.style }}><GlassButton tone="solid" icon="plus" label="Новый акт" height={52} onPress={() => { setScope('all'); setNewOpen(true); }} />{hl.add.overlay}</View>
+        <View style={{ position: 'relative', ...hl.add.style }}><GlassButton tone="solid" icon="plus" label="Новый акт" height={52} onPress={() => { setScope('all'); setWhSel(getWorkContext().warehouseId); setNewOpen(true); }} />{hl.add.overlay}</View>
       </View>
       <View style={{ flex: 1, padding: 20, paddingTop: 12 }}>
         <View style={[st.tiles, hl.stats.style]}>
@@ -178,7 +182,7 @@ export default function InventoryScreen({ navigation }) {
                 <Pressable key={a.id} style={[st.ac, sel === a.id && st.acSel]} onPress={() => openAct(a.id)}>
                   <View style={st.acT}><Text style={st.acD}>{dateOf(a.created_at)}</Text><Pill d={a.status === 'draft'} />
                     {a.status === 'confirmed' && <Text style={[st.acM, { color: a.diff < 0 ? '#E9A9A2' : colors.green }]}>{sgn(a.diff)}{rub(Math.abs(a.diff))} ₽</Text>}</View>
-                  <Text style={st.acS}>{scopeText(a)} · {a.status === 'draft' ? `посчитано ${a.counted} из ${a.total}` : `${a.total} позиций`}</Text>
+                  <Text style={st.acS}>{scopeText(a)}{whs.length > 1 && a.warehouse_name ? ` · ${a.warehouse_name}` : ''} · {a.status === 'draft' ? `посчитано ${a.counted} из ${a.total}` : `${a.total} позиций`}</Text>
                 </Pressable>))}
             </ScrollView>
           </View>
@@ -193,6 +197,10 @@ export default function InventoryScreen({ navigation }) {
           <View style={st.win}>
             <GlassSurface radius={26} tint="32,40,55" alpha={0.985} floating padding={24}>
               <Text style={st.wT}>Новый акт инвентаризации</Text><Text style={st.wS}>Выберите охват пересчёта</Text>
+              {whs.length > 1 && (<>
+                <Text style={st.gl2}>Склад</Text>
+                <View style={st.chips}>{whs.map(w => <Pressable key={w.id} style={[st.chip, whSel === w.id && st.chipOn]} onPress={() => setWhSel(w.id)}><Text style={[st.chipT, whSel === w.id && { color: colors.orangeLight }]}>{new Set(whs.map(x => x.location_name)).size > 1 ? `${w.location_name} · ${w.name}` : w.name}</Text></Pressable>)}</View>
+              </>)}
               {!!draft && <View style={st.warn}><Text style={st.warnT}>Есть незаконченный подсчёт от {dateOf(draft.created_at)} — посчитано {draft.counted} из {draft.total}. Новый акт заменит этот черновик; чтобы продолжить его, закройте окно и откройте черновик в списке.</Text></View>}
               {[['all', 'Весь склад', 'все позиции'], ['category', 'Категория', 'например, «Молочные»'], ['manual', 'Выбранные позиции', 'отметите вручную']].map(([k, t, s]) => (
                 <Pressable key={k} style={[st.opt, scope === k && st.optOn]} onPress={() => setScope(k)}><View><Text style={st.optT}>{t}</Text><Text style={st.optS}>{s}</Text></View><View style={[st.rad, scope === k && st.radOn]} /></Pressable>))}
@@ -248,6 +256,7 @@ const st = StyleSheet.create({
   lr: { flexDirection: 'row', paddingVertical: 7 }, lN: { flex: 1, fontFamily: fonts.familyRegular, fontSize: 14, color: colors.textDim }, lV: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
   ov: { flex: 1, backgroundColor: 'rgba(5,8,12,0.62)', alignItems: 'center', justifyContent: 'center' }, win: { width: '48%', minWidth: 520, maxWidth: 600 },
   wT: { fontFamily: fonts.display, fontSize: 21, color: colors.text }, wS: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 3, marginBottom: 10 }, wP: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.textDim, lineHeight: 21, marginTop: 8 },
+  gl2: { fontFamily: fonts.familySemibold, fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase', color: colors.muted, marginTop: 6, marginBottom: 8 },
   warn: { padding: 12, borderRadius: 14, backgroundColor: 'rgba(217,172,98,0.08)', borderWidth: 1, borderColor: 'rgba(217,172,98,0.25)', marginBottom: 10 }, warnT: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.warning, lineHeight: 19 },
   opt: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderRadius: 16, marginBottom: 8, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' }, optOn: { backgroundColor: 'rgba(127,168,217,0.12)', borderColor: 'rgba(157,191,230,0.55)' }, optT: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text }, optS: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
   rad: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)' }, radOn: { borderColor: colors.orange, backgroundColor: colors.orange },

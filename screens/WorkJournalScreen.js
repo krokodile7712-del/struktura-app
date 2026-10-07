@@ -17,10 +17,10 @@ import { useResponsive } from '../hooks/useResponsive';
 import { useTourHighlight } from '../components/TourRegistry';
 import {
   getWorkJournal, getShiftCard, closeShift, deleteShift, updateShiftHours, createManualShift, openShift, setShiftAdjustment,
-  getAllEmployeesSalary, calcEmployeeSalary, getUsers, getBusinessProfile, markTourSeen,
+  getAllEmployeesSalary, calcEmployeeSalary, getUsers, getBusinessProfile, markTourSeen, getWorkContext,
 } from '../db/queries';
 import { getReport, PRESETS, rangeOf } from '../db/reports';
-import { goBackSmart, getSession, getCurrentLocationId } from '../db/session';
+import { goBackSmart, getSession } from '../db/session';
 import { rateText, shiftPay, fmtDur } from '../utils/shiftPay';
 import { colors, fonts, glass } from '../constants/theme';
 
@@ -88,10 +88,10 @@ export default function WorkJournalScreen({ navigation }) {
   const saveTime = ({ openedAt, closedAt, reason }) => { try { updateShiftHours(card.shift.id, { openedAt, closedAt, reason }); toast.show('Время смены сохранено'); load(); } catch (e) { console.error(e); toast.show('Не удалось сохранить время', 'warn'); } };
   const createShifts = ({ mode, employee, days, reason, adjustment }) => {
     try {
-      if (mode === 'now') { openShift(0, employee.id, employee.name, getCurrentLocationId()); toast.show(`Смена открыта: ${employee.name}`); }
+      if (mode === 'now') { openShift(0, employee.id, employee.name, getWorkContext().locationId); toast.show(`Смена открыта: ${employee.name}`); }
       else {
         let first = null;
-        days.forEach((d, i) => { const id = createManualShift(employee.id, employee.name, d.start, d.end, getCurrentLocationId(), reason); if (i === 0) first = id; });
+        days.forEach((d, i) => { const id = createManualShift(employee.id, employee.name, d.start, d.end, getWorkContext().locationId, reason); if (i === 0) first = id; });
         // Доплата ложится на первую из созданных смен — иначе при нескольких днях сумма незаметно умножалась бы
         if (adjustment && first) setShiftAdjustment(first, adjustment, reason);
         toast.show(`Добавлено смен: ${days.length}`);

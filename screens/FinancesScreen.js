@@ -16,10 +16,10 @@ import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
 import { useResponsive } from '../hooks/useResponsive';
 import {
   getExpensesInPeriod, insertExpense, updateExpense, deleteExpense, getOverheadItems, addOverheadItem, updateOverheadItem, deleteOverheadItem,
-  getInvestments, addInvestment, updateInvestment, deleteInvestment, getBusinessProfile, markTourSeen, getOpenShift,
+  getInvestments, addInvestment, updateInvestment, deleteInvestment, getBusinessProfile, markTourSeen, getOpenShift, getWorkContext,
 } from '../db/queries';
 import { getReport, PRESETS, rangeOf, getInvestmentStats, investmentProgress, amortMonths } from '../db/reports';
-import { getSession, goBackSmart, can, getCurrentLocationId } from '../db/session';
+import { getSession, goBackSmart, can } from '../db/session';
 import { colors, fonts, glass } from '../constants/theme';
 
 // Расходы: вкладки «Расходы» и «Крупные покупки», одна строка периода на экран (общие пресеты с «Отчётностью»).
@@ -93,7 +93,7 @@ export default function FinancesScreen({ navigation, route }) {
         const data = { name: v.name, amount: v.amount, period: v.period };
         if (expModal?.mode === 'recurring' && expModal.item) updateOverheadItem(expModal.item.id, data); else addOverheadItem(data);
       } else if (expModal?.item) updateExpense(expModal.item.id, { category: v.category, amount: v.amount, comment: v.comment, photo_uri: v.photo, date: v.date });
-      else insertExpense({ date: v.date, category: v.category, amount: v.amount, comment: v.comment, photo_uri: v.photo, location_id: getCurrentLocationId(), shift_id: getOpenShift()?.id || null });
+      else insertExpense({ date: v.date, category: v.category, amount: v.amount, comment: v.comment, photo_uri: v.photo, location_id: getWorkContext().locationId, shift_id: getOpenShift()?.id || null });
       load(); return { ok: true };
     } catch (e) { console.error(e); return { ok: false, message: 'Не удалось сохранить. Попробуйте ещё раз.' }; }
   };

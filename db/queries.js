@@ -938,6 +938,8 @@ export function deleteModifier(id) {
 
 export function createOrder({ total, method, methodType, methodId, shift_id, client_id, cashier_id, items, cashAmount, cardAmount, discountPct, locationId, note, zone, pointsSpent, pointsDiscount }) {
   const db = getDb();
+  const ctx = getWorkContext();           // локация и склад списания — из рабочего места планшета
+  locationId = locationId || ctx.locationId;
   const now = new Date().toISOString();
 
   try { db.execSync(`ALTER TABLE orders ADD COLUMN cash_amount REAL DEFAULT 0`); } catch (_) {}
@@ -976,7 +978,7 @@ export function createOrder({ total, method, methodType, methodId, shift_id, cli
       ]
     );
     try {
-      const warnings = deductStockForOrderItem(itemResult.lastInsertRowId, item, locationId || null);
+      const warnings = deductStockForOrderItem(itemResult.lastInsertRowId, item, ctx.warehouseId);
       stockWarnings.push(...warnings);
     } catch (e) { deductionErrors++; console.error('[createOrder] Ошибка списания склада:', e); }
   }
@@ -1717,17 +1719,18 @@ export function deleteManualBooking(id) {
 
 // Создаёт новую позицию склада с нуля. Раньше такой функции не было вообще —
 // склад мог только пополняться закупкой у уже существующей позиции.
-export function insertStockItem({ name, unit = 'шт', category = 'Прочее', threshold = 0, initialQty = 0 }) {
+export function insertStockItem({ name, unit = 'шт', category = 'Прочее', threshold = 0, initialQty = 0, warehouseId = null }) {
   const db = getDb();
   if (!name?.trim()) return { ok: false, error: 'Укажите название' };
   const exists = db.getFirstSync(`SELECT id FROM stock WHERE LOWER(name) = LOWER(?)`, [name.trim()]);
   if (exists) return { ok: false, error: 'Такая позиция уже есть на складе', id: exists.id };
   const result = db.runSync(
-    `INSERT INTO stock (name, остаток, unit, порог, category) VALUES (?, ?, ?, ?, ?)`,
-    [name.trim(), initialQty || 0, unit, threshold || 0, category || 'Прочее']
+    `INSERT INTO stock (name, остаток, unit, порог, category) VALUES (?, 0, ?, ?, ?)`,
+    [name.trim(), unit, threshold || 0, category || 'Прочее']
   );
   const id = result.lastInsertRowId;
-  try { db.execSync(`UPDATE stock SET max_ostatok = ${initialQty || 0} WHERE id = ${id}`); } catch (_) {}
+  // Начальный остаток — на выбранный склад (по умолчанию склад рабочего места), общий пересчитывается сам
+  if (initialQty > 0) whAdd(db, id, warehouseId || getWorkContext().warehouseId, initialQty);
   return { ok: true, id };
 }
 
@@ -1796,6 +1799,127 @@ export function updateStockThreshold(id, threshold) {
   db.runSync(`UPDATE stock SET порог = ? WHERE id = ?`, [threshold, id]);
 }
 
+// ─── Локации, склады, рабочие места ─────────────────────────────────
+// Модель: локация → склады (у каждого свои остатки) + рабочие места (планшет/касса со складом списания).
+// ВАЖНО: таблица stock_by_location исторически так названа, но её столбец location_id — это ID СКЛАДА (warehouses.id).
+// Инвариант: stock.остаток (общий) ВСЕГДА равен сумме по складам; любое изменение остатка идёт через whAdd/whSet.
+// Модуль выключен — всё работает через основной склад основной локации, поэтому включать и выключать его безопасно.
+const wRound = n => Math.round((n || 0) * 1000) / 1000;
+export function whQty(db, stockId, wid) {
+  return db.getFirstSync(`SELECT остаток AS q FROM stock_by_location WHERE stock_id = ? AND location_id = ?`, [stockId, wid])?.q ?? 0;
+}
+function syncGlobalStock(db, stockId) {
+  db.runSync(
+    `UPDATE stock SET остаток = ROUND(COALESCE((SELECT SUM(остаток) FROM stock_by_location WHERE stock_id = ?), 0), 3) WHERE id = ?`, [stockId, stockId]);
+  try { db.runSync(`UPDATE stock SET max_ostatok = MAX(COALESCE(max_ostatok, 0), остаток) WHERE id = ?`, [stockId]); } catch (_) {}
+}
+export function whAdd(db, stockId, wid, delta) {
+  db.runSync(
+    `INSERT INTO stock_by_location (stock_id, location_id, остаток) VALUES (?, ?, ?)
+     ON CONFLICT(stock_id, location_id) DO UPDATE SET остаток = ROUND(остаток + excluded.остаток, 3)`, [stockId, wid, wRound(delta)]);
+  syncGlobalStock(db, stockId);
+}
+export function whSet(db, stockId, wid, qty) {
+  db.runSync(
+    `INSERT INTO stock_by_location (stock_id, location_id, остаток) VALUES (?, ?, ?)
+     ON CONFLICT(stock_id, location_id) DO UPDATE SET остаток = ROUND(excluded.остаток, 3)`, [stockId, wid, wRound(qty)]);
+  syncGlobalStock(db, stockId);
+}
+
+export function isLocationsOn() { try { return getBusinessProfile()?.modules?.locations === true; } catch (_) { return false; } }
+
+// У каждой активной локации — хотя бы один активный склад; если локаций нет совсем — создаётся основная
+export function ensureStructure() {
+  const db = getDb(), now = new Date().toISOString();
+  if (!db.getFirstSync(`SELECT id FROM locations WHERE active = 1 LIMIT 1`)) {
+    const any = db.getFirstSync(`SELECT id FROM locations ORDER BY id LIMIT 1`);
+    if (any) db.runSync(`UPDATE locations SET active = 1 WHERE id = ?`, [any.id]);
+    else db.runSync(`INSERT INTO locations (name, description, active) VALUES ('Основная локация', '', 1)`);
+  }
+  for (const l of db.getAllSync(`SELECT id FROM locations WHERE active = 1`)) {
+    if (!db.getFirstSync(`SELECT id FROM warehouses WHERE location_id = ? AND active = 1 LIMIT 1`, [l.id])) {
+      db.runSync(`INSERT INTO warehouses (location_id, name, is_main, active, created_at) VALUES (?, 'Основной склад', 1, 1, ?)`, [l.id, now]);
+    }
+  }
+}
+export function getMainWarehouse(locationId) {
+  return getDb().getFirstSync(`SELECT * FROM warehouses WHERE location_id = ? AND active = 1 ORDER BY is_main DESC, id LIMIT 1`, [locationId]) || null;
+}
+export function getWarehouses() {
+  return getDb().getAllSync(`SELECT w.*, l.name AS location_name FROM warehouses w JOIN locations l ON l.id = w.location_id WHERE w.active = 1 AND l.active = 1 ORDER BY l.id, w.is_main DESC, w.id`);
+}
+
+// Где сейчас работает этот планшет: { locationId, warehouseId, workstationId }.
+// Рабочее место, привязанное к устройству → склад открытой смены сотрудника → точка сотрудника → первая локация.
+// Раньше текущая точка хранилась только в памяти и после перезапуска терялась — продажи уходили в общий остаток.
+export function getWorkContext() {
+  const db = getDb();
+  ensureStructure();
+  const pick = wh => (wh ? { locationId: wh.location_id, warehouseId: wh.id, workstationId: null } : null);
+  if (isLocationsOn()) {
+    const wsId = parseInt(getSetting('workstationId'), 10);
+    if (wsId) {
+      const ws = db.getFirstSync(
+        `SELECT w.id, w.warehouse_id, h.location_id FROM workstations w JOIN warehouses h ON h.id = w.warehouse_id
+         WHERE w.id = ? AND w.active = 1 AND h.active = 1`, [wsId]);
+      if (ws) return { locationId: ws.location_id, warehouseId: ws.warehouse_id, workstationId: ws.id };
+    }
+    const uid = getSession()?.id;
+    const sh = uid ? getOpenShift(uid) : null;
+    const c1 = sh?.location_id && pick(getMainWarehouse(sh.location_id));
+    if (c1) return c1;
+    const u = uid ? db.getFirstSync(`SELECT location_id FROM users WHERE id = ?`, [uid]) : null;
+    const c2 = u?.location_id && pick(getMainWarehouse(u.location_id));
+    if (c2) return c2;
+  }
+  const loc = db.getFirstSync(`SELECT id FROM locations WHERE active = 1 ORDER BY id LIMIT 1`);
+  return pick(getMainWarehouse(loc.id));
+}
+
+// Позиции склада с остатком выбранного склада (остаток = остаток склада, total = по всем складам)
+export function getStockForWarehouse(warehouseId) {
+  return getDb().getAllSync(
+    `SELECT s.*, COALESCE(sbl.остаток, 0) AS остаток_wh FROM stock s
+     LEFT JOIN stock_by_location sbl ON sbl.stock_id = s.id AND sbl.location_id = ? ORDER BY s.category, s.name`, [warehouseId])
+    .map(r => ({ ...r, total: r['остаток'], 'остаток': r['остаток_wh'] }));
+}
+// Остатки всех позиций по каждому складу: { [stockId]: { [warehouseId]: qty } }
+export function getStockByWarehouses() {
+  const out = {};
+  for (const r of getDb().getAllSync(`SELECT stock_id, location_id AS wid, остаток AS q FROM stock_by_location`)) (out[r.stock_id] = out[r.stock_id] || {})[r.wid] = r.q;
+  return out;
+}
+
+// Однократная миграция на склады (флаг в настройках): у каждой локации появляется основной склад с тем же id, поэтому
+// прежние остатки по локациям сразу становятся остатками складов; позиции без остатков по локациям переезжают в основной
+// склад первой локации; общий остаток = сумма по складам.
+export function migrateWarehousesV1() {
+  const db = getDb();
+  try {
+    if (getSetting('warehousesV1') === '1') return false;
+    const now = new Date().toISOString();
+    db.execSync('BEGIN');
+    try {
+      for (const l of db.getAllSync(`SELECT id, active FROM locations`)) {
+        db.runSync(`INSERT OR IGNORE INTO warehouses (id, location_id, name, is_main, active, created_at) VALUES (?, ?, 'Основной склад', 1, ?, ?)`, [l.id, l.id, l.active ? 1 : 0, now]);
+      }
+      ensureStructure();
+      const first = db.getFirstSync(`SELECT id FROM locations WHERE active = 1 ORDER BY id LIMIT 1`);
+      const mainWid = getMainWarehouse(first.id).id;
+      for (const st of db.getAllSync(`SELECT id, остаток AS q FROM stock`)) {
+        const hasRows = db.getFirstSync(`SELECT 1 AS x FROM stock_by_location WHERE stock_id = ? LIMIT 1`, [st.id]);
+        if (!hasRows && (st.q || 0) !== 0) db.runSync(`INSERT INTO stock_by_location (stock_id, location_id, остаток) VALUES (?, ?, ?)`, [st.id, mainWid, wRound(st.q)]);
+        syncGlobalStock(db, st.id);
+      }
+      db.runSync(`UPDATE inventory_acts SET warehouse_id = location_id, warehouse_name = COALESCE(NULLIF(location_name, ''), 'Основной склад') WHERE warehouse_id IS NULL AND location_id IS NOT NULL`);
+      db.runSync(`UPDATE inventory_acts SET warehouse_id = ?, warehouse_name = 'Основной склад' WHERE warehouse_id IS NULL`, [mainWid]);
+      setSetting('warehousesV1', '1');
+      db.execSync('COMMIT');
+    } catch (e) { try { db.execSync('ROLLBACK'); } catch (_) {} throw e; }
+    return true;
+  } catch (e) { console.error('[migrateWarehousesV1]', e); return false; }
+}
+
 // ─── Модуль локаций ────────────────────────────────────────────────────────
 
 export function getLocations() {
@@ -1803,88 +1927,9 @@ export function getLocations() {
   return db.getAllSync(`SELECT * FROM locations WHERE active = 1 ORDER BY id`);
 }
 
-export function addLocation(name, description = '') {
-  const db = getDb();
-  const res = db.runSync(
-    `INSERT INTO locations (name, description, active) VALUES (?, ?, 1)`,
-    [name, description]
-  );
-  return res.lastInsertRowId;
-}
-
 export function updateLocation(id, name, description = '') {
   const db = getDb();
   db.runSync(`UPDATE locations SET name = ?, description = ? WHERE id = ?`, [name, description, id]);
-}
-
-export function deleteLocation(id) {
-  const db = getDb();
-  // Мягкое удаление — помечаем неактивной, данные остаются
-  db.runSync(`UPDATE locations SET active = 0 WHERE id = ?`, [id]);
-}
-
-// Все позиции склада с остатком для конкретной локации (0 если записи нет)
-export function getStockForLocation(locationId) {
-  const db = getDb();
-  return db.getAllSync(`
-    SELECT s.*, COALESCE(sbl.остаток, 0) AS остаток_loc
-    FROM stock s
-    LEFT JOIN stock_by_location sbl
-      ON sbl.stock_id = s.id AND sbl.location_id = ?
-    ORDER BY s.category, s.name
-  `, [locationId]).map(row => ({
-    ...row,
-    'остаток': row['остаток_loc'],  // для единообразия с остальным кодом
-  }));
-}
-
-// Устанавливает остаток для позиции в конкретной локации (upsert)
-export function setStockForLocation(stockId, locationId, amount) {
-  const db = getDb();
-  db.runSync(`
-    INSERT INTO stock_by_location (stock_id, location_id, остаток)
-    VALUES (?, ?, ?)
-    ON CONFLICT(stock_id, location_id) DO UPDATE SET остаток = excluded.остаток
-  `, [stockId, locationId, amount]);
-}
-
-// Изменяет остаток для позиции в конкретной локации на delta (+ поступление / - списание)
-export function adjustStockForLocation(stockId, locationId, delta) {
-  const db = getDb();
-  // Создаём запись с 0 если её нет, потом прибавляем delta
-  db.runSync(`
-    INSERT INTO stock_by_location (stock_id, location_id, остаток)
-    VALUES (?, ?, ?)
-    ON CONFLICT(stock_id, location_id) DO UPDATE SET остаток = остаток + excluded.остаток
-  `, [stockId, locationId, delta]);
-}
-
-// Сумма остатков по всем локациям для каждой позиции (для сводного вида)
-export function getAllStockWithLocationTotals() {
-  const db = getDb();
-  return db.getAllSync(`
-    SELECT s.*,
-      COALESCE(SUM(sbl.остаток), 0) AS остаток_total
-    FROM stock s
-    LEFT JOIN stock_by_location sbl ON sbl.stock_id = s.id
-    GROUP BY s.id
-    ORDER BY s.category, s.name
-  `).map(row => ({ ...row, 'остаток': row['остаток_total'] }));
-}
-
-// Инициализирует первую локацию "Основной склад" если локаций ещё нет
-// (вызывается при первом включении модуля)
-export function initDefaultLocation() {
-  const db = getDb();
-  const existing = db.getAllSync(`SELECT id FROM locations LIMIT 1`);
-  if (existing.length === 0) {
-    const res = db.runSync(
-      `INSERT INTO locations (name, description, active) VALUES (?, ?, 1)`,
-      ['Основной склад', '']
-    );
-    return res.lastInsertRowId;
-  }
-  return existing[0].id;
 }
 
 // ─── Себестоимость ────────────────────────────────────────────────────────
@@ -2313,6 +2358,7 @@ export function initPurchasesTable() {
       created_at     TEXT NOT NULL
     )
   `);
+  try { db.execSync(`ALTER TABLE purchases ADD COLUMN warehouse_id INTEGER`); } catch (_) {}
   try { db.execSync(`ALTER TABLE stock ADD COLUMN avg_price REAL DEFAULT 0`); } catch (_) {}
   try { db.execSync(`ALTER TABLE stock ADD COLUMN last_price REAL DEFAULT 0`); } catch (_) {}
   try { db.execSync(`ALTER TABLE stock ADD COLUMN sell_price REAL DEFAULT 0`); } catch (_) {}
@@ -2333,6 +2379,7 @@ export function initStockDeductionSchema() {
       amount        REAL NOT NULL
     )
   `);
+  try { db.execSync(`ALTER TABLE stock_deductions ADD COLUMN warehouse_id INTEGER`); } catch (_) {}
   try { db.execSync(`ALTER TABLE modifiers ADD COLUMN deduct_amount REAL DEFAULT 0`); } catch (_) {}
   try { db.execSync(`ALTER TABLE modifiers ADD COLUMN deduct_unit TEXT DEFAULT ''`); } catch (_) {}
 }
@@ -2493,9 +2540,12 @@ function findModifierByName(name) {
 
 // Списывает ингредиенты со склада для одной позиции чека. Возвращает список
 // предупреждений { name, amount, unit } для ингредиентов, ушедших в минус.
-export function deductStockForOrderItem(orderItemId, item, locationId = null) {
+export function deductStockForOrderItem(orderItemId, item, warehouseId = null) {
   initStockDeductionSchema();
   const db = getDb();
+  // Списываем ТОЛЬКО со склада рабочего места; чужие склады не трогаются — нехватку закрывают перемещением
+  const wid = warehouseId || getWorkContext().warehouseId;
+  const whName = db.getFirstSync(`SELECT name FROM warehouses WHERE id = ?`, [wid])?.name || '';
   const warnings = [];
   const deductions = [];
 
@@ -2527,34 +2577,13 @@ export function deductStockForOrderItem(orderItemId, item, locationId = null) {
     if (!stockRow) continue;
     const deductAmt = d.amount * (d.factor ?? 1) * (item.quantity || 1);
 
-    if (locationId) {
-      // Модуль локаций включён — списываем из конкретной локации
-      const locRow = db.getFirstSync(
-        `SELECT остаток FROM stock_by_location WHERE stock_id = ? AND location_id = ?`,
-        [stockRow.id, locationId]
-      );
-      const currentLoc = locRow ? locRow['остаток'] : 0;
-      const newLoc = currentLoc - deductAmt;
-      db.runSync(`
-        INSERT INTO stock_by_location (stock_id, location_id, остаток)
-        VALUES (?, ?, ?)
-        ON CONFLICT(stock_id, location_id) DO UPDATE SET остаток = excluded.остаток
-      `, [stockRow.id, locationId, newLoc]);
-      if (newLoc < 0) {
-        warnings.push({ name: stockRow.name, amount: newLoc, unit: stockRow.unit });
-      }
-    } else {
-      // Модуль локаций выключен — списываем из общего остатка (stock.остаток)
-      const newAmount = (stockRow['остаток'] || 0) - deductAmt;
-      db.runSync(`UPDATE stock SET остаток = ? WHERE id = ?`, [newAmount, stockRow.id]);
-      if (newAmount < 0) {
-        warnings.push({ name: stockRow.name, amount: newAmount, unit: stockRow.unit });
-      }
-    }
+    const after = wRound(whQty(db, stockRow.id, wid) - deductAmt);
+    whAdd(db, stockRow.id, wid, -deductAmt);
+    if (after < 0) warnings.push({ name: stockRow.name, amount: after, unit: stockRow.unit, warehouse: whName });
 
     db.runSync(
-      `INSERT INTO stock_deductions (order_item_id, stock_name, amount) VALUES (?, ?, ?)`,
-      [orderItemId, stockRow.name, deductAmt]
+      `INSERT INTO stock_deductions (order_item_id, stock_name, amount, warehouse_id) VALUES (?, ?, ?, ?)`,
+      [orderItemId, stockRow.name, deductAmt, wid]
     );
   }
   return warnings;
@@ -2574,7 +2603,8 @@ export function reverseStockForOrder(orderId) {
   for (const d of deductions) {
     const stockRow = findStockByName(d.stock_name);
     if (!stockRow) continue;
-    db.runSync(`UPDATE stock SET остаток = остаток + ? WHERE id = ?`, [d.amount, stockRow.id]);
+    // Возврат — на тот склад, с которого списали (у старых записей склада нет — на основной)
+    whAdd(db, stockRow.id, d.warehouse_id || getWorkContext().warehouseId, d.amount);
   }
   db.runSync(`DELETE FROM stock_deductions WHERE order_item_id IN (${placeholders})`, itemIds);
 }
@@ -2614,54 +2644,44 @@ function weightedAvgLastPurchases(db, stockName, count = COST_WINDOW) {
 // она занижала бы себестоимость во всех техкартах (100 л «без цены» роняли среднюю со 150 до 25 ₽) и
 // писала расход на 0 ₽; такое количество просто добавляется к остатку.
 // locationId — если включён модуль «Локации», остаток растёт в выбранной локации (раньше — всегда в общем).
-export function addPurchase(stockName, qty, pricePerUnit, locationId = null) {
-  initPurchasesTable();
-  const db = getDb();
+function purchaseOne(db, stockName, qty, pricePerUnit, wid, now) {
   if (!(qty > 0) || !isFinite(qty)) throw new Error('Количество закупки должно быть больше нуля');
   const hasPrice = pricePerUnit > 0 && isFinite(pricePerUnit);
-  const now = new Date().toISOString();
   const total = hasPrice ? qty * pricePerUnit : 0;
   const stockRow = db.getFirstSync(`SELECT id, unit FROM stock WHERE LOWER(name) = LOWER(?)`, [stockName]);
   if (!stockRow) throw new Error('Позиция склада не найдена');
-
-  db.execSync('BEGIN');
-  try {
-    // Остаток: прямо в базе («остаток = остаток + qty»), округление до 3 знаков (0,1 + 0,2 без хвостов)
-    if (locationId) {
-      adjustStockForLocation(stockRow.id, locationId, qty);
-      db.runSync(`UPDATE stock_by_location SET остаток = ROUND(остаток, 3) WHERE stock_id = ? AND location_id = ?`, [stockRow.id, locationId]);
-    } else {
-      db.runSync(`UPDATE stock SET остаток = ROUND(остаток + ?, 3) WHERE id = ?`, [qty, stockRow.id]);
-    }
-    db.runSync(`UPDATE stock SET max_ostatok = MAX(COALESCE(max_ostatok, 0), COALESCE((SELECT SUM(остаток) FROM stock_by_location WHERE stock_id = ?), остаток)) WHERE id = ?`, [stockRow.id, stockRow.id]);
-
-    let avgPrice = 0;
-    if (hasPrice) {
-      db.runSync(
-        `INSERT INTO purchases (stock_name, qty, price_per_unit, total, created_at) VALUES (?, ?, ?, ?, ?)`,
-        [stockName, qty, pricePerUnit, total, now]
-      );
-      avgPrice = weightedAvgLastPurchases(db, stockName);
-      db.runSync(`UPDATE stock SET avg_price = ?, last_price = ? WHERE id = ?`, [avgPrice, pricePerUnit, stockRow.id]);
-      // Та же цена — во всех техкартах, где используется этот ингредиент
-      db.runSync(`UPDATE cost_ingredients SET price_per_unit = ? WHERE LOWER(name) = LOWER(?)`, [avgPrice, stockName]);
-      // Закупка — расход (попадает в отчёты и «Расходы»); единственное место, где он создаётся
-      insertExpense({
-        date: new Date().toLocaleDateString('sv-SE'),   // местная дата ГГГГ-ММ-ДД
-        category: 'Закупка',
-        amount: total,
-        comment: `${stockName}, ${qty} ${stockRow.unit || ''}`.trim(),
-        shift_id: getOpenShift()?.id || null,
-        location_id: locationId || null,
-        source: 'stock',
-      });
-    }
-    db.execSync('COMMIT');
-    return { avgPrice, hasPrice };
-  } catch (e) {
-    try { db.execSync('ROLLBACK'); } catch (_) {}
-    throw e;
+  whAdd(db, stockRow.id, wid, qty);          // остаток склада прихода «+ N» прямо в базе, общий пересчитывается сам
+  let avgPrice = 0;
+  if (hasPrice) {
+    db.runSync(`INSERT INTO purchases (stock_name, qty, price_per_unit, total, created_at, warehouse_id) VALUES (?, ?, ?, ?, ?, ?)`, [stockName, qty, pricePerUnit, total, now, wid]);
+    avgPrice = weightedAvgLastPurchases(db, stockName);
+    db.runSync(`UPDATE stock SET avg_price = ?, last_price = ? WHERE id = ?`, [avgPrice, pricePerUnit, stockRow.id]);
+    db.runSync(`UPDATE cost_ingredients SET price_per_unit = ? WHERE LOWER(name) = LOWER(?)`, [avgPrice, stockName]);
+    // Закупка — расход (отчёты и «Расходы»), привязан к локации склада прихода; единственное место, где он создаётся
+    insertExpense({
+      date: new Date().toLocaleDateString('sv-SE'), category: 'Закупка', amount: total,
+      comment: `${stockName}, ${qty} ${stockRow.unit || ''}`.trim(), shift_id: getOpenShift()?.id || null,
+      location_id: db.getFirstSync(`SELECT location_id FROM warehouses WHERE id = ?`, [wid])?.location_id || null, source: 'stock',
+    });
   }
+  return { avgPrice, hasPrice };
+}
+// Закупка одной позиции на склад warehouseId (по умолчанию — склад рабочего места)
+export function addPurchase(stockName, qty, pricePerUnit, warehouseId = null) {
+  initPurchasesTable();
+  const db = getDb(), wid = warehouseId || getWorkContext().warehouseId;
+  db.execSync('BEGIN');
+  try { const r = purchaseOne(db, stockName, qty, pricePerUnit, wid, new Date().toISOString()); db.execSync('COMMIT'); return r; }
+  catch (e) { try { db.execSync('ROLLBACK'); } catch (_) {} throw e; }
+}
+// Накладная: несколько позиций на один склад ОДНОЙ транзакцией (одна ошибка — не пишется ничего)
+export function addPurchases(lines, warehouseId = null) {
+  initPurchasesTable();
+  const db = getDb(), wid = warehouseId || getWorkContext().warehouseId, now = new Date().toISOString();
+  if (!lines?.length) throw new Error('Добавьте хотя бы одну позицию');
+  db.execSync('BEGIN');
+  try { for (const l of lines) purchaseOne(db, l.name, l.qty, l.price, wid, now); db.execSync('COMMIT'); return lines.length; }
+  catch (e) { try { db.execSync('ROLLBACK'); } catch (_) {} throw e; }
 }
 
 export function getPurchaseHistory(stockName) {
@@ -2795,22 +2815,13 @@ export function recalcStockCostsOnce() {
 // и продажах за это время остаток после «Добавить 5» получался завышенным (15 вместо 12). Списание больше
 // остатка больше не обрезается молча до нуля — остаток уходит в минус (как и при продаже), экран об этом предупреждает.
 // Возвращает новый остаток (в выбранной локации или общий).
-export function adjustStock({ stockId, mode, qty, locationId = null }) {
+export function adjustStock({ stockId, mode, qty, warehouseId = null }) {
   const db = getDb();
   if (!['add', 'subtract', 'set'].includes(mode)) throw new Error('Неизвестная операция');
   if (!isFinite(qty) || qty < 0) throw new Error('Некорректное количество');
-  if (locationId) {
-    if (mode === 'add') adjustStockForLocation(stockId, locationId, qty);
-    else if (mode === 'subtract') adjustStockForLocation(stockId, locationId, -qty);
-    else setStockForLocation(stockId, locationId, qty);
-    db.runSync(`UPDATE stock_by_location SET остаток = ROUND(остаток, 3) WHERE stock_id = ? AND location_id = ?`, [stockId, locationId]);
-    return db.getFirstSync(`SELECT остаток AS q FROM stock_by_location WHERE stock_id = ? AND location_id = ?`, [stockId, locationId])?.q ?? 0;
-  }
-  if (mode === 'add') db.runSync(`UPDATE stock SET остаток = ROUND(остаток + ?, 3) WHERE id = ?`, [qty, stockId]);
-  else if (mode === 'subtract') db.runSync(`UPDATE stock SET остаток = ROUND(остаток - ?, 3) WHERE id = ?`, [qty, stockId]);
-  else db.runSync(`UPDATE stock SET остаток = ROUND(?, 3) WHERE id = ?`, [qty, stockId]);
-  db.runSync(`UPDATE stock SET max_ostatok = MAX(COALESCE(max_ostatok, 0), остаток) WHERE id = ?`, [stockId]);
-  return db.getFirstSync(`SELECT остаток AS q FROM stock WHERE id = ?`, [stockId])?.q ?? 0;
+  const wid = warehouseId || getWorkContext().warehouseId;
+  if (mode === 'set') whSet(db, stockId, wid, qty); else whAdd(db, stockId, wid, mode === 'add' ? qty : -qty);
+  return whQty(db, stockId, wid);
 }
 
 // Цена за единицу при «расходе по факту» (карточка «Цена за ед.» на складе)
@@ -2828,15 +2839,13 @@ export function getInventoryDraft() {
 }
 
 // Текущий учётный остаток позиции (общий или в локации акта)
-function liveStockQty(db, stockId, locationId) {
-  if (locationId) return db.getFirstSync(`SELECT остаток AS q FROM stock_by_location WHERE stock_id = ? AND location_id = ?`, [stockId, locationId])?.q ?? 0;
-  return db.getFirstSync(`SELECT остаток AS q FROM stock WHERE id = ?`, [stockId])?.q ?? 0;
-}
 
 // Создаёт акт. Если есть незаконченный черновик — бросает ошибку 'draft_exists' (черновик больше не стирается молча);
 // replaceDraft: true — осознанная замена.
-export function createInventoryAct({ scope, scopeValue, locationId, locationName, replaceDraft = false }) {
+export function createInventoryAct({ scope, scopeValue, warehouseId = null, replaceDraft = false }) {
   const db = getDb();
+  const wid = warehouseId || getWorkContext().warehouseId;
+  const wh = db.getFirstSync(`SELECT w.id, w.name, w.location_id, l.name AS lname FROM warehouses w JOIN locations l ON l.id = w.location_id WHERE w.id = ?`, [wid]);
   const draft = getInventoryDraft();
   if (draft && !replaceDraft) throw new Error('draft_exists');
   const now = new Date().toISOString();
@@ -2847,8 +2856,8 @@ export function createInventoryAct({ scope, scopeValue, locationId, locationName
       db.runSync(`DELETE FROM inventory_acts WHERE id = ?`, [d.id]);
     }
     const actId = db.runSync(
-      `INSERT INTO inventory_acts (created_at, location_id, location_name, scope, scope_value, status) VALUES (?, ?, ?, ?, ?, 'draft')`,
-      [now, locationId || null, locationName || '', scope || 'all', scopeValue || '']).lastInsertRowId;
+      `INSERT INTO inventory_acts (created_at, location_id, location_name, warehouse_id, warehouse_name, scope, scope_value, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'draft')`,
+      [now, wh?.location_id || null, wh?.lname || '', wid, wh?.name || '', scope || 'all', scopeValue || '']).lastInsertRowId;
     let items;
     if (scope === 'category' && scopeValue) items = db.getAllSync(`SELECT * FROM stock WHERE category = ? ORDER BY name`, [scopeValue]);
     else if (scope === 'manual' && scopeValue) {
@@ -2857,7 +2866,7 @@ export function createInventoryAct({ scope, scopeValue, locationId, locationName
     } else items = db.getAllSync(`SELECT * FROM stock ORDER BY category, name`);
     for (const it of items) {
       db.runSync(`INSERT INTO inventory_act_items (act_id, stock_id, stock_name, unit, expected, cost_per_unit) VALUES (?, ?, ?, ?, ?, ?)`,
-        [actId, it.id, it.name, it.unit || '', liveStockQty(db, it.id, locationId), getAvgCostLast10(it.name)]);
+        [actId, it.id, it.name, it.unit || '', whQty(db, it.id, wid), getAvgCostLast10(it.name)]);
     }
     db.execSync('COMMIT');
     return actId;
@@ -2867,10 +2876,10 @@ export function createInventoryAct({ scope, scopeValue, locationId, locationName
 // Фактический остаток по строке акта; «по системе» перечитывается в момент ввода (actual = null — снять)
 export function setInventoryItemActual(itemId, actual) {
   const db = getDb();
-  const row = db.getFirstSync(`SELECT i.*, a.location_id FROM inventory_act_items i JOIN inventory_acts a ON a.id = i.act_id WHERE i.id = ?`, [itemId]);
+  const row = db.getFirstSync(`SELECT i.*, a.warehouse_id FROM inventory_act_items i JOIN inventory_acts a ON a.id = i.act_id WHERE i.id = ?`, [itemId]);
   if (!row) return;
   if (actual === null || actual === undefined) { db.runSync(`UPDATE inventory_act_items SET actual = NULL, diff_qty = NULL, diff_money = 0 WHERE id = ?`, [itemId]); return; }
-  const expected = liveStockQty(db, row.stock_id, row.location_id);
+  const expected = whQty(db, row.stock_id, row.warehouse_id || getWorkContext().warehouseId);
   const diffQty = Math.round((actual - expected) * 1000) / 1000;
   db.runSync(`UPDATE inventory_act_items SET expected = ?, actual = ?, diff_qty = ?, diff_money = ? WHERE id = ?`,
     [expected, actual, diffQty, Math.round(diffQty * (row.cost_per_unit || 0) * 100) / 100, itemId]);
@@ -2888,10 +2897,7 @@ export function confirmInventoryAct(actId) {
     for (const it of items) {
       const d = it.diff_qty || 0;
       if (!d) continue;
-      if (act.location_id) {
-        db.runSync(`INSERT INTO stock_by_location (stock_id, location_id, остаток) VALUES (?, ?, ?)
-                    ON CONFLICT(stock_id, location_id) DO UPDATE SET остаток = ROUND(остаток + ?, 3)`, [it.stock_id, act.location_id, d, d]);
-      } else db.runSync(`UPDATE stock SET остаток = ROUND(остаток + ?, 3) WHERE id = ?`, [d, it.stock_id]);
+      whAdd(db, it.stock_id, act.warehouse_id || getWorkContext().warehouseId, d);   // разница — к ТЕКУЩЕМУ остатку склада
     }
     db.runSync(`UPDATE inventory_acts SET status = 'confirmed', confirmed_at = ? WHERE id = ?`, [new Date().toISOString(), actId]);
     db.execSync('COMMIT');
@@ -3019,23 +3025,8 @@ export function getDashboardStats(userId = null) {
 
   // Позиции склада ниже порога
   // Если есть stock_by_location — берём суммарный остаток по всем локациям
-  let lowStockItems;
-  try {
-    lowStockItems = db.getAllSync(
-      `SELECT s.name, s.порог, s.unit,
-        COALESCE(SUM(sl.остаток), s.остаток) as остаток
-       FROM stock s
-       LEFT JOIN stock_by_location sl ON sl.stock_id = s.id
-       WHERE s.порог > 0
-       GROUP BY s.id
-       HAVING COALESCE(SUM(sl.остаток), s.остаток) <= s.порог
-       ORDER BY (COALESCE(SUM(sl.остаток), s.остаток) - s.порог) ASC LIMIT 5`
-    );
-  } catch (_) {
-    lowStockItems = db.getAllSync(
-      `SELECT name, остаток, порог, unit FROM stock WHERE остаток <= порог AND порог > 0 ORDER BY (остаток - порог) ASC LIMIT 5`
-    );
-  }
+  const lowStockItems = db.getAllSync(
+    `SELECT name, остаток, порог, unit FROM stock WHERE порог > 0 AND остаток <= порог ORDER BY (остаток - порог) ASC LIMIT 5`);
 
   // Продолжительность текущей смены
   let shiftDuration = null;

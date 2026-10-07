@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, Animated, KeyboardAvoidingView, Platform } from 'react-native';
-import { openShift, getOpenShift, getLocations } from '../db/queries';
-import { getSession, setCurrentLocationId, can } from '../db/session';
+import { openShift, getOpenShift, getWorkContext } from '../db/queries';
+import { getSession, can } from '../db/session';
 import { colors, fonts } from '../constants/theme';
 
 export default function ShiftScreen({ navigation, route }) {
   const [cash, setCash]   = useState('');
   const [error, setError] = useState('');
-  const [locationId, setLocationId]   = useState(null);
   const inputRef          = useRef(null);
 
   const fadeAnim  = useState(new Animated.Value(0))[0];
@@ -28,12 +27,6 @@ export default function ShiftScreen({ navigation, route }) {
         navigation.replace(user?.role === 'admin' ? 'Admin' : 'Dashboard');
         return;
       }
-      const locs = getLocations();
-      if (locs.length > 1) {
-        setLocationId(user?.location_id && locs.some(l => l.id === user.location_id) ? user.location_id : locs[0].id);
-      } else if (locs.length === 1) {
-        setLocationId(locs[0].id);
-      }
     } catch(e) {}
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
@@ -45,8 +38,8 @@ export default function ShiftScreen({ navigation, route }) {
     if (!can('open_shift')) { setError('Нет права открывать смену — обратитесь к администратору.'); return; }
     try {
       const user = getSession();
-      openShift(parseFloat(cash) || 0, user?.id || null, user?.name || '', locationId);
-      setCurrentLocationId(locationId);
+      // Локация смены — из рабочего места этого планшета (иначе — точка сотрудника, иначе первая локация)
+      openShift(parseFloat(cash) || 0, user?.id || null, user?.name || '', getWorkContext().locationId);
       const returnTo = route?.params?.returnTo;
       if (returnTo) navigation.navigate(returnTo);
       else navigation.navigate(user?.role === 'admin' ? 'Admin' : 'Dashboard');

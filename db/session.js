@@ -56,8 +56,4 @@ export const can = (key) => {
 
 // Текущая выбранная локация (null = модуль локаций выключен или не выбрана)
 // Сбрасывается при закрытии приложения (in-memory в global)
-if (!global.__currentLocationId) global.__currentLocationId = null;
 
-export const getCurrentLocationId = () => global.__currentLocationId;
-export const setCurrentLocationId = (id) => { global.__currentLocationId = id; };
-export const clearCurrentLocation = () => { global.__currentLocationId = null; };

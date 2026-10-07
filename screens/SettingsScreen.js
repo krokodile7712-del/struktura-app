@@ -8,6 +8,7 @@ import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
 import { wipeCloudBeforeReset } from '../db/loyaltySync';
+import LocationsSettings from '../components/LocationsSettings';
 import TourGuide from '../components/TourGuide';
 import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
 import { useResponsive } from '../hooks/useResponsive';
@@ -140,7 +141,6 @@ const MODULE_LIST = [
   { key: 'loyalty',    label: 'Лояльность', desc: 'Баллы, скидки или абонементы для клиентов' },
   { key: 'modifiers',  label: 'Опции',         desc: 'Доп. опции у товара — размер, вкус, добавки за отдельную плату' },
   { key: 'inventory',  label: 'Инвентаризация', desc: 'Сверка фактических остатков склада' },
-  { key: 'locations',  label: 'Локации',    desc: 'Несколько точек хранения/продажи' },
   { key: 'zones',      label: 'Зоны и столы', desc: 'Нумерация мест в зале' },
   { key: 'templates',  label: 'Шаблоны заказов', desc: 'Быстрый повтор частых заказов' },
 ];
@@ -766,6 +766,7 @@ export default function SettingsScreen({ navigation, route }) {
     { key: 'payment',   label: 'Оплата' },
     { key: 'discounts', label: 'Скидки' },
     { key: 'stock',     label: 'Склад' },
+    { key: 'locations', label: 'Локации и склады' },
     { key: 'business',  label: 'Профиль бизнеса' },
     { key: 'system',    label: 'Система' },
   ];
@@ -789,6 +790,7 @@ export default function SettingsScreen({ navigation, route }) {
     payment:   'Способы оплаты, налоговый режим, автоматическая фискализация чеков.',
     discounts: 'Скидка на товар (общий процент) и скидка на заказ (личная скидка клиента, ручная скидка кассира) — раздельно, с приоритетом между ними.',
     stock:     'Пороги допустимого остатка и связанные с ним настройки склада.',
+    locations: 'Несколько точек и складов: локации, склады, рабочие места (планшеты), отключение и удаление.',
     business:  'Название, адрес, тип бизнеса (подставляет термины и разделы под конкретную отрасль), онлайн-запись, вид чека.',
     system:    'Резервное копирование, смена аккаунта, сброс приложения — и кнопка показать все подсказки заново.',
   };
@@ -1440,6 +1442,10 @@ export default function SettingsScreen({ navigation, route }) {
             </Pressable>
           </View>
 
+        </SectionAccordion>
+
+        <SectionAccordion sectionKey="locations" selectedSection={selectedSection}>
+          <LocationsSettings />
         </SectionAccordion>
 
         <SectionAccordion sectionKey="business" selectedSection={selectedSection}>

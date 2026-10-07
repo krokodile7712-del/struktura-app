@@ -6,12 +6,17 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-  getAllStock, getStockForLocation, addPurchase, adjustStock, setStockSellPrice,
+  getAllStock, getStockForWarehouse, getStockByWarehouses, getWarehouses, getWorkContext, isLocationsOn, addPurchase, adjustStock, setStockSellPrice,
   insertStockItem, getAvgCostLast10, getProductsUsingStockName, deleteStockItem,
-  getLocations, getBusinessProfile, updateStockThreshold,
+  updateStockThreshold,
 } from '../../db/queries';
+import WarehouseMenu from '../WarehouseMenu';
+import TransferModal from '../TransferModal';
+import PurchaseInvoiceModal from '../PurchaseInvoiceModal';
+import { TransfersModal, PurchaseListModal } from '../WarehouseLists';
 import { getDb } from '../../db/database';
-import { can, getCurrentLocationId, setCurrentLocationId } from '../../db/session';
+import { can } from '../../db/session';
+import { Share } from 'react-native';
 import { colors, fonts, spacing, glass } from '../../constants/theme';
 import { useToast } from '../Toast';
 import Sheet from '../Sheet';
@@ -130,9 +135,18 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
   const [thrDraft, setThrDraft]     = useState(null); // порог в редактировании (null — не редактируется)
   const [avgCost, setAvgCost]       = useState(0);
   const [deletePrompt, setDeletePrompt] = useState(null); // {id, name, usedIn: [{id,name}]}
-  const [locations, setLocations]   = useState([]);
-  const [selectedLocId, setSelectedLocId] = useState(null);
-  const [locEnabled, setLocEnabled] = useState(false);
+  // Склады: выбранный склад (0 — все склады), остатки позиции по складам, меню склада и окна действий
+  const [whs, setWhs]               = useState([]);
+  const [whId, setWhId]             = useState(() => { try { return getWorkContext().warehouseId; } catch (_) { return 0; } });
+  const [locEnabled, setLocEnabled] = useState(() => { try { return isLocationsOn(); } catch (_) { return false; } });
+  const [byWh, setByWh]             = useState({});
+  const [menuAt, setMenuAt]         = useState(null);
+  const [trModal, setTrModal]       = useState(null);     // { fromId, toId, preset }
+  const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const [histOpen, setHistOpen]     = useState(false);
+  const [buyOpen, setBuyOpen]       = useState(false);
+  const [opWid, setOpWid]           = useState(null);     // склад операции (закупка/списание/пересчёт)
+  const whBtnRef = useRef(null);
   const [catModal, setCatModal]     = useState(false);
   const [newItemModal, setNewItemModal] = useState(null); // { name, unit, category, threshold }
   const [stockCats, setStockCats]   = useState([]);
@@ -141,14 +155,15 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
 
   const animate = () => { if (!reduceMotion) LayoutAnimation.configureNext(LayoutAnimation.create(240, 'easeInEaseOut', 'opacity')); };
 
-  const openMode = (key) => { animate(); setMode(key); setQty(''); setPrice(''); };
+  const openMode = (key) => { animate(); setMode(key); setQty(''); setPrice(''); try { setOpWid(whId || getWorkContext().warehouseId); } catch (_) {} };
   const closeSlidePanel = () => { animate(); setMode(null); setQty(''); setPrice(''); };
 
-  // Остатки: при включённом модуле «Локации» — остатки выбранной локации, иначе общие.
+  // Остатки: выбранного склада, а при «Все склады» — общие (они всегда равны сумме по складам).
   // Раньше список всегда показывал общий остаток, поэтому после операции в локации число на экране не менялось.
-  const readStock = (on = locEnabled, loc = selectedLocId) => (on && loc ? getStockForLocation(loc) : getAllStock());
+  const readStock = (on = locEnabled, wid = whId) => (wid ? getStockForWarehouse(wid) : getAllStock());
   const applyStock = (rows, keepId) => {
     setStock(rows);
+    try { setByWh(getStockByWarehouses()); } catch (_) {}
     setStockCats([...new Set(rows.map(s => s.category || 'Без категории'))].sort());
     if (keepId != null) {
       const u = rows.find(s => s.id === keepId);
@@ -160,21 +175,14 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
 
   useEffect(() => {
     try {
-      const profile = getBusinessProfile();
-      const locOn = profile?.modules?.locations === true;
-      let locId = null;
-      setLocEnabled(locOn);
-      if (locOn) {
-        setLocations(getLocations());
-        locId = getCurrentLocationId();
-        setSelectedLocId(locId);
-      }
-      applyStock(readStock(locOn, locId), null);
+      const on = isLocationsOn(), ctx = getWorkContext();
+      setLocEnabled(on); setWhs(getWarehouses()); setWhId(ctx.warehouseId);
+      applyStock(readStock(on, ctx.warehouseId), null);
     } catch (e) { console.error(e); }
   }, []);
 
   // При возврате на экран остатки перечитываются: за это время могли пройти продажи
-  useFocusEffect(useCallback(() => { reload(); }, [locEnabled, selectedLocId]));
+  useFocusEffect(useCallback(() => { reload(); }, [locEnabled, whId]));
 
   useEffect(() => {
     if (openCreateSignal) setNewItemModal({ name: '', unit: 'шт', category: '', threshold: '', initialStock: '' });
@@ -189,12 +197,42 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
       category: newItemModal.category?.trim() || 'Прочее',
       threshold: parseNum(newItemModal.threshold),
       initialQty: parseNum(newItemModal.initialStock),
+      warehouseId: whId || undefined,
     });
     if (!res.ok) { toast.show(res.error, 'warn'); return; }
     setNewItemModal(null);
     reload(res.id);
     const created = readStock().find(s => s.id === res.id);
     if (created) selectItem(created);
+  };
+
+  const whName = whId ? (whs.find(w => w.id === whId)?.name || '') : 'Все склады';
+  const openWhMenu = () => {
+    try { whBtnRef.current.measureInWindow((x, y, w, h) => setMenuAt({ top: y + h + 6, left: x, width: w })); } catch (_) { setMenuAt({ top: 200, left: 40, width: 420 }); }
+  };
+  const menuActions = [
+    { key: 'move', icon: '⇄', label: 'Переместить остатки…', hint: whId ? '' : 'выберите склад', disabled: !whId || !can('edit_stock') },
+    { key: 'invoice', icon: '＋', label: 'Закупка списком (накладная)', disabled: !can('edit_stock') },
+    { key: 'history', icon: '⏱', label: 'История перемещений' },
+    { key: 'buy', icon: '🛒', label: 'Список для закупки' },
+    { key: 'share', icon: '↗', label: 'Поделиться остатками' },
+    { key: 'inv', icon: '☑', label: 'Инвентаризация этого склада', hint: whId ? '' : 'выберите склад', disabled: !whId },
+    { key: 'cfg', icon: '⚙', label: 'Настроить склады', hint: 'в Настройках' },
+  ];
+  const onMenuAction = (key) => {
+    const act = menuActions.find(a => a.key === key);
+    if (act?.disabled) { toast.show(act.hint || 'Недоступно', 'info'); return; }
+    setMenuAt(null);
+    if (key === 'move') setTrModal({ fromId: whId, toId: null, preset: null });
+    else if (key === 'invoice') setInvoiceOpen(true);
+    else if (key === 'history') setHistOpen(true);
+    else if (key === 'buy') setBuyOpen(true);
+    else if (key === 'share') {
+      const lines = stock.filter(s => (s['остаток'] || 0) !== 0).map(s => `• ${s.name} — ${fmtNum(s['остаток'])} ${s.unit}`);
+      Share.share({ message: `Остатки · ${whName}\n${lines.join('\n') || 'Пусто'}` }).catch(() => {});
+    }
+    else if (key === 'inv') navigation?.navigate?.('Inventory', { warehouseId: whId });
+    else if (key === 'cfg') navigation?.navigate?.('Settings', { section: 'locations' });
   };
 
   const selectItem = (item) => {
@@ -255,7 +293,8 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
   const onPriceChange = (v) => setPrice(String(v).replace(/[^0-9.,]/g, ''));
   const stepQty = (delta) => setQty(toField(Math.max(0, parseNum(qty) + delta)));
 
-  const curQty = selected?.['остаток'] ?? 0;
+  // Остаток для расчёта «Станет»: при операции — на складе операции, иначе — как в списке
+  const curQty = mode && opWid && selected ? (byWh[selected.id]?.[opWid] ?? 0) : (selected?.['остаток'] ?? 0);
   const nQty = parseNum(qty);
   const nSum = parseNum(price);
   // «Станет»: считается от текущего остатка; списание больше остатка уводит в минус (как и продажа), но с предупреждением
@@ -279,12 +318,12 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
   const confirm = () => {
     if (!selected || !canConfirm) return;
     try {
-      const locId = locEnabled && selectedLocId ? selectedLocId : null;
+      const wid = opWid || whId || getWorkContext().warehouseId;
       if (mode === 'purchase') {
-        addPurchase(selected.name, nQty, nSum / nQty, locId);
+        addPurchase(selected.name, nQty, nSum / nQty, wid);
         toast.show(`Закупка записана · расход ${fmtNum(nSum)} ₽ добавлен`, 'info');
       } else {
-        adjustStock({ stockId: selected.id, mode, qty: nQty, locationId: locId });
+        adjustStock({ stockId: selected.id, mode, qty: nQty, warehouseId: wid });
         toast.show('Остаток обновлён', 'info');
       }
       setMode(null); setQty(''); setPrice('');
@@ -342,6 +381,14 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
         <Text style={styles.edTitle}>{MODES.find(m => m.key === mode)?.label}</Text>
       </View>
       <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
+        {locEnabled && whs.length > 1 && (
+          <View style={{ marginBottom: 10 }}>
+            <Text style={styles.fldLbl}>{mode === 'purchase' ? 'Придёт на склад' : 'Склад'}</Text>
+            <View style={styles.whRow}>{whs.map(w => (
+              <Pressable key={w.id} style={[styles.whChip, opWid === w.id && styles.whChipOn]} onPress={() => setOpWid(w.id)}>
+                <Text style={[styles.whChipT, opWid === w.id && { color: colors.orangeLight }]}>{new Set(whs.map(x => x.location_name)).size > 1 ? `${w.location_name} · ${w.name}` : w.name}</Text></Pressable>))}</View>
+          </View>
+        )}
         <View style={styles.fld}>
           <Text style={styles.fldLbl}>Количество</Text>
           <TextInput
@@ -462,6 +509,24 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
           </GlassSurface>
         </View>
 
+        {locEnabled && whs.length > 1 && (
+          <View style={{ marginTop: 14 }}>
+            <Text style={styles.tileLbl}>По складам</Text>
+            {whs.map(w => {
+              const have = byWh[selected.id]?.[w.id] ?? 0, here = whId && w.id !== whId && have > 0 && curQty <= thr;
+              return (
+                <View key={w.id} style={styles.bq}>
+                  <Text style={styles.bqN} numberOfLines={1}>{w.name}<Text style={styles.bqL}>  {w.location_name}</Text></Text>
+                  <Text style={styles.bqV}>{fmtNum(have)} {selected.unit}</Text>
+                  {here && can('edit_stock') && (
+                    <Pressable style={styles.bqGo} onPress={() => setTrModal({ fromId: w.id, toId: whId, preset: { stockId: selected.id, qty: Math.min(have, Math.max(0, Math.ceil((thr * 2 - curQty) * 10) / 10) || have) } })}>
+                      <Text style={styles.bqGoT}>Взять сюда</Text></Pressable>)}
+                </View>);
+            })}
+            {whId > 0 && curQty <= thr && thr > 0 && <Text style={styles.lockNote}>На складе «{whs.find(w => w.id === whId)?.name}» не хватает. Продажи сами не берут с других складов — нажмите «Взять сюда», чтобы переместить.</Text>}
+          </View>
+        )}
+
         {!can('edit_stock') ? (
           <Text style={styles.lockNote}>Изменение остатков недоступно — попросите администратора выдать право «Редактирование склада».</Text>
         ) : (
@@ -489,21 +554,6 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
       {/* Список — карточкой слева (альбомная) или на всю ширину (портрет) */}
       <View style={[styles.lcard, isLandscape && styles.lcardLand]}>
 
-        {locEnabled && locations.length > 0 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}
-            style={styles.locBar} contentContainerStyle={styles.locInner}>
-            {locations.map(l => (
-              <Pressable key={l.id}
-                style={[styles.locChip, selectedLocId === l.id && styles.locChipActive]}
-                onPress={() => { setCurrentLocationId(l.id); setSelectedLocId(l.id); reload(selected?.id ?? null, true, l.id); }}>
-                <Text style={[styles.locChipText, selectedLocId === l.id && styles.locChipActive]}>
-                  {l.name}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        )}
-
         <View style={[styles.toolbar, { position: 'relative' }, stockSearchHighlight.style]}>
           <View style={styles.searchBox}>
             <Icon name="search" size={20} color={colors.muted} />
@@ -526,6 +576,15 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
           </Pressable>
           {stockSearchHighlight.overlay}
         </View>
+
+        {locEnabled && whs.length > 0 && (
+          <Pressable ref={whBtnRef} collapsable={false} style={styles.whBtn} onPress={openWhMenu}>
+            <Text style={styles.whK}>Склад</Text>
+            <Text style={styles.whV} numberOfLines={1}>{whId ? whs.find(w => w.id === whId)?.name : 'Все склады'}</Text>
+            <Text style={styles.whS}>{whId ? whs.find(w => w.id === whId)?.location_name : 'сумма по всем'}</Text>
+            <Text style={styles.whC}>▾</Text>
+          </Pressable>
+        )}
 
         {stock.length > 0 && (
           <View style={styles.chipsRow}>
@@ -657,6 +716,16 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
           </FitView>
         </View>
       </Modal>
+
+      <WarehouseMenu visible={!!menuAt} anchor={menuAt} warehouses={whs} currentId={whId} actions={menuActions}
+        onPick={(id) => { setMenuAt(null); setWhId(id); reload(selected?.id ?? null, true, id); }}
+        onAction={onMenuAction} onClose={() => setMenuAt(null)} />
+      <TransferModal visible={!!trModal} warehouses={whs} fromId={trModal?.fromId} toId={trModal?.toId} preset={trModal?.preset} isNarrow={!isLandscape}
+        onDone={(n) => { toast.show(`Перемещено позиций: ${n}`, 'info'); reload(selected?.id ?? null); }} onClose={() => setTrModal(null)} />
+      <PurchaseInvoiceModal visible={invoiceOpen} warehouses={whs} warehouseId={whId || undefined} firstStockId={selected?.id} isNarrow={!isLandscape}
+        onDone={(n, sum) => { toast.show(`Закупка записана: ${n} поз.${sum ? ` · расход ${fmtNum(sum)} ₽` : ''}`, 'info'); reload(selected?.id ?? null); }} onClose={() => setInvoiceOpen(false)} />
+      <TransfersModal visible={histOpen} warehouseId={whId || null} onClose={() => setHistOpen(false)} />
+      <PurchaseListModal visible={buyOpen} warehouseId={whId || null} warehouseName={whName} onClose={() => setBuyOpen(false)} />
 
       {/* Новая позиция склада — выезжающий слой */}
       <Sheet visible={!!newItemModal} onClose={() => setNewItemModal(null)} title="Новая позиция склада">
@@ -1004,6 +1073,11 @@ const styles = StyleSheet.create({
 
   rowArrow: { fontFamily: fonts.family, fontSize: 20, color: colors.border },
 
+  whBtn: { flexDirection: 'row', alignItems: 'center', height: 50, borderRadius: 14, paddingHorizontal: 16, marginHorizontal: 12, marginBottom: 8, backgroundColor: 'rgba(150,172,204,0.10)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
+  whK: { fontFamily: fonts.familySemibold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: colors.muted, marginRight: 12 }, whV: { flex: 1, fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text }, whS: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginRight: 10 }, whC: { fontSize: 12, color: colors.muted },
+  whRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 }, whChip: { height: 36, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' }, whChipOn: { backgroundColor: 'rgba(127,168,217,0.2)', borderColor: 'rgba(157,191,230,0.5)' }, whChipT: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.textDim },
+  bq: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 14, borderRadius: 14, marginTop: 6, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' }, bqN: { flex: 1, fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text }, bqL: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted }, bqV: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text, marginHorizontal: 10 },
+  bqGo: { height: 32, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(157,191,230,0.4)', backgroundColor: 'rgba(127,168,217,0.08)', alignItems: 'center', justifyContent: 'center' }, bqGoT: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orangeLight },
   locBar:   { maxHeight: 44, borderBottomWidth: 1, borderBottomColor: colors.border },
   locInner: { paddingHorizontal: spacing.lg, paddingVertical: 8, gap: 8, flexDirection: 'row' },
   locChip:  { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },

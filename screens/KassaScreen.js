@@ -4,7 +4,7 @@ LogBox.ignoreLogs(['Text strings must be rendered', 'Each child in a list', 'Vir
 import SwipeableRow from '../components/SwipeableRow';
 import { useToast } from '../components/Toast';
 import { useFocusEffect } from '@react-navigation/native';
-import { getHomeRoute, goBackSmart, getCurrentLocationId, can, getSession } from '../db/session';
+import { getHomeRoute, goBackSmart, can, getSession } from '../db/session';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
   FlatList, Modal, ActivityIndicator, TextInput, Alert, Animated, LayoutAnimation,
@@ -784,7 +784,6 @@ export default function KassaScreen({ navigation, route }) {
         items: order,
         cashAmount, cardAmount,
         discountPct: effectiveDiscount?.pct || 0,
-        locationId: getCurrentLocationId(),
         note: orderNote,
         zone: activeZone ? (activeTable ? `${activeZone.name} · ${activeTable.name}` : activeZone.name) : '',
         pointsSpent: pointsUsed,
@@ -799,7 +798,7 @@ export default function KassaScreen({ navigation, route }) {
         else if (loyaltyModel === 'subscription') notes.push('Списан 1 визит абонемента');
       }
       // Предупреждения склада показываем в окне «Оплачено», а не блокирующим окном поверх него
-      const warnings = (sale.stockWarnings || []).map(w => `Склад в минусе: ${w.name} ${w.amount.toFixed(1)} ${w.unit || ''}`.trim());
+      const warnings = (sale.stockWarnings || []).map(w => (w.warehouse ? `На складе «${w.warehouse}» не хватает: ${w.name} ${w.amount.toFixed(1)} ${w.unit || ''} — переместите с другого склада` : `Склад в минусе: ${w.name} ${w.amount.toFixed(1)} ${w.unit || ''}`).trim());
       if (sale.deductionErrors > 0) warnings.push('Остатки склада обновлены не по всем позициям — проверьте склад');
       return { ok: true, notes, warnings };
     } catch (e) {
