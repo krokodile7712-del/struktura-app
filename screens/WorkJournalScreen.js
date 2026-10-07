@@ -1,731 +1,284 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Animated, Alert } from 'react-native';
-import TopBar from '../components/TopBar';
-import ShiftEditBox from '../components/ShiftEditBox';
-import AddShiftBox from '../components/AddShiftBox';
-import EmptyState from '../components/EmptyState';
-import { useResponsive } from '../hooks/useResponsive';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal, Alert, Dimensions } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import {
-  getWorkJournal, getShiftOrderItems, getBusinessProfile, markTourSeen,
-  getAllEmployeesSalary, calcEmployeeSalary,
-  openShift, closeShift, getOpenShift,
-} from '../db/queries';
-import { getHomeRoute, goBackSmart, can, getSession } from '../db/session';
-import { colors, fonts, anim } from '../constants/theme';
+import TopBar from '../components/TopBar';
 import TourGuide from '../components/TourGuide';
-import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
+import DatePicker from '../components/DatePicker';
+import GlassSurface from '../components/GlassSurface';
+import GlassSegmented from '../components/GlassSegmented';
+import GlassButton from '../components/GlassButton';
+import Icon from '../components/Icon';
+import SoftGlow from '../components/SoftGlow';
+import KeyboardSafe from '../components/KeyboardSafe';
+import ShiftTimeModal from '../components/ShiftTimeModal';
+import NewShiftModal from '../components/NewShiftModal';
 import { useToast } from '../components/Toast';
+import { useResponsive } from '../hooks/useResponsive';
+import { useTourHighlight } from '../components/TourRegistry';
+import {
+  getWorkJournal, getShiftCard, closeShift, deleteShift, updateShiftHours, createManualShift, openShift, setShiftAdjustment,
+  getAllEmployeesSalary, calcEmployeeSalary, getUsers, getBusinessProfile, markTourSeen,
+} from '../db/queries';
+import { getReport, PRESETS, rangeOf } from '../db/reports';
+import { goBackSmart, getSession, getCurrentLocationId } from '../db/session';
+import { rateText, shiftPay, fmtDur } from '../utils/shiftPay';
+import { colors, fonts, glass } from '../constants/theme';
 
-const fmt = n => Math.round(n||0).toLocaleString('ru-RU');
-const todayStr    = () => new Date().toISOString().slice(0, 10);
-const weekAgoStr  = () => { const d = new Date(); d.setDate(d.getDate()-6); return d.toISOString().slice(0,10); };
-const monthStartStr = () => { const d = new Date(); d.setDate(1); return d.toISOString().slice(0,10); };
-const SALARY_PERIODS = [
-  { key: 'month', label: 'Этот месяц', from: monthStartStr, to: todayStr },
-  { key: 'week',  label: 'Неделя',     from: weekAgoStr,     to: todayStr },
-  { key: 'today', label: 'Сегодня',    from: todayStr,       to: todayStr },
-];
-
-function fmtDate(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return d.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short' }) + ' · ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-}
-
-function fmtDuration(open, close) {
-  if (!open || !close) return null;
-  const mins = Math.round((new Date(close) - new Date(open)) / 60000);
-  if (mins < 60) return `${mins} мин`;
-  return `${Math.floor(mins/60)}ч ${mins%60}мин`;
-}
+// Журнал работы: «Смены» (история со статусами и деталями) и «Зарплата» (расчёт по сотрудникам). Период и пресеты — общие
+// с «Отчётностью»; зарплата считается той же функцией, что и в отчёте, поэтому «к выплате» совпадает со строкой «Зарплата» в «Прибыли».
+const fmt = n => Math.round(n || 0).toLocaleString('ru-RU');
+const MO = ['янв.', 'февр.', 'мар.', 'апр.', 'мая', 'июн.', 'июл.', 'авг.', 'сент.', 'окт.', 'нояб.', 'дек.'];
+const dl = iso => { const d = new Date(iso); return `${d.getDate()} ${MO[d.getMonth()]}`; };
+const tm = iso => { const d = new Date(iso); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+const ddmm = s => String(s || '').slice(0, 10).split('-').reverse().join('.');
+const minsOf = sh => Math.round(((sh.closed_at ? new Date(sh.closed_at) : new Date()) - new Date(sh.opened_at)) / 60000);
+const sg = n => (n < 0 ? '−' : '+');
 
 export default function WorkJournalScreen({ navigation }) {
   const { isLandscape } = useResponsive();
   const toast = useToast();
-  const [mainTab, setMainTab] = useState('shifts'); // shifts | salary
-  const [entries, setEntries]   = useState([]);
-  const [search, setSearch]     = useState('');
-  const [expanded, setExpanded] = useState(null); // портрет — разворот на месте
-  const [selected, setSelected] = useState(null); // альбомная — подробности справа
-  const [itemsMap, setItemsMap] = useState({});
-  const [tourOpen, setTourOpen] = useState(false);
-
-  // Зарплата
-  const [salaryPeriod, setSalaryPeriod] = useState('month');
-  const salaryFrom = SALARY_PERIODS.find(p => p.key === salaryPeriod).from();
-  const salaryTo = SALARY_PERIODS.find(p => p.key === salaryPeriod).to();
-  const [salaryList, setSalaryList] = useState([]);
-  const [selectedEmp, setSelectedEmp] = useState(null); // выбранный сотрудник (детализация)
-  const [empDetail, setEmpDetail] = useState(null); // calcEmployeeSalary(selectedEmp.user.id, ...)
-  const [openShiftId, setOpenShiftId] = useState(null);   // раскрытая смена в детализации (ShiftEditBox)
-  const [openShiftTab, setOpenShiftTab] = useState('time'); // с какой вкладки открыть панель смены
-  const [addShiftOpen, setAddShiftOpen] = useState(false);  // форма «смена задним числом»
-
-  const fadeAnim = useState(new Animated.Value(0))[0];
-  const slideAnim = useState(new Animated.Value(anim.slideFrom))[0];
-  const searchHighlight = useTourHighlight('workjournal.search');
-  const listHighlight   = useTourHighlight('workjournal.list');
-  const statsHighlight  = useTourHighlight('workjournal.stats');
-
-  // Подсветки вкладки «Зарплата» (только администратор): каждая — свой элемент, не вложенный в другой
-  const tabsHighlight          = useTourHighlight('workjournal.tabs', 14);
-  const salaryPeriodHighlight  = useTourHighlight('workjournal.salary.period', 14);
-  const salaryListHighlight    = useTourHighlight('workjournal.salary.list', 14);
-  const salaryTotalsHighlight  = useTourHighlight('workjournal.salary.totals', 14);
-  const salaryControlsHighlight = useTourHighlight('workjournal.salary.controls', 14);
-  const salaryShiftsHighlight  = useTourHighlight('workjournal.salary.shifts', 14);
-  const activeTourKey = useTourActiveKey();
-
   const isAdmin = getSession()?.role === 'admin';
-  // Шаги про «Смены» — как раньше; шаги про «Зарплату» — администратору (вкладка ему одному видна)
-  const SHIFT_STEPS = [
-    { key: 'workjournal.search', title: 'Поиск', text: 'Найдите смену по имени сотрудника или по дате.' },
-    { key: 'workjournal.list',   title: 'История смен', text: 'Тап по карточке показывает подробности — количество заказов, оплаты, сами позиции. Зелёная точка — смена закрыта, оранжевая — ещё открыта.' },
-    { key: 'workjournal.stats',  title: 'Сводка', text: 'Общая выручка за все смены в списке и сравнение по сотрудникам.' },
-  ];
-  const TABS_STEP = { key: 'workjournal.tabs', title: 'А ещё — «Зарплата»', text: 'Рядом со «Сменами» вторая вкладка: расчёт зарплаты по каждому сотруднику. Её видит только администратор.' };
-  const SALARY_STEPS = [
-    { key: 'workjournal.salary.period',   title: 'Период', text: 'За какой период считать: этот месяц, неделя или сегодня.' },
-    { key: 'workjournal.salary.list',     title: 'Кто сколько заработал', text: 'У каждого сотрудника — отработанные часы, премия KPI и итог к выплате. Тап открывает подробности.' },
-    { key: 'workjournal.salary.totals',   title: 'Из чего складывается сумма', text: 'База по ставке сотрудника (за смену, за час, оклад или процент), премия за KPI, если она включена в карточке сотрудника, и доплаты или удержания по сменам. Итог — справа.' },
-    { key: 'workjournal.salary.controls', title: 'Смена без отметки', text: 'Сотрудник ушёл и не закрыл смену? Закройте её отсюда. Работал, но смену не открывал? Добавьте её задним числом — приложение предложит перенести на него продажи, которые пробивали под чужим входом.', cardPosition: 'top' },
-    { key: 'workjournal.salary.shifts',   title: 'Правка смены', text: 'Тап по смене раскрывает панель: время открытия и закрытия, доплата или удержание, перенос заказов, история и удаление. Каждое изменение сохраняется в истории — кто, когда и почему.', cardPosition: 'top' },
-  ];
-  // full — первый заход в раздел, всё по порядку; shifts / salary — повтор через «?» на своей вкладке
-  const [tourMode, setTourMode] = useState('full');
-  const tourSteps = tourMode === 'salary' ? SALARY_STEPS
-    : tourMode === 'shifts' || !isAdmin ? SHIFT_STEPS
-    : [...SHIFT_STEPS, TABS_STEP, ...SALARY_STEPS];
-  const tourAutoSelected = React.useRef(false); // сотрудника открыл сам тур — по окончании вернём список
+  const [tab, setTab] = useState('shifts');
+  const [preset, setPreset] = useState('month');
+  const [range, setRange] = useState(() => rangeOf('month30'));
+  const [q, setQ] = useState('');
+  const [shifts, setShifts] = useState([]); const [sel, setSel] = useState(null); const [card, setCard] = useState(null); const [showAll, setShowAll] = useState(false);
+  const [salary, setSalary] = useState([]); const [selEmp, setSelEmp] = useState(null); const [detail, setDetail] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [pop, setPop] = useState(false); const [anchor, setAnchor] = useState({ top: 70, right: 20 }); const [picker, setPicker] = useState(null);
+  const [timeModal, setTimeModal] = useState(null); const [newOpen, setNewOpen] = useState(false); const [adjModal, setAdjModal] = useState(null);
+  const [tourOpen, setTourOpen] = useState(false);
+  const pRef = useRef(null);
+  const hl = { period: useTourHighlight('journal.period'), list: useTourHighlight('journal.list'), card: useTourHighlight('journal.card'), add: useTourHighlight('journal.add') };
 
-  // Автозапуск при первом визите в раздел
-  useEffect(() => {
-    try {
-      const p = getBusinessProfile();
-      if (!p?.tours_seen?.WorkJournal) {
-        const t = setTimeout(() => { setTourMode('full'); setTourOpen(true); }, 500);
-        return () => clearTimeout(t);
-      }
-    } catch (_) {}
-  }, []);
-
-  // Вкладка «Зарплата» объясняется сама, когда администратор впервые её открывает
-  // (даже если общий тур раздела он уже проходил раньше — вкладка появилась позже)
-  useEffect(() => {
-    if (mainTab !== 'salary' || !isAdmin) return;
-    try {
-      const p = getBusinessProfile();
-      if (!p?.tours_seen?.WorkJournalSalary && !tourOpen) {
-        const t = setTimeout(() => { setTourMode('salary'); setTourOpen(true); }, 600);
-        return () => clearTimeout(t);
-      }
-    } catch (_) {}
-  }, [mainTab]);
-
+  const period = () => (preset === 'custom' ? range : rangeOf(preset));
   const load = useCallback(() => {
     try {
-      setEntries(getWorkJournal({ limit: 100 }));
-      Animated.parallel([
-        Animated.timing(fadeAnim, { toValue: 1, duration: anim.fadeDuration, useNativeDriver: true }),
-        Animated.spring(slideAnim, { toValue: 0, ...anim.spring, useNativeDriver: true }),
-      ]).start();
-    } catch(e) { console.error(e); }
-  }, []);
-
-  useFocusEffect(useCallback(() => { fadeAnim.setValue(0); slideAnim.setValue(anim.slideFrom); load(); }, [load]));
-
-  const toggleExpand = (id) => {
-    if (expanded === id) { setExpanded(null); return; }
-    setExpanded(id);
-    if (!itemsMap[id]) {
-      try { setItemsMap(m => ({ ...m, [id]: getShiftOrderItems(id) })); } catch(_) {}
-    }
-  };
-
-  const selectEntry = (entry) => {
-    setSelected(s => s?.id === entry.id ? null : entry);
-    if (!itemsMap[entry.id]) {
-      try { setItemsMap(m => ({ ...m, [entry.id]: getShiftOrderItems(entry.id) })); } catch(_) {}
-    }
-  };
-
-  const onCardPress = (entry) => isLandscape ? selectEntry(entry) : toggleExpand(entry.id);
-
-  // ─── Зарплата ───────────────────────────────────────────────────────────
-  const loadSalary = useCallback(() => {
-    try { setSalaryList(getAllEmployeesSalary(salaryFrom, salaryTo)); } catch (e) { console.error(e); }
-  }, [salaryFrom, salaryTo]);
-
-  useEffect(() => {
-    if (mainTab === 'salary') loadSalary();
-  }, [mainTab, salaryPeriod]);
-
-  // Шаг тура переносит на нужную вкладку и нужное состояние: шаги про «Смены» — на «Смены»,
-  // про «Зарплату» — на «Зарплату»; период и список — без открытого сотрудника (в портрете
-  // детализация заменяет список), остальное — с открытым сотрудником, у которого есть смены
-  useEffect(() => {
-    const k = activeTourKey;
-    if (!k || typeof k !== 'string') return;
-    if (k === 'workjournal.search' || k === 'workjournal.list' || k === 'workjournal.stats') { setMainTab('shifts'); return; }
-    if (!k.startsWith('workjournal.salary.')) return;
-    setMainTab('salary');
-    if (k === 'workjournal.salary.period' || k === 'workjournal.salary.list') {
-      // в портрете открытый сотрудник заменяет собой период и список — их не было бы видно
-      tourAutoSelected.current = false;
-      if (selectedEmp) backToSalaryList();
-      return;
-    }
-    if (!selectedEmp) {
-      // список мог ещё не загрузиться (вкладку только что открыл сам шаг) — считаем напрямую
-      let list = salaryList;
-      if (!list.length) { try { list = getAllEmployeesSalary(salaryFrom, salaryTo); } catch (_) { list = []; } }
-      if (list.length) {
-        tourAutoSelected.current = true;
-        selectEmployee(list.find(x => x.hours > 0) || list[0]);
+      const { from, to } = period();
+      const list = getWorkJournal({ dateFrom: from, dateTo: to, limit: 500 });
+      setShifts(list);
+      setSel(p => (p && list.find(x => x.id === p) ? p : list[0]?.id || null));
+      setUsers((getUsers() || []).filter(u => u.active !== 0));
+      if (isAdmin) {
+        const sal = getAllEmployeesSalary(from, to); setSalary(sal);
+        setSelEmp(p => (p && sal.find(r => r.user.id === p) ? p : sal[0]?.user.id || null));
       }
-    }
-  }, [activeTourKey]);
-
-  const selectEmployee = (row) => {
-    setOpenShiftId(null); setAddShiftOpen(false);
-    setSelectedEmp(row);
-    try { setEmpDetail(calcEmployeeSalary(row.user.id, salaryFrom, salaryTo)); } catch (e) { console.error(e); }
-  };
-
-  const backToSalaryList = () => { setSelectedEmp(null); setEmpDetail(null); setOpenShiftId(null); setAddShiftOpen(false); };
-
-  const refreshEmpDetail = () => {
-    if (!selectedEmp) return;
-    try {
-      setEmpDetail(calcEmployeeSalary(selectedEmp.user.id, salaryFrom, salaryTo));
-      loadSalary();
     } catch (e) { console.error(e); }
+  }, [preset, range]);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useEffect(() => { try { setCard(sel ? getShiftCard(sel) : null); setShowAll(false); } catch (e) { console.error(e); } }, [sel, shifts]);
+  useEffect(() => { try { setDetail(selEmp ? calcEmployeeSalary(selEmp, period().from, period().to) : null); } catch (e) { console.error(e); } }, [selEmp, salary]);
+  useEffect(() => { try { if (!getBusinessProfile()?.tours_seen?.WorkJournal) { const t = setTimeout(() => setTourOpen(true), 500); return () => clearTimeout(t); } } catch (_) {} }, []);
+
+  const steps = [
+    { key: 'journal.period', title: 'Период', text: 'Те же «Сегодня», «Неделя», «Месяц», что и в «Отчётности». Зарплата считается по смене и по времени — одна формула на весь экран и отчёт.' },
+    { key: 'journal.list', title: 'Смены', text: 'История смен со статусом: идёт или закрыта. Найти смену можно по сотруднику или дате.' },
+    { key: 'journal.card', title: 'Карточка', text: 'Время, выручка, оплата, начисление и что продано. Время смены можно поправить (администратор), причина запоминается.' },
+    { key: 'journal.add', title: '+ Смена', text: 'Открыть смену сейчас или добавить задним числом — выберите сотрудника, которому она засчитывается.' },
+  ];
+  const openPop = () => {
+    try { pRef.current.measureInWindow((x, y, w, h) => { setAnchor({ top: y + h + 8, right: Math.max(8, Dimensions.get('window').width - (x + w)) }); setPop(true); }); }
+    catch (_) { setPop(true); }
+  };
+  const label = preset === 'custom' ? `${ddmm(range.from).slice(0, 5)} — ${ddmm(range.to).slice(0, 5)}` : PRESETS.find(p => p.key === preset).label;
+
+  // ── действия ──
+  const closeIt = () => { try { closeShift(card.shift.id); toast.show('Смена закрыта'); load(); } catch (e) { console.error(e); toast.show('Не удалось закрыть смену', 'warn'); } };
+  const askDelete = () => Alert.alert('Удалить смену?', card.orders > 0 ? `В смене ${card.orders} заказов — они останутся в продажах, но без привязки к смене.` : 'Смена будет удалена.', [{ text: 'Отмена' }, { text: 'Удалить', style: 'destructive', onPress: () => { try { deleteShift(card.shift.id); load(); } catch (e) { console.error(e); } } }]);
+  const saveTime = ({ openedAt, closedAt, reason }) => { try { updateShiftHours(card.shift.id, { openedAt, closedAt, reason }); toast.show('Время смены сохранено'); load(); } catch (e) { console.error(e); toast.show('Не удалось сохранить время', 'warn'); } };
+  const createShifts = ({ mode, employee, days, reason, adjustment }) => {
+    try {
+      if (mode === 'now') { openShift(0, employee.id, employee.name, getCurrentLocationId()); toast.show(`Смена открыта: ${employee.name}`); }
+      else {
+        let first = null;
+        days.forEach((d, i) => { const id = createManualShift(employee.id, employee.name, d.start, d.end, getCurrentLocationId(), reason); if (i === 0) first = id; });
+        // Доплата ложится на первую из созданных смен — иначе при нескольких днях сумма незаметно умножалась бы
+        if (adjustment && first) setShiftAdjustment(first, adjustment, reason);
+        toast.show(`Добавлено смен: ${days.length}`);
+      }
+      load(); return { ok: true };
+    } catch (e) { console.error(e); return { ok: false, message: 'Не удалось создать смену. Попробуйте ещё раз.' }; }
+  };
+  const saveAdj = () => {
+    try { setShiftAdjustment(adjModal.shift.id, adjModal.value, adjModal.reason.trim()); setAdjModal(null); toast.show('Сохранено'); load(); } catch (e) { console.error(e); toast.show('Не удалось сохранить', 'warn'); }
   };
 
-  // Открыть/закрыть смену за сотрудника — тот же openShift/closeShift, что
-  // и обычный ход дел, просто userId берётся не из своей сессии, а из
-  // выбранного в списке сотрудника. Доступно только администратору.
-  const toggleShiftForEmployee = (row) => {
-    const open = getOpenShift(row.user.id);
-    if (open) {
-      Alert.alert('Закрыть смену?', `${row.user.name} — смена закроется прямо сейчас.`, [
-        { text: 'Отмена', style: 'cancel' },
-        { text: 'Закрыть', onPress: () => {
-          try { closeShift(open.id); toast.show('Смена закрыта'); refreshEmpDetail(); } catch (e) { console.error(e); }
-        } },
-      ]);
-    } else {
-      Alert.alert('Открыть смену?', `Смена откроется за ${row.user.name}, начиная с текущего момента.`, [
-        { text: 'Отмена', style: 'cancel' },
-        { text: 'Открыть', onPress: () => {
-          try { openShift(0, row.user.id, row.user.name); toast.show('Смена открыта'); refreshEmpDetail(); } catch (e) { console.error(e); }
-        } },
-      ]);
-    }
-  };
+  const sf = shifts.filter(x => !q.trim() || `${x.user_name} ${dl(x.opened_at)}`.toLowerCase().includes(q.trim().toLowerCase()));
+  const revenue = shifts.reduce((a, x) => a + (x.total_revenue || 0), 0), orders = shifts.reduce((a, x) => a + (x.order_count || 0), 0);
+  const nowOn = [...new Set(shifts.filter(x => x.status === 'open').map(x => x.user_name))];
+  const Tile = ({ k, v, s }) => <GlassSurface radius={glass.radius.tile} padding={16} style={{ flex: 1, minWidth: 180 }}><Text style={st.kl}>{k}</Text><Text style={st.val} numberOfLines={1}>{v}</Text>{!!s && <Text style={st.sub}>{s}</Text>}</GlassSurface>;
 
-  const filtered = entries.filter(e =>
-    !search.trim() ||
-    e.user_name?.toLowerCase().includes(search.toLowerCase()) ||
-    fmtDate(e.opened_at).includes(search)
+  // ── карточка смены ──
+  const shiftCard = !card ? <Text style={st.empty}>Выберите смену</Text> : (() => {
+    const sh = card.shift, open = !sh.closed_at, mins = minsOf(sh), pay = !open ? shiftPay(sh, mins) : null;
+    const items = showAll ? card.items : card.items.slice(0, 5), pcs = card.items.reduce((a, i) => a + i.qty, 0);
+    return (
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <View style={st.who}><View style={st.av}><Text style={st.avT}>{(sh.user_name || '?')[0].toUpperCase()}</Text></View>
+          <View style={{ flex: 1 }}><Text style={st.wN}>{sh.user_name}</Text><Text style={st.wS}>{rateText(sh)}</Text></View>
+          <View style={[st.pill, { borderColor: open ? 'rgba(157,191,230,0.5)' : 'rgba(120,183,150,0.4)' }]}><Text style={[st.pillT, { color: open ? colors.orangeLight : colors.green }]}>{open ? 'Идёт' : 'Закрыта'}</Text></View></View>
+        <View style={st.mini}>
+          {[['Начало', `${dl(sh.opened_at)} · ${tm(sh.opened_at)}`], ['Конец', open ? 'идёт сейчас' : `${dl(sh.closed_at)} · ${tm(sh.closed_at)}`], ['Длительность', fmtDur(mins)]].map(([k, v], i) => (
+            <View key={k} style={st.miniI}><Text style={st.miniK}>{k}</Text><Text style={[st.miniV, i === 1 && open && { color: colors.orangeLight }]}>{v}</Text></View>))}
+        </View>
+        {!!sh.hours_edited && <Text style={st.edited}>Время изменено вручную{sh.edit_reason ? `: ${sh.edit_reason}` : ''}</Text>}
+        {!!sh.created_manually && !sh.hours_edited && <Text style={st.edited}>Смена добавлена вручную</Text>}
+        <GlassSurface radius={glass.radius.tile} style={{ marginBottom: 12 }}>
+          <View style={st.stripe} /><View style={{ flexDirection: 'row', alignItems: 'center', padding: 18, paddingLeft: 24 }}>
+            <View style={{ flex: 1 }}><Text style={st.kl}>Выручка</Text><Text style={st.big}>{fmt(card.revenue)} ₽</Text></View>
+            <View style={{ alignItems: 'flex-end' }}><Text style={st.kl}>{card.orders} заказов</Text><Text style={st.avg}>{card.orders ? `ср. чек ${fmt(card.revenue / card.orders)} ₽` : '—'}</Text></View></View>
+        </GlassSurface>
+        <View style={st.pay2}>{[['Наличные', card.cash], ['Карта', card.card], ...card.other.map(o => [o.name, o.sum])].map(([n, v]) => <View key={n} style={st.pay2I}><Text style={st.pay2N}>{n}</Text><Text style={st.pay2V}>{fmt(v)} ₽</Text></View>)}</View>
+        <View style={st.earn}><View style={{ flexDirection: 'row', alignItems: 'baseline' }}><Text style={st.earnL}>Начислено за смену</Text><Text style={st.earnV}>{open ? 'после закрытия' : pay.amount != null ? `${fmt(pay.amount + (sh.adjustment_amount || 0))} ₽` : '—'}</Text></View>
+          <Text style={st.earnS}>{open ? 'Зарплата рассчитывается после закрытия смены.' : pay.text}{sh.adjustment_amount ? ` Доплата/удержание: ${sg(sh.adjustment_amount)}${fmt(Math.abs(sh.adjustment_amount))} ₽.` : ''}</Text></View>
+        <View style={st.grp}><View style={st.gh}><Text style={st.ghT}>Продано</Text><Text style={st.ghS}>{card.items.length ? `${card.items.length} позиций · ${pcs} шт` : 'продаж не было'}</Text></View>
+          {items.map((i, k) => <View key={k} style={st.pi}><View style={st.q}><Text style={st.qT}>× {i.qty}</Text></View><Text style={st.piN} numberOfLines={1}>{i.name}</Text><Text style={st.piS}>{fmt(i.sum)} ₽</Text></View>)}
+          {card.items.length > 5 && <Pressable onPress={() => setShowAll(v => !v)}><Text style={st.more}>{showAll ? 'Свернуть' : `Ещё ${card.items.length - 5} поз.`}</Text></Pressable>}</View>
+        <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+          {open && <GlassButton style={{ flex: 1 }} label="Закрыть смену" height={50} onPress={closeIt} />}
+          {isAdmin && <GlassButton style={{ flex: 1 }} label="Изменить время" height={50} onPress={() => setTimeModal(sh)} />}
+        </View>
+        {isAdmin && <Pressable onPress={askDelete} hitSlop={8} style={{ alignSelf: 'flex-start', marginTop: 12 }}><Text style={st.del}>Удалить смену</Text></Pressable>}
+      </ScrollView>
+    );
+  })();
+
+  const shiftsView = (
+    <>
+      <View style={st.tiles}>
+        <Tile k="Выручка за смены" v={`${fmt(revenue)} ₽`} s={`${shifts.length} смен${shifts.length ? ` · в среднем ${fmt(revenue / shifts.length)} ₽` : ''}`} />
+        <Tile k="Заказов" v={String(orders)} s="во всех сменах периода" />
+        <Tile k="Сейчас на смене" v={nowOn.length ? nowOn.join(', ') : '—'} s={nowOn.length ? 'смена открыта' : 'открытых смен нет'} />
+      </View>
+      <View style={[st.two, isLandscape && { flexDirection: 'row' }]}>
+        <View style={[st.lc, isLandscape && { flex: 0.9 }, hl.list.style]}>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {sf.length === 0 ? <Text style={st.empty}>{shifts.length ? 'Ничего не найдено' : 'За период смен нет'}</Text> : sf.map(x => {
+              const open = x.status === 'open';
+              return (
+                <Pressable key={x.id} style={[st.sh, sel === x.id && st.shSel]} onPress={() => setSel(x.id)}>
+                  <View style={[st.dot, { backgroundColor: open ? colors.orange : colors.green }]} />
+                  <View style={{ flex: 1 }}><Text style={st.shD}>{dl(x.opened_at)} · {tm(x.opened_at)}</Text><Text style={st.shS}>{x.user_name}{open ? ' · идёт' : ''}</Text></View>
+                  <View style={{ alignItems: 'flex-end' }}><Text style={st.shA}>{fmt(x.total_revenue)} ₽</Text><Text style={st.shS}>{open ? 'идёт' : fmtDur(minsOf(x))}</Text></View>
+                </Pressable>);
+            })}
+          </ScrollView>
+        </View>
+        <View style={[st.rc, isLandscape && { flex: 1.1 }, hl.card.style]}>{shiftCard}</View>
+      </View>
+    </>
   );
 
-  // Сводка — итоги и разбивка по сотрудникам
-  const totalRevenue = filtered.reduce((s, e) => s + (e.total_revenue || 0), 0);
-  const avgRevenue = filtered.length > 0 ? totalRevenue / filtered.length : 0;
-  const byEmployee = Object.values(
-    filtered.reduce((acc, e) => {
-      const name = e.user_name || 'Сотрудник';
-      if (!acc[name]) acc[name] = { name, shifts: 0, revenue: 0 };
-      acc[name].shifts += 1;
-      acc[name].revenue += e.total_revenue || 0;
-      return acc;
-    }, {})
-  ).sort((a, b) => b.revenue - a.revenue);
-
-  const empDetailContent = selectedEmp && empDetail && (
-    <ScrollView showsVerticalScrollIndicator={false}>
-      <Pressable onPress={backToSalaryList} style={styles.backToSummary} hitSlop={8}>
-        <Text style={styles.backToSummaryTxt}>← Все сотрудники</Text>
-      </Pressable>
-
-      <Text style={styles.sideShiftDate}>{selectedEmp.user.name}</Text>
-      <Text style={styles.sideShiftUser}>{empDetail.hours} ч за период</Text>
-
-      <View style={[styles.statsRow, { marginTop: 16, position: 'relative' }, salaryTotalsHighlight.style]}>
-        <View style={styles.statBox}>
-          <Text style={styles.statVal}>{fmt(empDetail.base)} ₽</Text>
-          <Text style={styles.statLbl}>База</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Text style={styles.statVal}>{fmt(empDetail.kpiBonus)} ₽</Text>
-          <Text style={styles.statLbl}>Премия KPI</Text>
-        </View>
-        {!!empDetail.adjustments && (
-          <View style={styles.statBox}>
-            <Text style={[styles.statVal, { color: empDetail.adjustments > 0 ? colors.green : colors.red }]}>
-              {empDetail.adjustments > 0 ? '+' : ''}{fmt(empDetail.adjustments)} ₽
-            </Text>
-            <Text style={styles.statLbl}>Доплаты</Text>
-          </View>
-        )}
-        <View style={styles.statBox}>
-          <Text style={[styles.statVal, { color: colors.orange }]}>{fmt(empDetail.total)} ₽</Text>
-          <Text style={styles.statLbl}>Итого</Text>
-        </View>
-        {salaryTotalsHighlight.overlay}
+  // ── зарплата ──
+  const sum = k => salary.reduce((a, r) => a + (r[k] || 0), 0), lastSh = detail?.shiftBreakdown?.[0];
+  const salaryView = (
+    <>
+      <View style={st.tiles}>
+        <Tile k="К выплате за период" v={`${fmt(sum('total'))} ₽`} s="та же цифра — в отчёте «Прибыль», строка «Зарплата»" />
+        <Tile k="Премии" v={`${fmt(sum('kpiBonus'))} ₽`} s="по выполнению плана" />
+        <Tile k="Доплаты и удержания" v={`${sg(sum('adjustments'))}${fmt(Math.abs(sum('adjustments')))} ₽`} s="ручные правки по сменам" />
       </View>
-
-      {getSession()?.role === 'admin' && (
-        <View style={[{ position: 'relative' }, salaryControlsHighlight.style]}>
-          <Pressable style={styles.shiftToggleBtn} onPress={() => toggleShiftForEmployee(selectedEmp)}>
-            <Text style={styles.shiftToggleBtnTxt}>
-              {getOpenShift(selectedEmp.user.id) ? '⏹ Закрыть смену сейчас' : '▶ Открыть смену сейчас'}
-            </Text>
-          </Pressable>
-          <Pressable style={[styles.shiftToggleBtn, { marginTop: 10 }]} onPress={() => setAddShiftOpen(v => !v)}>
-            <Text style={styles.shiftToggleBtnTxt}>{addShiftOpen ? '✕ Закрыть форму' : '＋ Смена задним числом'}</Text>
-          </Pressable>
-          {addShiftOpen && (
-            <AddShiftBox
-              employee={{ id: selectedEmp.user.id, name: selectedEmp.user.name }}
-              onCancel={() => setAddShiftOpen(false)}
-              onCreated={(id, found) => {
-                setAddShiftOpen(false);
-                setOpenShiftId(id);
-                setOpenShiftTab(found > 0 ? 'orders' : 'time'); // есть продажи в это время — сразу предложить перенести
-                refreshEmpDetail();
-              }}
-            />
-          )}
-          {salaryControlsHighlight.overlay}
+      <View style={[st.two, isLandscape && { flexDirection: 'row' }]}>
+        <View style={[st.lc, isLandscape && { flex: 0.9 }]}>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {salary.length === 0 ? <Text style={st.empty}>За период начислений нет</Text> : salary.map(r => (
+              <Pressable key={r.user.id} style={[st.sh, selEmp === r.user.id && st.shSel]} onPress={() => setSelEmp(r.user.id)}>
+                <View style={{ flex: 1 }}><Text style={st.shD}>{r.user.name}{r.user.active === 0 ? ' · не работает' : ''}</Text><Text style={st.shS}>{rateText(r.user)}</Text></View><Text style={st.shA}>{fmt(r.total)} ₽</Text></Pressable>))}
+          </ScrollView>
         </View>
-      )}
-
-      <View style={[{ position: 'relative' }, salaryShiftsHighlight.style]}>
-      <Text style={styles.ordersTitle}>Смены за период</Text>
-      {empDetail.shiftBreakdown.length === 0 ? (
-        <Text style={styles.cardUser}>Смен за этот период нет</Text>
-      ) : (
-        empDetail.shiftBreakdown.map((s, ii, arr) => {
-          const isOpenThis = openShiftId === s.id;
-          const toggle = () => { setOpenShiftTab('time'); setOpenShiftId(isOpenThis ? null : s.id); };
-          return (
-          <View key={s.id} style={[ii < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
-            <Pressable style={styles.shiftEditRow} onPress={getSession()?.role === 'admin' ? toggle : undefined}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.orderName}>
-                  {s.createdManually ? '📝 ' : ''}{fmtDate(s.opened_at)}
-                </Text>
-                <Text style={styles.orderQty}>
-                  {s.closed_at ? `→ ${fmtDate(s.closed_at)}` : 'ещё открыта'}
-                  {s.hoursEdited ? ' · часы скорректированы' : ''}
-                </Text>
-              </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text style={styles.orderAmt}>{s.hours != null ? `${s.hours} ч` : '—'}</Text>
-                {s.pay != null && <Text style={styles.orderQty}>{fmt(s.pay)} ₽</Text>}
-                {!!s.adjustmentAmount && (
-                  <Text style={[styles.orderQty, { color: s.adjustmentAmount > 0 ? colors.green : colors.red }]}>
-                    {s.adjustmentAmount > 0 ? '+' : ''}{fmt(s.adjustmentAmount)} ₽
-                  </Text>
-                )}
-              </View>
-              {getSession()?.role === 'admin' && (
-                <View style={styles.editHoursBtn}>
-                  <Text style={styles.editHoursBtnTxt}>{isOpenThis ? '✕' : '✎'}</Text>
-                </View>
-              )}
-            </Pressable>
-
-            {isOpenThis && getSession()?.role === 'admin' && (
-              <ShiftEditBox
-                key={`${s.id}-${openShiftTab}`}
-                shift={s}
-                employee={{ id: selectedEmp.user.id, name: selectedEmp.user.name }}
-                initialTab={openShiftTab}
-                onChanged={refreshEmpDetail}
-                onDeleted={() => { setOpenShiftId(null); refreshEmpDetail(); }}
-              />
-            )}
-          </View>
-          );
-        })
-      )}
-        {salaryShiftsHighlight.overlay}
+        <View style={[st.rc, isLandscape && { flex: 1.1 }]}>
+          {!detail ? <Text style={st.empty}>Выберите сотрудника</Text> : (
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={st.sec}>{detail.user.name}</Text><Text style={st.wS}>{rateText(detail.user)}</Text>
+              <Text style={st.hv}>{fmt(detail.total)} ₽</Text>
+              <View style={st.kv}><Text style={st.kvL}>База по ставке</Text><Text style={st.kvV}>{fmt(detail.base)} ₽</Text></View>
+              <View style={st.kv}><Text style={st.kvL}>Премия за KPI</Text><Text style={[st.kvV, { color: colors.green }]}>+{fmt(detail.kpiBonus)} ₽</Text></View>
+              <View style={st.kv}><Text style={st.kvL}>Доплаты и удержания</Text><Text style={[st.kvV, { color: detail.adjustments < 0 ? '#E9A9A2' : colors.green }]}>{sg(detail.adjustments)}{fmt(Math.abs(detail.adjustments))} ₽</Text></View>
+              <Text style={[st.sec, { marginTop: 18 }]}>Смены</Text>
+              {detail.shiftBreakdown.length === 0 ? <Text style={st.wS}>Смен за период нет</Text> : detail.shiftBreakdown.map(s => (
+                <Pressable key={s.id} style={st.kv} onPress={() => isAdmin && setAdjModal({ shift: s, value: s.adjustmentAmount, reason: s.adjustmentReason })}>
+                  <Text style={st.kvL}>{dl(s.opened_at)} · {s.hours != null ? `${String(s.hours).replace('.', ',')} ч` : 'идёт'}{s.adjustmentAmount ? ` · ${sg(s.adjustmentAmount)}${fmt(Math.abs(s.adjustmentAmount))}` : ''}</Text>
+                  <Text style={st.kvV}>{s.pay != null ? `${fmt(s.pay)} ₽` : '—'}</Text></Pressable>))}
+              {isAdmin && lastSh && <GlassButton label="Доплата / удержание" height={50} style={{ marginTop: 14 }} onPress={() => setAdjModal({ shift: lastSh, value: lastSh.adjustmentAmount, reason: lastSh.adjustmentReason })} />}
+              {isAdmin && lastSh && <Text style={st.hint}>Применяется к последней смене периода — {dl(lastSh.opened_at)}. Другую смену выберите нажатием на строку.</Text>}
+            </ScrollView>)}
+        </View>
       </View>
-    </ScrollView>
+    </>
   );
 
   return (
-    <View style={styles.root}>
-      <TopBar
-        title="Журнал работы"
-        onBack={() => goBackSmart(navigation)}
-        navigation={navigation}
-        activeScreen="WorkJournal"
-        rightElement={
-          <Pressable style={styles.tourBtn} onPress={() => { setTourMode(mainTab === 'salary' ? 'salary' : 'shifts'); setTourOpen(true); }} hitSlop={10} accessibilityLabel="Подсказка" accessibilityRole="button">
-            <Text style={styles.tourBtnTxt}>?</Text>
-          </Pressable>
-        }
-      />
-
-      <View style={[styles.mainTabBar, { position: 'relative' }, tabsHighlight.style]}>
-        <Pressable style={[styles.mainTabBtn, mainTab === 'shifts' && styles.mainTabBtnActive]} onPress={() => setMainTab('shifts')}>
-          <Text style={[styles.mainTabTxt, mainTab === 'shifts' && styles.mainTabTxtActive]}>Смены</Text>
-        </Pressable>
-        {getSession()?.role === 'admin' && (
-          <Pressable style={[styles.mainTabBtn, mainTab === 'salary' && styles.mainTabBtnActive]} onPress={() => setMainTab('salary')}>
-            <Text style={[styles.mainTabTxt, mainTab === 'salary' && styles.mainTabTxtActive]}>Зарплата</Text>
-          </Pressable>
-        )}
-        {tabsHighlight.overlay}
+    <View style={st.root}>
+      <TopBar title="Журнал работы" onBack={() => goBackSmart(navigation)} navigation={navigation} activeScreen="WorkJournal"
+        rightElement={<Pressable style={st.tourBtn} onPress={() => setTourOpen(true)} hitSlop={10} accessibilityLabel="Подсказка"><Text style={st.tourTxt}>?</Text></Pressable>} />
+      <View style={StyleSheet.absoluteFill} pointerEvents="none"><SoftGlow size={620} color="127,168,217" alpha={0.14} style={{ position: 'absolute', left: -170, top: -150 }} /></View>
+      <View style={st.tb}>
+        {isAdmin ? <View style={{ width: 300 }}><GlassSegmented items={[{ key: 'shifts', label: 'Смены' }, { key: 'salary', label: 'Зарплата' }]} value={tab} onChange={setTab} height={46} /></View> : null}
+        <View style={st.search}><Icon name="search" size={20} color={colors.muted} /><TextInput style={st.searchIn} color={colors.text} value={q} onChangeText={setQ} placeholder="Поиск по сотруднику или дате" placeholderTextColor={colors.muted} /></View>
+        <Pressable ref={pRef} collapsable={false} style={[st.pbtn, pop && st.pbtnOn, hl.period.style, { position: 'relative' }]} onPress={openPop}>
+          <Icon name="calendar" size={18} color={colors.textDim} /><Text style={st.pbtnT}>{label}</Text><Text style={st.car}>▾</Text>{hl.period.overlay}</Pressable>
+        {isAdmin && <View style={{ position: 'relative', ...hl.add.style }}><GlassButton tone="solid" icon="plus" label="Смена" height={50} onPress={() => setNewOpen(true)} />{hl.add.overlay}</View>}
       </View>
+      <View style={{ flex: 1, padding: 20, paddingTop: 14 }}>{tab === 'shifts' || !isAdmin ? shiftsView : salaryView}</View>
 
-      {mainTab === 'shifts' && (
-      <View key={isLandscape ? 'landscape' : 'portrait'} style={{ flex: 1, flexDirection: isLandscape ? 'row' : 'column' }}>
-      <Animated.View style={[styles.content, { flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-        {/* Поиск */}
-        <View style={[styles.searchWrap, { position: 'relative' }, searchHighlight.style]}>
-          <TextInput
-            style={styles.searchInput}
-            color={colors.text}
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Поиск по сотруднику или дате..."
-            placeholderTextColor={colors.muted}
-          />
-          {searchHighlight.overlay}
-        </View>
+      <Modal visible={pop} transparent animationType="fade" onRequestClose={() => setPop(false)}>
+        <View style={{ flex: 1 }}><Pressable style={StyleSheet.absoluteFill} onPress={() => setPop(false)} />
+          <View style={[st.pop, { top: anchor.top, right: anchor.right }]}>
+            <GlassSurface floating radius={22} tint="32,40,55" alpha={0.97} padding={20} sheen={['rgba(255,255,255,0.10)', 'rgba(255,255,255,0.01)']}>
+              <Text style={st.pl}>Период</Text>
+              <View style={st.chips}>{[...PRESETS, { key: 'custom', label: 'Свой период…' }].map(p => (
+                <Pressable key={p.key} style={[st.chip, preset === p.key && st.chipOn]} onPress={() => { if (p.key === 'custom') { setPop(false); setPicker('from'); } else { setPreset(p.key); setPop(false); } }}>
+                  <Text style={[st.chipT, preset === p.key && { color: colors.orangeLight }]}>{p.label}</Text></Pressable>))}</View>
+              <Text style={st.pf}>{ddmm(period().from)} — {ddmm(period().to)}</Text>
+            </GlassSurface></View></View>
+      </Modal>
+      <DatePicker visible={picker === 'from'} value={range.from} title="Начало периода" onClose={() => setPicker(null)} onChange={v => { setRange(x => ({ ...x, from: v })); setPicker('to'); }} />
+      <DatePicker visible={picker === 'to'} value={range.to} title="Конец периода" onClose={() => setPicker(null)} onChange={v => { setRange(x => ({ ...x, to: v })); setPreset('custom'); setPicker(null); }} />
 
-        <View style={[{ flex: 1, position: 'relative' }, listHighlight.style]}>
-        {filtered.length === 0 ? (
-          <EmptyState
-            icon="🕓"
-            title="Нет записей"
-            text="История смен появится здесь после первого закрытия смены"
-          />
-        ) : (
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingBottom: 32, width: '100%', maxWidth: 760, alignSelf: 'center' }}>
-            {filtered.map((entry, idx) => {
-              const isOpen = isLandscape ? selected?.id === entry.id : expanded === entry.id;
-              const duration = fmtDuration(entry.opened_at, entry.closed_at);
-              const items = itemsMap[entry.id] || [];
+      <ShiftTimeModal visible={!!timeModal} shift={timeModal} user={timeModal} onSave={saveTime} onClose={() => setTimeModal(null)} isNarrow={!isLandscape} />
+      <NewShiftModal visible={newOpen} employees={users} defaultEmployeeId={tab === 'salary' ? selEmp : card?.shift?.user_id} onCreate={createShifts} onClose={() => setNewOpen(false)} isNarrow={!isLandscape} />
 
-              return (
-                <View key={entry.id} style={[styles.card, idx > 0 && { marginTop: 10 }, isLandscape && isOpen && styles.cardActive]}>
-                  {/* Шапка смены */}
-                  <Pressable style={styles.cardHeader} onPress={() => onCardPress(entry)}>
-                    <View style={styles.cardHeaderLeft}>
-                      <View style={[styles.statusDot, { backgroundColor: entry.closed_at ? colors.green : colors.orange }]} />
-                      <View>
-                        <Text style={styles.cardDate}>{fmtDate(entry.opened_at)}</Text>
-                        <Text style={styles.cardUser}>{entry.user_name || 'Сотрудник'}</Text>
-                      </View>
-                    </View>
-                    <View style={styles.cardHeaderRight}>
-                      {can('view_revenue') && <Text style={styles.cardTotal}>{fmt(entry.total_revenue)} ₽</Text>}
-                      {duration && <Text style={styles.cardDuration}>{duration}</Text>}
-                      <Text style={[styles.chevron, isOpen && styles.chevronOpen]}>›</Text>
-                    </View>
-                  </Pressable>
-
-                  {/* Статистика — только в портрете, разворачивается на месте; в альбомной уходит в панель справа */}
-                  {!isLandscape && isOpen && (
-                    <View style={styles.cardBody}>
-                      <View style={styles.statsRow}>
-                        {[
-                          { label: 'Заказов',   val: entry.order_count || 0 },
-                          ...(can('view_revenue') ? [
-                            { label: 'Наличные',  val: `${fmt(entry.cash_total)} ₽` },
-                            { label: 'Карта',     val: `${fmt(entry.card_total)} ₽` },
-                          ] : []),
-                        ].map((s, i) => (
-                          <View key={i} style={styles.statBox}>
-                            <Text style={styles.statVal}>{s.val}</Text>
-                            <Text style={styles.statLbl}>{s.label}</Text>
-                          </View>
-                        ))}
-                      </View>
-
-                      {/* Время открытия/закрытия */}
-                      <View style={styles.timeRow}>
-                        <View style={styles.timeItem}>
-                          <Text style={styles.timeLbl}>Открыта</Text>
-                          <Text style={styles.timeVal}>{fmtDate(entry.opened_at)}</Text>
-                        </View>
-                        {entry.closed_at && (
-                          <View style={styles.timeItem}>
-                            <Text style={styles.timeLbl}>Закрыта</Text>
-                            <Text style={styles.timeVal}>{fmtDate(entry.closed_at)}</Text>
-                          </View>
-                        )}
-                      </View>
-
-                      {/* Список заказов */}
-                      {items.length > 0 && (
-                        <>
-                          <Text style={styles.ordersTitle}>Заказы смены</Text>
-                          {items.map((item, ii) => (
-                            <View key={ii} style={[styles.orderRow, ii < items.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
-                              <Text style={styles.orderName} numberOfLines={1}>{item.name}</Text>
-                              <Text style={styles.orderQty}>×{item.quantity}</Text>
-                              {can('view_revenue') && <Text style={styles.orderAmt}>{fmt(item.total)} ₽</Text>}
-                            </View>
-                          ))}
-                        </>
-                      )}
-                    </View>
-                  )}
-                </View>
-              );
-            })}
-          </ScrollView>
-        )}
-        {listHighlight.overlay}
-        </View>
-      </Animated.View>
-
-      {isLandscape && (
-        <View style={[styles.sidePanel, { position: 'relative' }, statsHighlight.style]}>
-          {selected ? (
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Pressable onPress={() => setSelected(null)} style={styles.backToSummary} hitSlop={8}>
-                <Text style={styles.backToSummaryTxt}>← Все смены</Text>
-              </Pressable>
-
-              <Text style={styles.sideShiftDate}>{fmtDate(selected.opened_at)}</Text>
-              <Text style={styles.sideShiftUser}>{selected.user_name || 'Сотрудник'}</Text>
-
-              <View style={[styles.statsRow, { marginTop: 16 }]}>
-                {[
-                  { label: 'Заказов',   val: selected.order_count || 0 },
-                  ...(can('view_revenue') ? [
-                    { label: 'Наличные',  val: `${fmt(selected.cash_total)} ₽` },
-                    { label: 'Карта',     val: `${fmt(selected.card_total)} ₽` },
-                  ] : []),
-                ].map((s, i) => (
-                  <View key={i} style={styles.statBox}>
-                    <Text style={styles.statVal}>{s.val}</Text>
-                    <Text style={styles.statLbl}>{s.label}</Text>
-                  </View>
-                ))}
-              </View>
-
-              <View style={styles.timeRow}>
-                <View style={styles.timeItem}>
-                  <Text style={styles.timeLbl}>Открыта</Text>
-                  <Text style={styles.timeVal}>{fmtDate(selected.opened_at)}</Text>
-                </View>
-                {selected.closed_at && (
-                  <View style={styles.timeItem}>
-                    <Text style={styles.timeLbl}>Закрыта</Text>
-                    <Text style={styles.timeVal}>{fmtDate(selected.closed_at)}</Text>
-                  </View>
-                )}
-              </View>
-
-              {(itemsMap[selected.id] || []).length > 0 && (
-                <>
-                  <Text style={styles.ordersTitle}>Заказы смены</Text>
-                  {(itemsMap[selected.id] || []).map((item, ii, arr) => (
-                    <View key={ii} style={[styles.orderRow, ii < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
-                      <Text style={styles.orderName} numberOfLines={1}>{item.name}</Text>
-                      <Text style={styles.orderQty}>×{item.quantity}</Text>
-                      {can('view_revenue') && <Text style={styles.orderAmt}>{fmt(item.total)} ₽</Text>}
-                    </View>
-                  ))}
-                </>
-              )}
-            </ScrollView>
-          ) : filtered.length > 0 && can('view_revenue') ? (
-            <>
-              <Text style={styles.sideLabel}>Выручка за смены</Text>
-              <Text style={styles.sideVal}>{fmt(totalRevenue)} ₽</Text>
-              <Text style={styles.sideSub}>{filtered.length} смен · ср. {fmt(avgRevenue)} ₽</Text>
-
-              <View style={styles.sideDivider} />
-
-              <Text style={styles.sideLabel}>По сотрудникам</Text>
-              <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 4 }}>
-                {byEmployee.map((emp, i) => (
-                  <View key={emp.name} style={[styles.catRow, i < byEmployee.length - 1 && styles.catRowDiv]}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.catName} numberOfLines={1}>{emp.name}</Text>
-                      <Text style={styles.catSub}>{emp.shifts} смен</Text>
-                    </View>
-                    <Text style={styles.catVal}>{fmt(emp.revenue)} ₽</Text>
-                  </View>
-                ))}
-              </ScrollView>
-            </>
-          ) : (
-            <EmptyState icon="🕓" title="Выберите смену" text="Тап по карточке слева покажет её подробности здесь" />
-          )}
-          {statsHighlight.overlay}
-        </View>
-      )}
-      </View>
-      )}
-
-      {mainTab === 'salary' && getSession()?.role === 'admin' && (
-      <View key={isLandscape ? 'landscape-salary' : 'portrait-salary'} style={{ flex: 1, flexDirection: isLandscape ? 'row' : 'column' }}>
-        <View style={{ flex: 1 }}>
-          {(!isLandscape && selectedEmp) ? (
-            empDetailContent
-          ) : (
-            <>
-              <View style={[styles.periodRow, { position: 'relative' }, salaryPeriodHighlight.style]}>
-                {SALARY_PERIODS.map(p => (
-                  <Pressable
-                    key={p.key}
-                    style={[styles.periodBtn, salaryPeriod === p.key && styles.periodBtnActive]}
-                    onPress={() => setSalaryPeriod(p.key)}
-                  >
-                    <Text style={[styles.periodTxt, salaryPeriod === p.key && styles.periodTxtActive]}>{p.label}</Text>
-                  </Pressable>
-                ))}
-                {salaryPeriodHighlight.overlay}
-              </View>
-
-              <View style={{ flex: 1, position: 'relative' }}>
-              {salaryList.length === 0 ? (
-                <EmptyState icon="💰" title="Нет активных сотрудников" text="Добавьте сотрудников в разделе «Сотрудники»" />
-              ) : (
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingBottom: 32, width: '100%', maxWidth: 760, alignSelf: 'center' }}>
-                  {salaryList.map((row, idx) => (
-                    <Pressable
-                      key={row.user.id}
-                      style={[styles.card, idx > 0 && { marginTop: 10 }, isLandscape && selectedEmp?.user.id === row.user.id && styles.cardActive]}
-                      onPress={() => selectEmployee(row)}
-                    >
-                      <View style={styles.cardHeader}>
-                        <View style={styles.cardHeaderLeft}>
-                          <View style={[styles.statusDot, { backgroundColor: getOpenShift(row.user.id) ? colors.green : colors.border }]} />
-                          <View>
-                            <Text style={styles.cardDate}>{row.user.name}</Text>
-                            <Text style={styles.cardUser}>{row.hours} ч{row.kpiBonus > 0 ? ` · премия ${fmt(row.kpiBonus)} ₽` : ''}</Text>
-                          </View>
-                        </View>
-                        <View style={styles.cardHeaderRight}>
-                          <Text style={styles.cardTotal}>{fmt(row.total)} ₽</Text>
-                          <Text style={styles.chevron}>›</Text>
-                        </View>
-                      </View>
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              )}
-              {salaryListHighlight.overlay}
-              </View>
-            </>
-          )}
-        </View>
-
-        {isLandscape && (
-          <View style={styles.sidePanel}>
-            {empDetailContent || (
-              <EmptyState icon="💰" title="Выберите сотрудника" text="Тап по карточке слева покажет начисление и смены за период" />
-            )}
-          </View>
-        )}
-      </View>
-      )}
-
-      <TourGuide
-        visible={tourOpen}
-        onClose={() => {
-          setTourOpen(false);
-          if (tourMode === 'full' || tourMode === 'shifts') markTourSeen('WorkJournal');
-          if (isAdmin && (tourMode === 'full' || tourMode === 'salary')) markTourSeen('WorkJournalSalary');
-          if (tourAutoSelected.current) { tourAutoSelected.current = false; backToSalaryList(); }
-        }}
-        steps={tourSteps}
-      />
+      <Modal visible={!!adjModal} transparent animationType="fade" onRequestClose={() => setAdjModal(null)}>
+        <KeyboardSafe style={st.ov}><Pressable style={StyleSheet.absoluteFill} onPress={() => setAdjModal(null)} />
+          <View style={st.win}><GlassSurface radius={26} tint="32,40,55" alpha={0.985} floating padding={24}>
+            <Text style={st.wT}>Доплата или удержание</Text>
+            <Text style={st.wSub}>Смена от {adjModal ? dl(adjModal.shift.opened_at) : ''}. Минус — удержание.</Text>
+            <View style={st.fld}><Text style={st.fl}>Сумма</Text><TextInput style={st.in} color={colors.text} value={adjModal ? String(adjModal.value || '') : ''} keyboardType="numbers-and-punctuation" placeholder="+300 или −200" placeholderTextColor="rgba(255,255,255,0.22)"
+              onChangeText={v => setAdjModal(p => ({ ...p, value: parseFloat(String(v).replace(',', '.').replace('−', '-')) || 0, raw: v }))} /><Text style={st.suf}>₽</Text></View>
+            <View style={st.fld}><Text style={st.fl}>Причина</Text><TextInput style={st.in} color={colors.text} value={adjModal?.reason || ''} onChangeText={v => setAdjModal(p => ({ ...p, reason: v }))} placeholder="Например, премия за вечер" placeholderTextColor="rgba(255,255,255,0.22)" /></View>
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}><GlassButton style={{ flex: 1 }} label="Отмена" height={54} onPress={() => setAdjModal(null)} /><GlassButton style={{ flex: 1 }} tone="accent" label="Сохранить" height={54} onPress={saveAdj} /></View>
+          </GlassSurface></View></KeyboardSafe>
+      </Modal>
+      <TourGuide visible={tourOpen} onClose={() => { setTourOpen(false); markTourSeen('WorkJournal'); }} steps={steps} />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  root:    { flex: 1, backgroundColor: colors.bg },
-  content: { flex: 1 },
-  tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(127,168,217,0.1)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)', alignItems: 'center', justifyContent: 'center' },
-  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, color: colors.orange },
-
-  // ── Боковая панель сводки (альбомная) ──
-  sidePanel:  { flex: 1, backgroundColor: colors.bg, margin: 12, marginLeft: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', padding: 20 },
-  sideLabel:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
-  sideVal:    { fontFamily: fonts.family, fontSize: 28, color: colors.orange, marginTop: 6 },
-  sideSub:    { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 2 },
-  sideDivider:{ height: 1, backgroundColor: colors.border, marginVertical: 16 },
-  backToSummary: { marginBottom: 16 },
-  backToSummaryTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
-  sideShiftDate: { fontFamily: fonts.family, fontSize: 20, color: colors.text },
-  sideShiftUser: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 2 },
-  catRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12 },
-  catRowDiv:  { borderBottomWidth: 1, borderBottomColor: colors.borderHi },
-  catName:    { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
-  catSub:     { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 1 },
-  catVal:     { fontFamily: fonts.familyRegular, fontSize: 16, color: colors.muted, marginLeft: 8 },
-
-  searchWrap:  { padding: 12, paddingBottom: 4, width: '100%', maxWidth: 792, alignSelf: 'center' },
-  searchInput: { backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.borderHi, paddingVertical: 14, paddingHorizontal: 14, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 16 },
-
-  emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
-  emptyTxt:  { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
-  emptyHint: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', marginTop: 8, lineHeight: 19, opacity: 0.7 },
-
-  card:       { backgroundColor: colors.surface2, borderRadius: 16, borderWidth: 1, borderColor: colors.borderHi, overflow: 'hidden' },
-  cardActive: { borderColor: 'rgba(127,168,217,0.5)', backgroundColor: 'rgba(127,168,217,0.06)' },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16 },
-  cardHeaderLeft:  { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
-  cardHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  statusDot:  { width: 9, height: 9, borderRadius: 5 },
-  cardDate:   { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
-  cardUser:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 2 },
-  cardTotal:  { fontFamily: fonts.family, fontSize: 18, color: colors.text },
-  cardDuration:{ fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
-  chevron:    { fontSize: 20, color: colors.muted, transform: [{ rotate: '90deg' }] },
-  chevronOpen:{ transform: [{ rotate: '-90deg' }] },
-
-  cardBody:   { borderTopWidth: 1, borderTopColor: colors.borderHi, padding: 16 },
-  statsRow:   { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  statBox:    { flex: 1, backgroundColor: colors.surface3, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 14, alignItems: 'center' },
-  statVal:    { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text, marginBottom: 3 },
-  statLbl:    { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
-
-  timeRow:    { flexDirection: 'row', gap: 12, marginBottom: 14 },
-  timeItem:   { flex: 1 },
-  timeLbl:    { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginBottom: 3 },
-  timeVal:    { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
-
-  ordersTitle:{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8 },
-  orderRow:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 11 },
-  orderName:  { fontFamily: fonts.familyRegular, fontSize: 16, color: colors.text, flex: 1 },
-  orderQty:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginRight: 10 },
-  orderAmt:   { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.orange },
-
-  // ── Переключатель вкладок Смены/Зарплата ──
-  mainTabBar: { flexDirection: 'row', gap: 6, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: colors.surface },
-  mainTabBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 12 },
-  mainTabBtnActive: { backgroundColor: 'rgba(127,168,217,0.12)' },
-  mainTabTxt: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
-  mainTabTxtActive: { color: colors.orange },
-
-  // ── Зарплата: период, детализация, правка часов ──
-  periodRow:  { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 8, borderBottomWidth: 1, borderBottomColor: colors.borderHi },
-  periodBtn:  { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface2 },
-  periodBtnActive: { borderColor: 'rgba(127,168,217,0.5)', backgroundColor: 'rgba(127,168,217,0.08)' },
-  periodTxt:  { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
-  periodTxtActive: { color: colors.orange },
-
-  shiftToggleBtn: { marginTop: 16, paddingVertical: 13, borderRadius: 12, backgroundColor: colors.surface3, borderWidth: 1, borderColor: colors.borderHi, alignItems: 'center' },
-  shiftToggleBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
-
-  shiftEditRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, gap: 10 },
-  editHoursBtn: { width: 34, height: 34, borderRadius: 10, backgroundColor: colors.surface3, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  editHoursBtnTxt: { fontSize: 16, color: colors.muted },
-
+const st = StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg },
+  tourBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(127,168,217,0.1)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.3)', alignItems: 'center', justifyContent: 'center' }, tourTxt: { fontFamily: fonts.family, fontSize: 18, color: colors.orange },
+  tb: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingTop: 14 },
+  search: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, height: 50, borderRadius: 14, paddingHorizontal: 16, backgroundColor: colors.surface, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' }, searchIn: { flex: 1, padding: 0, fontSize: 16, fontFamily: fonts.familyMedium, color: colors.text },
+  pbtn: { flexDirection: 'row', alignItems: 'center', gap: 8, height: 50, paddingHorizontal: 16, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' }, pbtnOn: { backgroundColor: 'rgba(127,168,217,0.18)', borderColor: 'rgba(157,191,230,0.5)' }, pbtnT: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text }, car: { fontSize: 11, color: colors.muted },
+  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 12 }, kl: { fontFamily: fonts.familySemibold, fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase', color: colors.textDim }, val: { fontFamily: fonts.display, fontSize: 26, color: colors.text, marginTop: 6 }, sub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 5, lineHeight: 17 },
+  two: { flex: 1, gap: 12 }, lc: { flex: 1, backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', padding: 12 }, rc: { flex: 1, backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', padding: 18 },
+  empty: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', padding: 28 },
+  sh: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)' }, shSel: { backgroundColor: 'rgba(127,168,217,0.10)' }, dot: { width: 10, height: 10, borderRadius: 5, marginRight: 14 },
+  shD: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text }, shS: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 }, shA: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
+  who: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 }, av: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(127,168,217,0.16)', borderWidth: 1, borderColor: 'rgba(157,191,230,0.3)', alignItems: 'center', justifyContent: 'center', marginRight: 12 }, avT: { fontFamily: fonts.family, fontSize: 17, color: colors.orangeLight },
+  wN: { fontFamily: fonts.display, fontSize: 20, color: colors.text }, wS: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 2 }, pill: { height: 26, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1, alignItems: 'center', justifyContent: 'center' }, pillT: { fontFamily: fonts.familySemibold, fontSize: 12 },
+  mini: { flexDirection: 'row', gap: 10, marginBottom: 12 }, miniI: { flex: 1, padding: 12, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' }, miniK: { fontFamily: fonts.familySemibold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: colors.muted, marginBottom: 5 }, miniV: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
+  edited: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.warning, marginBottom: 12 },
+  stripe: { position: 'absolute', left: 0, top: 18, bottom: 18, width: 3, borderTopRightRadius: 2, borderBottomRightRadius: 2, backgroundColor: colors.orange }, big: { fontFamily: fonts.display, fontSize: 36, color: colors.text, marginTop: 4, letterSpacing: -1 }, avg: { fontFamily: fonts.familySemibold, fontSize: 17, color: colors.text, marginTop: 4 },
+  pay2: { flexDirection: 'row', gap: 10, marginBottom: 12 }, pay2I: { flex: 1, flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' }, pay2N: { flex: 1, fontFamily: fonts.familyRegular, fontSize: 14, color: colors.textDim }, pay2V: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
+  earn: { padding: 14, borderRadius: 16, backgroundColor: 'rgba(127,168,217,0.08)', borderWidth: 1, borderColor: 'rgba(157,191,230,0.22)', marginBottom: 12 }, earnL: { flex: 1, fontFamily: fonts.familyRegular, fontSize: 13, color: colors.textDim }, earnV: { fontFamily: fonts.display, fontSize: 22, color: colors.text }, earnS: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 4, lineHeight: 18 },
+  grp: { borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', paddingHorizontal: 14, marginBottom: 12 }, gh: { flexDirection: 'row', alignItems: 'baseline', paddingTop: 12, paddingBottom: 6 }, ghT: { flex: 1, fontFamily: fonts.familySemibold, fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase', color: colors.muted }, ghS: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+  pi: { flexDirection: 'row', alignItems: 'center', paddingVertical: 9, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)' }, q: { minWidth: 44, height: 26, borderRadius: 8, backgroundColor: 'rgba(127,168,217,0.14)', alignItems: 'center', justifyContent: 'center', marginRight: 12 }, qT: { fontFamily: fonts.family, fontSize: 13, color: colors.orangeLight }, piN: { flex: 1, fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text }, piS: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.textDim },
+  more: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orangeLight, paddingVertical: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)' }, del: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  sec: { fontFamily: fonts.familySemibold, fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase', color: colors.muted, marginBottom: 6 }, hv: { fontFamily: fonts.display, fontSize: 44, color: colors.text, letterSpacing: -1.4, marginVertical: 8 },
+  kv: { flexDirection: 'row', paddingVertical: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)' }, kvL: { flex: 1, fontFamily: fonts.familyRegular, fontSize: 15, color: colors.textDim }, kvV: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text }, hint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 8, lineHeight: 18 },
+  pop: { position: 'absolute', width: 420, maxWidth: '94%' }, pl: { fontFamily: fonts.familySemibold, fontSize: 12, letterSpacing: 1.3, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10 }, pf: { marginTop: 14, fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, chip: { height: 40, paddingHorizontal: 16, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' }, chipOn: { backgroundColor: 'rgba(127,168,217,0.22)', borderColor: 'rgba(157,191,230,0.5)' }, chipT: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
+  ov: { flex: 1, backgroundColor: 'rgba(5,8,12,0.62)', alignItems: 'center', justifyContent: 'center' }, win: { width: '44%', minWidth: 440, maxWidth: 520 }, wT: { fontFamily: fonts.display, fontSize: 21, color: colors.text }, wSub: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 3, marginBottom: 12 },
+  fld: { flexDirection: 'row', alignItems: 'center', minHeight: 56, borderRadius: 16, paddingHorizontal: 18, marginBottom: 8, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' }, fl: { width: 90, fontFamily: fonts.familySemibold, fontSize: 13, color: colors.textDim }, in: { flex: 1, padding: 0, fontFamily: fonts.familySemibold, fontSize: 17, color: colors.text }, suf: { fontFamily: fonts.familyMedium, fontSize: 15, color: colors.orangeLight, marginLeft: 8 },
 });

@@ -1,8 +1,9 @@
 import { getDb } from './database';
 import {
-  calcCOGS, summarizeSales, getPayMethods, getShiftsInPeriod, calcShiftSalaryCost,
-  getOverheadItems, getInvestments, localDateStartISO, getSetting, setSetting,
+  calcCOGS, summarizeSales, getPayMethods, getShiftsInPeriod, getAllEmployeesSalary,
+  getOverheadItems, getInvestments, localDateStartISO, getBusinessStart,
 } from './queries';
+export { getBusinessStart };
 
 // Единая модель отчётности: все цифры считаются ОДИН раз за один проход, вкладки экрана только показывают готовое.
 // Дни — по МЕСТНОМУ времени (время заказов хранится в UTC): раньше заказы между 00:00 и 03:00 по Москве попадали
@@ -27,21 +28,6 @@ export const PRESETS = [
 ];
 export const rangeOf = key => ({ from: PRESETS.find(p => p.key === key).from(), to: localDate() });
 
-// Дата начала работы в приложении: от неё считаются накладные и амортизация (только за отработанные дни, а не за весь период).
-export function getBusinessStart() {
-  const saved = getSetting('bizStart');
-  if (saved) return saved;
-  const db = getDb(), c = [];
-  const push = v => { if (v) c.push(String(v).length > 10 ? localDate(new Date(v)) : String(v).slice(0, 10)); };
-  try {
-    push(db.getFirstSync(`SELECT MIN(created_at) AS v FROM orders`)?.v); push(db.getFirstSync(`SELECT MIN(date) AS v FROM expenses`)?.v);
-    push(db.getFirstSync(`SELECT MIN(opened_at) AS v FROM shifts`)?.v); push(db.getFirstSync(`SELECT MIN(invest_date) AS v FROM investments WHERE invest_date != ''`)?.v);
-  } catch (_) {}
-  const start = c.sort()[0] || localDate();
-  try { setSetting('bizStart', start); } catch (_) {}
-  return start;
-}
-
 // Крупные покупки растягиваются минимум на 3 месяца (короче — 3, не указано — тоже 3) и списываются по дням,
 // начиная с покупки или с начала работы в приложении (что позже): пока бизнесу меньше срока, амортизация — за реально прошедшие дни.
 const MIN_AMORT = 3;
@@ -59,7 +45,7 @@ export function prevPeriod(from, to) {
 function periodCosts(from, to, revenue, shifts) {
   const db = getDb(), biz = getBusinessStart();
   const days = overlap(from, to, biz, localDate());
-  const overheadItems = [], salaryBy = {};
+  const overheadItems = [];
   let depreciation = 0;
   try {
     for (const o of getOverheadItems()) {
@@ -67,18 +53,13 @@ function periodCosts(from, to, revenue, shifts) {
       overheadItems.push({ name: o.name || 'Накладной расход', sum: Math.round(m * days / 30) });
     }
   } catch (_) {}
+  // Зарплата — тот же расчёт, что на вкладке «Зарплата» в «Журнале работы» (одна формула на всё приложение)
+  let salary = 0;
+  const salaryItems = [];
   try {
-    for (const s of shifts) {
-      const u = s.employee_name ? db.getFirstSync(`SELECT * FROM users WHERE name = ?`, [s.employee_name]) : null;
-      const hours = s.closed_at ? Math.round((new Date(s.closed_at) - new Date(s.opened_at)) / 3600000) : 8;
-      const perShift = revenue / Math.max(1, shifts.length);
-      let v = 0;
-      if (u && u.salary_amount > 0) {
-        v = u.salary_type === 'hourly' ? u.salary_amount * hours : u.salary_type === 'monthly' ? u.salary_amount / 22
-          : u.salary_type === 'revenue_pct' ? perShift * u.salary_amount / 100 : u.salary_amount;
-      } else if (!u) v = calcShiftSalaryCost({ revenueInShift: perShift });
-      const name = s.employee_name || 'Сотрудник';
-      salaryBy[name] = (salaryBy[name] || 0) + v;
+    for (const r of getAllEmployeesSalary(from, to)) {
+      const v = Math.round(r.total);
+      if (v) { salaryItems.push({ name: r.user.name || 'Сотрудник', sum: v }); salary += v; }
     }
   } catch (_) {}
   try {
@@ -90,8 +71,7 @@ function periodCosts(from, to, revenue, shifts) {
   } catch (_) {}
   return {
     overheadItems, overhead: sum(overheadItems, x => x.sum),
-    salaryItems: Object.keys(salaryBy).map(name => ({ name, sum: Math.round(salaryBy[name]) })),
-    salary: Math.round(sum(Object.keys(salaryBy), k => salaryBy[k])), depreciation: Math.round(depreciation),
+    salaryItems, salary, depreciation: Math.round(depreciation),
   };
 }
 

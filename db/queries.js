@@ -2073,7 +2073,7 @@ export function getEmployeeStats(userId, dateFrom, dateTo) {
 
   const shifts = db.getAllSync(
     `SELECT * FROM shifts WHERE user_id = ? AND opened_at >= ? AND opened_at < ? ORDER BY opened_at DESC`,
-    [userId, `${dateFrom}T00:00:00`, `${dateTo}T23:59:59.999`]
+    [userId, localDateStartISO(dateFrom), localDateStartISO(dateTo, 1)]
   );
   const shiftIds = shifts.map(s => s.id);
 
@@ -2169,7 +2169,8 @@ export function calcEmployeeSalary(userId, dateFrom, dateTo) {
   if (!stats) return null;
   const { user, hours, shifts, kpi, revenue } = stats;
 
-  const days = Math.max(1, Math.round((new Date(dateTo) - new Date(dateFrom)) / 86400000) + 1);
+  // Оклад начисляется за ОТРАБОТАННЫЕ дни периода: зарегистрировались неделю назад — за эту неделю, а не за весь месяц
+  const days = overlapDays(dateFrom, dateTo, getBusinessStart(), localDateStr());
   const amt = user.salary_amount || 0;
   let base = 0;
   switch (user.salary_type) {
@@ -2238,7 +2239,10 @@ export function calcEmployeeSalary(userId, dateFrom, dateTo) {
 // в конкретного сотрудника).
 export function getAllEmployeesSalary(dateFrom, dateTo) {
   const db = getDb();
-  const users = db.getAllSync(`SELECT id FROM users WHERE active != 0 ORDER BY name`);
+  // Деактивированные сотрудники, работавшие в периоде, остаются в расчёте — иначе их зарплата за прошлое пропадала из выплат и отчёта
+  const users = db.getAllSync(
+    `SELECT id FROM users WHERE active != 0 OR id IN (SELECT DISTINCT user_id FROM shifts WHERE user_id IS NOT NULL AND opened_at >= ? AND opened_at < ?) ORDER BY name`,
+    [localDateStartISO(dateFrom), localDateStartISO(dateTo, 1)]);
   return users
     .map(u => calcEmployeeSalary(u.id, dateFrom, dateTo))
     .filter(Boolean);
@@ -3409,12 +3413,62 @@ export function deleteInvestment(id) {
 // ─── Блок Ж: Журнал работ ───────────────────────────────────────────────────
 
 // Заказы с заметками (к заказу или к позициям)
+const pad2 = n => String(n).padStart(2, '0');
+export const localDateStr = (d = new Date()) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+// Сколько дней периода [a1, b1] попадает в промежуток [a2, b2] (даты «ГГГГ-ММ-ДД»)
+export function overlapDays(a1, b1, a2, b2) {
+  const lo = a1 > a2 ? a1 : a2, hi = b1 < b2 ? b1 : b2;
+  return Math.max(0, Math.round((new Date(hi + 'T00:00:00') - new Date(lo + 'T00:00:00')) / 86400000) + 1);
+}
+// Дата начала работы в приложении: от неё считаются оклад, накладные и амортизация (только за отработанные дни)
+export function getBusinessStart() {
+  const saved = getSetting('bizStart');
+  if (saved) return saved;
+  const db = getDb(), c = [];
+  const push = v => { if (v) c.push(String(v).length > 10 ? localDateStr(new Date(v)) : String(v).slice(0, 10)); };
+  try {
+    push(db.getFirstSync(`SELECT MIN(created_at) AS v FROM orders`)?.v); push(db.getFirstSync(`SELECT MIN(date) AS v FROM expenses`)?.v);
+    push(db.getFirstSync(`SELECT MIN(opened_at) AS v FROM shifts`)?.v); push(db.getFirstSync(`SELECT MIN(invest_date) AS v FROM investments WHERE invest_date != ''`)?.v);
+  } catch (_) {}
+  const start = c.sort()[0] || localDateStr();
+  try { setSetting('bizStart', start); } catch (_) {}
+  return start;
+}
+
+// Последняя закрытая смена сотрудника — для быстрой подстановки «как в прошлый раз»
+export function getLastClosedShift(userId) {
+  return getDb().getFirstSync(`SELECT opened_at, closed_at FROM shifts WHERE user_id = ? AND closed_at IS NOT NULL ORDER BY opened_at DESC LIMIT 1`, [userId]) || null;
+}
+
+// Смена, пересекающаяся по времени с заданной у того же сотрудника (excludeId — сама правимая смена)
+export function findShiftOverlap(userId, openedAt, closedAt, excludeId = null) {
+  return getDb().getFirstSync(
+    `SELECT * FROM shifts WHERE user_id = ? AND id != ? AND opened_at < ? AND COALESCE(closed_at, '9999-12-31T00:00:00.000Z') > ?`,
+    [userId, excludeId || -1, closedAt || '9999-12-31T00:00:00.000Z', openedAt]) || null;
+}
+
+// Карточка смены: сотрудник, выручка, оплата (наличные / карта / прочее) и проданные позиции — всё по заказам без возвратов
+export function getShiftCard(shiftId) {
+  const db = getDb();
+  const shift = db.getFirstSync(
+    `SELECT s.*, COALESCE(NULLIF(s.employee_name, ''), u.name, 'Сотрудник') AS user_name, u.salary_type, u.salary_amount
+     FROM shifts s LEFT JOIN users u ON u.id = s.user_id WHERE s.id = ?`, [shiftId]);
+  if (!shift) return null;
+  const orders = db.getAllSync(`SELECT * FROM orders WHERE shift_id = ? AND (status IS NULL OR status != 'returned')`, [shiftId]);
+  const sm = summarizeSales(orders, getPayMethods());
+  const items = db.getAllSync(
+    `SELECT oi.name, SUM(oi.quantity) AS qty, SUM(oi.price * oi.quantity) AS sum FROM order_items oi JOIN orders o ON o.id = oi.order_id
+     WHERE o.shift_id = ? AND (o.status IS NULL OR o.status != 'returned') GROUP BY oi.name ORDER BY qty DESC, sum DESC`, [shiftId]);
+  return { shift, orders: orders.length, revenue: Math.round(orders.reduce((a, o) => a + o.total, 0)), cash: Math.round(sm.cash), card: Math.round(sm.card), other: sm.other || [], items };
+}
+
 export function getWorkJournal({ dateFrom, dateTo, limit = 50 } = {}) {
   const db = getDb();
   let where = '1=1';
   const params = [];
-  if (dateFrom) { where += ` AND s.opened_at >= ?`; params.push(dateFrom + 'T00:00:00'); }
-  if (dateTo)   { where += ` AND s.opened_at <= ?`; params.push(dateTo   + 'T23:59:59'); }
+  // Границы — по МЕСТНОМУ времени (смена в 01:29 по Москве хранится как 22:29 UTC предыдущих суток)
+  if (dateFrom) { where += ` AND s.opened_at >= ?`; params.push(localDateStartISO(dateFrom)); }
+  if (dateTo)   { where += ` AND s.opened_at < ?`;  params.push(localDateStartISO(dateTo, 1)); }
   params.push(limit);
   return db.getAllSync(
     `SELECT s.*,
@@ -3494,8 +3548,8 @@ export function getShiftsInPeriod(dateFrom, dateTo) {
   const db = getDb();
   try {
     return db.getAllSync(
-      `SELECT * FROM shifts WHERE opened_at >= ? AND opened_at <= ?`,
-      [dateFrom + 'T00:00:00', dateTo + 'T23:59:59']
+      `SELECT * FROM shifts WHERE opened_at >= ? AND opened_at < ?`,
+      [localDateStartISO(dateFrom), localDateStartISO(dateTo, 1)]
     );
   } catch (_) { return []; }
 }
