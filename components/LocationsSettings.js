@@ -16,6 +16,23 @@ import { colors, fonts } from '../constants/theme';
 
 const rub = n => Math.round(n || 0).toLocaleString('ru-RU');
 
+// Компоненты на уровне модуля: внутри LocationsSettings они пересоздавались при каждой набранной букве — поле ввода
+// «перезагружалось» и курсор сбрасывался.
+const Row = ({ title, sub, badge, onPress }) => (
+  <Pressable style={st.wr} onPress={onPress}><View style={{ flex: 1, minWidth: 0 }}><Text style={st.wrN} numberOfLines={1}>{title}{!!badge && <Text style={st.bd}>  {badge}</Text>}</Text><Text style={st.wrS}>{sub}</Text></View></Pressable>
+);
+const Fld = ({ label, value, onChange, ph, onTouch }) => <View style={st.fld}><Text style={st.fl}>{label}</Text><TextInput style={st.in} color={colors.text} value={value} onChangeText={v => { onTouch && onTouch(); onChange(v); }} placeholder={ph} placeholderTextColor="rgba(255,255,255,0.22)" /></View>;
+const Win = ({ title, sub, children, foot, err, onClose }) => (
+  <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+    <KeyboardSafe style={st.ov}><Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+      <View style={st.win}><GlassSurface radius={26} tint="32,40,55" alpha={0.985} floating padding={24}>
+        <Text style={st.wT}>{title}</Text>{!!sub && <Text style={st.wSub}>{sub}</Text>}
+        {children}{!!err && <Text style={st.err}>{err}</Text>}
+        <View style={st.foot}>{foot}</View>
+      </GlassSurface></View></KeyboardSafe>
+  </Modal>
+);
+
 /**
  * Настройки → «Локации и склады»: включение модуля, локации со складами и рабочими местами, отключение и удаление.
  * Остатки и перемещения между складами — в разделе «Склад».
@@ -47,21 +64,6 @@ export default function LocationsSettings() {
   const saveWs = () => run(() => saveWorkstation({ id: win.ws?.id || null, locationId: win.loc.id, warehouseId: pick, name, bindThisDevice: me }), 'Рабочее место сохранено');
   const confirmRm = () => run(() => (win.rk === 'loc' ? removeLocation({ id: win.obj.id, action: win.action, moveToWarehouseId: pick }) : removeWarehouse({ id: win.obj.id, action: win.action, moveToWarehouseId: pick })), win.action === 'delete' ? 'Удалено' : 'Отключено');
 
-  const Row = ({ title, sub, badge, onPress }) => (
-    <Pressable style={st.wr} onPress={onPress}><View style={{ flex: 1, minWidth: 0 }}><Text style={st.wrN} numberOfLines={1}>{title}{!!badge && <Text style={st.bd}>  {badge}</Text>}</Text><Text style={st.wrS}>{sub}</Text></View></Pressable>
-  );
-  const Fld = ({ label, value, onChange, ph }) => <View style={st.fld}><Text style={st.fl}>{label}</Text><TextInput style={st.in} color={colors.text} value={value} onChangeText={v => { setErr(''); onChange(v); }} placeholder={ph} placeholderTextColor="rgba(255,255,255,0.22)" /></View>;
-  const Win = ({ title, sub, children, foot }) => (
-    <Modal visible transparent animationType="fade" onRequestClose={close}>
-      <KeyboardSafe style={st.ov}><Pressable style={StyleSheet.absoluteFill} onPress={close} />
-        <View style={st.win}><GlassSurface radius={26} tint="32,40,55" alpha={0.985} floating padding={24}>
-          <Text style={st.wT}>{title}</Text>{!!sub && <Text style={st.wSub}>{sub}</Text>}
-          {children}{!!err && <Text style={st.err}>{err}</Text>}
-          <View style={st.foot}>{foot}</View>
-        </GlassSurface></View></KeyboardSafe>
-    </Modal>
-  );
-
   return (
     <View>
       <View style={st.mod}>
@@ -87,30 +89,30 @@ export default function LocationsSettings() {
       {on && <Text style={st.hint}>Остатки по складам и перемещение между складами — в разделе «Склад».</Text>}
 
       {win?.kind === 'enable' && (
-        <Win title="Включить несколько локаций?" sub="У каждой локации будут свои склады, рабочие места, смены и выручка. Склад, который есть сейчас, не пропадёт."
+        <Win err={err} onClose={close} title="Включить несколько локаций?" sub="У каждой локации будут свои склады, рабочие места, смены и выручка. Склад, который есть сейчас, не пропадёт."
           foot={<><GlassButton style={{ flex: 1 }} label="Отмена" height={54} onPress={close} /><GlassButton style={{ flex: 1 }} tone="accent" label="Включить" height={54} onPress={() => run(() => setLocationsModule(true), 'Модуль включён')} /></>}>
           <Text style={st.p}>Текущий склад станет складом «Основной склад» первой локации. Выключить модуль можно в любой момент: общий остаток всегда равен сумме по складам.</Text>
         </Win>)}
       {win?.kind === 'loc' && (
-        <Win title={win.loc ? 'Редактирование локации' : 'Новая локация'} sub={win.loc ? '' : 'При создании автоматически появится склад «Основной склад» — его можно переименовать и добавить другие.'}
+        <Win err={err} onClose={close} title={win.loc ? 'Редактирование локации' : 'Новая локация'} sub={win.loc ? '' : 'При создании автоматически появится склад «Основной склад» — его можно переименовать и добавить другие.'}
           foot={<><GlassButton style={{ flex: 1 }} label="Отмена" height={54} onPress={close} /><GlassButton style={{ flex: 1 }} tone="accent" label="Сохранить" height={54} disabled={!name.trim()} onPress={saveLoc} /></>}>
-          <Fld label="Название" value={name} onChange={setName} ph="Например, Точка на Лесной" /><Fld label="Адрес" value={addr} onChange={setAddr} ph="необязательно" />
+          <Fld onTouch={() => setErr('')} label="Название" value={name} onChange={setName} ph="Например, Точка на Лесной" /><Fld onTouch={() => setErr('')} label="Адрес" value={addr} onChange={setAddr} ph="необязательно" />
           {!!win.loc && <View style={{ flexDirection: 'row', gap: 22, marginTop: 6 }}>
             <Pressable onPress={() => openRm('loc', win.loc, 'disable')}><Text style={[st.lnk2, { color: colors.warning }]}>Отключить</Text></Pressable>
             <Pressable onPress={() => openRm('loc', win.loc, 'delete')}><Text style={st.lnk2}>Удалить…</Text></Pressable></View>}
         </Win>)}
       {win?.kind === 'wh' && (
-        <Win title={win.wh ? 'Склад' : 'Новый склад'} sub="Склад хранит свои остатки. Позиции между складами переносятся перемещением в разделе «Склад»."
+        <Win err={err} onClose={close} title={win.wh ? 'Склад' : 'Новый склад'} sub="Склад хранит свои остатки. Позиции между складами переносятся перемещением в разделе «Склад»."
           foot={<><GlassButton style={{ flex: 1 }} label="Отмена" height={54} onPress={close} /><GlassButton style={{ flex: 1 }} tone="accent" label="Сохранить" height={54} disabled={!name.trim()} onPress={saveWh} /></>}>
-          <Fld label="Название" value={name} onChange={setName} ph="Например, Бар или Кладовая" />
+          <Fld onTouch={() => setErr('')} label="Название" value={name} onChange={setName} ph="Например, Бар или Кладовая" />
           {!!win.wh && <View style={{ flexDirection: 'row', gap: 22, marginTop: 6 }}>
             <Pressable onPress={() => openRm('wh', win.wh, 'disable')}><Text style={[st.lnk2, { color: colors.warning }]}>Отключить</Text></Pressable>
             <Pressable onPress={() => openRm('wh', win.wh, 'delete')}><Text style={st.lnk2}>Удалить…</Text></Pressable></View>}
         </Win>)}
       {win?.kind === 'ws' && (
-        <Win title="Рабочее место" sub="Планшет или касса и склад, с которого он списывает продажи"
+        <Win err={err} onClose={close} title="Рабочее место" sub="Планшет или касса и склад, с которого он списывает продажи"
           foot={<><GlassButton style={{ flex: 1 }} label="Отмена" height={54} onPress={close} /><GlassButton style={{ flex: 1 }} tone="accent" label="Сохранить" height={54} disabled={!name.trim() || !pick} onPress={saveWs} /></>}>
-          <Fld label="Название" value={name} onChange={setName} ph="Планшет 1" />
+          <Fld onTouch={() => setErr('')} label="Название" value={name} onChange={setName} ph="Планшет 1" />
           <Text style={st.gl}>Списывает со склада</Text>
           <View style={st.chips}>{win.loc.warehouses.map(w => <Pressable key={w.id} style={[st.chip, pick === w.id && st.chipOn]} onPress={() => setPick(w.id)}><Text style={[st.chipT, pick === w.id && { color: colors.orangeLight }]}>{w.name}</Text></Pressable>)}</View>
           <Text style={st.note}>Продажи уходят только с этого склада. Не хватило — касса предупредит, а взять с другого склада можно перемещением в разделе «Склад».</Text>
@@ -129,7 +131,7 @@ export default function LocationsSettings() {
         ];
         const blocked = chk.isLast || (isL && chk.openShift) || ((chk.stock.positions > 0 || (!isL && chk.workstations > 0)) && !pick);
         return (
-          <Win title={`${del ? 'Удалить' : 'Отключить'} ${isL ? 'локацию' : 'склад'} «${obj.name}»?`} sub={del ? 'Удаление необратимо. История останется в отчётах без привязки.' : 'Скрывается из выбора. Историю и остатки можно вернуть в любой момент.'}
+          <Win err={err} onClose={close} title={`${del ? 'Удалить' : 'Отключить'} ${isL ? 'локацию' : 'склад'} «${obj.name}»?`} sub={del ? 'Удаление необратимо. История останется в отчётах без привязки.' : 'Скрывается из выбора. Историю и остатки можно вернуть в любой момент.'}
             foot={<><GlassButton style={{ flex: 1 }} label="Отмена" height={54} onPress={close} /><GlassButton style={{ flex: 1 }} tone={del ? 'danger' : 'neutral'} label={`${chk.stock.positions ? 'Перенести и ' : ''}${del ? 'удалить' : 'отключить'}`} height={54} disabled={blocked} onPress={confirmRm} /></>}>
             {items.map(([okk, t], i) => <View key={i} style={st.ck}><View style={[st.ckI, { backgroundColor: okk ? 'rgba(120,183,150,0.2)' : 'rgba(219,129,120,0.2)' }]}><Text style={{ color: okk ? colors.green : colors.red, fontSize: 13, fontFamily: fonts.family }}>{okk ? '✓' : '!'}</Text></View><Text style={st.ckT}>{t}</Text></View>)}
             {(chk.stock.positions > 0 || (!isL && chk.workstations > 0)) && targets.length > 0 && <>

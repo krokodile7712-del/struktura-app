@@ -14,6 +14,14 @@ const PERIODS = [{ key: 'week', label: 'Неделя' }, { key: 'month', label: 
 const ddmm = s => String(s || '').slice(0, 10).split('-').reverse().join('.');
 const num = v => parseFloat(String(v).replace(',', '.').replace(/\s/g, ''));
 
+// Компоненты вынесены на уровень модуля: если описать их внутри окна, при каждой набранной букве они пересоздаются,
+// поле ввода «перезагружается» и курсор сбрасывается.
+const Fld = ({ label, children, bad }) => <View style={[s.fld, bad && s.bad]}><Text style={s.lbl}>{label}</Text>{children}</View>;
+const Chips = ({ items, value, onPick }) => (
+  <View style={s.chips}>{items.map(i => { const k = i.key || i, l = i.label || i; return (
+    <Pressable key={k} style={[s.chip, value === k && s.chipOn]} onPress={() => onPick(k)}><Text style={[s.chipT, value === k && { color: colors.orangeLight }]}>{l}</Text></Pressable>); })}</View>
+);
+
 /**
  * Окно расхода. mode «expense» — разовый расход (можно включить «Повторять» — тогда он станет повторяющимся и
  * будет начисляться по дням), mode «recurring» — правка повторяющегося расхода. Закупка из «Склада» открывается
@@ -67,12 +75,6 @@ export default function ExpenseEditModal({ visible, mode = 'expense', item, onSa
   };
   const askDelete = () => Alert.alert(rec ? 'Удалить повторяющийся расход?' : 'Удалить расход?', rec ? `«${item?.name}» перестанет начисляться.` : `${item?.comment || item?.category}, ${a} ₽`, [
     { text: 'Отмена' }, { text: 'Удалить', style: 'destructive', onPress: () => { onDelete && onDelete(); onClose && onClose(); } }]);
-
-  const Fld = ({ label, children, bad }) => <View style={[s.fld, bad && s.bad]}><Text style={s.lbl}>{label}</Text>{children}</View>;
-  const Chips = ({ items, value, onPick }) => (
-    <View style={s.chips}>{items.map(i => { const k = i.key || i, l = i.label || i; return (
-      <Pressable key={k} style={[s.chip, value === k && s.chipOn]} onPress={() => onPick(k)}><Text style={[s.chipT, value === k && { color: colors.orangeLight }]}>{l}</Text></Pressable>); })}</View>
-  );
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
