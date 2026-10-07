@@ -15,10 +15,23 @@ const TONES = {
 /**
  * Стеклянная кнопка с объёмом (как способы оплаты на Кассе): полупрозрачная заливка, блик сверху,
  * кромка, затемнение снизу и мягкая тень; при нажатии сжимается до 97%.
- * tone: 'accent' (главное действие) | 'neutral' | 'danger'.
+ * tone: 'accent' (главное действие, стекло) | 'solid' (самое главное: сплошная акцентная заливка со свечением) | 'neutral' | 'danger'.
  */
 export default function GlassButton({ label, icon, tone = 'neutral', onPress, height = 52, style, disabled }) {
   const t = TONES[tone] || TONES.neutral;
+  if (tone === 'solid') {
+    return (
+      <Pressable
+        style={({ pressed }) => [style, styles.solidShadow, disabled && { opacity: 0.4 }, pressed && !disabled && { transform: [{ scale: 0.97 }] }]}
+        onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label}
+      >
+        <LinearGradient colors={['#AECBEE', '#7FA8D9']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={[styles.solid, { height }]}>
+          {!!icon && <Icon name={icon} size={20} color={colors.onAccent} />}
+          <Text style={styles.solidTxt} numberOfLines={1}>{label}</Text>
+        </LinearGradient>
+      </Pressable>
+    );
+  }
   return (
     <Pressable
       style={({ pressed }) => [style, disabled && { opacity: 0.4 }, pressed && !disabled && { transform: [{ scale: 0.97 }] }]}
@@ -33,4 +46,10 @@ export default function GlassButton({ label, icon, tone = 'neutral', onPress, he
     </Pressable>
   );
 }
-const styles = StyleSheet.create({ txt: { fontFamily: fonts.family, fontSize: 16 } });
+const styles = StyleSheet.create({
+  txt: { fontFamily: fonts.family, fontSize: 16 },
+  // «Сплошная» главная кнопка: яркая акцентная заливка, светлая кромка сверху и мягкое свечение вокруг
+  solid: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 24, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)' },
+  solidTxt: { fontFamily: fonts.family, fontSize: 17, color: colors.onAccent },
+  solidShadow: { borderRadius: 16, shadowColor: colors.orange, shadowOpacity: 0.55, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 10 },
+});

@@ -203,7 +203,8 @@ export default function FinancesScreen({ navigation, route }) {
         rightElement={<Pressable style={st.tourBtn} onPress={() => setTourOpen(true)} hitSlop={10} accessibilityLabel="Подсказка"><Text style={st.tourTxt}>?</Text></Pressable>} />
       <View style={StyleSheet.absoluteFill} pointerEvents="none"><SoftGlow size={620} color="127,168,217" alpha={0.14} style={{ position: 'absolute', left: -170, top: -150 }} /></View>
       <View style={st.tb}>
-        {isAdmin ? <View style={{ flex: 1, maxWidth: 420 }}><GlassSegmented items={[{ key: 'expenses', label: 'Расходы' }, { key: 'investments', label: 'Крупные покупки' }]} value={tab} onChange={setTab} height={46} /></View> : <View style={{ flex: 1 }} />}
+        {/* Вкладки слева, остальное прижато к правому краю */}
+        <View style={{ flex: 1 }}>{isAdmin && <View style={{ maxWidth: 420 }}><GlassSegmented items={[{ key: 'expenses', label: 'Расходы' }, { key: 'investments', label: 'Крупные покупки' }]} value={tab} onChange={setTab} height={46} /></View>}</View>
         <Pressable ref={pRef} collapsable={false} style={[st.pbtn, hl.period.style, pop === 'p' && st.pbtnOn, { position: 'relative' }]} onPress={() => openPop('p', pRef)}>
           <Icon name="calendar" size={18} color={colors.textDim} /><Text style={st.pbtnT}>{label}</Text><Text style={st.car}>▾</Text>{hl.period.overlay}
         </Pressable>
@@ -212,7 +213,7 @@ export default function FinancesScreen({ navigation, route }) {
             <Icon name="sliders" size={18} color={filtersOn ? colors.orangeLight : colors.textDim} /><Text style={[st.pbtnT, filtersOn && { color: colors.orangeLight }]}>Фильтры</Text>
           </Pressable>
         )}
-        {canAdd && <View style={{ position: 'relative', ...hl.add.style }}><GlassButton tone="accent" icon="plus" label={tab === 'expenses' ? 'Расход' : 'Вложение'} height={50} onPress={() => (tab === 'expenses' ? setExpModal({ mode: 'expense', item: null }) : setInvModal({ item: null }))} />{hl.add.overlay}</View>}
+        {canAdd && <View style={{ position: 'relative', ...hl.add.style }}><GlassButton tone="solid" icon="plus" label={tab === 'expenses' ? 'Расход' : 'Вложение'} height={52} onPress={() => (tab === 'expenses' ? setExpModal({ mode: 'expense', item: null }) : setInvModal({ item: null }))} />{hl.add.overlay}</View>}
       </View>
       <View style={{ flex: 1, padding: 20, paddingTop: 14 }}>{tab === 'expenses' || !isAdmin ? expensesView : investView}</View>
 
