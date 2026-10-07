@@ -1,718 +1,256 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Animated, TextInput } from 'react-native';
-import TopBar from '../components/TopBar';
-import Sheet from '../components/Sheet';
-import EmptyState from '../components/EmptyState';
-import { useResponsive } from '../hooks/useResponsive';
-import InfoTip from '../components/InfoTip';
+import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import TopBar from '../components/TopBar';
 import TourGuide from '../components/TourGuide';
-import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
+import GlassSurface from '../components/GlassSurface';
+import GlassButton from '../components/GlassButton';
+import Icon from '../components/Icon';
+import SoftGlow from '../components/SoftGlow';
+import KeyboardSafe from '../components/KeyboardSafe';
+import { useToast } from '../components/Toast';
+import { useResponsive } from '../hooks/useResponsive';
+import { useTourHighlight } from '../components/TourRegistry';
 import {
-  getInventoryActs, createInventoryAct, deleteInventoryAct,
-  setInventoryItemActual, confirmInventoryAct,
-  getAllStock, getBusinessProfile, markTourSeen,
+  getAllStock, getBusinessProfile, markTourSeen, getLocations, getInventoryActs, getInventoryAct, getInventoryDraft,
+  createInventoryAct, setInventoryItemActual, confirmInventoryAct, deleteInventoryAct,
 } from '../db/queries';
-import { getHomeRoute, goBackSmart } from '../db/session';
-import { colors, fonts, anim } from '../constants/theme';
+import { goBackSmart, getCurrentLocationId } from '../db/session';
+import { colors, fonts, glass } from '../constants/theme';
 
-const fmt = n => Math.round(n||0).toLocaleString('ru-RU');
-
-function fmtDate(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return d.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' }) +
-    ' · ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-}
-
-const SCOPE_OPTIONS = [
-  { key: 'all',      label: 'Весь склад',    hint: 'Пересчитать все позиции склада' },
-  { key: 'category', label: 'По категории',  hint: 'Выбрать одну категорию товаров' },
-  { key: 'manual',   label: 'Выборочно',     hint: 'Отметить конкретные позиции вручную' },
-];
-
-// Демо-акт для тура — целиком в памяти, никогда не пишется в базу
-// (флаг __demo проверяется перед любым сохранением)
-const DEMO_ACT = { __demo: true, id: 'demo', scope: 'all', status: 'draft', created_at: new Date().toISOString() };
-const DEMO_ITEMS = [
-  { id: 'demo-1', stock_name: 'Позиция 1',          unit: 'шт', expected: 10,  actual: 10 },
-  { id: 'demo-2', stock_name: 'Позиция 2',          unit: 'кг', expected: 5,   actual: 3 },
-  { id: 'demo-3', stock_name: 'Позиция 3',          unit: 'л',  expected: 500, actual: 500 },
-];
+// Инвентаризация: подсчёт запоминается (черновик не стирается), «по системе» берётся в момент ввода факта,
+// а подтверждение применяет РАЗНИЦУ к текущему остатку — продажи во время подсчёта не теряются.
+const num = v => { const n = parseFloat(String(v ?? '').replace(',', '.')); return isNaN(n) ? null : n; };
+const q = n => (Math.round((n || 0) * 1000) / 1000).toLocaleString('ru-RU', { maximumFractionDigits: 3 });
+const rub = n => Math.round(n || 0).toLocaleString('ru-RU');
+const sgn = n => (n > 0 ? '+' : '−');
+const dateOf = iso => { try { return new Date(iso).toLocaleDateString('ru-RU'); } catch (_) { return ''; } };
+const scopeText = a => (a.scope === 'category' ? `Категория: ${a.scope_value}` : a.scope === 'manual' ? `Выбранные позиции: ${String(a.scope_value).split(',').filter(Boolean).length}` : 'Весь склад');
 
 export default function InventoryScreen({ navigation }) {
   const { isLandscape } = useResponsive();
-  const [acts, setActs]             = useState([]);
-  const [stock, setStock]           = useState([]);
-  const [showSetup, setShowSetup]   = useState(false);
-  const [scope, setScope]           = useState('all');
-  const [scopeCategory, setScopeCategory] = useState('');
-  const [scopeManualIds, setScopeManualIds] = useState([]);
-  const [expanded, setExpanded]     = useState(null);
-  const [activeAct, setActiveAct]   = useState(null);
-  const [actItems, setActItems]     = useState([]);
-  const [actVals, setActVals]       = useState({});
-  const fadeAnim = useState(new Animated.Value(0))[0];
-  const slideAnim = useState(new Animated.Value(anim.slideFrom))[0];
-
-  const [discrepancy, setDiscrepancy] = useState(0);
+  const toast = useToast();
+  const [acts, setActs] = useState([]);
+  const [sel, setSel] = useState(null);
+  const [act, setAct] = useState(null);
+  const [vals, setVals] = useState({});
+  const [flt, setFlt] = useState('all');
+  const [stock, setStock] = useState([]);
+  const [newOpen, setNewOpen] = useState(false);
+  const [scope, setScope] = useState('all');
+  const [scopeCat, setScopeCat] = useState('');
+  const [scopeIds, setScopeIds] = useState([]);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
-  const activeTourKey = useTourActiveKey();
-  const addBtnHighlight  = useTourHighlight('inventory.addBtn');
-  const scopeHighlight   = useTourHighlight('inventory.scope');
-  const listHighlight    = useTourHighlight('inventory.list');
-  const fillHighlightRaw    = useTourHighlight('inventory.fill');
-  const confirmHighlightRaw = useTourHighlight('inventory.confirm');
-  // Список позиций никогда не гасится на этих двух шагах — важно
-  // продолжать видеть, что именно заполняешь/подтверждаешь. Рамку
-  // получает только тот элемент, чей шаг активен именно сейчас — она
-  // тоже приходит через overlay (не через style, который больше не
-  // меняет размер элемента), поэтому пропускаем её как есть и гасим
-  // только явное затемнение на соседнем из этой пары шагов.
-  const isFillOrConfirmStep = activeTourKey === 'inventory.fill' || activeTourKey === 'inventory.confirm';
-  const fillHighlight = {
-    style: null,
-    overlay: (isFillOrConfirmStep && !fillHighlightRaw.isActive) ? null : fillHighlightRaw.overlay,
-  };
-  const confirmHighlight = {
-    style: null,
-    overlay: confirmHighlightRaw.isActive ? confirmHighlightRaw.overlay : null,
-  };
-  const statsHighlight   = useTourHighlight('inventory.stats');
+  const hl = { add: useTourHighlight('inventory.addBtn'), list: useTourHighlight('inventory.list'), fill: useTourHighlight('inventory.fill'), confirm: useTourHighlight('inventory.confirm'), stats: useTourHighlight('inventory.stats') };
 
-  const tourSteps = [
-    { key: 'inventory.addBtn', title: '+ Новый акт', text: 'Отсюда начинается любая инвентаризация.' },
-    { key: 'inventory.scope',  title: 'Охват пересчёта', text: '«Весь склад» — все позиции разом. «По категории» — только один раздел товаров. «Выборочно» — отметьте вручную, что именно пересчитываете.' },
-    { key: 'inventory.list',   title: 'Список актов', text: 'Тап разворачивает карточку — видно позиции и расхождения. Оранжевый бейдж — сколько позиций разошлось с учётом.' },
-    { key: 'inventory.fill',   title: 'Заполнение остатков', text: 'Вводите то, что реально на складе. Поле подсвечивается оранжевым, если отличается от учётного значения.', cardPosition: 'top' },
-    { key: 'inventory.confirm', title: 'Подтверждение', text: 'Перед подтверждением — краткие итоги по каждой позиции. Подтверждение необратимо переписывает остатки на складе — как в жизни, пути назад нет.', cardPosition: 'top' },
-    { key: 'inventory.stats', title: 'Статистика', text: 'Расхождение план/факт в деньгах по завершённым актам, и сколько позиций уже мало на складе.' },
+  const openAct = useCallback((id) => {
+    const a = id ? getInventoryAct(id) : null;
+    setAct(a); setSel(a ? a.id : null); setFlt('all');
+    const v = {}; (a?.items || []).forEach(i => { v[i.id] = i.actual === null ? '' : String(i.actual).replace('.', ','); }); setVals(v);
+  }, []);
+  const load = useCallback((pick) => {
+    try {
+      const list = getInventoryActs(); setActs(list); setStock(getAllStock());
+      openAct(pick || sel || (getInventoryDraft()?.id) || list[0]?.id || null);
+    } catch (e) { console.error(e); }
+  }, [sel]);
+  useFocusEffect(useCallback(() => { load(); }, []));
+
+  const steps = [
+    { key: 'inventory.addBtn', title: 'Новый акт', text: 'Отсюда начинается инвентаризация: весь склад, категория или выбранные позиции. Подсчёт можно прервать и продолжить позже.' },
+    { key: 'inventory.list', title: 'Список актов', text: 'Черновик — подсчёт в процессе, «Подтверждён» — остатки уже приведены к факту. Нажмите на акт, чтобы открыть.' },
+    { key: 'inventory.fill', title: 'Подсчёт', text: 'Вводите то, что реально на складе (дробные — через запятую). Разница видна сразу, остатки изменятся только после подтверждения.' },
+    { key: 'inventory.confirm', title: 'Подтверждение', text: 'Перед применением — итог. Продажи, прошедшие во время подсчёта, не пропадут: меняется только разница. Недостача попадёт в отчёт «Прибыль».' },
+    { key: 'inventory.stats', title: 'Итоги', text: 'Сколько актов, расхождение по последнему подтверждённому и сколько позиций ниже порога.' },
   ];
-  const demoStepKeys = new Set(['inventory.fill', 'inventory.confirm']);
-
-  // Автозапуск при первом визите в раздел
   useEffect(() => {
-    try {
-      const p = getBusinessProfile();
-      if (!p?.tours_seen?.Inventory) {
-        const t = setTimeout(() => setTourOpen(true), 500);
-        return () => clearTimeout(t);
-      }
-    } catch (_) {}
+    try { if (!getBusinessProfile()?.tours_seen?.Inventory) { const t = setTimeout(() => setTourOpen(true), 500); return () => clearTimeout(t); } } catch (_) {}
   }, []);
 
-  // Шаг про охват сам открывает Sheet создания акта; шаги про заполнение
-  // и подтверждение сами открывают демо-акт, закрывают его при выходе
-  useEffect(() => {
-    if (activeTourKey === 'inventory.scope') setShowSetup(true);
-    else if (tourOpen && showSetup) setShowSetup(false);
+  // ── подсчёт ──
+  const items = act?.items || [];
+  const isDraft = act?.status === 'draft';
+  const saveItem = (i) => {
+    const t = vals[i.id] ?? '', v = t.trim() === '' ? null : num(t);
+    if ((i.actual ?? null) === v) return;
+    try { setInventoryItemActual(i.id, v); } catch (e) { console.error(e); toast.show('Не удалось сохранить значение', 'warn'); }
+  };
+  const refreshItems = () => { const a = getInventoryAct(act.id); setAct(a); return a; };
+  const diffOf = i => { const a = num(vals[i.id]); return a === null ? null : a - i.expected; };
+  const counted = items.filter(i => num(vals[i.id]) !== null).length;
+  let lack = 0, over = 0;
+  items.forEach(i => { const d = diffOf(i); if (d === null) return; const m = d * (i.cost_per_unit || 0); if (m < 0) lack += m; else over += m; });
+  const shown = items.filter(i => flt === 'all' || (flt === 'todo' && num(vals[i.id]) === null) || (flt === 'diff' && diffOf(i) !== null && Math.abs(diffOf(i)) > 1e-9));
 
-    if (demoStepKeys.has(activeTourKey)) {
-      setActiveAct(DEMO_ACT);
-      setActItems(DEMO_ITEMS);
-      setActVals({ 'demo-1': '10', 'demo-2': '3', 'demo-3': '500' });
-    } else if (tourOpen && activeAct?.__demo) {
-      setActiveAct(null);
-    }
-  }, [activeTourKey]);
+  const askConfirm = () => {
+    try { items.forEach(saveItem); refreshItems(); setConfirmOpen(true); } catch (e) { console.error(e); toast.show('Не удалось сохранить значения', 'warn'); }
+  };
+  const apply = () => {
+    const r = confirmInventoryAct(act.id);
+    setConfirmOpen(false);
+    if (r.ok) { toast.show('Остатки обновлены'); load(act.id); } else toast.show(r.message || 'Не удалось применить', 'warn');
+  };
+  const removeDraft = () => Alert.alert('Удалить черновик?', 'Введённые значения пропадут, остатки не изменятся.', [{ text: 'Отмена' }, { text: 'Удалить', style: 'destructive', onPress: () => { deleteInventoryAct(act.id); load(null); } }]);
 
-  const load = useCallback(() => {
+  // ── новый акт ──
+  const draft = acts.find(a => a.status === 'draft');
+  const cats = [...new Set(stock.map(s => s.category || 'Без категории'))].sort();
+  const startAct = () => {
     try {
-      const list = getInventoryActs();
-      setActs(list);
-      setStock(getAllStock());
+      const scopeValue = scope === 'category' ? scopeCat : scope === 'manual' ? scopeIds.join(',') : '';
+      if (scope === 'category' && !scopeCat) { toast.show('Выберите категорию', 'warn'); return; }
+      if (scope === 'manual' && scopeIds.length === 0) { toast.show('Отметьте позиции', 'warn'); return; }
+      const locOn = getBusinessProfile()?.modules?.locations === true;
+      const locId = locOn ? getCurrentLocationId() : null;
+      const locName = locId ? (getLocations().find(l => l.id === locId)?.name || '') : '';
+      const id = createInventoryAct({ scope, scopeValue, locationId: locId, locationName: locName, replaceDraft: !!draft });
+      setNewOpen(false); load(id);
+    } catch (e) { console.error(e); toast.show('Не удалось создать акт', 'warn'); }
+  };
 
-      // Суммарное расхождение план/факт в деньгах по завершённым актам из списка
-      try {
-        const db = require('../db/database').getDb();
-        const completedIds = list.filter(a => a.status === 'confirmed').map(a => a.id);
-        if (completedIds.length > 0) {
-          const row = db.getFirstSync(
-            `SELECT SUM(diff_money) AS total FROM inventory_act_items WHERE act_id IN (${completedIds.join(',')})`
+  const lastConfirmed = acts.find(a => a.status === 'confirmed');
+  const lowCount = stock.filter(s => (s['порог'] || 0) > 0 && (s['остаток'] || 0) <= s['порог']).length;
+  const Tile = ({ k, v, s, st: sty }) => (
+    <GlassSurface radius={glass.radius.tile} padding={16} style={{ flex: 1, minWidth: 180 }}>
+      <Text style={st.kl}>{k}</Text><Text style={[st.val, sty]}>{v}</Text>{!!s && <Text style={st.sub}>{s}</Text>}
+    </GlassSurface>
+  );
+  const Pill = ({ d }) => <View style={[st.pill, { borderColor: d ? 'rgba(217,172,98,0.45)' : 'rgba(120,183,150,0.4)' }]}><Text style={[st.pillT, { color: d ? colors.warning : colors.green }]}>{d ? 'Черновик' : 'Подтверждён'}</Text></View>;
+
+  const detail = !act ? (
+    <View style={st.center}><View style={st.ico}><Icon name="list" size={34} color={colors.textDim} /></View><Text style={st.cT}>{acts.length ? 'Выберите акт' : 'Инвентаризаций ещё не было'}</Text>
+      <Text style={st.cX}>{acts.length ? 'Подсчёт откроется здесь' : 'Сверьте фактические остатки склада с тем, что в системе — так вы увидите недостачи и излишки.'}</Text></View>
+  ) : isDraft ? (
+    <View style={{ flex: 1 }}>
+      <View style={st.dh}><Text style={st.dT}>Подсчёт</Text><Text style={st.dS}>посчитано {counted} из {items.length}</Text></View>
+      <View style={st.chips}>{[['all', 'Все'], ['todo', 'Не посчитано'], ['diff', 'С расхождением']].map(([k, t]) => <Pressable key={k} style={[st.chip, flt === k && st.chipOn]} onPress={() => setFlt(k)}><Text style={[st.chipT, flt === k && { color: colors.orangeLight }]}>{t}</Text></Pressable>)}</View>
+      <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        {shown.length === 0 ? <Text style={st.cX}>{items.length ? 'Нет позиций по этому условию' : 'В акте нет позиций'}</Text> : shown.map(i => {
+          const d = diffOf(i), money = d === null ? 0 : d * (i.cost_per_unit || 0), zero = d !== null && Math.abs(d) < 1e-9;
+          return (
+            <View key={i.id} style={st.ir}>
+              <View style={{ flex: 1, minWidth: 0 }}><Text style={st.irN} numberOfLines={1}>{i.stock_name}</Text><Text style={st.irS}>по системе {q(i.expected)} {i.unit}</Text></View>
+              <TextInput style={st.inp} color={colors.text} value={vals[i.id] ?? ''} placeholder="факт" placeholderTextColor="rgba(255,255,255,0.25)" keyboardType="decimal-pad"
+                onChangeText={v => setVals(p => ({ ...p, [i.id]: v.replace(/[^0-9.,]/g, '') }))} onEndEditing={() => { saveItem(i); refreshItems(); }} />
+              <Text style={st.unit}>{i.unit}</Text>
+              <View style={st.dif}>{d === null ? <Text style={st.z}>—</Text> : zero ? <Text style={st.z}>сошлось</Text> : <><Text style={[st.dv, { color: d > 0 ? colors.green : '#E9A9A2' }]}>{sgn(d)}{q(Math.abs(d))} {i.unit}</Text><Text style={st.dm}>{sgn(money)}{rub(Math.abs(money))} ₽</Text></>}</View>
+            </View>
           );
-          setDiscrepancy(row?.total || 0);
-        } else {
-          setDiscrepancy(0);
-        }
-      } catch (_) { setDiscrepancy(0); }
-
-      fadeAnim.setValue(0);
-      slideAnim.setValue(anim.slideFrom);
-      Animated.parallel([
-        Animated.timing(fadeAnim, { toValue: 1, duration: anim.fadeDuration, useNativeDriver: true }),
-        Animated.spring(slideAnim, { toValue: 0, ...anim.spring, useNativeDriver: true }),
-      ]).start();
-    } catch(e) { console.error(e); }
-  }, []);
-
-  useFocusEffect(useCallback(() => { load(); }, [load]));
-
-  const openAct = (act) => {
-    try {
-      const db = require('../db/database').getDb();
-      const items = db.getAllSync('SELECT * FROM inventory_act_items WHERE act_id = ? ORDER BY stock_name', [act.id]);
-      setActItems(items);
-      const vals = {};
-      items.forEach(i => { vals[i.id] = i.actual !== null && i.actual !== undefined ? String(i.actual) : ''; });
-      setActVals(vals);
-      setActiveAct(act);
-    } catch(e) { console.error(e); }
-  };
-
-  const saveActItem = (itemId, val) => {
-    if (typeof itemId === 'string' && itemId.startsWith('demo-')) return; // демо — никогда не пишем в базу
-    try {
-      const num = parseFloat(val);
-      if (!isNaN(num)) setInventoryItemActual(itemId, num);
-    } catch(e) {}
-  };
-
-  // Сохраняет всё введённое (включая поле, которое ещё в фокусе и не
-  // потеряло его — onBlur может не успеть отработать до закрытия) и
-  // только потом закрывает экран — ничего введённого не теряется
-  const handleBack = () => {
-    if (!activeAct?.__demo) {
-      Object.entries(actVals).forEach(([id, val]) => {
-        const num = parseFloat(val);
-        if (!isNaN(num)) setInventoryItemActual(parseInt(id), num);
-      });
-    }
-    setActiveAct(null);
-    load();
-  };
-
-  const handleConfirm = () => {
-    if (activeAct?.__demo) {
-      Alert.alert('Это пример', 'В реальном акте нажатие «Подтвердить» перезапишет остатки на складе.');
-      return;
-    }
-    Alert.alert('Подтвердить инвентаризацию?', 'Фактические остатки будут применены к складу', [
-      { text: 'Отмена' },
-      { text: 'Подтвердить', onPress: () => {
-        try {
-          // Сохраняем все введённые значения
-          Object.entries(actVals).forEach(([id, val]) => {
-            const num = parseFloat(val);
-            if (!isNaN(num)) setInventoryItemActual(parseInt(id), num);
-          });
-          confirmInventoryAct(activeAct.id);
-          setActiveAct(null);
-          load();
-        } catch(e) { Alert.alert('Ошибка', e.message); }
-      }}
-    ]);
-  };
-
-  const handleCreate = () => {
-    try {
-      const scopeValue = scope === 'category' ? scopeCategory : scope === 'manual' ? scopeManualIds.join(',') : '';
-      createInventoryAct({ scope, scopeValue, locationId: null });
-      setShowSetup(false);
-      setScope('all');
-      setScopeCategory('');
-      setScopeManualIds([]);
-      load();
-    } catch(e) { Alert.alert('Ошибка', e.message); }
-  };
-
-  const handleDelete = (id) => {
-    Alert.alert('Удалить акт?', 'Данные инвентаризации будут удалены', [
-      { text: 'Отмена' },
-      { text: 'Удалить', style: 'destructive', onPress: () => {
-        try { deleteInventoryAct(id); load(); } catch(e) {}
-      }}
-    ]);
-  };
-
-  const categories = [...new Set(stock.map(s => s.category).filter(Boolean))];
-
-  const fillContent = activeAct && (
-    <>
-      <View style={styles.fillPanelHeader}>
-        <Pressable onPress={handleBack} style={styles.fillCloseBtn} hitSlop={8}>
-          <Text style={styles.fillCloseBtnTxt}>✕</Text>
-        </Pressable>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.fillPanelTitle}>Фактические остатки</Text>
-          <Text style={styles.fillPanelSub}>{SCOPE_OPTIONS.find(s => s.key === activeAct.scope)?.label || 'Инвентаризация'}</Text>
-        </View>
-        <Pressable style={[styles.confirmBtn, { position: 'relative' }, confirmHighlight.style]} onPress={handleConfirm}>
-          <Text style={styles.confirmBtnTxt}>Подтвердить</Text>
-          {confirmHighlight.overlay}
-        </Pressable>
-      </View>
-      {activeAct.__demo && activeTourKey === 'inventory.confirm' ? (
-        <View style={[styles.fillCard, { position: 'relative', marginTop: 4 }, fillHighlight.style]}>
-          <View style={{ padding: 16 }}>
-            <Text style={styles.summaryHeading}>Итоги</Text>
-            {actItems.map((item, idx) => {
-              const actual = parseFloat(actVals[item.id]);
-              const diff = actual - item.expected;
-              const matched = diff === 0;
-              return (
-                <View key={item.id} style={[styles.fillRow, { paddingHorizontal: 0 }, idx < actItems.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.borderHi }]}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.fillName}>{item.stock_name}</Text>
-                    <Text style={styles.fillUnit}>Было {fmt(item.expected)} {item.unit} → стало {fmt(actual)} {item.unit}</Text>
-                  </View>
-                  <Text style={[styles.summaryDiff, { color: matched ? colors.muted : diff > 0 ? colors.green : colors.red }]}>
-                    {matched ? 'Совпало' : `${diff > 0 ? '+' : ''}${fmt(diff)} ${item.unit}`}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
-          {fillHighlight.overlay}
-        </View>
-      ) : (
-      <ScrollView keyboardShouldPersistTaps="handled" style={{ flex: 1 }}>
-        <View style={[styles.fillCard, { position: 'relative' }, fillHighlight.style]}>
-          {actItems.map((item, idx) => {
-            const changed = actVals[item.id] && parseFloat(actVals[item.id]) !== item.expected;
-            return (
-              <View key={item.id} style={[styles.fillRow, idx < actItems.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.borderHi }]}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.fillName}>{item.stock_name}</Text>
-                  <Text style={styles.fillUnit}>По системе: {fmt(item.expected)} {item.unit}</Text>
-                </View>
-                <TextInput
-                  style={[styles.fillInput, changed && { borderColor: colors.orange, color: colors.orange }]}
-                  color={colors.text}
-                  value={actVals[item.id]}
-                  onChangeText={v => setActVals(prev => ({ ...prev, [item.id]: v }))}
-                  onBlur={() => saveActItem(item.id, actVals[item.id])}
-                  keyboardType="numeric"
-                  placeholder={String(item.expected)}
-                  placeholderTextColor={colors.muted}
-                />
-              </View>
-            );
-          })}
-          {fillHighlight.overlay}
-        </View>
+        })}
       </ScrollView>
-      )}
-    </>
+      <View style={st.sm}>
+        <Text style={st.smT}>Недостача <Text style={{ color: '#E9A9A2', fontFamily: fonts.familySemibold }}>{rub(lack)} ₽</Text> · Излишек <Text style={{ color: colors.green, fontFamily: fonts.familySemibold }}>+{rub(over)} ₽</Text>{'\n'}Остатки изменятся только после подтверждения.</Text>
+        <View style={hl.confirm.style}><GlassButton tone="accent" label="Подтвердить" height={52} disabled={counted === 0} onPress={askConfirm} />{hl.confirm.overlay}</View>
+      </View>
+      <Pressable onPress={removeDraft} hitSlop={8} style={{ alignSelf: 'flex-start', paddingVertical: 6 }}><Text style={st.del}>Удалить черновик</Text></Pressable>
+    </View>
+  ) : (
+    <ScrollView showsVerticalScrollIndicator={false}>
+      <View style={st.dh}><Text style={st.dT}>Акт от {dateOf(act.created_at)}</Text><Pill d={false} /></View>
+      <Text style={st.cX2}>{scopeText(act)}{act.location_name ? ` · ${act.location_name}` : ''}. Остатки приведены к факту, продажи во время подсчёта сохранены.</Text>
+      <View style={st.box}>{items.filter(i => i.actual !== null && Math.abs(i.diff_qty || 0) > 1e-9).length === 0 ? <Text style={st.cX}>Расхождений не было</Text>
+        : items.filter(i => i.actual !== null && Math.abs(i.diff_qty || 0) > 1e-9).map(i => <View key={i.id} style={st.lr}><Text style={st.lN}>{i.stock_name}</Text><Text style={st.lV}>{sgn(i.diff_qty)}{q(Math.abs(i.diff_qty))} {i.unit} · {sgn(i.diff_money)}{rub(Math.abs(i.diff_money))} ₽</Text></View>)}</View>
+      <Text style={st.cX2}>Итог: <Text style={{ color: lastTotal(act) < 0 ? '#E9A9A2' : colors.green, fontFamily: fonts.familySemibold }}>{sgn(lastTotal(act))}{rub(Math.abs(lastTotal(act)))} ₽</Text>. Сумма учтена в отчёте «Прибыль» строкой «Недостачи» или «Излишки».</Text>
+    </ScrollView>
   );
 
   return (
-    <View style={styles.root}>
-      <TopBar
-        title="Инвентаризация"
-        onBack={() => goBackSmart(navigation)}
-        navigation={navigation}
-        activeScreen="Inventory"
-        rightElement={
-          <Pressable style={styles.tourBtn} onPress={() => setTourOpen(true)} hitSlop={10} accessibilityLabel="Подсказка" accessibilityRole="button">
-            <Text style={styles.tourBtnTxt}>?</Text>
-          </Pressable>
-        }
-      />
-
-      <View key={isLandscape ? 'landscape' : 'portrait'} style={{ flex: 1, flexDirection: isLandscape ? 'row' : 'column' }}>
-      <Animated.View style={[isLandscape ? styles.leftCol : { flex: 1 }, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-
-        <Pressable style={[styles.addBtnBig, { position: 'relative' }, addBtnHighlight.style]} onPress={() => setShowSetup(true)}>
-          <Text style={styles.addBtnBigTxt}>+ Новый акт</Text>
-          {addBtnHighlight.overlay}
-        </Pressable>
-
-        <View style={[{ flex: 1, position: 'relative' }, listHighlight.style]}>
-        {acts.length === 0 ? (
-          <EmptyState
-            icon="📋"
-            title="Инвентаризаций ещё не было"
-            text="Сверьте фактические остатки склада с тем, что в системе — так вы увидите недостачи или излишки"
-          />
-        ) : (
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingBottom: 32, width: '100%', maxWidth: 760, alignSelf: 'center' }}>
-            {acts.map((act, idx) => {
-              const isOpen = expanded === act.id;
-              const items = act.items || [];
-              const discrepancies = items.filter(i => i.actual !== null && i.actual !== i.expected).length;
-
-              return (
-                <View key={act.id} style={[styles.card, idx > 0 && { marginTop: 10 }]}>
-                  <Pressable style={styles.cardHeader} onPress={() => setExpanded(isOpen ? null : act.id)}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.cardTitle}>
-                        {SCOPE_OPTIONS.find(s => s.key === act.scope)?.label || 'Инвентаризация'}
-                      </Text>
-                      <Text style={styles.cardDate}>{fmtDate(act.created_at)}</Text>
-                    </View>
-                    <View style={styles.cardRight}>
-                      {discrepancies > 0 && (
-                        <View style={styles.discBadge}>
-                          <Text style={styles.discBadgeTxt}>{discrepancies} расхождений</Text>
-                        </View>
-                      )}
-                      <View style={[styles.statusBadge, { backgroundColor: act.status === 'confirmed' ? 'rgba(120,183,150,0.12)' : 'rgba(127,168,217,0.1)' }]}>
-                        <Text style={[styles.statusTxt, { color: act.status === 'confirmed' ? colors.green : colors.orange }]}>
-                          {act.status === 'confirmed' ? 'Завершён' : 'В процессе'}
-                        </Text>
-                      </View>
-                      <Text style={[styles.chevron, isOpen && styles.chevronOpen]}>›</Text>
-                    </View>
-                  </Pressable>
-
-                  {isOpen && (
-                    <View style={styles.cardBody}>
-                      {items.length === 0 ? (
-                        <Text style={styles.noItems}>Позиции не добавлены</Text>
-                      ) : (
-                        <>
-                          <View style={styles.tableHeader}>
-                            <Text style={[styles.tableHd, { flex: 2 }]}>Позиция</Text>
-                            <Text style={styles.tableHd}>По системе</Text>
-                            <Text style={styles.tableHd}>Факт</Text>
-                            <Text style={styles.tableHd}>Разница</Text>
-                          </View>
-                          {items.map((item, ii) => {
-                            const hasActual = item.actual !== null && item.actual !== undefined;
-                            const diff = hasActual ? item.actual - (item.expected || 0) : 0;
-                            return (
-                              <View key={ii} style={[styles.tableRow, ii < items.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
-                                <Text style={[styles.tableName, { flex: 2 }]} numberOfLines={1}>{item.stock_name}</Text>
-                                <Text style={styles.tableVal}>{fmt(item.expected)}</Text>
-                                <Text style={styles.tableVal}>{hasActual ? fmt(item.actual) : '—'}</Text>
-                                <Text style={[styles.tableDiff, { color: !hasActual ? colors.muted : diff === 0 ? colors.muted : diff > 0 ? colors.green : colors.red }]}>
-                                  {hasActual ? (diff > 0 ? '+' : '') + fmt(diff) : '—'}
-                                </Text>
-                              </View>
-                            );
-                          })}
-                        </>
-                      )}
-
-                      {act.status === 'draft' && (
-                          <Pressable style={styles.fillBtn} onPress={() => openAct(act)}>
-                            <Text style={styles.fillBtnTxt}>Заполнить фактические остатки →</Text>
-                          </Pressable>
-                        )}
-                      <Pressable style={styles.deleteBtn} onPress={() => handleDelete(act.id)}>
-                        <Text style={styles.deleteBtnTxt}>Удалить акт</Text>
-                      </Pressable>
-                    </View>
-                  )}
-                </View>
-              );
-            })}
-          </ScrollView>
-        )}
-        {listHighlight.overlay}
+    <View style={st.root}>
+      <TopBar title="Инвентаризация" onBack={() => goBackSmart(navigation)} navigation={navigation} activeScreen="Inventory"
+        rightElement={<Pressable style={st.tourBtn} onPress={() => setTourOpen(true)} hitSlop={10} accessibilityLabel="Подсказка"><Text style={st.tourTxt}>?</Text></Pressable>} />
+      <View style={StyleSheet.absoluteFill} pointerEvents="none"><SoftGlow size={620} color="127,168,217" alpha={0.14} style={{ position: 'absolute', left: -170, top: -150 }} /></View>
+      <View style={st.tb}>
+        <Text style={st.hint}>Сверка фактических остатков с системой: помогает найти недостачи и излишки</Text>
+        <View style={{ position: 'relative', ...hl.add.style }}><GlassButton tone="solid" icon="plus" label="Новый акт" height={52} onPress={() => { setScope('all'); setNewOpen(true); }} />{hl.add.overlay}</View>
+      </View>
+      <View style={{ flex: 1, padding: 20, paddingTop: 12 }}>
+        <View style={[st.tiles, hl.stats.style]}>
+          <Tile k="Актов всего" v={String(acts.length)} s={`подтверждено: ${acts.filter(a => a.status === 'confirmed').length}`} />
+          <Tile k="Расхождение по последнему" v={lastConfirmed ? `${sgn(lastConfirmed.diff)}${rub(Math.abs(lastConfirmed.diff))} ₽` : '—'} s="недостача учтена в отчёте «Прибыль»" />
+          <Tile k="Мало на складе" v={String(lowCount)} s="позиций ниже порога" />
+          {hl.stats.overlay}
         </View>
-
-        {!isLandscape && (
-          <View style={[styles.infoCard, { marginTop: 16, marginHorizontal: 16, marginBottom: 16 }]}>
-            <Text style={styles.infoTitle}>Что такое инвентаризация?</Text>
-            <Text style={styles.infoTxt}>
-              Сверка фактических остатков с данными в системе. Помогает выявить расхождения — недостачи или излишки. Проводится периодически или по необходимости.
-            </Text>
+        <View style={[st.two, isLandscape && { flexDirection: 'row' }]}>
+          <View style={[st.lc, isLandscape && { flex: 0.8 }, hl.list.style]}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {acts.length === 0 ? <Text style={st.cX}>Актов пока нет</Text> : acts.map(a => (
+                <Pressable key={a.id} style={[st.ac, sel === a.id && st.acSel]} onPress={() => openAct(a.id)}>
+                  <View style={st.acT}><Text style={st.acD}>{dateOf(a.created_at)}</Text><Pill d={a.status === 'draft'} />
+                    {a.status === 'confirmed' && <Text style={[st.acM, { color: a.diff < 0 ? '#E9A9A2' : colors.green }]}>{sgn(a.diff)}{rub(Math.abs(a.diff))} ₽</Text>}</View>
+                  <Text style={st.acS}>{scopeText(a)} · {a.status === 'draft' ? `посчитано ${a.counted} из ${a.total}` : `${a.total} позиций`}</Text>
+                </Pressable>))}
+            </ScrollView>
           </View>
-        )}
-      </Animated.View>
-
-      {isLandscape && (
-        /* Альбомная — заполнение остатков, если акт открыт; иначе подсказка + статистика */
-        <View style={styles.sidePanel}>
-          {activeAct ? fillContent : (
-            <>
-              <View style={styles.infoCardBig}>
-                <Text style={styles.infoTitleBig}>Что такое инвентаризация?</Text>
-                <Text style={styles.infoTxtBig}>
-                  Сверка фактических остатков с данными в системе. Помогает выявить расхождения — недостачи или излишки. Проводится периодически или по необходимости.
-                </Text>
-              </View>
-
-              {(acts.length > 0 || activeTourKey === 'inventory.stats') && (
-                <View style={[{ width: '100%', maxWidth: 620, alignSelf: 'center', position: 'relative', marginTop: 16, padding: 12 }, statsHighlight.style]}>
-                  <Text style={styles.sideLabel}>Актов всего</Text>
-                  <Text style={styles.sideVal}>{acts.length}</Text>
-                  <Text style={styles.sideSub}>
-                    {acts.filter(a => a.status === 'confirmed').length} завершено · {acts.filter(a => a.status !== 'confirmed').length} в процессе
-                  </Text>
-
-                  <View style={styles.sideDivider} />
-
-                  <Text style={styles.sideLabel}>Расхождение план/факт</Text>
-                  <Text style={[styles.sideVal, { fontSize: 28, color: discrepancy >= 0 ? colors.green : colors.red }]}>
-                    {discrepancy >= 0 ? '+' : ''}{fmt(discrepancy)} ₽
-                  </Text>
-                  <Text style={styles.sideSub}>
-                    {discrepancy >= 0 ? 'Найдено больше, чем ожидалось' : 'Недостача по завершённым актам'}
-                  </Text>
-
-                  <View style={styles.sideDivider} />
-
-                  <Text style={styles.sideLabel}>Мало на складе</Text>
-                  <Text style={styles.sideSub}>
-                    {stock.filter(s => s['остаток'] <= (s.threshold || 0)).length} позиций ниже порога
-                  </Text>
-                  {statsHighlight.overlay}
-                </View>
-              )}
-            </>
-          )}
+          <View style={[st.rc, isLandscape && { flex: 1.2 }, hl.fill.style]}>{detail}{hl.fill.overlay}</View>
         </View>
-      )}
       </View>
 
-      {/* Портрет — заполнение остатков через Sheet, как и остальные формы в приложении */}
-      {!isLandscape && (
-        <Sheet visible={!!activeAct} onClose={handleBack} title="Фактические остатки">
-          {activeAct && (
-            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20 }}>
-              <Text style={styles.fillPanelSub}>{SCOPE_OPTIONS.find(s => s.key === activeAct.scope)?.label || 'Инвентаризация'}</Text>
-              {activeAct.__demo && activeTourKey === 'inventory.confirm' ? (
-                <View style={[styles.fillCard, { marginTop: 12, position: 'relative' }, fillHighlight.style]}>
-                  <View style={{ padding: 16 }}>
-                    <Text style={styles.summaryHeading}>Итоги</Text>
-                    {actItems.map((item, idx) => {
-                      const actual = parseFloat(actVals[item.id]);
-                      const diff = actual - item.expected;
-                      const matched = diff === 0;
-                      return (
-                        <View key={item.id} style={[styles.fillRow, { paddingHorizontal: 0 }, idx < actItems.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.borderHi }]}>
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.fillName}>{item.stock_name}</Text>
-                            <Text style={styles.fillUnit}>Было {fmt(item.expected)} {item.unit} → стало {fmt(actual)} {item.unit}</Text>
-                          </View>
-                          <Text style={[styles.summaryDiff, { color: matched ? colors.muted : diff > 0 ? colors.green : colors.red }]}>
-                            {matched ? 'Совпало' : `${diff > 0 ? '+' : ''}${fmt(diff)} ${item.unit}`}
-                          </Text>
-                        </View>
-                      );
-                    })}
-                  </View>
-                  {fillHighlight.overlay}
-                </View>
-              ) : (
-              <View style={[styles.fillCard, { marginTop: 12, position: 'relative' }, fillHighlight.style]}>
-                {actItems.map((item, idx) => {
-                  const changed = actVals[item.id] && parseFloat(actVals[item.id]) !== item.expected;
-                  return (
-                    <View key={item.id} style={[styles.fillRow, idx < actItems.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.borderHi }]}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.fillName}>{item.stock_name}</Text>
-                        <Text style={styles.fillUnit}>По системе: {fmt(item.expected)} {item.unit}</Text>
-                      </View>
-                      <TextInput
-                        style={[styles.fillInput, changed && { borderColor: colors.orange, color: colors.orange }]}
-                        color={colors.text}
-                        value={actVals[item.id]}
-                        onChangeText={v => setActVals(prev => ({ ...prev, [item.id]: v }))}
-                        onBlur={() => saveActItem(item.id, actVals[item.id])}
-                        keyboardType="numeric"
-                        placeholder={String(item.expected)}
-                        placeholderTextColor={colors.muted}
-                      />
-                    </View>
-                  );
-                })}
-                {fillHighlight.overlay}
-              </View>
-              )}
-              <Pressable style={[styles.confirmBtn, { marginTop: 20, alignSelf: 'stretch', paddingVertical: 15, position: 'relative' }, confirmHighlight.style]} onPress={handleConfirm}>
-                <Text style={[styles.confirmBtnTxt, { textAlign: 'center', fontSize: 16 }]}>Подтвердить</Text>
-                {confirmHighlight.overlay}
-              </Pressable>
-            </ScrollView>
-          )}
-        </Sheet>
-      )}
+      {/* Новый акт */}
+      <Modal visible={newOpen} transparent animationType="fade" onRequestClose={() => setNewOpen(false)}>
+        <KeyboardSafe style={st.ov}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setNewOpen(false)} />
+          <View style={st.win}>
+            <GlassSurface radius={26} tint="32,40,55" alpha={0.985} floating padding={24}>
+              <Text style={st.wT}>Новый акт инвентаризации</Text><Text style={st.wS}>Выберите охват пересчёта</Text>
+              {!!draft && <View style={st.warn}><Text style={st.warnT}>Есть незаконченный подсчёт от {dateOf(draft.created_at)} — посчитано {draft.counted} из {draft.total}. Новый акт заменит этот черновик; чтобы продолжить его, закройте окно и откройте черновик в списке.</Text></View>}
+              {[['all', 'Весь склад', 'все позиции'], ['category', 'Категория', 'например, «Молочные»'], ['manual', 'Выбранные позиции', 'отметите вручную']].map(([k, t, s]) => (
+                <Pressable key={k} style={[st.opt, scope === k && st.optOn]} onPress={() => setScope(k)}><View><Text style={st.optT}>{t}</Text><Text style={st.optS}>{s}</Text></View><View style={[st.rad, scope === k && st.radOn]} /></Pressable>))}
+              {scope === 'category' && (cats.length === 0 ? <Text style={st.wS}>На складе пока нет категорий</Text> : <View style={st.chips}>{cats.map(c => <Pressable key={c} style={[st.chip, scopeCat === c && st.chipOn]} onPress={() => setScopeCat(c)}><Text style={[st.chipT, scopeCat === c && { color: colors.orangeLight }]}>{c}</Text></Pressable>)}</View>)}
+              {scope === 'manual' && <ScrollView style={{ maxHeight: 190 }}>{stock.map(s => { const on = scopeIds.includes(s.id); return (
+                <Pressable key={s.id} style={st.mr} onPress={() => setScopeIds(p => (on ? p.filter(x => x !== s.id) : [...p, s.id]))}><View style={[st.cb, on && st.cbOn]}>{on && <Icon name="check" size={14} color={colors.onAccent} />}</View><Text style={st.optT}>{s.name}</Text></Pressable>); })}</ScrollView>}
+              <View style={st.row2}><GlassButton style={{ flex: 1 }} label="Отмена" height={54} onPress={() => setNewOpen(false)} /><GlassButton style={{ flex: 1 }} tone="accent" label="Начать подсчёт" height={54} onPress={startAct} /></View>
+            </GlassSurface>
+          </View>
+        </KeyboardSafe>
+      </Modal>
 
-      {/* Модалка создания акта */}
-      <Sheet visible={showSetup} onClose={() => setShowSetup(false)} title="Новый акт инвентаризации">
-        <View style={{ padding: 20 }}>
-            <Text style={styles.modalSub}>Выберите охват пересчёта</Text>
-
-            <View style={[styles.scopeList, { position: 'relative' }, scopeHighlight.style]}>
-              {SCOPE_OPTIONS.map((s, idx) => (
-                <Pressable
-                  key={s.key}
-                  style={[styles.scopeRow, idx < SCOPE_OPTIONS.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }, scope === s.key && styles.scopeRowActive]}
-                  onPress={() => setScope(s.key)}
-                >
-                  <View style={[styles.scopeCheck, scope === s.key && styles.scopeCheckActive]}>
-                    {scope === s.key && <Text style={{ color: colors.onAccent, fontSize: 12 }}>✓</Text>}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.scopeLabel, scope === s.key && { color: colors.orange }]}>{s.label}</Text>
-                    <Text style={styles.scopeHint}>{s.hint}</Text>
-                  </View>
-                </Pressable>
-              ))}
-              {scopeHighlight.overlay}
-            </View>
-
-            {scope === 'category' && (
-              <View style={{ marginBottom: 16 }}>
-                <Text style={styles.modalSub}>Какая категория</Text>
-                {categories.length === 0 ? (
-                  <Text style={styles.scopeHint}>На складе пока нет ни одной категории</Text>
-                ) : (
-                  <View style={styles.catChips}>
-                    {categories.map(cat => (
-                      <Pressable key={cat} style={[styles.catChip, scopeCategory === cat && styles.catChipActive]} onPress={() => setScopeCategory(cat)}>
-                        <Text style={[styles.catChipTxt, scopeCategory === cat && styles.catChipTxtActive]}>{cat}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                )}
-              </View>
-            )}
-
-            {scope === 'manual' && (
-              <View style={{ marginBottom: 16 }}>
-                <Text style={styles.modalSub}>Какие позиции ({scopeManualIds.length} выбрано)</Text>
-                <ScrollView style={styles.manualList} keyboardShouldPersistTaps="handled">
-                  {stock.map((s, idx) => {
-                    const checked = scopeManualIds.includes(s.id);
-                    return (
-                      <Pressable
-                        key={s.id}
-                        style={[styles.manualRow, idx < stock.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}
-                        onPress={() => setScopeManualIds(prev => checked ? prev.filter(x => x !== s.id) : [...prev, s.id])}
-                      >
-                        <View style={[styles.scopeCheck, checked && styles.scopeCheckActive]}>
-                          {checked && <Text style={{ color: colors.onAccent, fontSize: 12 }}>✓</Text>}
-                        </View>
-                        <Text style={styles.manualName} numberOfLines={1}>{s.name}</Text>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-            )}
-
-            <Pressable
-              style={[styles.createBtn, ((scope === 'category' && !scopeCategory) || (scope === 'manual' && scopeManualIds.length === 0)) && { opacity: 0.4 }]}
-              disabled={(scope === 'category' && !scopeCategory) || (scope === 'manual' && scopeManualIds.length === 0)}
-              onPress={handleCreate}
-            >
-              <Text style={styles.createBtnTxt}>Начать инвентаризацию</Text>
-            </Pressable>
-            <Pressable style={styles.cancelBtn} onPress={() => setShowSetup(false)}>
-              <Text style={styles.cancelBtnTxt}>Отмена</Text>
-            </Pressable>
+      {/* Подтверждение */}
+      <Modal visible={confirmOpen} transparent animationType="fade" onRequestClose={() => setConfirmOpen(false)}>
+        <View style={st.ov}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setConfirmOpen(false)} />
+          <View style={st.win}>
+            <GlassSurface radius={26} tint="32,40,55" alpha={0.985} floating padding={24}>
+              <Text style={st.wT}>Подтвердить инвентаризацию?</Text>
+              <Text style={st.wP}>Остатки склада будут приведены к факту по {items.filter(i => i.actual !== null).length} из {items.length} позиций. Продажи, прошедшие во время подсчёта, не потеряются: меняется только разница.</Text>
+              <ScrollView style={st.box2}>{items.filter(i => i.actual !== null && Math.abs(i.diff_qty || 0) > 1e-9).map(i => <View key={i.id} style={st.lr}><Text style={st.lN}>{i.stock_name}</Text><Text style={st.lV}>{sgn(i.diff_qty)}{q(Math.abs(i.diff_qty))} {i.unit}</Text></View>)}
+                {items.filter(i => i.actual !== null && Math.abs(i.diff_qty || 0) > 1e-9).length === 0 && <Text style={st.cX}>Расхождений нет</Text>}</ScrollView>
+              <Text style={[st.wP, { marginTop: 10 }]}>Недостача <Text style={{ color: '#E9A9A2', fontFamily: fonts.familySemibold }}>{rub(items.reduce((s, i) => s + Math.min(0, i.diff_money || 0), 0))} ₽</Text> · Излишек <Text style={{ color: colors.green, fontFamily: fonts.familySemibold }}>+{rub(items.reduce((s, i) => s + Math.max(0, i.diff_money || 0), 0))} ₽</Text></Text>
+              <View style={st.row2}><GlassButton style={{ flex: 1 }} label="Назад" height={54} onPress={() => setConfirmOpen(false)} /><GlassButton style={{ flex: 1 }} tone="accent" label="Применить" height={54} onPress={apply} /></View>
+            </GlassSurface>
+          </View>
         </View>
-      </Sheet>
-
-      <TourGuide
-        visible={tourOpen}
-        remountSignal={showSetup}
-        onClose={() => {
-          setTourOpen(false);
-          markTourSeen('Inventory');
-          if (activeAct?.__demo) setActiveAct(null);
-          if (showSetup) setShowSetup(false);
-        }}
-        steps={tourSteps}
-      />
+      </Modal>
+      <TourGuide visible={tourOpen} onClose={() => { setTourOpen(false); markTourSeen('Inventory'); }} steps={steps} />
     </View>
   );
 }
+const lastTotal = a => Math.round((a.items || []).reduce((s, i) => s + (i.diff_money || 0), 0));
 
-const styles = StyleSheet.create({
-  root:   { flex: 1, backgroundColor: colors.bg },
-  tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(127,168,217,0.1)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)', alignItems: 'center', justifyContent: 'center' },
-  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, color: colors.orange },
-
-  // ── Боковая панель сводки (альбомная) ──
-  sidePanel:  { flex: 1, backgroundColor: colors.bg, margin: 12, marginLeft: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', padding: 20 },
-  leftCol:    { flex: 0, width: '38%', maxWidth: 480, marginTop: 12, marginBottom: 12, marginLeft: 12, borderRadius: 16, borderWidth: 1, borderColor: colors.borderHi, overflow: 'hidden', backgroundColor: colors.surface2 },
-  addBtnBig:  { marginHorizontal: 16, marginTop: 16, marginBottom: 8, paddingVertical: 16, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' },
-  addBtnBigTxt: { fontFamily: fonts.family, fontSize: 16, color: colors.onAccent },
-
-  infoCard:  { margin: 12, backgroundColor: 'rgba(165,168,212,0.08)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(165,168,212,0.2)', padding: 16, width: '100%', maxWidth: 760, alignSelf: 'center' },
-  infoTitle: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.indigo, marginBottom: 6 },
-  infoTxt:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.textDim, lineHeight: 20 },
-
-  // Та же подсказка, но крупнее и с отступом сверху — для боковой панели
-  // в альбомной, не прижата к самому верху под шапкой
-  infoCardBig: { marginTop: 24, backgroundColor: 'rgba(165,168,212,0.08)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(165,168,212,0.25)', padding: 20, width: '100%', maxWidth: 620, alignSelf: 'center' },
-  infoTitleBig: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.indigo, marginBottom: 8 },
-  infoTxtBig:   { fontFamily: fonts.familyRegular, fontSize: 16, color: colors.textDim, lineHeight: 23 },
-  sideLabel:  { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
-  sideVal:    { fontFamily: fonts.family, fontSize: 28, color: colors.orange, marginTop: 6 },
-  sideSub:    { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
-  sideDivider:{ height: 1, backgroundColor: colors.border, marginVertical: 16 },
-
-  emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
-  emptyTxt:  { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
-  emptyHint: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 8, lineHeight: 18, opacity: 0.7 },
-
-  card:       { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', padding: 16 },
-  cardTitle:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, marginBottom: 2 },
-  cardDate:   { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
-  cardRight:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  discBadge:  { backgroundColor: 'rgba(219,129,120,0.1)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
-  discBadgeTxt: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.red },
-  statusBadge:{ borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
-  statusTxt:  { fontFamily: fonts.familySemibold, fontSize: 12 },
-  chevron:    { fontSize: 20, color: colors.muted, transform: [{ rotate: '90deg' }] },
-  chevronOpen:{ transform: [{ rotate: '-90deg' }] },
-
-  cardBody:   { borderTopWidth: 1, borderTopColor: colors.border, padding: 16 },
-  noItems:    { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', paddingVertical: 12 },
-
-  tableHeader:{ flexDirection: 'row', marginBottom: 8 },
-  tableHd:    { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1, width: 70, textAlign: 'right' },
-  tableRow:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
-  tableName:  { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.text },
-  tableVal:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, width: 70, textAlign: 'right' },
-  tableDiff:  { fontFamily: fonts.familySemibold, fontSize: 14, width: 70, textAlign: 'right' },
-
-  deleteBtn:  { marginTop: 14, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(219,129,120,0.3)', backgroundColor: 'rgba(219,129,120,0.06)', alignItems: 'center' },
-  deleteBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red },
-
-  fillBtn:    { marginTop: 14, marginBottom: 8, paddingVertical: 13, borderRadius: 12, backgroundColor: 'rgba(127,168,217,0.12)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)', alignItems: 'center' },
-  fillBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
-
-  // ─── Заполнение фактических остатков — встроено в правую колонку/Sheet ──
-  fillPanelHeader: { flexDirection: 'row', alignItems: 'center', paddingBottom: 16, gap: 12 },
-  fillCloseBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  fillCloseBtnTxt: { fontSize: 16, color: colors.muted, fontWeight: '700' },
-  fillPanelTitle:  { fontFamily: fonts.family, fontSize: 18, color: colors.text },
-  fillPanelSub:    { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 2 },
-  confirmBtn: { backgroundColor: colors.orange, borderRadius: 12, paddingVertical: 11, paddingHorizontal: 18 },
-  confirmBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.onAccent },
-
-  fillCard:   { backgroundColor: colors.surface2, borderRadius: 16, borderWidth: 1, borderColor: colors.borderHi, overflow: 'hidden' },
-  fillRow:    { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
-  fillName:   { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
-  fillUnit:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 2 },
-  fillInput:  { width: 110, backgroundColor: colors.surface3, borderRadius: 12, borderWidth: 1, borderColor: colors.border, paddingVertical: 12, paddingHorizontal: 12, fontFamily: fonts.familySemibold, fontSize: 16, textAlign: 'right', color: colors.text },
-  summaryHeading: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8 },
-  summaryDiff: { fontFamily: fonts.familySemibold, fontSize: 16 },
-
-  addBtn:     { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, backgroundColor: 'rgba(127,168,217,0.12)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)' },
-  addBtnTxt:  { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
-
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
-  modalBox:   { width: '50%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, padding: 24 },
-  modalTitle: { fontFamily: fonts.family, fontSize: 20, color: colors.text, marginBottom: 4 },
-  modalSub:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginBottom: 20 },
-
-  scopeList:  { backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', marginBottom: 16 },
-  catChips:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  catChip:    { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface2 },
-  catChipActive: { borderColor: 'rgba(127,168,217,0.5)', backgroundColor: 'rgba(127,168,217,0.1)' },
-  catChipTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
-  catChipTxtActive: { color: colors.orange },
-  manualList: { backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', maxHeight: 260 },
-  manualRow:  { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 12 },
-  manualName: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.text, flex: 1 },
-  scopeRow:   { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
-  scopeRowActive: { backgroundColor: 'rgba(127,168,217,0.06)' },
-  scopeCheck: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  scopeCheckActive: { backgroundColor: colors.orange, borderColor: colors.orange },
-  scopeLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, marginBottom: 2 },
-  scopeHint:  { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
-
-  createBtn:  { backgroundColor: colors.orange, borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginBottom: 8 },
-  createBtnTxt: { fontFamily: fonts.family, fontSize: 16, color: colors.onAccent },
-  cancelBtn:  { paddingVertical: 12, alignItems: 'center' },
-  cancelBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
+const st = StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg },
+  tourBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(127,168,217,0.1)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.3)', alignItems: 'center', justifyContent: 'center' }, tourTxt: { fontFamily: fonts.family, fontSize: 18, color: colors.orange },
+  tb: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: 14 }, hint: { flex: 1, fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted },
+  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 12, position: 'relative' },
+  kl: { fontFamily: fonts.familySemibold, fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase', color: colors.textDim }, val: { fontFamily: fonts.display, fontSize: 26, color: colors.text, marginTop: 6 }, sub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 5, lineHeight: 17 },
+  two: { flex: 1, gap: 12 }, lc: { flex: 1, backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', padding: 12 }, rc: { flex: 1, backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', padding: 18 },
+  ac: { padding: 13, borderRadius: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)' }, acSel: { backgroundColor: 'rgba(127,168,217,0.10)' }, acT: { flexDirection: 'row', alignItems: 'center' }, acD: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text, flex: 1 }, acM: { fontFamily: fonts.familySemibold, fontSize: 15, marginLeft: 12 }, acS: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 4 },
+  pill: { height: 24, paddingHorizontal: 10, borderRadius: 999, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginLeft: 10 }, pillT: { fontFamily: fonts.familySemibold, fontSize: 12 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 }, ico: { width: 76, height: 76, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  cT: { fontFamily: fonts.familySemibold, fontSize: 19, color: colors.text, marginBottom: 6, textAlign: 'center' }, cX: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', lineHeight: 21, padding: 16 }, cX2: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.textDim, lineHeight: 21, marginVertical: 8 },
+  dh: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }, dT: { fontFamily: fonts.display, fontSize: 22, color: colors.text }, dS: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }, chip: { height: 34, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' }, chipOn: { backgroundColor: 'rgba(127,168,217,0.2)', borderColor: 'rgba(157,191,230,0.5)' }, chipT: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
+  ir: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)' }, irN: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text }, irS: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
+  inp: { width: 96, height: 44, borderRadius: 12, textAlign: 'right', paddingHorizontal: 12, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', color: colors.text, fontFamily: fonts.familySemibold, fontSize: 17 }, unit: { width: 36, fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginHorizontal: 6 },
+  dif: { width: 118, alignItems: 'flex-end' }, dv: { fontFamily: fonts.familySemibold, fontSize: 15 }, dm: { fontFamily: fonts.familyMedium, fontSize: 12, color: colors.muted }, z: { fontFamily: fonts.familyMedium, fontSize: 14, color: colors.muted },
+  sm: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)', marginTop: 6 }, smT: { flex: 1, fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, lineHeight: 20 }, del: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.muted },
+  box: { borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', paddingHorizontal: 14, paddingVertical: 4, marginVertical: 8 }, box2: { maxHeight: 160, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', paddingHorizontal: 14, marginTop: 10 },
+  lr: { flexDirection: 'row', paddingVertical: 7 }, lN: { flex: 1, fontFamily: fonts.familyRegular, fontSize: 14, color: colors.textDim }, lV: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
+  ov: { flex: 1, backgroundColor: 'rgba(5,8,12,0.62)', alignItems: 'center', justifyContent: 'center' }, win: { width: '48%', minWidth: 520, maxWidth: 600 },
+  wT: { fontFamily: fonts.display, fontSize: 21, color: colors.text }, wS: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 3, marginBottom: 10 }, wP: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.textDim, lineHeight: 21, marginTop: 8 },
+  warn: { padding: 12, borderRadius: 14, backgroundColor: 'rgba(217,172,98,0.08)', borderWidth: 1, borderColor: 'rgba(217,172,98,0.25)', marginBottom: 10 }, warnT: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.warning, lineHeight: 19 },
+  opt: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderRadius: 16, marginBottom: 8, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' }, optOn: { backgroundColor: 'rgba(127,168,217,0.12)', borderColor: 'rgba(157,191,230,0.55)' }, optT: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text }, optS: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+  rad: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)' }, radOn: { borderColor: colors.orange, backgroundColor: colors.orange },
+  mr: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 9 }, cb: { width: 22, height: 22, borderRadius: 7, borderWidth: 2, borderColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' }, cbOn: { backgroundColor: colors.orange, borderColor: colors.orange },
+  row2: { flexDirection: 'row', gap: 10, marginTop: 16 },
 });

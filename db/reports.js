@@ -124,9 +124,13 @@ export function getReport(from, to) {
   const expenses = sum(expItems, x => x.sum);
   const purchasesAsCost = cogs > 0 ? 0 : purchases;
 
+  // Недостачи и излишки подтверждённых инвентаризаций за период: недостача — затрата, излишек уменьшает затраты
+  const shrinkage = r2(-(db.getFirstSync(
+    `SELECT SUM(i.diff_money) AS s FROM inventory_act_items i JOIN inventory_acts a ON a.id = i.act_id
+     WHERE a.status = 'confirmed' AND a.confirmed_at >= ? AND a.confirmed_at < ?`, [a, b])?.s || 0));
   const gross = r2(revenue - cogs - purchasesAsCost);
   const fixed = expenses + c.overhead + c.salary + c.depreciation;
-  const net = r2(gross - fixed);
+  const net = r2(gross - fixed - shrinkage);
   const gm = revenue > 0 ? gross / revenue : 0;
   const breakEven = gm > 0 ? Math.round(fixed / gm) : null;
 
@@ -153,7 +157,7 @@ export function getReport(from, to) {
     returns: { count: rets.length, sum: Math.round(sum(rets, o => o.total)) },
     cogs, purchases, purchasesAsCost, gross, grossPct: revenue ? gm * 100 : 0,
     expenses, expItems, overhead: c.overhead, overheadItems: c.overheadItems, salary: c.salary, salaryItems: c.salaryItems,
-    depreciation: c.depreciation, fixed, net, netPct: revenue ? net / revenue * 100 : 0,
+    depreciation: c.depreciation, shrinkage, fixed, net, netPct: revenue ? net / revenue * 100 : 0,
     payments, shiftsCount: shifts.length, perShift: shifts.length ? Math.round(revenue / shifts.length) : null,
     payrollPct: revenue ? c.salary / revenue * 100 : 0, cogsPct: revenue ? cogs / revenue * 100 : 0,
     breakEven, safetyPct: breakEven && revenue ? (revenue - breakEven) / revenue * 100 : null,

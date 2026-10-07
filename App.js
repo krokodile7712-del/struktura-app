@@ -42,7 +42,6 @@ import ProductsScreen from './screens/ProductsScreen';
 import LocationsScreen from './screens/LocationsScreen';
 import EmployeesScreen from './screens/EmployeesScreen';
 import InventoryScreen from './screens/InventoryScreen';
-import InventoryCountScreen from './screens/InventoryCountScreen';
 import ReportsScreen from './screens/ReportsScreen';
 import WorkJournalScreen from './screens/WorkJournalScreen';
 import { colors, fonts } from './constants/theme';
@@ -171,7 +170,6 @@ export default function App() {
             <Stack.Screen name="Locations"      component={LocationsScreen} />
             <Stack.Screen name="Employees"      component={EmployeesScreen} />
             <Stack.Screen name="Inventory"      component={InventoryScreen} />
-            <Stack.Screen name="InventoryCount" component={InventoryCountScreen} />
             <Stack.Screen name="Reports"        component={ReportsScreen} />
             <Stack.Screen name="WorkJournal"    component={WorkJournalScreen} />
           </Stack.Navigator>

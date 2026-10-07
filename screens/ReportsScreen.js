@@ -108,7 +108,7 @@ export default function ReportsScreen({ navigation }) {
           onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.create(220, 'easeInEaseOut', 'opacity')); setOpen(isOpen ? null : k); }}>
           <View style={{ flex: 1 }}><Text style={s.rowN}>{name}</Text>{!!sub && <Text style={s.rowS}>{sub}</Text>}</View>
           <Text style={s.rowP}>{r.revenue ? pct(Math.abs(amount) / r.revenue * 100) : ''}</Text>
-          <Text style={[s.rowA, kind === 'cost' && { color: colors.red }, kind === 'total' && { color: amount >= 0 ? colors.green : colors.red, fontSize: 24 }]}>{kind === 'cost' ? '−' : ''}{fmt(Math.abs(amount))} ₽</Text>
+          <Text style={[s.rowA, kind === 'cost' && { color: colors.red }, kind === 'plus' && { color: colors.green }, kind === 'total' && { color: amount >= 0 ? colors.green : colors.red, fontSize: 24 }]}>{kind === 'cost' ? '−' : kind === 'plus' ? '+' : ''}{fmt(Math.abs(amount))} ₽</Text>
           <Text style={[s.chev, isOpen && { transform: [{ rotate: '90deg' }] }]}>{can_ ? '›' : ''}</Text>
         </Pressable>
         {isOpen && can_ && <View style={s.det}>{items.map((x, i) => <View key={i} style={s.detRow}><Text style={s.detN}>{x.name}</Text><Text style={s.detA}>{fmt(x.sum)} ₽</Text></View>)}</View>}
@@ -172,6 +172,7 @@ export default function ReportsScreen({ navigation }) {
         <Row k="oh" kind="cost" name="Накладные" sub="аренда и др. за период" amount={r.overhead} items={r.overheadItems} />
         <Row k="sal" kind="cost" name="Зарплата" sub="по сменам" amount={r.salary} items={r.salaryItems} />
         <Row k="dep" kind="cost" name="Амортизация" sub="оборудование" amount={r.depreciation} />
+        {r.shrinkage !== 0 && <Row k="shr" kind={r.shrinkage > 0 ? 'cost' : 'plus'} name={r.shrinkage > 0 ? 'Недостачи' : 'Излишки'} sub="по подтверждённым инвентаризациям" amount={Math.abs(r.shrinkage)} />}
         <Row k="net" kind="total" name="Чистая прибыль" sub="после всех затрат" amount={r.net} />
       </View>
       {r.purchasesAsCost > 0
