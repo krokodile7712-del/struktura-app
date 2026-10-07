@@ -1436,8 +1436,6 @@ export function openShift(cashOpen = 0, userId = null, employeeName = '', locati
     `INSERT INTO shifts (opened_at, status, cash_open, user_id, employee_name, location_id) VALUES (?, 'open', ?, ?, ?, ?)`,
     [now, cashOpen, userId || null, employeeName || '', locationId || null]
   ).lastInsertRowId;
-  try { ensureDailyDepreciationExpense(); } catch (e) { console.error('[openShift] Ошибка автосчёта расходов:', e); }
-  try { ensureRecurringExpenses(); } catch (e) { console.error('[openShift] Ошибка повторяющихся расходов:', e); }
   return id;
 }
 
@@ -1469,8 +1467,6 @@ export function closeShift(shift_id) {
   const now = new Date().toISOString();
   db.runSync(`UPDATE shifts SET closed_at=?, status='closed' WHERE id=?`, [now, shift_id]);
   recalcShiftTotals(shift_id);
-  try { ensureDailyDepreciationExpense(); } catch (e) { console.error('[closeShift] Ошибка автосчёта расходов:', e); }
-  try { ensureRecurringExpenses(); } catch (e) { console.error('[closeShift] Ошибка повторяющихся расходов:', e); }
 }
 
 // Ручная правка времени открытия/закрытия смены администратором — для
@@ -1640,12 +1636,17 @@ export function getAllExpenses() {
   return db.getAllSync(`SELECT * FROM expenses ORDER BY date DESC`);
 }
 
-export function insertExpense({ date, category, amount, comment, shift_id, photo_uri, location_id }) {
+export function insertExpense({ date, category, amount, comment, shift_id, photo_uri, location_id, source }) {
   const db = getDb();
   db.runSync(
-    `INSERT INTO expenses (date, category, amount, comment, shift_id, photo_uri, location_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [date, category, amount, comment || '', shift_id || null, photo_uri || '', location_id || null]
+    `INSERT INTO expenses (date, category, amount, comment, shift_id, photo_uri, location_id, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [date, category, amount, comment || '', shift_id || null, photo_uri || '', location_id || null, source || '']
   );
+}
+
+// Расходы за период (даты «ГГГГ-ММ-ДД») — раньше экран грузил всю таблицу и фильтровал в памяти
+export function getExpensesInPeriod(from, to) {
+  return getDb().getAllSync(`SELECT * FROM expenses WHERE date >= ? AND date <= ? ORDER BY date DESC, id DESC`, [from, to]);
 }
 
 export function deleteExpense(id) {
@@ -1666,47 +1667,6 @@ export function updateExpense(id, { category, amount, comment, photo_uri, date }
 export function getRecurringExpenses() {
   const db = getDb();
   return db.getAllSync(`SELECT * FROM recurring_expenses WHERE active = 1 ORDER BY day_of_month`);
-}
-
-export function insertRecurringExpense({ category, amount, comment, day_of_month }) {
-  const db = getDb();
-  db.runSync(
-    `INSERT INTO recurring_expenses (category, amount, comment, day_of_month, active, created_at) VALUES (?, ?, ?, ?, 1, ?)`,
-    [category, amount, comment || '', day_of_month, new Date().toISOString()]
-  );
-}
-
-export function deactivateRecurringExpense(id) {
-  const db = getDb();
-  db.runSync(`UPDATE recurring_expenses SET active = 0 WHERE id = ?`, [id]);
-}
-
-// Создаёт очередной расход по каждому активному шаблону, если для текущего
-// месяца ещё не создавался (проверка по recurring_id + месяцу) и число
-// месяца уже наступило. Тот же принцип, что у ensureDailyDepreciationExpense —
-// идемпотентная проверка перед вставкой, безопасно вызывать многократно.
-export function ensureRecurringExpenses() {
-  const db = getDb();
-  const now = new Date();
-  const today = now.toISOString().slice(0, 10);
-  const monthKey = today.slice(0, 7); // YYYY-MM
-  const dayNum = now.getDate();
-
-  try {
-    const templates = getRecurringExpenses();
-    for (const t of templates) {
-      if (dayNum < t.day_of_month) continue;
-      const already = db.getFirstSync(
-        `SELECT id FROM expenses WHERE recurring_id = ? AND date LIKE ?`,
-        [t.id, `${monthKey}%`]
-      );
-      if (already) continue;
-      db.runSync(
-        `INSERT INTO expenses (date, category, amount, comment, recurring_id) VALUES (?, ?, ?, ?, ?)`,
-        [today, t.category, t.amount, t.comment || '', t.id]
-      );
-    }
-  } catch (e) { console.error('[ensureRecurringExpenses]', e); }
 }
 
 // ─── Записи по телефону (локальные, не синхронизируются с Supabase) ────────
@@ -2689,6 +2649,7 @@ export function addPurchase(stockName, qty, pricePerUnit, locationId = null) {
         comment: `${stockName}, ${qty} ${stockRow.unit || ''}`.trim(),
         shift_id: getOpenShift()?.id || null,
         location_id: locationId || null,
+        source: 'stock',
       });
     }
     db.execSync('COMMIT');
@@ -3490,53 +3451,6 @@ export function deleteInvestment(id) {
   db.runSync(`DELETE FROM investments WHERE id = ?`, [id]);
 }
 
-// Суммарные вложения и прогресс окупаемости
-// Сводка для раздела Финансы — четыре вида трат за период. Оборудование
-// (амортизация) и Накладные уже материализуются как обычные расходы с
-// соответствующей категорией (см. ensureDailyDepreciationExpense) — берём
-// реальные суммы оттуда, не пересчитываем формулы заново.
-export function getFinancesSummary(dateFrom, dateTo) {
-  const db = getDb();
-  const byCategory = db.getAllSync(
-    `SELECT category, SUM(amount) as total FROM expenses WHERE date >= ? AND date <= ? GROUP BY category`,
-    [dateFrom, dateTo]
-  );
-  let equipmentTotal = 0, overheadsTotal = 0, otherTotal = 0;
-  for (const row of byCategory) {
-    if (row.category === 'Амортизация') equipmentTotal += row.total || 0;
-    else if (row.category === 'Накладные') overheadsTotal += row.total || 0;
-    else otherTotal += row.total || 0;
-  }
-  const investSummary = getInvestmentSummary();
-  return {
-    expensesTotal: otherTotal,
-    equipmentTotal,
-    overheadsTotal,
-    investmentsTotal: investSummary.totalInvested,
-  };
-}
-
-export function getInvestmentSummary() {
-  const db = getDb(); ensureInvestments(db);
-  const all = db.getAllSync(`SELECT * FROM investments`);
-  const nonReturnable = all.filter(i => !i.returnable);
-  const returnable = all.filter(i => i.returnable);
-  const totalInvested = nonReturnable.reduce((s, i) => s + i.amount, 0);
-  const totalReturnable = returnable.reduce((s, i) => s + i.amount, 0);
-  // Разбивка не-возвратных покупок — списывается постепенно (амортизация) vs разовая трата
-  const amortized = nonReturnable.filter(i => i.amort_months > 0);
-  const oneOff = nonReturnable.filter(i => !(i.amort_months > 0));
-  const amortizedTotal = amortized.reduce((s, i) => s + i.amount, 0);
-  const oneOffTotal = oneOff.reduce((s, i) => s + i.amount, 0);
-  const monthlyLoad = amortized.reduce((s, i) => s + (i.amort_months > 0 ? i.amount / i.amort_months : 0), 0);
-  // Накопленная прибыль из P&L (за всё время)
-  const profitRow = db.getFirstSync(
-    `SELECT SUM(total) as rev FROM orders WHERE status IS NULL OR status != 'returned'`
-  );
-  const totalRevenue = profitRow?.rev || 0;
-  return { totalInvested, totalReturnable, totalRevenue, all, amortizedTotal, oneOffTotal, monthlyLoad: Math.round(monthlyLoad) };
-}
-
 // ─── Блок Ж: Журнал работ ───────────────────────────────────────────────────
 
 // Заказы с заметками (к заказу или к позициям)
@@ -3629,59 +3543,6 @@ export function getShiftsInPeriod(dateFrom, dateTo) {
       [dateFrom + 'T00:00:00', dateTo + 'T23:59:59']
     );
   } catch (_) { return []; }
-}
-
-// Раз в день (при первом закрытии смены за сутки) создаёт в Расходах записи
-// по амортизации оборудования и накладным расходам — чтобы вкладка «Расходы»
-// и Отчётность (P&L) считали одинаково, а не расходились в двух формулах.
-// Идемпотентна: повторный вызов в тот же день ничего не задваивает.
-export function ensureDailyDepreciationExpense() {
-  const db = getDb();
-  const today = new Date().toISOString().slice(0, 10);
-
-  // Крупные покупки, растянутые по месяцам (Инвестиции, было — отдельно Оборудование)
-  try {
-    const already = db.getFirstSync(
-      `SELECT id FROM expenses WHERE date = ? AND category = 'Амортизация' AND comment = 'Автоматически'`,
-      [today]
-    );
-    if (!already) {
-      const investments = getInvestments();
-      let daily = 0;
-      for (const inv of investments) {
-        if (!inv.amount) continue;
-        if (inv.amort_months > 0) {
-          daily += inv.amount / inv.amort_months / 30;
-        }
-      }
-      daily = Math.round(daily * 100) / 100;
-      if (daily > 0) {
-        insertExpense({ date: today, category: 'Амортизация', amount: daily, comment: 'Автоматически' });
-      }
-    }
-  } catch (e) { console.error('[ensureDailyDepreciationExpense] амортизация:', e); }
-
-  // Накладные расходы (месячные/годовые/недельные — приводим к дневной доле)
-  try {
-    const already = db.getFirstSync(
-      `SELECT id FROM expenses WHERE date = ? AND category = 'Накладные' AND comment = 'Автоматически'`,
-      [today]
-    );
-    if (!already) {
-      const overheads = getOverheadItems();
-      let daily = 0;
-      for (const oh of overheads) {
-        const monthly = oh.period === 'year' ? oh.amount / 12
-                       : oh.period === 'week' ? oh.amount * 4.33
-                       : oh.amount;
-        daily += monthly / 30;
-      }
-      daily = Math.round(daily * 100) / 100;
-      if (daily > 0) {
-        insertExpense({ date: today, category: 'Накладные', amount: daily, comment: 'Автоматически' });
-      }
-    }
-  } catch (e) { console.error('[ensureDailyDepreciationExpense] накладные:', e); }
 }
 
 // Единственного активного администратора удалить нельзя. Возвращает {ok} или {ok:false, error}
@@ -3920,4 +3781,30 @@ export function getFiscalStatus(orderId) {
   const db = getDb();
   ensureFiscalQueue(db);
   return db.getFirstSync(`SELECT status FROM fiscal_queue WHERE order_id = ?`, [orderId]);
+}
+
+// Однократная чистка учёта расходов (флаг в настройках): раньше постоянные затраты считались тремя способами сразу —
+// автострочки «Амортизация»/«Накладные» на каждый день, ежемесячные строки «Повторов» и накладные в отчёте, —
+// и в прибыли дублировались. Теперь повторяющиеся расходы — только «накладные» (начисляются по дням),
+// амортизация считается отчётом, строки «Автоматически» и порождённые повторами удаляются.
+export function migrateExpensesV2() {
+  const db = getDb();
+  try {
+    if (getSetting('expensesV2') === '1') return false;
+    db.execSync('BEGIN');
+    try {
+      db.runSync(`UPDATE expenses SET source = 'stock' WHERE category = 'Закупка' AND (source IS NULL OR source = '')`);
+      const names = new Set(getOverheadItems().map(o => `${o.name}|${o.amount}`));
+      for (const t of db.getAllSync(`SELECT * FROM recurring_expenses WHERE active = 1`)) {
+        const name = (t.comment || '').trim() || t.category;
+        if (!names.has(`${name}|${t.amount}`)) addOverheadItem({ name, amount: t.amount, period: 'month' });
+        db.runSync(`UPDATE recurring_expenses SET active = 0 WHERE id = ?`, [t.id]);
+      }
+      db.runSync(`DELETE FROM expenses WHERE recurring_id IS NOT NULL`);
+      db.runSync(`DELETE FROM expenses WHERE comment = 'Автоматически' AND category IN ('Амортизация', 'Накладные')`);
+      setSetting('expensesV2', '1');
+      db.execSync('COMMIT');
+    } catch (e) { try { db.execSync('ROLLBACK'); } catch (_) {} throw e; }
+    return true;
+  } catch (e) { console.error('[migrateExpensesV2]', e); return false; }
 }

@@ -1,7 +1,7 @@
 import { getDb } from './database';
 import {
   calcCOGS, summarizeSales, getPayMethods, getShiftsInPeriod, calcShiftSalaryCost,
-  getOverheadItems, getInvestments, localDateStartISO,
+  getOverheadItems, getInvestments, localDateStartISO, getSetting, setSetting,
 } from './queries';
 
 // Единая модель отчётности: все цифры считаются ОДИН раз за один проход, вкладки экрана только показывают готовое.
@@ -13,6 +13,40 @@ export const localDate = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMont
 const r2 = n => Math.round((n || 0) * 100) / 100;
 const sum = (a, f = x => x) => a.reduce((s, x) => s + (f(x) || 0), 0);
 const dayCount = (a, b) => Math.round((new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 86400000) + 1;
+const addDays = (s, n) => { const d = new Date(s + 'T00:00:00'); d.setDate(d.getDate() + n); return localDate(d); };
+// Сколько дней периода [a1, b1] попадает в промежуток [a2, b2] (даты «ГГГГ-ММ-ДД»)
+const overlap = (a1, b1, a2, b2) => Math.max(0, dayCount(a1 > a2 ? a1 : a2, b1 < b2 ? b1 : b2));
+
+// Периоды — общие для «Отчётности» и «Расходов» (раньше «неделя» и «месяц» значили разное на разных экранах)
+const ago = n => addDays(localDate(), -n);
+const monday = () => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return localDate(d); };
+export const PRESETS = [
+  { key: 'today', label: 'Сегодня', from: () => ago(0) }, { key: 'week', label: 'Неделя', from: monday },
+  { key: 'month', label: 'С начала месяца', from: () => localDate().slice(0, 8) + '01' }, { key: 'month30', label: '30 дней', from: () => ago(29) },
+  { key: 'quarter', label: 'Квартал', from: () => ago(89) }, { key: 'year', label: 'Год', from: () => localDate().slice(0, 4) + '-01-01' },
+];
+export const rangeOf = key => ({ from: PRESETS.find(p => p.key === key).from(), to: localDate() });
+
+// Дата начала работы в приложении: от неё считаются накладные и амортизация (только за отработанные дни, а не за весь период).
+export function getBusinessStart() {
+  const saved = getSetting('bizStart');
+  if (saved) return saved;
+  const db = getDb(), c = [];
+  const push = v => { if (v) c.push(String(v).length > 10 ? localDate(new Date(v)) : String(v).slice(0, 10)); };
+  try {
+    push(db.getFirstSync(`SELECT MIN(created_at) AS v FROM orders`)?.v); push(db.getFirstSync(`SELECT MIN(date) AS v FROM expenses`)?.v);
+    push(db.getFirstSync(`SELECT MIN(opened_at) AS v FROM shifts`)?.v); push(db.getFirstSync(`SELECT MIN(invest_date) AS v FROM investments WHERE invest_date != ''`)?.v);
+  } catch (_) {}
+  const start = c.sort()[0] || localDate();
+  try { setSetting('bizStart', start); } catch (_) {}
+  return start;
+}
+
+// Крупные покупки растягиваются минимум на 3 месяца (короче — 3, не указано — тоже 3) и списываются по дням,
+// начиная с покупки или с начала работы в приложении (что позже): пока бизнесу меньше срока, амортизация — за реально прошедшие дни.
+const MIN_AMORT = 3;
+export const amortMonths = inv => Math.max(MIN_AMORT, inv.amort_months || 0);
+const invStart = (inv, biz) => { const d = (inv.invest_date || String(inv.created_at || '').slice(0, 10) || biz).slice(0, 10); return d > biz ? d : biz; };
 
 // Предыдущий период той же длины (для сравнения)
 export function prevPeriod(from, to) {
@@ -23,7 +57,8 @@ export function prevPeriod(from, to) {
 
 // Накладные, зарплата и амортизация за период (пропорционально дням) с разбивкой для раскрытия строк
 function periodCosts(from, to, revenue, shifts) {
-  const days = dayCount(from, to), db = getDb();
+  const db = getDb(), biz = getBusinessStart();
+  const days = overlap(from, to, biz, localDate());
   const overheadItems = [], salaryBy = {};
   let depreciation = 0;
   try {
@@ -47,7 +82,11 @@ function periodCosts(from, to, revenue, shifts) {
     }
   } catch (_) {}
   try {
-    for (const i of getInvestments()) if (i.amount > 0 && i.amort_months > 0) depreciation += i.amount / i.amort_months * days / 30;
+    for (const i of getInvestments()) {
+      if (!(i.amount > 0) || i.returnable) continue;
+      const st = invStart(i, biz), termDays = amortMonths(i) * 30;
+      depreciation += i.amount / termDays * overlap(from, to, st, addDays(st, termDays - 1));
+    }
   } catch (_) {}
   return {
     overheadItems, overhead: sum(overheadItems, x => x.sum),
@@ -72,14 +111,19 @@ export function getReport(from, to) {
   const revenue = r2(sum(live, o => o.total)), orders = live.length;
   const cogs = r2(calcCOGS(live));
 
-  const exp = db.getAllSync(`SELECT category, SUM(amount) AS s FROM expenses WHERE date >= ? AND date <= ? GROUP BY category`, [from, to]);
+  // «Амортизация»/«Накладные» и строки повторов считаются ниже по дням (иначе — двойной учёт); прежние автострочки отсекаются
+  const exp = db.getAllSync(
+    `SELECT category, SUM(amount) AS s FROM expenses WHERE date >= ? AND date <= ? AND recurring_id IS NULL
+       AND NOT (category IN ('Амортизация', 'Накладные') AND comment = 'Автоматически') GROUP BY category`, [from, to]);
   const purchases = r2(sum(exp.filter(e => e.category === 'Закупка'), e => e.s));
-  const expItems = exp.filter(e => e.category !== 'Закупка' && e.s).map(e => ({ name: e.category || 'Прочее', sum: Math.round(e.s) }));
+  const shifts = (() => { try { return getShiftsInPeriod(from, to) || []; } catch (_) { return []; } })();
+  const c = periodCosts(from, to, revenue, shifts);
+  // Зарплата рассчитывается по сменам; если она уже рассчитана, внесённая вручную категория «Зарплата» не вычитается второй раз
+  const manualSalary = c.salary > 0 ? Math.round(sum(exp.filter(e => e.category === 'Зарплата'), e => e.s)) : 0;
+  const expItems = exp.filter(e => e.category !== 'Закупка' && !(manualSalary && e.category === 'Зарплата') && e.s).map(e => ({ name: e.category || 'Прочее', sum: Math.round(e.s) }));
   const expenses = sum(expItems, x => x.sum);
   const purchasesAsCost = cogs > 0 ? 0 : purchases;
 
-  const shifts = (() => { try { return getShiftsInPeriod(from, to) || []; } catch (_) { return []; } })();
-  const c = periodCosts(from, to, revenue, shifts);
   const gross = r2(revenue - cogs - purchasesAsCost);
   const fixed = expenses + c.overhead + c.salary + c.depreciation;
   const net = r2(gross - fixed);
@@ -105,7 +149,7 @@ export function getReport(from, to) {
      WHERE o.created_at >= ? AND o.created_at < ? AND (o.status IS NULL OR o.status != 'returned') GROUP BY oi.name ORDER BY qty DESC LIMIT 8`, [a, b]);
 
   return {
-    from, to, revenue, orders, avgCheck: orders ? Math.round(revenue / orders) : 0,
+    from, to, manualSalaryIgnored: manualSalary, workedDays: overlap(from, to, getBusinessStart(), localDate()), revenue, orders, avgCheck: orders ? Math.round(revenue / orders) : 0,
     returns: { count: rets.length, sum: Math.round(sum(rets, o => o.total)) },
     cogs, purchases, purchasesAsCost, gross, grossPct: revenue ? gm * 100 : 0,
     expenses, expItems, overhead: c.overhead, overheadItems: c.overheadItems, salary: c.salary, salaryItems: c.salaryItems,
@@ -118,4 +162,23 @@ export function getReport(from, to) {
     employees: Object.keys(empMap).map(k => ({ ...empMap[k], sum: Math.round(empMap[k].sum) })).sort((x, y) => y.sum - x.sum),
     top: top.map(t => ({ name: t.name, qty: t.qty, sum: Math.round(t.sum) })),
   };
+}
+
+// Вложения: итоги, нагрузка в месяц и срок окупаемости. Окно расчёта — последние 3 месяца; пока бизнесу меньше —
+// берутся уже отработанные дни (зарегистрировались 7 дней назад — считаем по этой неделе). Окупаемость — по прибыли ДО амортизации.
+export function getInvestmentStats() {
+  const inv = getInvestments().filter(i => !i.returnable);
+  const total = sum(inv, i => i.amount), monthly = sum(inv, i => i.amount / amortMonths(i));
+  const today = localDate(), biz = getBusinessStart();
+  const from = ago(89) > biz ? ago(89) : biz, days = dayCount(from, today);
+  const r = getReport(from, today);
+  const perMonth = days > 0 ? (r.net + r.depreciation) / days * 30 : 0;
+  return { total, monthly: Math.round(monthly), days, perMonth: Math.round(perMonth), payback: total > 0 && perMonth > 0 ? total / perMonth : null, lowData: days < 14 };
+}
+
+// Прогресс списания вложения (для карточки): срок, прошло дней, уже списано
+export function investmentProgress(inv) {
+  const biz = getBusinessStart(), st = invStart(inv, biz), term = amortMonths(inv), termDays = term * 30;
+  const done = Math.min(termDays, overlap(st, localDate(), st, addDays(st, termDays - 1)));
+  return { term, termDays, done, amortized: Math.round(inv.amount * done / termDays), start: st };
 }

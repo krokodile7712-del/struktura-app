@@ -12,19 +12,12 @@ import SoftGlow from '../components/SoftGlow';
 import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
 import { useResponsive } from '../hooks/useResponsive';
 import { getBusinessProfile, markTourSeen } from '../db/queries';
-import { getReport, prevPeriod, localDate } from '../db/reports';
+import { getReport, prevPeriod, localDate, PRESETS, rangeOf } from '../db/reports';
 import { goBackSmart, can } from '../db/session';
 import { colors, fonts, glass } from '../constants/theme';
 
 // Отчётность: четыре вкладки на единой модели db/reports.js — каждая цифра считается один раз и
 // показывается в одном месте (раньше «P&L», «Полный» и правая панель считали и показывали «чистую прибыль» по-разному).
-const ago = n => { const d = new Date(); d.setDate(d.getDate() - n); return localDate(d); };
-const monday = () => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return localDate(d); };
-const PRESETS = [
-  { key: 'today', label: 'Сегодня', from: () => ago(0) }, { key: 'week', label: 'Неделя', from: monday },
-  { key: 'month', label: 'С начала месяца', from: () => localDate().slice(0, 8) + '01' }, { key: 'month30', label: '30 дней', from: () => ago(29) },
-  { key: 'quarter', label: 'Квартал', from: () => ago(89) }, { key: 'year', label: 'Год', from: () => localDate().slice(0, 4) + '-01-01' },
-];
 const TABS = [{ key: 'sum', label: 'Итоги' }, { key: 'profit', label: 'Прибыль' }, { key: 'kpi', label: 'Показатели' }, { key: 'charts', label: 'Графики' }];
 const fmt = n => Math.round(n || 0).toLocaleString('ru-RU');
 const pct = n => `${(Math.round((n || 0) * 10) / 10).toString().replace('.', ',')}%`;
@@ -45,7 +38,7 @@ const Card = ({ title, children }) => <View style={s.card}>{!!title && <Text sty
 export default function ReportsScreen({ navigation }) {
   const { isLandscape } = useResponsive();
   const [preset, setPreset] = useState('week');
-  const [range, setRange] = useState({ from: ago(29), to: localDate() });
+  const [range, setRange] = useState(() => rangeOf('month30'));
   const [tab, setTab] = useState('sum');
   const [compare, setCompare] = useState(true);
   const [r, setR] = useState(null);
@@ -63,7 +56,7 @@ export default function ReportsScreen({ navigation }) {
   const hl = { sum: useTourHighlight('reports.summary'), profit: useTourHighlight('reports.profit'), kpi: useTourHighlight('reports.metrics'), charts: useTourHighlight('reports.charts') };
   const filtersHl = useTourHighlight('reports.filters');
 
-  const period = () => (preset === 'custom' ? range : { from: PRESETS.find(p => p.key === preset).from(), to: localDate() });
+  const period = () => (preset === 'custom' ? range : rangeOf(preset));
   const load = useCallback(() => {
     try {
       const { from, to } = period();
