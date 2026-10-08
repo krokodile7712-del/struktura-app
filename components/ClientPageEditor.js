@@ -192,7 +192,7 @@ export default function ClientPageEditor({ visible, page, onClose }) {
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <KeyboardSafe style={st.ov}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View style={st.big}><GlassSurface radius={26} tint="26,32,46" alpha={0.99} floating padding={0}>
+        <View style={st.big}>
           <View style={st.head}>
             <View style={{ flex: 1, minWidth: 0 }}><Text style={st.title} numberOfLines={1}>{isReg ? 'Страница регистрации по QR' : 'Страница онлайн-записи'}</Text>
               <Text style={st.sub} numberOfLines={1}>{pub.dirty ? 'Есть неопубликованные изменения' : `Опубликовано ${when(pub.at)}`}</Text></View>
@@ -205,7 +205,7 @@ export default function ClientPageEditor({ visible, page, onClose }) {
             <View style={{ flex: 1, display: wide || tab === 'set' ? 'flex' : 'none' }}>{settings}</View>
             <View style={{ width: wide ? 330 : undefined, flex: wide ? 0 : 1, display: wide || tab === 'prev' ? 'flex' : 'none' }}>{preview}</View>
           </View>
-        </GlassSurface></View>
+        </View>
         <LinkQr visible={qr} link={isReg ? links.reg : links.book} title={isReg ? 'Регистрация по QR' : 'Онлайн-запись'} onClose={() => setQr(false)} />
       </KeyboardSafe>
     </Modal>
@@ -213,7 +213,7 @@ export default function ClientPageEditor({ visible, page, onClose }) {
 }
 
 const st = StyleSheet.create({
-  ov: { flex: 1, backgroundColor: 'rgba(5,8,12,0.66)', alignItems: 'center', justifyContent: 'center' }, big: { width: '97%', height: '93%', maxWidth: 1240 },
+  ov: { flex: 1, backgroundColor: 'rgba(5,8,12,0.66)', alignItems: 'center', justifyContent: 'center' }, big: { width: '97%', height: '93%', maxWidth: 1240, borderRadius: 26, overflow: 'hidden', backgroundColor: 'rgba(22,28,40,0.99)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
   win: { width: '92%' }, head: { flexDirection: 'row', alignItems: 'center', padding: 16, paddingBottom: 10 }, title: { fontFamily: fonts.display, fontSize: 20, color: colors.text }, sub: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 2 },
   x: { marginLeft: 10, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' }, xT: { fontSize: 15, color: colors.textDim },
   tabs: { flexDirection: 'row', gap: 4, marginHorizontal: 16, marginBottom: 8, padding: 4, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.05)' }, tab: { flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center' }, tabOn: { backgroundColor: 'rgba(150,172,204,0.28)' }, tabT: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.textDim },
