@@ -44,7 +44,6 @@ import { resetKassaCart } from '../db/cartStore';
 import EmptyState from '../components/EmptyState';
 import { colors, fonts, spacing } from '../constants/theme';
 import { useToast } from '../components/Toast';
-import ClientPageEditor from '../components/ClientPageEditor';
 import FitView from '../components/FitView';
 import PinConfirmModal from '../components/PinConfirmModal';
 import BackupPasswordModal from '../components/BackupPasswordModal';
@@ -157,8 +156,6 @@ export default function SettingsScreen({ navigation, route }) {
   // ── Данные ──
   const [products, setProducts]             = useState([]);
   const [users, setUsers]                   = useState([]);
-  const [loyMenu, setLoyMenu]                 = useState(false);   // скрытое меню «⋯» в «Лояльности»
-  const [regEditor, setRegEditor]             = useState(false);   // настройщик страницы регистрации по QR
   const [discounts, setDiscounts]           = useState([]);
   const [discTab, setDiscTab]               = useState('product'); // product | order
   const [discEligibleProducts, setDiscEligibleProducts] = useState([]);
@@ -812,11 +809,6 @@ export default function SettingsScreen({ navigation, route }) {
 
         <SectionAccordion sectionKey="loyalty" selectedSection={selectedSection}>
         {modules.loyalty !== false ? (<>
-
-          {/* Скрытое меню раздела: настройщик страницы регистрации по QR */}
-          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 6 }}>
-            <Pressable style={styles.loyDotsBtn} onPress={() => setLoyMenu(true)} hitSlop={8} accessibilityLabel="Ещё"><Text style={styles.loyDots}>⋯</Text></Pressable>
-          </View>
 
           {/* Выбор модели */}
           <View style={styles.menuCard}>
@@ -2831,18 +2823,6 @@ export default function SettingsScreen({ navigation, route }) {
         </KeyboardSafe>
       </Modal>
 
-      <Modal visible={loyMenu} transparent animationType="fade" onRequestClose={() => setLoyMenu(false)}>
-        <View style={{ flex: 1 }}><Pressable style={StyleSheet.absoluteFill} onPress={() => setLoyMenu(false)} />
-          <View style={styles.loyPop}>
-            <Text style={styles.loyPopH}>Лояльность</Text>
-            <Pressable style={styles.loyPopRow} onPress={() => { setLoyMenu(false); setRegEditor(true); }}>
-              <View style={styles.loyPopIc}><Text style={styles.loyPopIcT}>✦</Text></View>
-              <View style={{ flex: 1 }}><Text style={styles.loyPopT}>Страница регистрации по QR</Text><Text style={styles.loyPopS}>оформление, бонус, меню, схема проезда, публикация</Text></View>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
-      <ClientPageEditor visible={regEditor} page="reg" onClose={() => setRegEditor(false)} />
       {/* QR Модалка */}
       {/* Модалка «Предпросмотр чека» */}
       <Modal visible={receiptPreview} transparent animationType="fade" onRequestClose={() => setReceiptPreview(false)}>
@@ -3187,11 +3167,4 @@ const styles = StyleSheet.create({
   chipSmallActive: { borderColor: 'rgba(127,168,217,0.5)', backgroundColor: 'rgba(127,168,217,0.18)' },
   chipSmallLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
   chipSmallLabelActive: { color: colors.orange },
-  loyDotsBtn: { width: 44, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
-  loyDots: { fontSize: 22, color: colors.textDim, marginTop: -4 },
-  loyPop: { position: 'absolute', right: 24, top: 150, width: 380, padding: 12, borderRadius: 22, backgroundColor: 'rgba(32,40,55,0.99)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
-  loyPopH: { fontFamily: fonts.familySemibold, fontSize: 12, letterSpacing: 1.3, textTransform: 'uppercase', color: colors.textDim, marginLeft: 8, marginBottom: 8 },
-  loyPopRow: { flexDirection: 'row', alignItems: 'center', padding: 10, borderRadius: 14 },
-  loyPopIc: { width: 36, height: 36, borderRadius: 11, backgroundColor: 'rgba(127,168,217,0.14)', alignItems: 'center', justifyContent: 'center', marginRight: 12 }, loyPopIcT: { fontSize: 16, color: colors.orangeLight },
-  loyPopT: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text }, loyPopS: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
 });

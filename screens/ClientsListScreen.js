@@ -11,6 +11,7 @@ import { getAllClients, searchClients, getClientOrders, getTerms, pluralizeRu, c
          getLoyaltyConfig, updateClientNote, getClientById, getBusinessProfile, markTourSeen } from '../db/queries';
 import { updateClient, findClientByPhone, getSetting, setSetting, expireWelcomeBonuses, addClientBalance } from '../db/queries';
 import WelcomeBonusBlock from '../components/WelcomeBonusBlock';
+import ClientPageEditor from '../components/ClientPageEditor';
 import { syncLoyaltySignups, deleteClientEverywhere } from '../db/loyaltySync';
 import { useToast } from '../components/Toast';
 import PhoneInput from '../components/PhoneInput';
@@ -350,6 +351,9 @@ export default function ClientsListScreen({ navigation, route, initialClientId }
   const [sortMode, setSortMode] = useState('name'); // name | added
   const [popOpen, setPopOpen] = useState(false);       // окно «Фильтры»
   const [createOpen, setCreateOpen] = useState(false); // окно «Новый клиент»
+  const [moreAt, setMoreAt] = useState(null);           // скрытое меню «⋯»
+  const [regEditor, setRegEditor] = useState(false);    // настройщик страницы регистрации по QR
+  const moreRef = useRef(null);
   const [popAnchor, setPopAnchor] = useState({ top: 76, right: 12 });
   const fbtnRef = useRef(null);
   const openFilters = () => {
@@ -513,6 +517,10 @@ export default function ClientsListScreen({ navigation, route, initialClientId }
           <Icon name="sliders" size={18} color={sortMode !== 'name' || popOpen ? colors.orangeLight : colors.textDim} />
           <Text style={[styles.tbFiltTxt, (sortMode !== 'name' || popOpen) && { color: colors.orangeLight }]}>Фильтры</Text>
         </Pressable>
+        <Pressable ref={moreRef} collapsable={false} style={styles.tbMore} accessibilityLabel="Ещё"
+          onPress={() => { try { moreRef.current.measureInWindow((x, y, w, h) => setMoreAt({ top: y + h + 8, right: Math.max(8, Dimensions.get('window').width - (x + w)) })); } catch (_) { setMoreAt({ top: 130, right: 20 }); } }}>
+          <Text style={styles.tbMoreTxt}>⋯</Text>
+        </Pressable>
         <GlassButton tone="accent" icon="plus" label={terms.client} height={54} onPress={() => setCreateOpen(true)} />
         {searchHighlight.overlay}
       </View>
@@ -635,6 +643,21 @@ export default function ClientsListScreen({ navigation, route, initialClientId }
           </Sheet>
         )}
       </View>
+
+      {/* Скрытое меню «⋯»: страница саморегистрации по QR */}
+      <Modal visible={!!moreAt} transparent animationType="fade" onRequestClose={() => setMoreAt(null)}>
+        <View style={{ flex: 1 }}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setMoreAt(null)} />
+          <View style={[styles.morePop, { top: moreAt?.top, right: moreAt?.right }]}>
+            <Text style={styles.morePopH}>Саморегистрация</Text>
+            <Pressable style={styles.morePopRow} onPress={() => { setMoreAt(null); setRegEditor(true); }}>
+              <View style={styles.morePopIc}><Text style={styles.morePopIcT}>✦</Text></View>
+              <View style={{ flex: 1 }}><Text style={styles.morePopT}>Страница регистрации по QR</Text><Text style={styles.morePopS}>оформление, бонус, меню, схема проезда, публикация</Text></View>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+      <ClientPageEditor visible={regEditor} page="reg" onClose={() => setRegEditor(false)} />
 
       {/* Новый клиент — всплывающее окно (раньше — отдельная страница) */}
       <ClientCreateModal
@@ -820,4 +843,11 @@ const styles = StyleSheet.create({
   emptyIco:    { width: 76, height: 76, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
   emptyTitle:  { fontFamily: fonts.familySemibold, fontSize: 20, color: colors.text, marginBottom: 8 },
   emptyText:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', lineHeight: 21, maxWidth: 300, marginBottom: 20 },
+  tbMore: { width: 54, height: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(150,172,204,0.10)' },
+  tbMoreTxt: { fontSize: 24, color: colors.textDim, marginTop: -5 },
+  morePop: { position: 'absolute', width: 380, padding: 12, borderRadius: 22, backgroundColor: 'rgba(32,40,55,0.99)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  morePopH: { fontFamily: fonts.familySemibold, fontSize: 12, letterSpacing: 1.3, textTransform: 'uppercase', color: colors.textDim, marginLeft: 8, marginBottom: 8 },
+  morePopRow: { flexDirection: 'row', alignItems: 'center', padding: 10, borderRadius: 14 },
+  morePopIc: { width: 36, height: 36, borderRadius: 11, backgroundColor: 'rgba(127,168,217,0.14)', alignItems: 'center', justifyContent: 'center', marginRight: 12 }, morePopIcT: { fontSize: 16, color: colors.orangeLight },
+  morePopT: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text }, morePopS: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
 });

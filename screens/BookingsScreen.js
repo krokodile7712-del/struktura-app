@@ -161,8 +161,15 @@ export default function BookingsScreen({ navigation }) {
           <View style={styles.chips}>{STATUSES.map(([k, t]) => <Pressable key={k} style={[styles.chip, flt === k && styles.chipOn]} onPress={() => { setFlt(k); setFAt(null); }}><Text style={[styles.chipT, flt === k && { color: colors.orangeLight }]}>{t}</Text></Pressable>)}</View></GlassSurface></View></View></Modal>
       <Modal visible={!!menuAt} transparent animationType="fade" onRequestClose={() => setMenuAt(null)}><View style={{ flex: 1 }}><Pressable style={StyleSheet.absoluteFill} onPress={() => setMenuAt(null)} />
         <View style={[styles.pop, { top: menuAt?.top, right: menuAt?.right, width: 380 }]}><GlassSurface floating radius={22} tint="32,40,55" alpha={0.985} padding={12}><Text style={[styles.pl, { marginLeft: 8 }]}>Настройки записи</Text>
-          {[['services', '▤', 'Услуги для записи', `${getBookingServices().length} в записи`], ['page', '✦', 'Страница записи', 'оформление, тексты, схема проезда, публикация'], ['online', '◎', 'Подключение, ссылка и QR', online.connected ? 'подключена' : 'не подключена'], ['masters', '☺', 'Мастера', `${getBookingStaff().length} принимают записи`]].map(([k, ic, t, s]) => (
-            <Pressable key={k} style={styles.mi} onPress={() => { setMenuAt(null); setPanel(k); }}><View style={styles.miI}><Text style={styles.miIT}>{ic}</Text></View><View><Text style={styles.miT}>{t}</Text><Text style={styles.miS}>{s}</Text></View></Pressable>))}</GlassSurface></View></View></Modal>
+          {[['services', '▤', 'Услуги для записи', `${getBookingServices().length} в записи`], ['masters', '☺', 'Мастера', `${getBookingStaff().length} принимают записи`], ['online', '◎', 'Подключение, ссылка и QR', online.connected ? 'подключена' : 'не подключена']].map(([k, ic, t, s]) => (
+            <Pressable key={k} style={styles.mi} onPress={() => { setMenuAt(null); setPanel(k); }}><View style={styles.miI}><Text style={styles.miIT}>{ic}</Text></View><View><Text style={styles.miT}>{t}</Text><Text style={styles.miS}>{s}</Text></View></Pressable>))}
+          <View style={styles.miSep} />
+          <Pressable style={styles.miHi} onPress={() => { setMenuAt(null); setPanel('page'); }}>
+            <View style={styles.miHiI}><Text style={styles.miHiIT}>✦</Text></View>
+            <View style={{ flex: 1 }}><Text style={styles.miHiT}>Страница записи</Text><Text style={styles.miHiS}>оформление, тексты, схема проезда, публикация</Text></View>
+            <Text style={styles.miHiA}>›</Text>
+          </Pressable>
+        </GlassSurface></View></View></Modal>
 
       <BookingEditModal visible={!!win} booking={win?.booking || null} presetDate={sel} services={win ? getBookingServices() : []} staff={win ? getBookingStaff() : []} isNarrow={!isLandscape}
         onSaved={(id, toCat) => { toast.show(win?.booking ? 'Запись перенесена' : 'Запись добавлена', 'info'); loadManual(); setCur('m' + id); if (toCat) toast.show('Услуга добавлена в каталог', 'info'); }} onClose={() => setWin(null)} />
@@ -195,5 +202,9 @@ const styles = StyleSheet.create({
   acts: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 14 }, act: { flexGrow: 1, minWidth: 150 }, del: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red },
   pop: { position: 'absolute', maxWidth: '94%' }, pl: { fontFamily: fonts.familySemibold, fontSize: 12, letterSpacing: 1.3, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, chip: { height: 40, paddingHorizontal: 16, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' }, chipOn: { backgroundColor: 'rgba(127,168,217,0.22)', borderColor: 'rgba(157,191,230,0.5)' }, chipT: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
+  miSep: { height: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginVertical: 8, marginHorizontal: 6 },
+  miHi: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 16, backgroundColor: 'rgba(127,168,217,0.16)', borderWidth: 1, borderColor: 'rgba(157,191,230,0.55)' },
+  miHiI: { width: 38, height: 38, borderRadius: 12, backgroundColor: colors.orangeLight, alignItems: 'center', justifyContent: 'center', marginRight: 12 }, miHiIT: { fontSize: 17, color: '#0A121C' },
+  miHiT: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.orangeLight }, miHiS: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.textDim, marginTop: 2 }, miHiA: { fontSize: 24, color: colors.orangeLight, marginLeft: 8 },
   mi: { flexDirection: 'row', alignItems: 'center', padding: 10, borderRadius: 14 }, miI: { width: 36, height: 36, borderRadius: 11, backgroundColor: 'rgba(127,168,217,0.14)', alignItems: 'center', justifyContent: 'center', marginRight: 12 }, miIT: { fontSize: 16, color: colors.orangeLight }, miT: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text }, miS: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
 });
