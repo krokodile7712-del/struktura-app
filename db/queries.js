@@ -881,7 +881,7 @@ export function insertProduct({ name, category, price = 0, active = 1 }) {
   const db = getDb();
   return db.runSync(
     // booking_visible = 0 явно: на уже созданных базах у колонки прежний DEFAULT 1, а новые товары по умолчанию НЕ в записи
-    `INSERT INTO products (name, category, price, active, booking_visible) VALUES (?, ?, ?, ?, 0)`,
+    `INSERT INTO products (name, category, price, active, booking_visible, menu_visible) VALUES (?, ?, ?, ?, 0, 0)`,
     [name, category, price || 0, active ? 1 : 0]
   ).lastInsertRowId;
 }

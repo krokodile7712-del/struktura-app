@@ -421,6 +421,7 @@ export function initDatabase() {
     // отдельное короткое описание для него (сам товар/цена не трогаем)
     `ALTER TABLE products ADD COLUMN booking_visible     INTEGER DEFAULT 0`,   // новые услуги по умолчанию НЕ в записи
     `ALTER TABLE products ADD COLUMN duration_min INTEGER DEFAULT 60`,
+    `ALTER TABLE products ADD COLUMN menu_visible INTEGER DEFAULT 0`,   // показывать в меню на странице регистрации
     `ALTER TABLE users ADD COLUMN takes_bookings INTEGER DEFAULT 1`,
     `ALTER TABLE manual_bookings ADD COLUMN duration_min INTEGER DEFAULT 60`,
     `ALTER TABLE manual_bookings ADD COLUMN client_id INTEGER`,

@@ -13,13 +13,14 @@ import BookingEditModal from '../components/BookingEditModal';
 import BookingServicesModal from '../components/BookingServicesModal';
 import OnlinePageModal from '../components/OnlinePageModal';
 import MastersModal from '../components/MastersModal';
+import ClientPageEditor from '../components/ClientPageEditor';
 import { useToast } from '../components/Toast';
 import { useResponsive } from '../hooks/useResponsive';
 import { useTourHighlight } from '../components/TourRegistry';
 import { getBusinessProfile, markTourSeen, localDateStr } from '../db/queries';
 import {
   getManualBookingsList, loadOnlineBookings, setOnlineStatus, setManualStatus, deleteManual, deleteOnlineBooking, bookingStats,
-  getBookingServices, getBookingStaff, endOf, toMin, isLive, STATUS_LABEL,
+  getBookingServices, getBookingStaff, endOf, toMin, isLive, STATUS_LABEL, flushBusyIfDirty,
 } from '../db/bookings';
 import { goBackSmart, can } from '../db/session';
 import { colors, fonts } from '../constants/theme';
@@ -53,7 +54,7 @@ export default function BookingsScreen({ navigation }) {
     if (res.connected && res.ok) { const n = new Date(); setUpdated(`${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`); }
     else if (res.connected && !res.ok) toast.show('Не удалось обновить онлайн-заявки — проверьте интернет', 'warn');
   }, []);
-  useFocusEffect(useCallback(() => { loadManual(); loadOnline(); try { if (!getBusinessProfile()?.tours_seen?.Bookings) setTimeout(() => setTourOpen(true), 500); } catch (_) {} }, [loadManual, loadOnline]));
+  useFocusEffect(useCallback(() => { loadManual(); loadOnline(); flushBusyIfDirty(); try { if (!getBusinessProfile()?.tours_seen?.Bookings) setTimeout(() => setTourOpen(true), 500); } catch (_) {} }, [loadManual, loadOnline]));
   // «Сегодня» меняется в полночь, пока экран открыт — раз в минуту обновляем отсчёт
   useEffect(() => { const t = setInterval(() => setStamp(x => x + 1), 60000); return () => clearInterval(t); }, []);
 
@@ -78,7 +79,7 @@ export default function BookingsScreen({ navigation }) {
   const steps = [
     { key: 'bookings.tabs', title: 'Две вкладки', text: '«Онлайн» — заявки клиентов со страницы записи, «По телефону» — записи, которые вы вносите сами. Цифра — что требует внимания.' },
     { key: 'bookings.calendar', title: 'Календарь', text: 'Точки показывают дни с записями: оранжевая — онлайн, фиолетовая — по телефону. Нажмите на день — лента ниже покажет его записи.' },
-    { key: 'bookings.menu', title: 'Настройки записи', text: 'Меню «⋯»: услуги для записи, онлайн-страница со ссылкой и QR, мастера.' },
+    { key: 'bookings.menu', title: 'Настройки записи', text: 'Меню «⋯»: услуги для записи, оформление страницы записи (цвет, тексты, схема проезда), ссылка и QR, мастера.' },
   ];
   const Pill = ({ s }) => <View style={[styles.pill, { borderColor: pillColor[s] + '66' }]}><Text style={[styles.pillT, { color: pillColor[s] }]}>{STATUS_LABEL[s]}</Text></View>;
   const KV = ({ k, v, a, onA }) => <View style={styles.kv}><Text style={styles.kvK}>{k}</Text><Text style={styles.kvV} numberOfLines={1}>{v}</Text>{!!a && <Pressable onPress={onA} hitSlop={8}><Text style={styles.kvA}>{a}</Text></Pressable>}</View>;
@@ -160,7 +161,7 @@ export default function BookingsScreen({ navigation }) {
           <View style={styles.chips}>{STATUSES.map(([k, t]) => <Pressable key={k} style={[styles.chip, flt === k && styles.chipOn]} onPress={() => { setFlt(k); setFAt(null); }}><Text style={[styles.chipT, flt === k && { color: colors.orangeLight }]}>{t}</Text></Pressable>)}</View></GlassSurface></View></View></Modal>
       <Modal visible={!!menuAt} transparent animationType="fade" onRequestClose={() => setMenuAt(null)}><View style={{ flex: 1 }}><Pressable style={StyleSheet.absoluteFill} onPress={() => setMenuAt(null)} />
         <View style={[styles.pop, { top: menuAt?.top, right: menuAt?.right, width: 380 }]}><GlassSurface floating radius={22} tint="32,40,55" alpha={0.985} padding={12}><Text style={[styles.pl, { marginLeft: 8 }]}>Настройки записи</Text>
-          {[['services', '▤', 'Услуги для записи', `${getBookingServices().length} в записи`], ['online', '◎', 'Онлайн-страница', online.connected ? 'подключена · ссылка и QR-код' : 'не подключена'], ['masters', '☺', 'Мастера', `${getBookingStaff().length} принимают записи`]].map(([k, ic, t, s]) => (
+          {[['services', '▤', 'Услуги для записи', `${getBookingServices().length} в записи`], ['page', '✦', 'Страница записи', 'оформление, тексты, схема проезда, публикация'], ['online', '◎', 'Подключение, ссылка и QR', online.connected ? 'подключена' : 'не подключена'], ['masters', '☺', 'Мастера', `${getBookingStaff().length} принимают записи`]].map(([k, ic, t, s]) => (
             <Pressable key={k} style={styles.mi} onPress={() => { setMenuAt(null); setPanel(k); }}><View style={styles.miI}><Text style={styles.miIT}>{ic}</Text></View><View><Text style={styles.miT}>{t}</Text><Text style={styles.miS}>{s}</Text></View></Pressable>))}</GlassSurface></View></View></Modal>
 
       <BookingEditModal visible={!!win} booking={win?.booking || null} presetDate={sel} services={win ? getBookingServices() : []} staff={win ? getBookingStaff() : []} isNarrow={!isLandscape}
@@ -168,6 +169,7 @@ export default function BookingsScreen({ navigation }) {
       <BookingServicesModal visible={panel === 'services'} isNarrow={!isLandscape} onChanged={() => setStamp(x => x + 1)} onClose={() => setPanel(null)} />
       <OnlinePageModal visible={panel === 'online'} onChanged={loadOnline} onClose={() => { setPanel(null); setStamp(x => x + 1); }} />
       <MastersModal visible={panel === 'masters'} onClose={() => setPanel(null)} />
+      <ClientPageEditor visible={panel === 'page'} page="book" onClose={() => { setPanel(null); setStamp(x => x + 1); }} />
       <TourGuide visible={tourOpen} onClose={() => { setTourOpen(false); markTourSeen('Bookings'); }} steps={steps} />
     </View>
   );

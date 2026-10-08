@@ -2,7 +2,7 @@ import { getDb } from './database';
 import {
   getSetting, setSetting, getBusinessProfile, getOrCreateBookingSecret, insertProduct, insertClient, getClientByCode, findClientByPhone, localDateStr,
 } from './queries';
-import { getBookings, updateBookingStatus, claimBusiness, syncServicesToSupabase, getBusinessIdBySlug, getCustomServices, deleteCustomService } from './supabase';
+import { supabase, getBookings, updateBookingStatus, claimBusiness, syncServicesToSupabase, getBusinessIdBySlug, getCustomServices, deleteCustomService } from './supabase';
 import { deleteBookingEverywhere } from './loyaltySync';
 
 // Записи: по телефону (локально, manual_bookings) и онлайн (облако). Общая форма записи для экрана:
@@ -117,16 +117,17 @@ export function saveManualBooking(p) {
     if (id) db.runSync(`UPDATE manual_bookings SET date=?, time_start=?, duration_min=?, client_name=?, client_phone=?, client_id=?, service_name=?, service_price=?, product_id=?, once=?, staff_id=?, comment=? WHERE id=?`, [...vals, id]);
     else id = db.runSync(`INSERT INTO manual_bookings (date, time_start, duration_min, client_name, client_phone, client_id, service_name, service_price, product_id, once, staff_id, comment, status, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?, 'confirmed', ?)`, [...vals, new Date().toISOString()]).lastInsertRowId;
     db.execSync('COMMIT');
+    touchBusy();
     return id;
   } catch (e) { try { db.execSync('ROLLBACK'); } catch (_) {} throw e; }
 }
-export function setManualStatus(id, status) { getDb().runSync(`UPDATE manual_bookings SET status = ? WHERE id = ?`, [status, id]); }
-export function deleteManual(id) { getDb().runSync(`DELETE FROM manual_bookings WHERE id = ?`, [id]); }
+export function setManualStatus(id, status) { getDb().runSync(`UPDATE manual_bookings SET status = ? WHERE id = ?`, [status, id]); touchBusy(); }
+export function deleteManual(id) { getDb().runSync(`DELETE FROM manual_bookings WHERE id = ?`, [id]); touchBusy(); }
 
 // «Оформить в Кассе» завершён: запись становится «Выполнена» со ссылкой на заказ и фактической суммой чека
 export function completeBooking({ source, id, orderId, total }) {
   const db = getDb();
-  if (source === 'manual') db.runSync(`UPDATE manual_bookings SET status = 'done', order_id = ?, service_price = ? WHERE id = ?`, [orderId, total, id]);
+  if (source === 'manual') { db.runSync(`UPDATE manual_bookings SET status = 'done', order_id = ?, service_price = ? WHERE id = ?`, [orderId, total, id]); touchBusy(); }
   else db.runSync(`INSERT OR REPLACE INTO booking_links (booking_id, order_id, total, done_at) VALUES (?, ?, ?, ?)`, [String(id), orderId, total, new Date().toISOString()]);
 }
 // Что передать Кассе: клиент (по записи или по телефону в базе) и позиция
@@ -205,6 +206,38 @@ export async function removeLegacyCustomItems() {
   const secret = getOrCreateBookingSecret(), list = await getLegacyCustomItems();
   for (const it of list) await deleteCustomService(it.id, secret);
   return list.length;
+}
+
+// ── занятое время для страницы онлайн-записи ──
+// В облако уходят только интервалы (дата, начало, конец в минутах) активных записей по телефону — без имён и телефонов.
+// Страница скрывает это время по длительности услуги; онлайн-записи облако учитывает само.
+const BUSY_DAYS = 120;
+export async function syncBusySlots() {
+  const p = getBusinessProfile(), slug = p?.booking_slug;
+  if (!slug) return 0;
+  const id = await getBusinessIdBySlug(slug);
+  if (!id) throw new Error('Нет связи с облаком');
+  const from = todayLocal(), toD = new Date(); toD.setDate(toD.getDate() + BUSY_DAYS);
+  const to = localDateStr(toD);
+  const rows = getManualBookingsList({ from, to }).filter(b => isLive(b)).map(b => ({ d: b.date, s: toMin(b.time_start), e: toMin(b.time_start) + (b.duration_min || DEFAULT_DURATION) }))
+    .filter(r => r.e > r.s && r.e <= 1440 + 600).map(r => ({ ...r, e: Math.min(r.e, 1440) }));
+  const { data, error } = await supabase.rpc('sync_busy_slots_secure', { p_business_id: id, p_secret: getOrCreateBookingSecret(), p_from: from, p_to: to, p_rows: rows });
+  if (error || typeof data !== 'number' || data < 0) throw new Error(error ? error.message : 'Не удалось передать занятое время');
+  setSetting('busyDirty', '0');
+  return rows.length;
+}
+let busyTimer = null;
+// Изменили запись по телефону: помечаем «не отправлено» и через 1,5 с отправляем (без интернета остаётся пометка — отправим при следующем открытии)
+export function touchBusy() {
+  try {
+    setSetting('busyDirty', '1');
+    if (!getBusinessProfile()?.booking_slug) return;
+    clearTimeout(busyTimer);
+    busyTimer = setTimeout(() => { syncBusySlots().catch(e => console.warn('[занятость]', e.message)); }, 1500);
+  } catch (e) { console.warn('[touchBusy]', e); }
+}
+export async function flushBusyIfDirty() {
+  try { if (getSetting('busyDirty') === '1' && getBusinessProfile()?.booking_slug) await syncBusySlots(); } catch (e) { console.warn('[занятость]', e.message); }
 }
 
 // Однократная миграция: услуги по умолчанию скрыты от записи (остаются только настроенные вручную — с описанием для клиента)

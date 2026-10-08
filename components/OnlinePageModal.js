@@ -21,7 +21,7 @@ export default function OnlinePageModal({ visible, onChanged, onClose }) {
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={st.root}><Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={st.wrap}><GlassSurface radius={26} tint="32,40,55" alpha={0.985} floating padding={24}>
-          <Text style={st.title}>Онлайн-страница записи</Text><Text style={st.sub}>Клиенты записываются сами: выбирают услугу, день и время</Text>
+          <Text style={st.title}>Подключение, ссылка и QR</Text><Text style={st.sub}>Адрес страницы онлайн-записи. Оформление и тексты — в «Странице записи»</Text>
           {!page.connected ? <>
             <Text style={st.p}>Страница не подключена. После подключения появятся ссылка и QR-код, а услуги записи будут видны клиентам.</Text>
             {!!err && <Text style={st.err}>{err}</Text>}
