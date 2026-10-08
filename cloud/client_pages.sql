@@ -269,3 +269,6 @@ grant execute on function public.get_client_page(text)                          
 grant execute on function public.get_booking_page(text)                                                      to anon, authenticated;
 grant execute on function public.get_busy(text, date, date)                                                  to anon, authenticated;
 grant execute on function public.create_booking_public(text, text, text, text, text, date, text, boolean, text, text) to anon, authenticated;
+
+-- ── 7. Обновить кеш схемы Supabase, чтобы приложение и страницы сразу увидели новые функции ──
+notify pgrst, 'reload schema';

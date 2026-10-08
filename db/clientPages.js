@@ -85,6 +85,8 @@ export function getPageLinks() {
   const { connected, slug } = getOnlinePage();
   return { connected, slug, reg: connected ? `https://struktura-crm.github.io/struktura-booking/register.html?slug=${slug}` : '', book: connected ? getBookingLink(slug) : '' };
 }
+const NO_SQL = 'В облаке ещё не выполнен файл cloud/client_pages.sql: Supabase → SQL Editor → вставить весь файл → Run. После этого нажмите «Опубликовать» ещё раз.';
+const cloudFail = (e, text) => (e && /Could not find the function|schema cache|does not exist/i.test(e.message || '') ? NO_SQL : text + (e ? ': ' + e.message : ''));
 export async function publishClientPages() {
   const { connected, slug } = getOnlinePage();
   if (!connected) throw new Error('Сначала подключите онлайн-страницу (меню «⋯» в «Записях» → «Ссылка и QR»)');
@@ -93,8 +95,8 @@ export async function publishClientPages() {
   const secret = getOrCreateBookingSecret(), bonus = getClientPages().bonus;
   await syncBookingServices();                                 // услуги для записи — вместе со всем остальным
   const a = await supabase.rpc('publish_client_pages_secure', { p_business_id: id, p_secret: secret, p_config: buildPublicConfig() });
-  if (a.error || a.data !== true) throw new Error('Не удалось опубликовать страницы' + (a.error ? ': ' + a.error.message : ''));
+  if (a.error || a.data !== true) throw new Error(cloudFail(a.error, 'Не удалось опубликовать страницы'));
   const b = await supabase.rpc('set_loyalty_config_secure', { p_business_id: id, p_secret: secret, p_enabled: !!bonus.enabled, p_bonus: Number(bonus.amount) || 0, p_valid_days: Math.round(Number(bonus.days)) || 60 });
-  if (b.error || b.data !== true) throw new Error('Не удалось сохранить бонус и включение регистрации' + (b.error ? ': ' + b.error.message : ''));
+  if (b.error || b.data !== true) throw new Error(cloudFail(b.error, 'Не удалось сохранить бонус и включение регистрации'));
   setSetting('clientPagesHash', stamp()); setSetting('clientPagesPublishedAt', new Date().toISOString());
 }
