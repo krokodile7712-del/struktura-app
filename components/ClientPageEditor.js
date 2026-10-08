@@ -155,7 +155,10 @@ export default function ClientPageEditor({ visible, page, onClose }) {
               <Pressable style={st.mini} onPress={() => { if (i < route.length - 1) { const n = route.slice(); [n[i + 1], n[i]] = [n[i], n[i + 1]]; setRoute(n); } }}><Text style={st.miniT}>▼</Text></Pressable>
               <Pressable style={st.mini} onPress={() => setRoute(route.filter((_, j) => j !== i))}><Text style={[st.miniT, { color: colors.red }]}>✕</Text></Pressable></View>
           </View>))}
-        {route.length === 0 && <Text style={st.hint}>Шагов пока нет. Нажмите «+ Шаг»: например «Вход со двора», «Лифт на 4 этаж», «Мы здесь». Последний шаг — ваша точка.</Text>}
+        {route.length === 0 && (<>
+          <Text style={st.hint}>Шагов пока нет, поэтому схема на странице не показывается. Нажмите «+ Шаг» или заполните примером и поправьте под себя. Последний шаг — ваша точка.</Text>
+          <GlassButton label="Заполнить примером" height={44} onPress={() => setRoute([{ icon: 'door', t: 'Вход', h: 'Как найти входную дверь' }, { icon: 'walk', t: 'Идите вперёд', h: 'Опишите ориентир: лифт, лестница, поворот' }, { icon: 'pin', t: 'Мы здесь', h: 'Ваша точка' }])} />
+        </>)}
       </Card>
 
       <Card title="Контакты и адрес">
