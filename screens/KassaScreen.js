@@ -32,6 +32,7 @@ import TourGuide from '../components/TourGuide';
 import { useTourHighlight } from '../components/TourRegistry';
 import { useResponsive } from '../hooks/useResponsive';
 import { cartStore } from '../db/cartStore';
+import { bookingToCart, completeBooking, setOnlineStatus } from '../db/bookings';
 import { colors, fonts, spacing, anim, glass } from '../constants/theme';
 import FitView from '../components/FitView';
 import KeyboardSafe from '../components/KeyboardSafe';
@@ -187,6 +188,18 @@ export default function KassaScreen({ navigation, route }) {
 
   const updateSlot = (updates) =>
     setSlots(prev => prev.map(s => s.id === activeSlotId ? { ...s, ...updates } : s));
+
+  // «Оформить в Кассе» из раздела «Записи»: клиент и услуга записи (из каталога или разовая позиция) попадают в активный чек;
+  // после оплаты запись становится «Выполнена» со ссылкой на заказ (см. ниже, оплата)
+  const fromBooking = route?.params?.fromBooking;
+  useEffect(() => {
+    if (!fromBooking) return;
+    try {
+      const cart = bookingToCart(fromBooking);
+      updateSlot({ order: [{ ...cart.item, id: Date.now() + Math.random(), size: '', modifiers: [] }], forClient: cart.client || null, pointsToSpend: '', fromBooking });
+    } catch (e) { console.error('[KassaScreen] запись не подставлена:', e); }
+    navigation?.setParams?.({ fromBooking: null });
+  }, [fromBooking]);
 
   const setOrder          = (fn) => setSlots(prev => prev.map(s =>
     s.id !== activeSlotId ? s : { ...s, order: typeof fn === 'function' ? fn(s.order) : fn }));
@@ -793,6 +806,11 @@ export default function KassaScreen({ navigation, route }) {
       closeSlot(activeSlotId);
 
       const notes = [];
+      const fb = activeSlot?.fromBooking;
+      if (fb && sale.orderId) {
+        try { completeBooking({ source: fb.source, id: fb.id, orderId: sale.orderId, total }); if (fb.source === 'online') setOnlineStatus(fb.id, 'done'); notes.push('Запись отмечена выполненной'); }
+        catch (e) { console.error('[KassaScreen] запись не закрыта:', e); }
+      }
       if (forClient?.id) {
         if (loyaltyModel === 'points' && sale.loyalty?.pointsEarned > 0) notes.push(`Клиенту начислено ${sale.loyalty.pointsEarned} балл.`);
         else if (loyaltyModel === 'subscription') notes.push('Списан 1 визит абонемента');
@@ -829,7 +847,15 @@ export default function KassaScreen({ navigation, route }) {
   // по тапу на свёрнутую полоску снизу).
   const renderCartContent = () => (
     <>
-
+      {!!activeSlot?.fromBooking && (
+        <View style={styles.bookingBar}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.bookingBarT}>Оформление записи</Text>
+            <Text style={styles.bookingBarS} numberOfLines={1}>{activeSlot.fromBooking.client_name} · {activeSlot.fromBooking.date.split('-').reverse().slice(0, 2).join('.')} {activeSlot.fromBooking.time_start}{activeSlot.fromBooking.staff_name ? ` · ${activeSlot.fromBooking.staff_name}` : ''}</Text>
+          </View>
+          <Pressable onPress={() => updateSlot({ fromBooking: null })} hitSlop={10}><Text style={styles.bookingBarX}>Отвязать</Text></Pressable>
+        </View>
+      )}
 
           {/* Слоты — только если 2+ отложенных */}
           {slots.length > 1 && (
@@ -2236,4 +2262,6 @@ const styles = StyleSheet.create({
   tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, color: colors.orange },
   warnTitle: { fontFamily: fonts.family, fontSize: 18, color: colors.text, textAlign: 'center', marginBottom: 8 },
   warnText: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center' },
+  bookingBar: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 12, marginTop: 10, marginBottom: 4, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 14, backgroundColor: 'rgba(127,168,217,0.12)', borderWidth: 1, borderColor: 'rgba(157,191,230,0.4)' },
+  bookingBarT: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text }, bookingBarS: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 }, bookingBarX: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.orangeLight },
 });

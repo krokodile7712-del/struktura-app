@@ -201,7 +201,20 @@ export function initDatabase() {
       service_price REAL DEFAULT 0,
       comment       TEXT DEFAULT '',
       status        TEXT DEFAULT 'confirmed',
-      created_at    TEXT
+      created_at    TEXT,
+      duration_min  INTEGER DEFAULT 60,
+      client_id     INTEGER,
+      product_id    INTEGER,
+      once          INTEGER DEFAULT 0,
+      staff_id      INTEGER,
+      order_id      INTEGER
+    );
+    -- Связь онлайн-записи (она живёт в облаке) с заказом, по которому она выполнена
+    CREATE TABLE IF NOT EXISTS booking_links (
+      booking_id TEXT PRIMARY KEY,
+      order_id   INTEGER,
+      total      REAL DEFAULT 0,
+      done_at    TEXT
     );
   `);
 
@@ -406,7 +419,15 @@ export function initDatabase() {
     `ALTER TABLE orders  ADD COLUMN status     TEXT DEFAULT 'completed'`,
     // Онлайн-запись: показывать ли товар клиентам на странице записи и
     // отдельное короткое описание для него (сам товар/цена не трогаем)
-    `ALTER TABLE products ADD COLUMN booking_visible     INTEGER DEFAULT 1`,
+    `ALTER TABLE products ADD COLUMN booking_visible     INTEGER DEFAULT 0`,   // новые услуги по умолчанию НЕ в записи
+    `ALTER TABLE products ADD COLUMN duration_min INTEGER DEFAULT 60`,
+    `ALTER TABLE users ADD COLUMN takes_bookings INTEGER DEFAULT 1`,
+    `ALTER TABLE manual_bookings ADD COLUMN duration_min INTEGER DEFAULT 60`,
+    `ALTER TABLE manual_bookings ADD COLUMN client_id INTEGER`,
+    `ALTER TABLE manual_bookings ADD COLUMN product_id INTEGER`,
+    `ALTER TABLE manual_bookings ADD COLUMN once INTEGER DEFAULT 0`,
+    `ALTER TABLE manual_bookings ADD COLUMN staff_id INTEGER`,
+    `ALTER TABLE manual_bookings ADD COLUMN order_id INTEGER`,
     `ALTER TABLE products ADD COLUMN booking_description TEXT    DEFAULT ''`,
     `ALTER TABLE clients ADD COLUMN birth_date TEXT DEFAULT ''`,
     `CREATE TABLE IF NOT EXISTS price_schedules (id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER NOT NULL, variant_id INTEGER, new_price REAL NOT NULL, effective_date TEXT NOT NULL, applied INTEGER DEFAULT 0, created_at TEXT NOT NULL)`,
@@ -421,6 +442,7 @@ export function initDatabase() {
     // (чтение чужих записей, смена статуса, правка услуг — теперь требуют
     // его предъявления через RPC-функции, не голый анонимный ключ)
     `ALTER TABLE business_profile ADD COLUMN booking_secret TEXT DEFAULT ''`,
+    `ALTER TABLE business_profile ADD COLUMN booking_slug TEXT DEFAULT ''`,        // раньше создавалась лишь при подключении онлайн-записи в Настройках
 
     // Точки (филиалы) — location_id у операций. NULL = единственная/дефолтная
     // точка, ничего не меняется в интерфейсе, пока точек больше одной

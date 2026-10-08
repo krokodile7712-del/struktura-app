@@ -33,6 +33,7 @@ export const BACKUP_TABLES_INFO = [
   { table: 'stock_transfer_items',    label: 'Позиции перемещений' },
   { table: 'shift_edit_log',          label: 'Журнал правок смен' },
   { table: 'manual_bookings',         label: 'Записи по телефону' },
+  { table: 'booking_links',           label: 'Связь онлайн-записей с заказами' },
   { table: 'stock_deductions',        label: 'Списания со склада' },
   { table: 'purchases',               label: 'Закупки' },
   { table: 'locations',               label: 'Локации' },

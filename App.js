@@ -23,6 +23,7 @@ import WorkstationGate from './components/WorkstationGate';
 import { TourRegistryProvider } from './components/TourRegistry';
 import OnboardingScreen from './screens/OnboardingScreen';
 import { migrateClientPhones, recalcStockCostsOnce, migrateExpensesV2, migrateWarehousesV1 } from './db/queries';
+import { migrateBookingsV1 } from './db/bookings';
 import { initDatabase } from './db/database';
 import { startAutoSync } from './db/sync';
 
@@ -97,6 +98,7 @@ export default function App() {
       // Разовый пересчёт себестоимости по правилу «последние 10 закупок» — сбой не должен мешать запуску
       try { recalcStockCostsOnce(); } catch (e) { console.error('[cost] пересчёт не выполнен:', e); }
       try { migrateWarehousesV1(); } catch (e) { console.error('[склады] миграция не выполнена:', e); }
+      try { migrateBookingsV1(); } catch (e) { console.error('[записи] миграция не выполнена:', e); }
       try { migrateExpensesV2(); } catch (e) { console.error('[expenses] миграция не выполнена:', e); }
       startAutoSync(30 * 1000);
       // Стартовых сотрудников нет: пока в базе нет ни одного, открываем только

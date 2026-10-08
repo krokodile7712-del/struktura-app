@@ -880,7 +880,8 @@ export function getCategoryProducts(name) {
 export function insertProduct({ name, category, price = 0, active = 1 }) {
   const db = getDb();
   return db.runSync(
-    `INSERT INTO products (name, category, price, active) VALUES (?, ?, ?, ?)`,
+    // booking_visible = 0 явно: на уже созданных базах у колонки прежний DEFAULT 1, а новые товары по умолчанию НЕ в записи
+    `INSERT INTO products (name, category, price, active, booking_visible) VALUES (?, ?, ?, ?, 0)`,
     [name, category, price || 0, active ? 1 : 0]
   ).lastInsertRowId;
 }
@@ -1673,47 +1674,6 @@ export function getRecurringExpenses() {
 
 // ─── Записи по телефону (локальные, не синхронизируются с Supabase) ────────
 
-export function getManualBookings() {
-  const db = getDb();
-  return db.getAllSync(`SELECT * FROM manual_bookings ORDER BY date, time_start`);
-}
-
-// Записи по телефону за диапазон дат — для календаря (не грузим все записи
-// за всю историю бизнеса, только видимый месяц)
-export function getManualBookingsInRange(dateFrom, dateTo) {
-  const db = getDb();
-  return db.getAllSync(
-    `SELECT * FROM manual_bookings WHERE date >= ? AND date <= ? ORDER BY date, time_start`,
-    [dateFrom, dateTo]
-  );
-}
-
-export function insertManualBooking({ date, time_start, client_name, client_phone, service_name, service_price, comment, status }) {
-  const db = getDb();
-  db.runSync(
-    `INSERT INTO manual_bookings (date, time_start, client_name, client_phone, service_name, service_price, comment, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [date, time_start, client_name, client_phone || '', service_name || '', service_price || 0, comment || '', status || 'confirmed', new Date().toISOString()]
-  );
-}
-
-export function updateManualBooking(id, { date, time_start, client_name, client_phone, service_name, service_price, comment, status }) {
-  const db = getDb();
-  db.runSync(
-    `UPDATE manual_bookings SET date=?, time_start=?, client_name=?, client_phone=?, service_name=?, service_price=?, comment=?, status=? WHERE id=?`,
-    [date, time_start, client_name, client_phone || '', service_name || '', service_price || 0, comment || '', status, id]
-  );
-}
-
-export function updateManualBookingStatus(id, status) {
-  const db = getDb();
-  db.runSync(`UPDATE manual_bookings SET status = ? WHERE id = ?`, [status, id]);
-}
-
-export function deleteManualBooking(id) {
-  const db = getDb();
-  db.runSync(`DELETE FROM manual_bookings WHERE id = ?`, [id]);
-}
 
 // ─── Склад ────────────────────────────────────────────────────────────────
 

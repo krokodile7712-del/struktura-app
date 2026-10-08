@@ -1,1020 +1,197 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator, Animated, TextInput, Platform } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, Modal, Alert, Linking, Dimensions } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../components/TopBar';
 import TourGuide from '../components/TourGuide';
-import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
-import Sheet from '../components/Sheet';
-import PhoneInput from '../components/PhoneInput';
-import { isPhoneOkOrEmpty, toStoredPhone, PHONE_ERROR } from '../utils/phone';
-import SwipeableRow from '../components/SwipeableRow';
 import BookingsCalendar from '../components/BookingsCalendar';
+import GlassSurface from '../components/GlassSurface';
+import GlassSegmented from '../components/GlassSegmented';
+import GlassButton from '../components/GlassButton';
+import Icon from '../components/Icon';
+import SoftGlow from '../components/SoftGlow';
+import BookingEditModal from '../components/BookingEditModal';
+import BookingServicesModal from '../components/BookingServicesModal';
+import OnlinePageModal from '../components/OnlinePageModal';
+import MastersModal from '../components/MastersModal';
+import { useToast } from '../components/Toast';
 import { useResponsive } from '../hooks/useResponsive';
-import { getHomeRoute, goBackSmart, can } from '../db/session';
-import { getBookings, updateBookingStatus, getBusinessIdBySlug } from '../db/supabase';
-import { deleteBookingEverywhere } from '../db/loyaltySync';
+import { useTourHighlight } from '../components/TourRegistry';
+import { getBusinessProfile, markTourSeen, localDateStr } from '../db/queries';
 import {
-  getBusinessProfile, getManualBookings, getManualBookingsInRange, insertManualBooking,
-  updateManualBooking, updateManualBookingStatus, deleteManualBooking, markTourSeen, getOrCreateBookingSecret,
-} from '../db/queries';
+  getManualBookingsList, loadOnlineBookings, setOnlineStatus, setManualStatus, deleteManual, deleteOnlineBooking, bookingStats,
+  getBookingServices, getBookingStaff, endOf, toMin, isLive, STATUS_LABEL,
+} from '../db/bookings';
+import { goBackSmart, can } from '../db/session';
 import { colors, fonts } from '../constants/theme';
 
-const STATUS = {
-  pending:   { label: 'Новая',        color: colors.amber,  bg: 'rgba(217,172,98,0.12)' },
-  confirmed: { label: 'Подтверждена', color: colors.green,  bg: 'rgba(120,183,150,0.12)' },
-  cancelled: { label: 'Отменена',     color: colors.red,    bg: 'rgba(219,129,120,0.12)'   },
-  done:      { label: 'Выполнена',    color: colors.muted,  bg: 'rgba(255,255,255,0.04)'     },
-};
-
-const FILTERS = [
-  { key: 'all',       label: 'Все' },
-  { key: 'pending',   label: 'Новые' },
-  { key: 'confirmed', label: 'Подтверждены' },
-  { key: 'done',      label: 'Выполнены' },
-  { key: 'cancelled', label: 'Отменены' },
-];
-
-function fmtDate(str) {
-  if (!str) return '';
-  const d = new Date(str + 'T00:00');
-  const today = new Date(); today.setHours(0,0,0,0);
-  const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate()+1);
-  if (d.getTime() === today.getTime()) return 'Сегодня';
-  if (d.getTime() === tomorrow.getTime()) return 'Завтра';
-  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
-}
-
-function fmt(n) {
-  return (n || 0).toLocaleString('ru-RU');
-}
+// Записи: две вкладки («Онлайн» и «По телефону») с общим календарём; сводка в панели управления, лента дня в две строки,
+// карточка записи с действиями, «Оформить в Кассе»; настройки записи (услуги, онлайн-страница, мастера) — в скрытом меню «⋯».
+const MO = ['янв.', 'февр.', 'мар.', 'апр.', 'мая', 'июн.', 'июл.', 'авг.', 'сент.', 'окт.', 'нояб.', 'дек.'];
+const dl = s => { const [, m, d] = s.split('-').map(Number); return `${d} ${MO[m - 1]}`; };
+const rub = n => Math.round(n || 0).toLocaleString('ru-RU');
+const pillColor = { pending: colors.warning, confirmed: colors.green, done: colors.muted, cancelled: colors.red };
+const STATUSES = [['all', 'Все'], ['pending', 'Новые'], ['confirmed', 'Подтверждены'], ['done', 'Выполнены'], ['cancelled', 'Отменены']];
 
 export default function BookingsScreen({ navigation }) {
   const { isLandscape } = useResponsive();
-  const [mainTab, setMainTab] = useState(() => {
-    try {
-      const profile = getBusinessProfile();
-      return profile?.booking_slug ? 'online' : 'manual';
-    } catch (e) { return 'online'; }
-  }); // online | manual
+  const toast = useToast();
+  const canEdit = can('edit_bookings');
+  const [tab, setTab] = useState(() => { try { return getBusinessProfile()?.booking_slug ? 'online' : 'manual'; } catch (_) { return 'manual'; } });
+  const [flt, setFlt] = useState('all'); const [sel, setSel] = useState(localDateStr()); const [cur, setCur] = useState(null);
+  const [manual, setManual] = useState([]); const [online, setOnline] = useState({ connected: false, ok: true, list: [] }); const [updated, setUpdated] = useState('');
+  const [win, setWin] = useState(null);                 // окно записи: { booking } | null
+  const [menuAt, setMenuAt] = useState(null); const [fAt, setFAt] = useState(null); const [panel, setPanel] = useState(null);   // services | online | masters
+  const [tourOpen, setTourOpen] = useState(false); const [stamp, setStamp] = useState(0);
+  const range = useRef(null); const fRef = useRef(null); const mRef = useRef(null);
+  const hl = { tabs: useTourHighlight('bookings.tabs'), cal: useTourHighlight('bookings.calendar'), menu: useTourHighlight('bookings.menu'), add: useTourHighlight('bookings.manualAdd', 14) };
 
-  // Предупреждение при заходе в раздел, если онлайн-запись не подключена —
-  // один раз за это открытие экрана, не при каждом обновлении. Alert.alert —
-  // нативное системное окно, встаёт поверх абсолютно всего, включая сам тур
-  // (обычный Modal) — при самом первом визите тур и так упоминает онлайн-
-  // запись, поэтому предупреждение не показываем, чтобы не столкнуть их
-  // друг с другом; на следующих визитах, если всё ещё не подключено, —
-  // показываем как обычно, тур повторно уже не запускается.
-  useEffect(() => {
-    try {
-      const profile = getBusinessProfile();
-      if (!profile?.booking_slug && profile?.tours_seen?.Bookings) {
-        Alert.alert(
-          'Онлайн-запись не подключена',
-          'Клиенты пока не могут записываться через интернет. Настройте это в Настройках, либо продолжайте вносить записи вручную — во вкладке «По телефону».'
-        );
-      }
-    } catch (e) { console.error(e); }
+  const loadManual = useCallback(() => { try { setManual(getManualBookingsList()); } catch (e) { console.error(e); } }, []);
+  const loadOnline = useCallback(async () => {
+    const t = new Date(), a = new Date(t.getFullYear(), t.getMonth() - 1, 1), b = new Date(t.getFullYear(), t.getMonth() + 3, 0);
+    const r = range.current || { from: localDateStr(a), to: localDateStr(b) };
+    const res = await loadOnlineBookings(r); setOnline(res);
+    if (res.connected && res.ok) { const n = new Date(); setUpdated(`${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`); }
+    else if (res.connected && !res.ok) toast.show('Не удалось обновить онлайн-заявки — проверьте интернет', 'warn');
   }, []);
+  useFocusEffect(useCallback(() => { loadManual(); loadOnline(); try { if (!getBusinessProfile()?.tours_seen?.Bookings) setTimeout(() => setTourOpen(true), 500); } catch (_) {} }, [loadManual, loadOnline]));
+  // «Сегодня» меняется в полночь, пока экран открыт — раз в минуту обновляем отсчёт
+  useEffect(() => { const t = setInterval(() => setStamp(x => x + 1), 60000); return () => clearInterval(t); }, []);
 
-  const [bookings, setBookings] = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [expanded, setExpanded] = useState(null);
-  const [filter, setFilter]     = useState('all');
-  const [filterMenuOpen, setFilterMenuOpen] = useState(false); // компактная кнопка-фильтр (альбомная Онлайн)
+  const all = manual.concat(online.list), mine = tab === 'online' ? online.list : manual;
+  const st = bookingStats(mine);
+  const day = mine.filter(b => b.date === sel && (flt === 'all' || b.status === flt)).sort((a, b) => toMin(a.time_start) - toMin(b.time_start));
+  const other = (tab === 'online' ? manual : online.list).filter(b => b.date === sel && b.status !== 'cancelled').length;
+  const b0 = all.find(x => x.key === cur) || null;
+  const dots = list => new Set(list.filter(b => b.status !== 'cancelled').map(b => b.date));
+  const pendingN = online.list.filter(b => b.status === 'pending').length, phoneN = manual.filter(b => isLive(b) && b.date >= localDateStr()).length;
 
-  const [tourOpen, setTourOpen] = useState(false);
-  const [tourFull, setTourFull] = useState(true); // true — весь раздел (обе вкладки), false — только текущая
-  const activeTourKey = useTourActiveKey();
-  const tabsHighlightRaw = useTourHighlight('bookings.tabs');
-  const mentionHighlightRaw = useTourHighlight('bookings.mention');
-  // Вкладки подсвечиваются и на своём шаге, и на шаге-мосте — он как раз
-  // про переход между ними, логично показать обе кнопки в этот момент
-  const tabsHighlight = {
-    style: null,
-    overlay: tabsHighlightRaw.isActive ? tabsHighlightRaw.overlay
-      : mentionHighlightRaw.isActive ? mentionHighlightRaw.overlay
-      : tabsHighlightRaw.overlay,
+  const anchor = (ref, set) => { try { ref.current.measureInWindow((x, y, w, h) => set({ top: y + h + 8, right: Math.max(8, Dimensions.get('window').width - (x + w)) })); } catch (_) { set({ top: 130, right: 20 }); } };
+  const changeStatus = async (b, status) => {
+    if (b.source === 'manual') { setManualStatus(b.id, status); loadManual(); return; }
+    const ok = await setOnlineStatus(b.id, status);
+    if (ok) setOnline(p => ({ ...p, list: p.list.map(x => (x.id === b.id ? { ...x, status } : x)) })); else toast.show('Облако не ответило — статус не изменён', 'warn');
   };
-  const calendarHighlight = useTourHighlight('bookings.calendar');
-  const filtersHighlight  = useTourHighlight('bookings.filters');
-  const manualAddHighlight = useTourHighlight('bookings.manualAdd', 14);
-  const formClientHighlight  = useTourHighlight('bookings.form.client', 14);
-  const formWhenHighlight    = useTourHighlight('bookings.form.when', 14);
-  const formServiceHighlight = useTourHighlight('bookings.form.service', 14);
+  const remove = b => Alert.alert('Удалить запись?', `${b.client_name} · ${b.time_start}`, [{ text: 'Отмена', style: 'cancel' }, { text: 'Удалить', style: 'destructive', onPress: async () => {
+    try { if (b.source === 'manual') { deleteManual(b.id); loadManual(); } else { await deleteOnlineBooking(b.id); setOnline(p => ({ ...p, list: p.list.filter(x => x.id !== b.id) })); } setCur(null); }
+    catch (e) { console.error(e); Alert.alert('Не удалось удалить', e.message); } } }]);
 
-  // Тур раздела «Записи» — начинается со вкладки «Онлайн», затем шаг-мост
-  // анонсирует «По телефону» (сам вкладку ещё не трогает, только
-  // предупреждает) и следующий шаг уже переключает и продолжает там —
-  // тот же приём, что и в Товарах (mentionTourStep), чтобы переключение
-  // никогда не происходило молча посреди объяснения.
-  const calendarStep = { key: 'bookings.calendar', title: 'Календарь', text: 'Точки под датой — есть ли записи в этот день (оранжевая — онлайн, фиолетовая — по телефону). Тап по дню фильтрует список ниже; повторный тап на тот же день снимает фильтр.', cardPosition: 'top' };
-  const onlineTourSteps = [
-    { key: 'bookings.tabs',      title: 'Онлайн и по телефону', text: 'Два независимых источника записей: онлайн — через форму по QR-коду, по телефону — вносите вручную, когда клиент звонит сам.' },
-    calendarStep,
-    { key: 'bookings.filters',   title: 'Фильтр по статусу', text: 'Новые, подтверждённые, выполненные, отменённые — фильтруйте онлайн-записи по статусу.' },
+  const steps = [
+    { key: 'bookings.tabs', title: 'Две вкладки', text: '«Онлайн» — заявки клиентов со страницы записи, «По телефону» — записи, которые вы вносите сами. Цифра — что требует внимания.' },
+    { key: 'bookings.calendar', title: 'Календарь', text: 'Точки показывают дни с записями: оранжевая — онлайн, фиолетовая — по телефону. Нажмите на день — лента ниже покажет его записи.' },
+    { key: 'bookings.menu', title: 'Настройки записи', text: 'Меню «⋯»: услуги для записи, онлайн-страница со ссылкой и QR, мастера.' },
   ];
-  const mentionTourStep = { key: 'bookings.mention', title: 'А ещё — «По телефону»', text: 'Рядом есть вторая вкладка — для записей, которые приняли сами, без интернета.' };
-  // Отдельно от manualOnlySteps (используется в общем туре, где календарь
-  // уже был показан на шагах про Онлайн) — при раздельном повторе именно
-  // на вкладке «По телефону» тур запускается заново, без предыстории,
-  // и календарь (общий для обеих вкладок, стоит прямо здесь же) без
-  // своего шага остался бы необъяснённым — та самая ошибка.
-  const manualOnlySteps = [
-    { key: 'bookings.manualAdd', title: 'Запись по телефону', text: 'Клиент позвонил и записался сам? Добавьте запись здесь вручную — дата, время, услуга, стоимость.', cardPosition: 'top' },
-    { key: 'bookings.form.client',  title: 'Клиент', text: 'Так выглядит сама форма — на примере, ничего из этого не сохранится. Имя обязательно, телефон — нет, но пригодится, если понадобится перезвонить.', cardPosition: 'top' },
-    { key: 'bookings.form.when',    title: 'Когда', text: 'Дата и время — тоже обязательные, без них запись не сохранится.', cardPosition: 'top' },
-    { key: 'bookings.form.service', title: 'Услуга', text: 'Название и стоимость — по желанию, можно оставить пустыми и заполнить позже. «Сохранить» — запись сразу появится в списке слева.', cardPosition: 'top' },
-  ];
-  const manualTourSteps = [calendarStep, ...manualOnlySteps];
-  const fullTourSteps = [...onlineTourSteps, mentionTourStep, ...manualOnlySteps];
-  const tourStepsToShow = tourFull ? fullTourSteps : (mainTab === 'online' ? onlineTourSteps : manualTourSteps);
+  const Pill = ({ s }) => <View style={[styles.pill, { borderColor: pillColor[s] + '66' }]}><Text style={[styles.pillT, { color: pillColor[s] }]}>{STATUS_LABEL[s]}</Text></View>;
+  const KV = ({ k, v, a, onA }) => <View style={styles.kv}><Text style={styles.kvK}>{k}</Text><Text style={styles.kvV} numberOfLines={1}>{v}</Text>{!!a && <Pressable onPress={onA} hitSlop={8}><Text style={styles.kvA}>{a}</Text></Pressable>}</View>;
 
-  // Автозапуск тура при первом заходе в раздел — весь тур целиком,
-  // начиная со вкладки «Онлайн» независимо от того, какая была открыта
-  useEffect(() => {
-    try {
-      const p = getBusinessProfile();
-      if (!p?.tours_seen?.Bookings) {
-        const t = setTimeout(() => { setMainTab('online'); setTourFull(true); setTourOpen(true); }, 500);
-        return () => clearTimeout(t);
-      }
-    } catch (_) {}
-  }, []);
-
-  // Шаги про Онлайн держат вкладку «Онлайн», шаги про По телефону
-  // переключают на «По телефону» — шаг-мост (bookings.mention) вкладку
-  // не трогает, остаётся там, где тур сейчас идёт, просто анонсирует
-  const onlineStepKeys = new Set(onlineTourSteps.map(s => s.key));
-  const manualStepKeys = new Set(manualOnlySteps.map(s => s.key));
-  useEffect(() => {
-    if (onlineStepKeys.has(activeTourKey)) setMainTab('online');
-    else if (manualStepKeys.has(activeTourKey)) setMainTab('manual');
-  }, [activeTourKey]);
-
-  // Календарь — общий для обеих вкладок, не зависит от того, какая активна
-  const [calOnlineDates, setCalOnlineDates] = useState(new Set());
-  const [calManualDates, setCalManualDates] = useState(new Set());
-  const [selectedCalDate, setSelectedCalDate] = useState(null);
-
-  // ── Записи по телефону (локальные) ──
-  const [manualBookings, setManualBookings] = useState([]);
-  const [manualFormOpen, setManualFormOpen] = useState(false);
-  const [manualEditingId, setManualEditingId] = useState(null);
-  const [mfDate, setMfDate]     = useState('');
-  const [mfTime, setMfTime]     = useState('');
-  const [mfName, setMfName]     = useState('');
-  const [mfPhone, setMfPhone]   = useState('');
-  const [manualPhoneOriginal, setManualPhoneOriginal] = useState(''); // номер записи в момент открытия на правку — не меняли, значит не проверяем
-  const [mfService, setMfService] = useState('');
-  const [mfPrice, setMfPrice]   = useState('');
-  const [mfComment, setMfComment] = useState('');
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
-
-  const fadeAnim  = useState(new Animated.Value(0))[0];
-  const slideAnim = useState(new Animated.Value(16))[0];
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const profile = getBusinessProfile();
-      const slug = profile?.booking_slug;
-      if (!slug) { setLoading(false); return; }
-      const data = await getBookings(getOrCreateBookingSecret(), null, slug);
-      setBookings(data || []);
-    } catch(e) { console.error(e); }
-    setLoading(false);
-  }, []);
-
-  // Данные календаря — общие для обеих вкладок, за видимый месяц
-  const loadCalendarMonth = useCallback(async (year, month0) => {
-    try {
-      // Грузим сразу диапазон в три месяца (предыдущий+текущий+следующий) —
-      // не только видимый. Календарь всегда держит соседние месяцы уже
-      // смонтированными для свайпа (см. BookingsCalendar.js), и если бы
-      // данные для них подгружались ПОСЛЕ перехода — асинхронный запрос
-      // (0.2-0.4с на сетевой Supabase) завершался бы уже после того, как
-      // анимация визуально закончилась, обновляя точки на днях с заметным
-      // скачком. Заранее готовые данные устраняют саму причину, а не
-      // маскируют её задержкой.
-      const from = new Date(year, month0 - 1, 1);
-      const to = new Date(year, month0 + 2, 0);
-      const fromStr = `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, '0')}-01`;
-      const toStr = `${to.getFullYear()}-${String(to.getMonth() + 1).padStart(2, '0')}-${String(to.getDate()).padStart(2, '0')}`;
-
-      const manual = getManualBookingsInRange(fromStr, toStr);
-      setCalManualDates(new Set(manual.map(b => b.date)));
-
-      const profile = getBusinessProfile();
-      const slug = profile?.booking_slug;
-      if (slug) {
-        const online = await getBookings(getOrCreateBookingSecret(), null, slug, { from: fromStr, to: toStr });
-        setCalOnlineDates(new Set((online || []).map(b => b.date)));
-      } else {
-        setCalOnlineDates(new Set());
-      }
-    } catch (e) { console.error('[loadCalendarMonth]', e); }
-  }, []);
-
-  useEffect(() => {
-    const now = new Date();
-    loadCalendarMonth(now.getFullYear(), now.getMonth());
-  }, [loadCalendarMonth]);
-
-  const onSelectCalDay = useCallback((dateStr) => {
-    // Повторный тап на уже выбранный день — снимает фильтр (возврат к
-    // полному списку), тот же приём, что и тап по пустому месту календаря
-    setSelectedCalDate(prev => prev === dateStr ? null : dateStr);
-  }, []);
-
-  useEffect(() => {
-    fadeAnim.setValue(0); slideAnim.setValue(16);
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: true }),
-      Animated.spring(slideAnim, { toValue: 0, tension: 70, friction: 12, useNativeDriver: true }),
-    ]).start();
-  }, []);
-
-  const loadManual = useCallback(() => {
-    try { setManualBookings(getManualBookings()); } catch (e) { console.error(e); }
-  }, []);
-
-  useFocusEffect(useCallback(() => { load(); loadManual(); }, [load, loadManual]));
-
-  const todayStr = () => new Date().toISOString().slice(0, 10);
-
-  const openManualForm = (presetDate) => {
-    setManualEditingId(null);
-    setMfDate(presetDate || todayStr());
-    setMfTime('');
-    setMfName('');
-    setMfPhone('');
-    setManualPhoneOriginal('');
-    setMfService('');
-    setMfPrice('');
-    setMfComment('');
-    setShowDatePicker(false);
-    setShowTimePicker(false);
-    setManualFormOpen(true);
-  };
-
-  const openManualEdit = (b) => {
-    setManualEditingId(b.id);
-    setMfDate(b.date);
-    setMfTime(b.time_start);
-    setMfName(b.client_name);
-    setMfPhone(b.client_phone || '');
-    setManualPhoneOriginal((b.client_phone || '').trim());
-    setMfService(b.service_name || '');
-    setMfPrice(b.service_price ? String(b.service_price) : '');
-    setMfComment(b.comment || '');
-    setShowDatePicker(false);
-    setShowTimePicker(false);
-    setManualFormOpen(true);
-  };
-
-  const saveManualBooking = () => {
-    if (!mfName.trim() || !mfDate || !mfTime) {
-      Alert.alert('Заполните обязательные поля', 'Имя клиента, дата и время нужны обязательно');
-      return;
-    }
-    if (mfPhone.trim() !== manualPhoneOriginal && !isPhoneOkOrEmpty(mfPhone)) {
-      Alert.alert('Номер телефона', PHONE_ERROR + ' — или оставьте поле пустым.');
-      return;
-    }
-    try {
-      const payload = {
-        date: mfDate,
-        time_start: mfTime,
-        client_name: mfName.trim(),
-        client_phone: toStoredPhone(mfPhone),
-        service_name: mfService.trim(),
-        service_price: parseFloat(mfPrice) || 0,
-        comment: mfComment.trim(),
-        status: 'confirmed',
-      };
-      if (manualEditingId) {
-        updateManualBooking(manualEditingId, payload);
-      } else {
-        insertManualBooking(payload);
-      }
-      setManualFormOpen(false);
-      setManualEditingId(null);
-      loadManual();
-    } catch (e) { console.error(e); Alert.alert('Ошибка', 'Не удалось сохранить запись'); }
-  };
-
-  const handleStatus = async (id, status) => {
-    try {
-      await updateBookingStatus(id, getOrCreateBookingSecret(), status);
-      setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
-      setExpanded(null);
-    } catch(e) { Alert.alert('Ошибка', e.message); }
-  };
-
-  // Удаление онлайн-записи — её персональные данные (имя, телефон) хранятся
-  // только в облаке, локальной копии для этого источника нет
-  const handleDeleteOnline = (b) => {
-    Alert.alert('Удалить запись?', `${b.client_name} · ${b.time_start?.slice(0, 5) || ''}`, [
-      { text: 'Отмена', style: 'cancel' },
-      { text: 'Удалить', style: 'destructive', onPress: async () => {
-        try {
-          const slug = getBusinessProfile()?.booking_slug;
-          const businessId = slug ? await getBusinessIdBySlug(slug) : null;
-          if (!businessId) throw new Error('Нет связи с облаком');
-          await deleteBookingEverywhere(businessId, b.id);
-          setBookings(prev => prev.filter(x => x.id !== b.id));
-          setExpanded(null);
-        } catch (e) { Alert.alert('Не удалось удалить', e.message); }
-      } },
-    ]);
-  };
-
-  const filtered = bookings
-    .filter(b => filter === 'all' || b.status === filter)
-    .filter(b => !selectedCalDate || b.date === selectedCalDate);
-
-  // Группировка по дате
-  const grouped = filtered.reduce((acc, b) => {
-    const key = b.date;
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(b);
-    return acc;
-  }, {});
-
-  // Счётчики по статусам
-  const counts = bookings.reduce((acc, b) => {
-    acc[b.status] = (acc[b.status] || 0) + 1;
-    return acc;
-  }, {});
-
-  // Группировка локальных записей по дате
-  const manualGrouped = manualBookings
-    .filter(b => !selectedCalDate || b.date === selectedCalDate)
-    .reduce((acc, b) => {
-    const key = b.date;
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(b);
-    return acc;
-  }, {});
-
-  const closeManualForm = () => { setManualFormOpen(false); setManualEditingId(null); setShowDatePicker(false); setShowTimePicker(false); };
-
-  // Три шага тура про саму форму — открывают её как обычную новую запись
-  // (ничего не предзаполнено, ничего не сохранится, если тур закрыть, не
-  // нажав «Сохранить») — закрывают при уходе на любой другой шаг тура
-  const formStepKeys = new Set(['bookings.form.client', 'bookings.form.when', 'bookings.form.service']);
-  useEffect(() => {
-    if (formStepKeys.has(activeTourKey)) {
-      if (!manualFormOpen) openManualForm();
-    } else if (activeTourKey && manualFormOpen) {
-      closeManualForm();
-    }
-  }, [activeTourKey]);
-
-  const manualFormContent = (
-      <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
-        <View style={[{ position: 'relative' }, formClientHighlight.style]}>
-        <Text style={styles.sectionHeading}>Клиент</Text>
-        <Text style={styles.fieldLabel}>Имя <Text style={{ color: colors.orange }}>*</Text></Text>
-        <TextInput style={styles.inputBig} color={colors.text} value={mfName} onChangeText={setMfName}
-          placeholder="Как зовут клиента" placeholderTextColor={colors.muted} />
-
-        <Text style={styles.fieldLabel}>📞 Телефон</Text>
-        <PhoneInput style={[styles.input, styles.inputOptional]} color={colors.text} value={mfPhone} onChangeText={setMfPhone}
-          placeholderTextColor={colors.muted} />
-        {formClientHighlight.overlay}
-        </View>
-
-        <Text style={[styles.sectionHeading, { marginTop: 20 }]}>Когда</Text>
-        <View style={[styles.whenBox, { position: 'relative' }, formWhenHighlight.style]}>
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.fieldLabel}>🗓 Дата <Text style={{ color: colors.orange }}>*</Text></Text>
-              <Pressable style={styles.input} onPress={() => setShowDatePicker(true)}>
-                <Text style={{ color: mfDate ? colors.text : colors.muted, fontFamily: fonts.familyRegular, fontSize: 14 }}>
-                  {mfDate ? fmtDate(mfDate) : 'Выбрать дату'}
-                </Text>
-              </Pressable>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.fieldLabel}>🕐 Время <Text style={{ color: colors.orange }}>*</Text></Text>
-              <Pressable style={styles.input} onPress={() => setShowTimePicker(true)}>
-                <Text style={{ color: mfTime ? colors.text : colors.muted, fontFamily: fonts.familyRegular, fontSize: 14 }}>
-                  {mfTime || 'Выбрать время'}
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-
-          {showDatePicker && (
-            <DateTimePicker
-              value={mfDate ? new Date(mfDate + 'T00:00') : new Date()}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
-              onChange={(event, selectedDate) => {
-                setShowDatePicker(Platform.OS === 'ios'); // на iOS остаётся видимым до явного закрытия
-                if (event.type !== 'dismissed' && selectedDate) {
-                  const y = selectedDate.getFullYear();
-                  const m = String(selectedDate.getMonth() + 1).padStart(2, '0');
-                  const d = String(selectedDate.getDate()).padStart(2, '0');
-                  setMfDate(`${y}-${m}-${d}`);
-                }
-              }}
-            />
-          )}
-          {Platform.OS === 'ios' && showDatePicker && (
-            <Pressable style={styles.pickerDoneBtn} onPress={() => setShowDatePicker(false)}>
-              <Text style={styles.pickerDoneBtnTxt}>Готово</Text>
-            </Pressable>
-          )}
-
-          {showTimePicker && (
-            <DateTimePicker
-              value={(() => {
-                const d = new Date();
-                if (mfTime) {
-                  const [h, mi] = mfTime.split(':').map(Number);
-                  d.setHours(h || 0, mi || 0, 0, 0);
-                }
-                return d;
-              })()}
-              mode="time"
-              display="spinner"
-              is24Hour
-              onChange={(event, selectedDate) => {
-                setShowTimePicker(Platform.OS === 'ios');
-                if (event.type !== 'dismissed' && selectedDate) {
-                  const h = String(selectedDate.getHours()).padStart(2, '0');
-                  const mi = String(selectedDate.getMinutes()).padStart(2, '0');
-                  setMfTime(`${h}:${mi}`);
-                }
-              }}
-            />
-          )}
-          {Platform.OS === 'ios' && showTimePicker && (
-            <Pressable style={styles.pickerDoneBtn} onPress={() => setShowTimePicker(false)}>
-              <Text style={styles.pickerDoneBtnTxt}>Готово</Text>
-            </Pressable>
-          )}
-          {formWhenHighlight.overlay}
-        </View>
-
-        <View style={[{ position: 'relative', marginTop: 20 }, formServiceHighlight.style]}>
-        <Text style={styles.sectionHeading}>Услуга</Text>
-        <Text style={styles.fieldLabel}>✂️ Название</Text>
-        <TextInput style={[styles.input, styles.inputOptional]} color={colors.text} value={mfService} onChangeText={setMfService}
-          placeholder="Необязательно" placeholderTextColor={colors.muted} />
-
-        <Text style={styles.fieldLabel}>Стоимость</Text>
-        <View style={styles.priceWrap}>
-          <TextInput style={styles.priceInput} color={colors.text} value={mfPrice} onChangeText={setMfPrice}
-            keyboardType="numeric" placeholder="0" placeholderTextColor={colors.muted} />
-          <Text style={styles.priceCurrency}>₽</Text>
-        </View>
-
-        <Text style={styles.fieldLabel}>💬 Комментарий</Text>
-        <TextInput style={[styles.input, styles.inputOptional, { minHeight: 60 }]} color={colors.text} value={mfComment} onChangeText={setMfComment}
-          placeholder="Необязательно" placeholderTextColor={colors.muted} multiline />
-
-        <Pressable style={styles.saveManualBtn} onPress={saveManualBooking}>
-          <Text style={styles.saveManualBtnTxt}>Сохранить</Text>
-        </Pressable>
-        {formServiceHighlight.overlay}
-        </View>
-      </ScrollView>
-  );
-
-  // Портретная — форма через Sheet, как и раньше. Альбомная — форма
-  // встроена прямо в правую колонку (см. ниже, заменяет собой
-  // сводку/кнопку добавления, пока открыта)
-  // Фильтр по дню + сам список — общий для обеих ориентаций
-  const onlineListContent = (
-    <>
-      {selectedCalDate && (
-        <Pressable style={styles.dayFilterBar} onPress={() => setSelectedCalDate(null)}>
-          <Text style={styles.dayFilterTxt}>Показаны записи на {fmtDate(selectedCalDate)}</Text>
-          <Text style={styles.dayFilterClear}>✕ Показать все</Text>
-        </Pressable>
-      )}
-      {loading ? (
-        <View style={styles.centerWrap}>
-          <ActivityIndicator color={colors.orange} size="large" />
-          <Text style={styles.loadingTxt}>Загрузка записей...</Text>
-        </View>
-      ) : filtered.length === 0 ? (
-        <View style={styles.centerWrap}>
-          <Text style={styles.emptyTxt}>
-            {selectedCalDate ? `Нет записей на ${fmtDate(selectedCalDate)}` : filter === 'all' ? 'Нет записей' : `Нет записей в категории «${FILTERS.find(f=>f.key===filter)?.label}»`}
-          </Text>
-          {!selectedCalDate && (
-            <Text style={styles.emptyHint}>
-              Поделитесь QR-кодом из Настроек чтобы клиенты могли записаться
-            </Text>
-          )}
-        </View>
-      ) : (
-        <Animated.ScrollView
-          contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
-          style={{ flex: 1, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
-        >
-          {Object.entries(grouped)
-            .sort(([a],[b]) => a.localeCompare(b))
-            .map(([date, items]) => (
-              <View key={date} style={styles.group}>
-                <Text style={styles.groupDate}>{fmtDate(date)}</Text>
-                <View style={styles.groupCard}>
-                  {items.map((b, idx) => {
-                    const st = STATUS[b.status] || STATUS.pending;
-                    const isExp = expanded === b.id;
-                    return (
-                      <View key={b.id}>
-                        <Pressable
-                          style={({ pressed }) => [
-                            styles.bookingRow,
-                            idx < items.length - 1 && !isExp && styles.rowDiv,
-                            pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
-                          ]}
-                          onPress={() => setExpanded(isExp ? null : b.id)}
-                        >
-                          {/* Время */}
-                          <Text style={styles.bookingTime}>
-                            {b.time_start?.slice(0,5) || '—'}
-                          </Text>
-
-                          {/* Инфо */}
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.bookingName}>{b.client_name}</Text>
-                            <Text style={styles.bookingSub} numberOfLines={1}>
-                              {b.services?.name || 'Без услуги'}
-                              {b.client_phone ? ` · ${b.client_phone}` : ''}
-                            </Text>
-                            {b.note ? <Text style={styles.bookingNote}>💬 {b.note}</Text> : null}
-                          </View>
-
-                          {/* Статус */}
-                          <View style={[styles.statusBadge, { backgroundColor: st.bg }]}>
-                            <Text style={[styles.statusTxt, { color: st.color }]}>{st.label}</Text>
-                          </View>
-
-                          <Text style={[styles.chevron, isExp && styles.chevronOpen]}>›</Text>
-                        </Pressable>
-
-                        {/* Действия */}
-                        {isExp && can('edit_bookings') && (
-                          <View style={[styles.actionsPanel, idx < items.length - 1 && styles.rowDiv]}>
-                            {b.status !== 'confirmed' && (
-                              <Pressable style={styles.actionBtn} onPress={() => handleStatus(b.id, 'confirmed')}>
-                                <Text style={[styles.actionTxt, { color: colors.green }]}>✓ Подтвердить</Text>
-                              </Pressable>
-                            )}
-                            {b.status !== 'done' && b.status !== 'cancelled' && (
-                              <Pressable style={styles.actionBtn} onPress={() => handleStatus(b.id, 'done')}>
-                                <Text style={styles.actionTxt}>✔ Выполнено</Text>
-                              </Pressable>
-                            )}
-                            {b.status !== 'cancelled' && (
-                              <Pressable style={[styles.actionBtn, { borderColor: 'rgba(219,129,120,0.35)' }]}
-                                onPress={() => handleStatus(b.id, 'cancelled')}>
-                                <Text style={[styles.actionTxt, { color: colors.red }]}>✕ Отменить</Text>
-                              </Pressable>
-                            )}
-                            <Pressable style={[styles.actionBtn, { borderColor: 'rgba(219,129,120,0.35)' }]}
-                              onPress={() => handleDeleteOnline(b)}>
-                              <Text style={[styles.actionTxt, { color: colors.red }]}>🗑 Удалить</Text>
-                            </Pressable>
-                          </View>
-                        )}
-                      </View>
-                    );
-                  })}
-                </View>
-              </View>
-            ))}
-        </Animated.ScrollView>
-      )}
-    </>
-  );
-
-  const manualFormSheet = !isLandscape && (
-    <Sheet
-      visible={manualFormOpen}
-      onClose={closeManualForm}
-      title={manualEditingId ? 'Изменить запись' : 'Новая запись по телефону'}
-    >
-      {manualFormContent}
-    </Sheet>
+  const detail = !b0 ? (
+    <View style={styles.center}><View style={styles.ico}><Icon name="calendar" size={34} color={colors.textDim} /></View><Text style={styles.cT}>Выберите запись</Text><Text style={styles.cX}>Подробности и действия откроются здесь</Text></View>
+  ) : (
+    <ScrollView showsVerticalScrollIndicator={false}>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}><Text style={styles.dN} numberOfLines={1}>{b0.client_name}</Text><Pill s={b0.status} /></View>
+      <Text style={styles.dS}>{dl(b0.date)} · {b0.time_start}–{endOf(b0)} · {b0.source === 'online' ? 'онлайн-заявка' : 'запись по телефону'}</Text>
+      <KV k="Услуга" v={`${b0.service_name}${b0.once ? ' · разовая' : ''}`} /><KV k="Стоимость" v={`${rub(b0.price)} ₽`} />
+      {!!b0.staff_name && <KV k="Мастер" v={b0.staff_name} />}
+      {!!b0.client_phone && <KV k="Телефон" v={b0.client_phone} a="Позвонить" onA={() => Linking.openURL(`tel:${b0.client_phone.replace(/[^\d+]/g, '')}`)} />}
+      {!!b0.client_id && <KV k="Клиент" v="есть в базе клиентов" a="Открыть" onA={() => navigation.navigate('ClientsList', { clientId: b0.client_id })} />}
+      {!!b0.comment && <KV k="Комментарий" v={b0.comment} />}
+      {!!b0.order_id && <KV k="Заказ" v={`№${b0.order_id}`} />}
+      {canEdit && (
+        <View style={styles.acts}>
+          {b0.status === 'pending' && <><GlassButton style={styles.act} tone="accent" label="Подтвердить" height={50} onPress={() => changeStatus(b0, 'confirmed')} /><GlassButton style={styles.act} label="Отклонить" height={50} onPress={() => changeStatus(b0, 'cancelled')} /></>}
+          {b0.status === 'confirmed' && <><GlassButton style={styles.act} tone="accent" label="Оформить в Кассе" height={50} onPress={() => navigation.navigate('Kassa', { fromBooking: b0 })} />
+            {b0.source === 'manual' && <GlassButton style={styles.act} label="Перенести" height={50} onPress={() => setWin({ booking: b0 })} />}
+            <GlassButton style={styles.act} label="Отменить" height={50} onPress={() => changeStatus(b0, 'cancelled')} /></>}
+          {b0.status === 'done' && <GlassButton style={styles.act} label="Вернуть в подтверждённые" height={50} onPress={() => changeStatus(b0, 'confirmed')} />}
+          {b0.status === 'cancelled' && <GlassButton style={styles.act} label="Восстановить" height={50} onPress={() => changeStatus(b0, 'confirmed')} />}
+        </View>)}
+      {canEdit && <Pressable onPress={() => remove(b0)} hitSlop={8} style={{ alignSelf: 'flex-start', marginTop: 12 }}><Text style={styles.del}>Удалить запись</Text></Pressable>}
+    </ScrollView>
   );
 
   return (
-    <>
     <View style={styles.root}>
-      <TopBar
-        title="Записи"
-        onBack={() => goBackSmart(navigation)}
-        navigation={navigation}
-        activeScreen="Bookings"
-        rightElement={
-          <Pressable onPress={() => { setTourFull(false); setTourOpen(true); }} hitSlop={10} style={styles.tourBtn}>
-            <Text style={styles.tourBtnTxt}>?</Text>
-          </Pressable>
-        }
-      />
+      <TopBar title="Записи" onBack={() => goBackSmart(navigation)} navigation={navigation} activeScreen="Bookings"
+        rightElement={<Pressable style={styles.tourBtn} onPress={() => setTourOpen(true)} hitSlop={10} accessibilityLabel="Подсказка"><Text style={styles.tourTxt}>?</Text></Pressable>} />
+      <View style={StyleSheet.absoluteFill} pointerEvents="none"><SoftGlow size={620} color="127,168,217" alpha={0.14} style={{ position: 'absolute', left: -170, top: -150 }} /></View>
 
-      {/* Календарь — общий для обеих вкладок, виден всегда.
-          В портрете — свой, сворачиваемый блок сверху (нет места под
-          постоянную колонку). В альбомной — не здесь, встроен ниже прямо
-          в правую панель каждой вкладки, одной карточкой с её содержимым. */}
-      {!isLandscape && (
-        <View style={[styles.calWrap, { position: 'relative' }, calendarHighlight.style]}>
-          <BookingsCalendar
-            onlineDates={calOnlineDates}
-            manualDates={calManualDates}
-            selectedDate={selectedCalDate}
-            onSelectDay={onSelectCalDay}
-            onMonthChange={loadCalendarMonth}
-            collapsible
-          />
-          {calendarHighlight.overlay}
+      <View style={styles.tb}>
+        <View style={[{ width: 340 }, hl.tabs.style]}><GlassSegmented items={[{ key: 'online', label: pendingN ? `Онлайн · ${pendingN}` : 'Онлайн' }, { key: 'manual', label: phoneN ? `По телефону · ${phoneN}` : 'По телефону' }]} value={tab} onChange={k => { setTab(k); setCur(null); }} height={46} />{hl.tabs.overlay}</View>
+        <Pressable ref={fRef} collapsable={false} style={[styles.fbtn, flt !== 'all' && styles.fbtnOn]} onPress={() => anchor(fRef, setFAt)}><Icon name="sliders" size={18} color={colors.textDim} /><Text style={styles.fbtnT}>Фильтры</Text></Pressable>
+        <View style={{ flex: 1 }} />
+        <View style={styles.sts}>
+          <View><Text style={styles.sk}>Сегодня</Text><Text style={styles.sv}>{st.today}<Text style={styles.ss}>  ещё {st.todayLeft}</Text></Text></View>
+          <View><Text style={styles.sk}>Ожидается</Text><Text style={styles.sv}>{rub(st.expected)} ₽</Text></View>
+          {tab === 'online' ? <View><Text style={styles.sk}>Ждут ответа</Text><Text style={[styles.sv, st.pending > 0 && { color: colors.warning }]}>{st.pending}</Text></View>
+            : <View><Text style={styles.sk}>Ближайшая</Text><Text style={styles.sv} numberOfLines={1}>{st.next ? `${st.next.time_start}` : '—'}<Text style={styles.ss}>  {st.next ? st.next.client_name.split(' ')[0] : ''}</Text></Text></View>}
         </View>
-      )}
-
-      {/* Вкладки — Онлайн / По телефону */}
-      <View style={[styles.mainTabBar, { position: 'relative' }, tabsHighlight.style]}>
-        <Pressable style={[styles.mainTabBtn, mainTab === 'online' && styles.mainTabBtnActive]} onPress={() => setMainTab('online')}>
-          <Text style={[styles.mainTabTxt, mainTab === 'online' && styles.mainTabTxtActive]}>Онлайн</Text>
-        </Pressable>
-        <Pressable style={[styles.mainTabBtn, mainTab === 'manual' && styles.mainTabBtnActive]} onPress={() => setMainTab('manual')}>
-          <Text style={[styles.mainTabTxt, mainTab === 'manual' && styles.mainTabTxtActive]}>По телефону</Text>
-        </Pressable>
-        <Pressable onPress={load} hitSlop={12} style={styles.refreshBtnWrap} accessibilityLabel="Обновить" accessibilityRole="button">
-          <Text style={styles.refreshBtn}>↻</Text>
-        </Pressable>
-        {tabsHighlight.overlay}
+        {tab === 'online' && online.connected && <Pressable style={styles.rbtn} onPress={loadOnline} accessibilityLabel="Обновить"><Icon name="refresh" size={20} color={colors.textDim} /></Pressable>}
+        {canEdit && <Pressable ref={mRef} collapsable={false} style={[styles.rbtn, hl.menu.style]} onPress={() => anchor(mRef, setMenuAt)}><Text style={styles.dots}>⋯</Text>{hl.menu.overlay}</Pressable>}
+        {canEdit && tab === 'manual' && <View style={{ position: 'relative', ...hl.add.style }}><GlassButton tone="solid" icon="plus" label="Запись" height={52} onPress={() => setWin({ booking: null })} />{hl.add.overlay}</View>}
       </View>
 
-      {mainTab === 'online' && (
-      <View style={[styles.layout, !isLandscape && { flexDirection: 'column' }]}>
-
-        <View style={isLandscape ? styles.manualLeftLandscape : styles.manualLeftPortrait}>
-          {isLandscape ? (
-            <>
-              <View style={[styles.calEmbeddedWrap, { position: 'relative', marginTop: 16 }, calendarHighlight.style]}>
-                <BookingsCalendar
-                  onlineDates={calOnlineDates}
-                  manualDates={calManualDates}
-                  selectedDate={selectedCalDate}
-                  onSelectDay={onSelectCalDay}
-                  onMonthChange={loadCalendarMonth}
-                  embedded
-                />
-                {calendarHighlight.overlay}
-              </View>
-
-              <Pressable
-                style={[styles.filterCompactBtn, { position: 'relative' }, filtersHighlight.style]}
-                onPress={() => setFilterMenuOpen(true)}
-              >
-                <Text style={styles.filterCompactTxt}>
-                  {FILTERS.find(f => f.key === filter)?.label}
-                  {filter !== 'all' && counts[filter] > 0 ? ` · ${counts[filter]}` : ''}
-                </Text>
-                <Text style={styles.filterCompactChevron}>⌄</Text>
-                {filtersHighlight.overlay}
-              </Pressable>
-
-              <Sheet visible={filterMenuOpen} onClose={() => setFilterMenuOpen(false)} title="Фильтр">
-                <View style={{ padding: 14 }}>
-                  {FILTERS.map(f => {
-                    const count = f.key === 'all' ? bookings.length : (counts[f.key] || 0);
-                    return (
-                      <Pressable
-                        key={f.key}
-                        style={[styles.filterBtn, filter === f.key && styles.filterBtnActive]}
-                        onPress={() => { setFilter(f.key); setFilterMenuOpen(false); }}
-                      >
-                        {filter === f.key && <View style={styles.filterBar} />}
-                        <Text style={[styles.filterTxt, filter === f.key && styles.filterTxtActive]}>{f.label}</Text>
-                        {count > 0 && (
-                          <View style={[styles.countBadge, f.key === 'pending' && count > 0 && styles.countBadgeNew]}>
-                            <Text style={[styles.countTxt, f.key === 'pending' && count > 0 && styles.countTxtNew]}>{count}</Text>
-                          </View>
-                        )}
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </Sheet>
-            </>
-          ) : (
-            <View style={[styles.filterRowOuter, { position: 'relative' }, filtersHighlight.style]}>
-              {FILTERS.map(f => {
-                const count = f.key === 'all' ? bookings.length : (counts[f.key] || 0);
-                return (
-                  <Pressable
-                    key={f.key}
-                    style={[styles.filterChip, filter === f.key && styles.filterChipActive]}
-                    onPress={() => setFilter(f.key)}
-                  >
-                    <Text style={[styles.filterChipTxt, filter === f.key && styles.filterChipTxtActive]}>
-                      {f.label}{count > 0 ? ` · ${count}` : ''}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-              {filtersHighlight.overlay}
-            </View>
-          )}
-
-          {onlineListContent}
+      <View style={[styles.two, isLandscape && { flexDirection: 'row' }]}>
+        <View style={[styles.lc, isLandscape && { flex: 0.8 }]}>
+          <View style={hl.cal.style}><BookingsCalendar onlineDates={dots(online.list)} manualDates={dots(manual)} selectedDate={sel} onSelectDay={d => { setSel(d); setCur(null); }}
+            onMonthChange={(y, m0) => { range.current = { from: localDateStr(new Date(y, m0 - 1, 1)), to: localDateStr(new Date(y, m0 + 2, 0)) }; loadOnline(); }} />{hl.cal.overlay}</View>
+          <Text style={styles.agh}>{sel === localDateStr() ? 'Сегодня · ' : ''}{dl(sel)} · {day.length}</Text>
+          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+            {tab === 'online' && !online.connected ? (
+              <View style={styles.empty}><Text style={styles.cT}>Онлайн-страница не подключена</Text><Text style={styles.cX}>Клиенты пока не могут записываться через интернет</Text>{canEdit && <GlassButton label="Подключить" height={46} style={{ marginTop: 12 }} onPress={() => setPanel('online')} />}</View>
+            ) : day.length === 0 ? (
+              <View style={styles.empty}><Text style={styles.cT}>В этот день записей нет</Text><Text style={styles.cX}>{tab === 'manual' ? 'Нажмите «+ Запись», чтобы добавить' : 'Новые заявки появятся здесь после обновления'}</Text></View>
+            ) : day.map(b => {
+              const past = b.date === localDateStr() && b.status !== 'pending' && toMin(b.time_start) + b.duration_min < new Date().getHours() * 60 + new Date().getMinutes();
+              return (
+                <Pressable key={b.key} style={[styles.bk, cur === b.key && styles.bkSel, (past || b.status === 'done' || b.status === 'cancelled') && { opacity: 0.55 }]} onPress={() => setCur(b.key)}>
+                  <View style={{ width: 66 }}><Text style={styles.bT}>{b.time_start}</Text><Text style={styles.bTs}>до {endOf(b)}</Text></View>
+                  <View style={{ flex: 1, minWidth: 0 }}><Text style={styles.bN} numberOfLines={1}>{b.client_name}</Text><Text style={styles.bS} numberOfLines={1}>{b.service_name}{b.staff_name ? ` · ${b.staff_name}` : ''}</Text></View>
+                  <Text style={styles.bP}>{rub(b.price)} ₽</Text><Pill s={b.status} />
+                </Pressable>);
+            })}
+            {other > 0 && <Pressable style={styles.oth} onPress={() => { setTab(tab === 'online' ? 'manual' : 'online'); setCur(null); }}><Text style={styles.othT}>В этот день на вкладке «{tab === 'online' ? 'По телефону' : 'Онлайн'}» есть записи: {other}  <Text style={{ color: colors.orangeLight }}>Открыть</Text></Text></Pressable>}
+            {tab === 'online' && online.connected && !!updated && <Text style={styles.upd}>обновлено {updated}</Text>}
+          </ScrollView>
         </View>
-
-        {/* Правая панель — подсказка (только альбомная) */}
-        {isLandscape && (
-          <View style={styles.right}>
-            <ScrollView contentContainerStyle={{ padding: 20 }}>
-              <View style={styles.hintCard}>
-                <Text style={styles.hintTitle}>Онлайн запись</Text>
-                <Text style={styles.hintTxt}>
-                  Клиенты записываются через форму по QR-коду. Новые записи появляются здесь автоматически.
-                </Text>
-              </View>
-            </ScrollView>
-          </View>
-        )}
+        <View style={[styles.rc, isLandscape && { flex: 1 }]}>{detail}</View>
       </View>
-      )}
 
-      {mainTab === 'manual' && (
-        <View style={[styles.layout, !isLandscape && { flexDirection: 'column' }]}>
-          <View style={isLandscape ? styles.manualLeftLandscape : styles.manualLeftPortrait}>
-            {can('edit_bookings') && !isLandscape && (
-              <Pressable style={[styles.addManualBtn, { position: 'relative' }, manualAddHighlight.style]} onPress={() => openManualForm(selectedCalDate)}>
-                <Text style={styles.addManualBtnTxt}>{selectedCalDate ? `+ Добавить на ${fmtDate(selectedCalDate)}` : '+ Добавить запись'}</Text>
-                {manualAddHighlight.overlay}
-              </Pressable>
-            )}
+      <Modal visible={!!fAt} transparent animationType="fade" onRequestClose={() => setFAt(null)}><View style={{ flex: 1 }}><Pressable style={StyleSheet.absoluteFill} onPress={() => setFAt(null)} />
+        <View style={[styles.pop, { top: fAt?.top, right: fAt?.right, width: 420 }]}><GlassSurface floating radius={22} tint="32,40,55" alpha={0.97} padding={20}><Text style={styles.pl}>Статус</Text>
+          <View style={styles.chips}>{STATUSES.map(([k, t]) => <Pressable key={k} style={[styles.chip, flt === k && styles.chipOn]} onPress={() => { setFlt(k); setFAt(null); }}><Text style={[styles.chipT, flt === k && { color: colors.orangeLight }]}>{t}</Text></Pressable>)}</View></GlassSurface></View></View></Modal>
+      <Modal visible={!!menuAt} transparent animationType="fade" onRequestClose={() => setMenuAt(null)}><View style={{ flex: 1 }}><Pressable style={StyleSheet.absoluteFill} onPress={() => setMenuAt(null)} />
+        <View style={[styles.pop, { top: menuAt?.top, right: menuAt?.right, width: 380 }]}><GlassSurface floating radius={22} tint="32,40,55" alpha={0.985} padding={12}><Text style={[styles.pl, { marginLeft: 8 }]}>Настройки записи</Text>
+          {[['services', '▤', 'Услуги для записи', `${getBookingServices().length} в записи`], ['online', '◎', 'Онлайн-страница', online.connected ? 'подключена · ссылка и QR-код' : 'не подключена'], ['masters', '☺', 'Мастера', `${getBookingStaff().length} принимают записи`]].map(([k, ic, t, s]) => (
+            <Pressable key={k} style={styles.mi} onPress={() => { setMenuAt(null); setPanel(k); }}><View style={styles.miI}><Text style={styles.miIT}>{ic}</Text></View><View><Text style={styles.miT}>{t}</Text><Text style={styles.miS}>{s}</Text></View></Pressable>))}</GlassSurface></View></View></Modal>
 
-            {isLandscape && (
-              <View style={[styles.calEmbeddedWrap, { position: 'relative', marginTop: 16 }, calendarHighlight.style]}>
-                <BookingsCalendar
-                  onlineDates={calOnlineDates}
-                  manualDates={calManualDates}
-                  selectedDate={selectedCalDate}
-                  onSelectDay={onSelectCalDay}
-                  onMonthChange={loadCalendarMonth}
-                  embedded
-                />
-                {calendarHighlight.overlay}
-              </View>
-            )}
-
-            {selectedCalDate && (
-              <Pressable style={styles.dayFilterBar} onPress={() => setSelectedCalDate(null)}>
-                <Text style={styles.dayFilterTxt}>Показаны записи на {fmtDate(selectedCalDate)}</Text>
-                <Text style={styles.dayFilterClear}>✕ Показать все</Text>
-              </Pressable>
-            )}
-
-            {manualBookings.length === 0 ? (
-              <View style={styles.centerWrap}>
-                <Text style={styles.emptyTxt}>Пока нет записей по телефону</Text>
-                <Text style={styles.emptyHint}>Добавляйте сюда клиентов, которые записались, позвонив вам напрямую</Text>
-              </View>
-            ) : selectedCalDate && Object.keys(manualGrouped).length === 0 ? (
-              <View style={styles.centerWrap}>
-                <Text style={styles.emptyTxt}>Нет записей на {fmtDate(selectedCalDate)}</Text>
-              </View>
-            ) : (
-              <Animated.ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
-                {Object.keys(manualGrouped).sort().map(date => (
-                  <View key={date} style={{ marginBottom: 20 }}>
-                    <Text style={styles.groupDate}>{fmtDate(date)}</Text>
-                    <View style={styles.groupCard}>
-                      {manualGrouped[date].map((b, idx) => {
-                        const row = (
-                          <Pressable
-                            style={[styles.bookingRow, idx < manualGrouped[date].length - 1 && styles.rowDiv]}
-                            onPress={() => can('edit_bookings') && openManualEdit(b)}
-                          >
-                            <Text style={styles.bookingTime}>{b.time_start?.slice(0,5) || '—'}</Text>
-                            <View style={{ flex: 1 }}>
-                              <Text style={styles.bookingName}>{b.client_name}</Text>
-                              <Text style={styles.bookingSub}>
-                                📞 {b.service_name || 'Без услуги'}
-                                {b.client_phone ? ` · ${b.client_phone}` : ''}
-                              </Text>
-                            </View>
-                          </Pressable>
-                        );
-                        return can('edit_bookings') ? (
-                          <SwipeableRow
-                            key={b.id}
-                            onAction={() => {
-                              Alert.alert('Удалить запись?', `${b.client_name} · ${b.time_start?.slice(0,5)}`, [
-                                { text: 'Отмена', style: 'cancel' },
-                                { text: 'Удалить', style: 'destructive', onPress: () => { deleteManualBooking(b.id); loadManual(); } },
-                              ]);
-                            }}
-                            label="Удалить"
-                          >
-                            {row}
-                          </SwipeableRow>
-                        ) : <React.Fragment key={b.id}>{row}</React.Fragment>;
-                      })}
-                    </View>
-                  </View>
-                ))}
-              </Animated.ScrollView>
-            )}
-          </View>
-
-          {isLandscape && (() => {
-            const todayKey = todayStr();
-            const todayList = (manualGrouped[todayKey] || []).slice().sort((a,b) => (a.time_start||'').localeCompare(b.time_start||''));
-            const upcoming = manualBookings
-              .filter(b => b.date > todayKey || (b.date === todayKey))
-              .slice()
-              .sort((a,b) => (a.date+a.time_start).localeCompare(b.date+b.time_start))[0];
-            const totalRevenue = manualBookings.reduce((s,b) => s + (b.service_price||0), 0);
-            return (
-              <View style={styles.sidePanelManual}>
-                {manualFormOpen ? (
-                  <>
-                    <View style={styles.embeddedFormHeader}>
-                      <Text style={styles.embeddedFormTitle}>{manualEditingId ? 'Изменить запись' : 'Новая запись по телефону'}</Text>
-                      <Pressable onPress={closeManualForm} hitSlop={10} style={styles.embeddedFormClose}>
-                        <Text style={styles.embeddedFormCloseTxt}>✕</Text>
-                      </Pressable>
-                    </View>
-                    {manualFormContent}
-                  </>
-                ) : (
-                  <>
-                    {can('edit_bookings') && (
-                      <View style={{ padding: 16, paddingBottom: 0 }}>
-                        <Pressable style={[styles.addManualBtn, { margin: 0, position: 'relative' }, manualAddHighlight.style]} onPress={() => openManualForm(selectedCalDate)}>
-                          <Text style={styles.addManualBtnTxt}>{selectedCalDate ? `+ Добавить на ${fmtDate(selectedCalDate)}` : '+ Добавить запись'}</Text>
-                          {manualAddHighlight.overlay}
-                        </Pressable>
-                      </View>
-                    )}
-                    <ScrollView contentContainerStyle={{ padding: 20 }}>
-                      <Text style={styles.sideLabel}>Всего записей</Text>
-                  <Text style={styles.sideVal}>{manualBookings.length}</Text>
-                  <View style={styles.sideDivider} />
-
-                  <Text style={styles.sideLabel}>Сегодня</Text>
-                  <Text style={[styles.sideVal, { fontSize: 24, marginBottom: 4 }]}>{todayList.length} {todayList.length === 1 ? 'запись' : 'записей'}</Text>
-                  {todayList.length > 0 && (
-                    <View style={{ marginTop: 8 }}>
-                      {todayList.map(b => (
-                        <View key={b.id} style={styles.todayRow}>
-                          <Text style={styles.todayTime}>{b.time_start?.slice(0,5)}</Text>
-                          <Text style={styles.todayName} numberOfLines={1}>{b.client_name}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-
-                  <View style={styles.sideDivider} />
-                  <Text style={styles.sideLabel}>Ожидаемая выручка</Text>
-                  <Text style={styles.sideVal}>{fmt(totalRevenue)} ₽</Text>
-
-                  {upcoming && (
-                    <>
-                      <View style={styles.sideDivider} />
-                      <Text style={styles.sideLabel}>Ближайшая запись</Text>
-                      <Text style={styles.upcomingName}>{upcoming.client_name}</Text>
-                      <Text style={styles.upcomingWhen}>{fmtDate(upcoming.date)} в {upcoming.time_start?.slice(0,5)}</Text>
-                    </>
-                  )}
-                </ScrollView>
-                  </>
-                )}
-              </View>
-            );
-          })()}
-        </View>
-      )}
+      <BookingEditModal visible={!!win} booking={win?.booking || null} presetDate={sel} services={win ? getBookingServices() : []} staff={win ? getBookingStaff() : []} isNarrow={!isLandscape}
+        onSaved={(id, toCat) => { toast.show(win?.booking ? 'Запись перенесена' : 'Запись добавлена', 'info'); loadManual(); setCur('m' + id); if (toCat) toast.show('Услуга добавлена в каталог', 'info'); }} onClose={() => setWin(null)} />
+      <BookingServicesModal visible={panel === 'services'} isNarrow={!isLandscape} onChanged={() => setStamp(x => x + 1)} onClose={() => setPanel(null)} />
+      <OnlinePageModal visible={panel === 'online'} onChanged={loadOnline} onClose={() => { setPanel(null); setStamp(x => x + 1); }} />
+      <MastersModal visible={panel === 'masters'} onClose={() => setPanel(null)} />
+      <TourGuide visible={tourOpen} onClose={() => { setTourOpen(false); markTourSeen('Bookings'); }} steps={steps} />
     </View>
-
-    {manualFormSheet}
-
-    <TourGuide
-      visible={tourOpen}
-      onClose={() => { setTourOpen(false); if (tourFull) markTourSeen('Bookings'); }}
-      steps={tourStepsToShow}
-    />
-    </>
   );
 }
 
 const styles = StyleSheet.create({
-  tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(127,168,217,0.1)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)', alignItems: 'center', justifyContent: 'center' },
-  tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, color: colors.orange },
-  root:   { flex: 1, backgroundColor: colors.bg },
-  layout: { flex: 1, flexDirection: 'row' },
-
-  // Левая панель
-  left:   { width: 200, margin: 12, marginRight: 0, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 14, overflow: 'hidden' },
-  filterRowOuter: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
-  filterChip: { paddingVertical: 7, paddingHorizontal: 14, borderRadius: 18, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border },
-  filterChipActive: { backgroundColor: 'rgba(127,168,217,0.14)', borderColor: colors.orange },
-  filterChipTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
-  filterChipTxtActive: { color: colors.orange },
-  sectionLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 8 },
-  filterCompactBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginHorizontal: 16, marginTop: 12, paddingVertical: 9, paddingHorizontal: 14, borderRadius: 12, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignSelf: 'flex-start' },
-  filterCompactTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text },
-  filterCompactChevron: { fontSize: 14, color: colors.muted },
-  divider: { height: 1, backgroundColor: colors.border, marginVertical: 12 },
-
-  filterBtn:   { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, paddingHorizontal: 14, borderRadius: 12, position: 'relative', gap: 8 },
-  filterBtnActive: { backgroundColor: 'rgba(127,168,217,0.08)' },
-  filterBar:   { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
-  filterTxt:   { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted, flex: 1 },
-  filterTxtActive: { color: colors.orange },
-  countBadge:  { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10, backgroundColor: colors.surface2 },
-  countBadgeNew: { backgroundColor: 'rgba(217,172,98,0.2)' },
-  countTxt:    { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
-  countTxtNew: { color: colors.amber },
-
-  hintCard:  { backgroundColor: colors.surface3, borderRadius: 14, borderWidth: 1, borderColor: colors.borderHi, padding: 16 },
-  hintTitle: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text, marginBottom: 8 },
-  hintTxt:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, lineHeight: 20 },
-
-  // Правая панель
-  right:      { flex: 1, backgroundColor: colors.bg, borderRadius: 16, borderWidth: 1, borderColor: colors.border, margin: 12, marginLeft: 12, overflow: 'hidden' },
-
-  manualLeftLandscape: { width: '38%', maxWidth: 480, margin: 12, marginRight: 0, borderRadius: 16, borderWidth: 1, borderColor: colors.borderHi, backgroundColor: colors.surface2, overflow: 'hidden' },
-  manualLeftPortrait:  { flex: 1, backgroundColor: colors.surface },
-  sidePanelManual: { flex: 1, backgroundColor: colors.bg, borderRadius: 16, borderWidth: 1, borderColor: colors.border, margin: 12, marginLeft: 12, overflow: 'hidden' },
-  embeddedFormHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, paddingBottom: 0 },
-  embeddedFormTitle: { fontFamily: fonts.family, fontSize: 18, color: colors.text, flex: 1 },
-  embeddedFormClose: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  embeddedFormCloseTxt: { fontSize: 16, color: colors.muted, fontWeight: '700' },
-  sideLabel:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1 },
-  sideVal:     { fontFamily: fonts.family, fontSize: 28, color: colors.text, marginTop: 4 },
-  sideDivider: { height: 1, backgroundColor: colors.border, marginVertical: 16 },
-  todayRow:    { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
-  todayTime:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange, width: 42 },
-  todayName:   { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.text, flex: 1 },
-  upcomingName:{ fontFamily: fonts.family, fontSize: 16, color: colors.text, marginTop: 4 },
-  upcomingWhen:{ fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 2 },
-  mainTabBar: { flexDirection: 'row', gap: 6, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: colors.surface, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.18, shadowRadius: 6, zIndex: 2 },
-  mainTabBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 12 },
-  mainTabBtnActive: { backgroundColor: 'rgba(127,168,217,0.14)' },
-  mainTabTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
-  mainTabTxtActive: { color: colors.orange },
-  addManualBtn: { margin: 16, marginBottom: 8, paddingVertical: 13, borderRadius: 12, backgroundColor: colors.orange, alignItems: 'center' },
-  addManualBtnTxt: { fontFamily: fonts.family, fontSize: 14, color: colors.onAccent },
-
-  fieldLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted, marginTop: 14, marginBottom: 6 },
-  sectionHeading: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange, textTransform: 'uppercase', letterSpacing: 1.5 },
-  input: { backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 13, color: colors.text, fontFamily: fonts.familyRegular, fontSize: 14 },
-  inputBig: { backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.borderHi, padding: 14, color: colors.text, fontFamily: fonts.family, fontSize: 18 },
-  inputOptional: { borderColor: colors.border, backgroundColor: colors.surface },
-  whenBox: { backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border, padding: 14, marginTop: 8 },
-  priceWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.surface2, borderRadius: 12, borderWidth: 1, borderColor: colors.borderHi, paddingHorizontal: 14 },
-  priceInput: { flex: 1, fontFamily: fonts.family, fontSize: 24, color: colors.text, paddingVertical: 12 },
-  priceCurrency: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted },
-  saveManualBtn: { marginTop: 24, paddingVertical: 14, borderRadius: 12, backgroundColor: colors.orange, alignItems: 'center' },
-  saveManualBtnTxt: { fontFamily: fonts.family, fontSize: 16, color: colors.onAccent },
-  pickerDoneBtn: { marginTop: 8, paddingVertical: 10, borderRadius: 10, backgroundColor: colors.surface2, alignItems: 'center' },
-  pickerDoneBtnTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
-  centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
-  loadingTxt: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 12 },
-  emptyTxt:   { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted, textAlign: 'center' },
-  emptyHint:  { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, textAlign: 'center', marginTop: 8, lineHeight: 20, opacity: 0.7 },
-
-  group:       { marginBottom: 16 },
-  groupDate:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, marginBottom: 8, paddingHorizontal: 2 },
-  groupCard:   { backgroundColor: colors.surface2, borderRadius: 14, borderWidth: 1, borderColor: colors.borderHi, overflow: 'hidden' },
-
-  bookingRow:  { flexDirection: 'row', alignItems: 'center', padding: 15, gap: 10 },
-  rowDiv:      { borderBottomWidth: 1, borderBottomColor: colors.border },
-  bookingTime: { fontFamily: fonts.familySemibold, fontSize: 18, color: colors.text, width: 50 },
-  bookingName: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text },
-  bookingSub:  { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 2 },
-  bookingNote: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.indigo, marginTop: 2 },
-
-  statusBadge: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 10 },
-  statusTxt:   { fontFamily: fonts.familySemibold, fontSize: 14 },
-  chevron:     { fontSize: 18, color: colors.muted, transform: [{ rotate: '90deg' }] },
-  chevronOpen: { transform: [{ rotate: '-90deg' }] },
-
-  actionsPanel:{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 12, backgroundColor: colors.surface2 },
-  actionBtn:   { paddingVertical: 9, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: colors.borderHi, backgroundColor: colors.surface2 },
-  actionTxt:   { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted },
-
-  refreshBtn:  { fontSize: 20, color: colors.muted },
-  refreshBtnWrap: { paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
-
-  dayFilterBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 16, marginTop: 12, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: 'rgba(127,168,217,0.1)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.3)' },
-  dayFilterTxt: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.text, flex: 1 },
-  dayFilterClear: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange, marginLeft: 8 },
-
-  calWrap: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 8, backgroundColor: colors.surface2 },
-  calEmbeddedWrap: { backgroundColor: colors.surface2, borderRadius: 16, marginHorizontal: 16, marginTop: 4 },
+  root: { flex: 1, backgroundColor: colors.bg },
+  tourBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(127,168,217,0.1)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.3)', alignItems: 'center', justifyContent: 'center' }, tourTxt: { fontFamily: fonts.family, fontSize: 18, color: colors.orange },
+  tb: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 10 },
+  fbtn: { flexDirection: 'row', alignItems: 'center', gap: 8, height: 50, paddingHorizontal: 18, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'rgba(150,172,204,0.10)' }, fbtnOn: { borderColor: 'rgba(157,191,230,0.5)', backgroundColor: 'rgba(127,168,217,0.18)' }, fbtnT: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
+  sts: { flexDirection: 'row', gap: 22, marginRight: 8 }, sk: { fontFamily: fonts.familySemibold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: colors.muted }, sv: { fontFamily: fonts.familySemibold, fontSize: 18, color: colors.text, marginTop: 1 }, ss: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
+  rbtn: { width: 50, height: 50, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' }, dots: { fontSize: 22, color: colors.textDim, marginTop: -4 },
+  two: { flex: 1, paddingHorizontal: 20, paddingBottom: 20, gap: 12 }, lc: { flex: 1, backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', padding: 12 }, rc: { flex: 1, backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', padding: 18 },
+  agh: { fontFamily: fonts.familySemibold, fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase', color: colors.muted, paddingHorizontal: 4, marginTop: 8, marginBottom: 4 },
+  bk: { flexDirection: 'row', alignItems: 'center', paddingVertical: 7, paddingHorizontal: 10, borderRadius: 14, marginBottom: 5, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' }, bkSel: { backgroundColor: 'rgba(127,168,217,0.12)', borderColor: 'rgba(157,191,230,0.5)' },
+  bT: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text }, bTs: { fontFamily: fonts.familyRegular, fontSize: 11, color: colors.muted }, bN: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text }, bS: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 }, bP: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim, marginHorizontal: 10 },
+  pill: { height: 24, paddingHorizontal: 10, borderRadius: 999, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginLeft: 8 }, pillT: { fontFamily: fonts.familySemibold, fontSize: 11 },
+  oth: { padding: 10, borderRadius: 12, marginTop: 4, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' }, othT: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.textDim }, upd: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 8 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 }, ico: { width: 76, height: 76, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  empty: { alignItems: 'center', padding: 24 }, cT: { fontFamily: fonts.familySemibold, fontSize: 17, color: colors.text, marginBottom: 6, textAlign: 'center' }, cX: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, textAlign: 'center', lineHeight: 20 },
+  dN: { flex: 1, fontFamily: fonts.display, fontSize: 24, color: colors.text }, dS: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 3, marginBottom: 14 },
+  kv: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)' }, kvK: { flex: 1, fontFamily: fonts.familyRegular, fontSize: 15, color: colors.textDim }, kvV: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text, maxWidth: '60%' }, kvA: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orangeLight, marginLeft: 12 },
+  acts: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 14 }, act: { flexGrow: 1, minWidth: 150 }, del: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red },
+  pop: { position: 'absolute', maxWidth: '94%' }, pl: { fontFamily: fonts.familySemibold, fontSize: 12, letterSpacing: 1.3, textTransform: 'uppercase', color: colors.textDim, marginBottom: 10 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, chip: { height: 40, paddingHorizontal: 16, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' }, chipOn: { backgroundColor: 'rgba(127,168,217,0.22)', borderColor: 'rgba(157,191,230,0.5)' }, chipT: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
+  mi: { flexDirection: 'row', alignItems: 'center', padding: 10, borderRadius: 14 }, miI: { width: 36, height: 36, borderRadius: 11, backgroundColor: 'rgba(127,168,217,0.14)', alignItems: 'center', justifyContent: 'center', marginRight: 12 }, miIT: { fontSize: 16, color: colors.orangeLight }, miT: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text }, miS: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted },
 });

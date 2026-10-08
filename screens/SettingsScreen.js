@@ -13,8 +13,7 @@ import TourGuide from '../components/TourGuide';
 import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
 import { useResponsive } from '../hooks/useResponsive';
 import {
-  getAllProductsAdmin, insertProduct, setProductActive, getOrCreateBookingSecret,
-  setProductBookingVisible, setProductBookingDescription,
+  getAllProductsAdmin, insertProduct, setProductActive,
   getDiscountEligibleProducts, getDiscountIneligibleProducts, setProductDiscountEligible,
   getClientsWithDiscountCount, getClientsWithPersonalDiscount, getClientsWithoutDiscount, setClientDiscountPct,
   getProductVariants, getProductAxesWithValues, saveProductAxesAndVariants,
@@ -43,12 +42,7 @@ import Toggle from '../components/Toggle';
 import { can, getSession, setPermissions, setUserPermissions, clearSession, goBackSmart } from '../db/session';
 import { resetKassaCart } from '../db/cartStore';
 import EmptyState from '../components/EmptyState';
-import { copyText } from '../utils/clipboard';
 import { colors, fonts, spacing } from '../constants/theme';
-import {
-  claimBusiness, syncServicesToSupabase,
-  getBusinessIdBySlug, getCustomServices, addCustomService, updateCustomService, deleteCustomService,
-} from '../db/supabase';
 import { useToast } from '../components/Toast';
 import FitView from '../components/FitView';
 import PinConfirmModal from '../components/PinConfirmModal';
@@ -158,12 +152,6 @@ function SectionAccordion({ sectionKey, selectedSection, children }) {
 
 // LayoutAnimation работает автоматически в New Architecture
 
-// Единственный источник адреса публичной страницы онлайн-записи —
-// чтобы ссылка (копирование), QR-код и «Поделиться» никогда не расходились
-function getBookingLink(slug) {
-  return `https://struktura-crm.github.io/struktura-booking/?slug=${slug}`;
-}
-
 export default function SettingsScreen({ navigation, route }) {
   // ── Данные ──
   const [products, setProducts]             = useState([]);
@@ -209,20 +197,6 @@ export default function SettingsScreen({ navigation, route }) {
     sectionFadeAnim.setValue(0);
     Animated.timing(sectionFadeAnim, { toValue: 1, duration: 220, useNativeDriver: true }).start();
   }, [selectedSection]);
-  const [qrModal, setQrModal] = useState(false);
-  const [positionsModal, setPositionsModal]         = useState(false);
-  const [bookingBusinessId, setBookingBusinessId]   = useState(null);
-  const [customItems, setCustomItems]               = useState([]);
-  const [customItemsLoading, setCustomItemsLoading] = useState(false);
-  const [customItemModal, setCustomItemModal]       = useState(null); // {id, name, description, price} | null
-  const [menuDescModal, setMenuDescModal]           = useState(null); // {id, name, description}
-  const [syncing, setSyncing] = useState(false);
-  const [bookingSlug, setBookingSlug] = useState(() => {
-    try { return getBusinessProfile()?.booking_slug || ''; } catch { return ''; }
-  });
-  const [bookingConnected, setBookingConnected] = useState(() => {
-    try { return !!(getBusinessProfile()?.booking_slug); } catch { return false; }
-  });
   const [bizDraft, setBizDraft]         = useState(null);
   const [showHoursFrom, setShowHoursFrom] = useState(false);
   const [showHoursTo, setShowHoursTo]     = useState(false);
@@ -424,77 +398,6 @@ export default function SettingsScreen({ navigation, route }) {
     }
   };
 
-  // ── Позиции для онлайн-записи ──
-
-  const openPositionsModal = async () => {
-    setPositionsModal(true);
-    setCustomItemsLoading(true);
-    try {
-      let bizId = bookingBusinessId;
-      if (!bizId) {
-        bizId = await getBusinessIdBySlug(bookingSlug);
-        setBookingBusinessId(bizId);
-      }
-      if (bizId) {
-        setCustomItems(await getCustomServices(bizId));
-      }
-    } catch (e) { console.error(e); }
-    setCustomItemsLoading(false);
-  };
-
-  // Видимость товара из меню Кассы на странице записи — сохраняется мгновенно
-  const toggleMenuItemBookingVisible = (product, visible) => {
-    try {
-      setProductBookingVisible(product.id, visible);
-      setProducts(getAllProductsAdmin());
-    } catch (e) { console.error(e); }
-  };
-
-  const openMenuDescModal = (product) => {
-    setMenuDescModal({ id: product.id, name: product.name, description: product.booking_description || '' });
-  };
-
-  const saveMenuDescModal = () => {
-    if (!menuDescModal) return;
-    try {
-      setProductBookingDescription(menuDescModal.id, menuDescModal.description.trim());
-      setProducts(getAllProductsAdmin());
-    } catch (e) { console.error(e); }
-    setMenuDescModal(null);
-  };
-
-  const openNewCustomItem = () => setCustomItemModal({ id: null, name: '', description: '', price: '' });
-  const openEditCustomItem = (item) => setCustomItemModal({
-    id: item.id, name: item.name, description: item.description || '', price: item.price ? String(item.price) : '',
-  });
-
-  const saveCustomItemModal = async () => {
-    if (!customItemModal || !customItemModal.name.trim() || !bookingBusinessId) return;
-    const payload = {
-      name: customItemModal.name.trim(),
-      description: (customItemModal.description || '').trim(),
-      price: parseFloat(customItemModal.price) || 0,
-    };
-    const secret = getOrCreateBookingSecret();
-    try {
-      if (customItemModal.id) {
-        await updateCustomService(customItemModal.id, secret, payload);
-      } else {
-        await addCustomService(bookingBusinessId, secret, payload);
-      }
-      setCustomItems(await getCustomServices(bookingBusinessId));
-    } catch (e) { Alert.alert('Ошибка', e.message); }
-    setCustomItemModal(null);
-  };
-
-  const deleteCustomItemModal = async () => {
-    if (!customItemModal || !customItemModal.id) return;
-    try {
-      await deleteCustomService(customItemModal.id, getOrCreateBookingSecret());
-      setCustomItems(await getCustomServices(bookingBusinessId));
-    } catch (e) { Alert.alert('Ошибка', e.message); }
-    setCustomItemModal(null);
-  };
 
   // Открываем редактор профиля при переходе в секцию
   React.useEffect(() => {
@@ -1586,52 +1489,11 @@ export default function SettingsScreen({ navigation, route }) {
                 ))}
               </View>
             </View>
-            {/* Статус подключения */}
-            <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
-              <Text style={styles.bizFieldLabel}>Статус</Text>
-              <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: bookingConnected ? colors.orange : colors.muted }}>
-                {bookingConnected ? '● Подключено' : '○ Не подключено'}
-              </Text>
-            </View>
-            {bookingConnected ? (
-              <>
-                <TouchableOpacity
-                  style={[styles.bizFieldRow, styles.menuRowDiv]}
-                  onPress={() => {
-                    const link = getBookingLink(bookingSlug);
-                    copyText(link).then(ok => Alert.alert(ok ? 'Скопировано' : 'Не удалось скопировать', link));
-                  }}>
-                  <Text style={styles.bizFieldLabel}>Ссылка</Text>
-                  <Text style={{ fontFamily: fonts.familyRegular, fontSize: 14, color: colors.orange, flex: 1, textAlign: 'right' }} numberOfLines={1}>
-                    .../{bookingSlug} 📋
-                  </Text>
-                </TouchableOpacity>
-                <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
-                  <Pressable
-                    style={{ flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: 'rgba(127,168,217,0.08)', alignItems: 'center' }}
-                    onPress={() => setQrModal(true)}>
-                    <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange }}>📷 QR код</Text>
-                  </Pressable>
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    style={{ flex: 1, marginLeft: 8, paddingVertical: 10, borderRadius: 10, backgroundColor: colors.borderLo, alignItems: 'center' }}
-                    onPress={() => syncMenu()}>
-                    <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted }}>{syncing ? '⏳...' : '🔄 Обновить'}</Text>
-                  </TouchableOpacity>
-                  <Pressable
-                    style={{ flex: 1, marginLeft: 8, paddingVertical: 10, borderRadius: 10, backgroundColor: 'rgba(219,129,120,0.12)', alignItems: 'center' }}
-                    onPress={() => { setBookingConnected(false); setBookingSlug(''); }}>
-                    <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.red }}>↺ Сбросить</Text>
-                  </Pressable>
-                </View>
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  style={[styles.bizFieldRow, styles.menuRowDiv, { justifyContent: 'center', paddingVertical: 12 }]}
-                  onPress={openPositionsModal}>
-                  <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange }}>🧾 Позиции для записи</Text>
-                </TouchableOpacity>
-              </>
-            ) : null}
+            {/* Подключение, ссылка, QR и услуги онлайн-записи переехали в раздел «Записи» (меню «⋯») */}
+            <TouchableOpacity activeOpacity={0.7} style={[styles.bizFieldRow, styles.menuRowDiv]} onPress={() => navigation.navigate('Bookings')}>
+              <Text style={styles.bizFieldLabel}>Подключение и услуги</Text>
+              <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange }}>в разделе «Записи» →</Text>
+            </TouchableOpacity>
             <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
               <Text style={styles.bizFieldLabel}>Выбор времени</Text>
               <Toggle
@@ -1656,20 +1518,6 @@ export default function SettingsScreen({ navigation, route }) {
             </View>}
           </View>
 
-          {!bookingConnected && (
-            <>
-              <Text style={{ fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 8, lineHeight: 19 }}>
-                После подключения клиенты смогут записываться через форму по QR-коду. Ссылка генерируется автоматически из названия бизнеса — никаких ручных настроек.
-              </Text>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                style={{ marginTop: 10, paddingVertical: 15, borderRadius: 14, backgroundColor: colors.orange, alignItems: 'center' }}
-                onPress={() => connectBooking()}>
-                <Text style={{ fontFamily: fonts.family, fontSize: 16, color: colors.onAccent }}>Подключить онлайн запись</Text>
-                <Text style={{ fontFamily: fonts.familyRegular, fontSize: 14, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>Займёт секунду — ссылка создаётся автоматически</Text>
-              </TouchableOpacity>
-            </>
-          )}
 
           {/* КАССА И ЧЕК */}
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -2261,73 +2109,6 @@ export default function SettingsScreen({ navigation, route }) {
 
 
 
-  const transliterate = (str) => {
-    const map = {'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'yo','ж':'zh','з':'z','и':'i','й':'y','к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f','х':'h','ц':'ts','ч':'ch','ш':'sh','щ':'sch','ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya'};
-    return str.toLowerCase().split('').map(c => map[c] || (/[a-z0-9]/.test(c) ? c : '-')).join('').replace(/-+/g, '-').replace(/^-|-$/g, '');
-  };
-
-  const connectBooking = async () => {
-    Alert.alert('', 'Подключение...');
-    try {
-      const profile = getBusinessProfile();
-      const name = profile?.business_name || 'Мой бизнес';
-      const type = profile?.business_type || 'cafe';
-      const slug = (transliterate(name) || 'business').substring(0, 30).replace(/-+$/,'');
-      const settings = {
-        hoursFrom: profile?.work_hours_from || '09:00',
-        hoursTo: profile?.work_hours_to || '21:00',
-        slotDuration: profile?.slot_duration || 60,
-        timeSlotsEnabled: profile?.time_slots_enabled !== false,
-      };
-      const biz = await claimBusiness(slug, name, type, settings, getOrCreateBookingSecret());
-      if (biz) {
-        setBookingSlug(slug);
-        setBookingConnected(true);
-        try {
-          const db = getDb();
-          try { db.execSync(`ALTER TABLE business_profile ADD COLUMN booking_slug TEXT DEFAULT ''`); } catch(_) {}
-          const row = db.getFirstSync('SELECT id FROM business_profile ORDER BY id LIMIT 1');
-          if (row) db.runSync('UPDATE business_profile SET booking_slug = ? WHERE id = ?', [slug, row.id]);
-        } catch(dbErr) { console.error(dbErr); }
-        Alert.alert('Готово', 'Онлайн запись подключена!');
-      } else {
-        Alert.alert('Ошибка', 'Не удалось подключить. Проверьте интернет.');
-      }
-    } catch (e) { console.error('[BOOKING ERROR]', e); Alert.alert('Ошибка', String(e.message || e)); }
-  };
-
-  const syncMenu = async () => {
-    if (!bookingSlug) return;
-    setSyncing(true);
-    try {
-      const profile = getBusinessProfile();
-      const settings = {
-        hoursFrom: profile?.work_hours_from || '09:00',
-        hoursTo: profile?.work_hours_to || '21:00',
-        slotDuration: profile?.slot_duration || 60,
-        timeSlotsEnabled: profile?.time_slots_enabled !== false,
-      };
-      const secret = getOrCreateBookingSecret();
-      const biz = await claimBusiness(bookingSlug, profile?.business_name, profile?.business_type, settings, secret);
-      if (biz) {
-        const products = getAllProductsAdmin();
-        await syncServicesToSupabase(biz.id, secret, products);
-        Alert.alert('Синхронизировано', `Каталог обновлён: ${products.length} позиций`);
-      }
-    } catch (e) { Alert.alert('Ошибка', e.message); }
-    setSyncing(false);
-  };
-
-  const shareBookingLink = async () => {
-    const link = getBookingLink(bookingSlug);
-    try {
-      await Share.share({
-        message: `Запишитесь онлайн: ${link}`,
-        url: link,
-        title: 'Онлайн запись',
-      });
-    } catch (_) {}
-  };
 
   return (
     <View style={{ flex: 1 }}>
@@ -3086,184 +2867,12 @@ export default function SettingsScreen({ navigation, route }) {
         </View>
       </Modal>
 
-      <Modal visible={qrModal} transparent animationType="fade" onRequestClose={() => setQrModal(false)}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center', gap: 24 }}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setQrModal(false)} />
-          <Text style={{ fontFamily: fonts.family, fontSize: 20, color: '#fff' }}>
-            Онлайн запись
-          </Text>
-          <View style={{ backgroundColor: '#fff', padding: 20, borderRadius: 20 }}>
-            <Image
-              source={{ uri: `https://quickchart.io/qr?text=${encodeURIComponent(getBookingLink(bookingSlug))}&size=260&margin=2` }}
-              style={{ width: 260, height: 260 }}
-            />
-          </View>
-          <Text style={{ fontFamily: fonts.familyRegular, fontSize: 14, color: 'rgba(255,255,255,0.6)', textAlign: 'center' }}>
-            struktura-crm.github.io/.../{bookingSlug}
-          </Text>
-          <Pressable
-            style={{ paddingVertical: 14, paddingHorizontal: 40, borderRadius: 16, backgroundColor: colors.orange }}
-            onPress={shareBookingLink}>
-            <Text style={{ fontFamily: fonts.family, fontSize: 16, color: colors.onAccent }}>Поделиться ссылкой</Text>
-          </Pressable>
-          <Pressable onPress={() => setQrModal(false)} hitSlop={20}>
-            <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: 'rgba(255,255,255,0.5)' }}>Закрыть</Text>
-          </Pressable>
-        </View>
-      </Modal>
 
       {/* Модалка «Позиции для записи» */}
-      <Modal visible={positionsModal} transparent animationType="fade" onRequestClose={() => setPositionsModal(false)}>
-        <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setPositionsModal(false)} />
-          <FitView style={[styles.modalInner, { maxHeight: '85%' }]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Позиции для записи</Text>
-              <Pressable onPress={() => setPositionsModal(false)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
-            </View>
-            <ScrollView>
-              <Text style={[styles.menuTopTitle, { marginTop: 4 }]}>Из каталога Кассы</Text>
-              <Text style={[styles.menuItemSub, { marginBottom: 10 }]}>
-                Включённые товары появятся в списке для записи. Можно скрыть то, на что записываться не нужно, и добавить короткое описание для клиентов.
-              </Text>
-              {products.filter(p => p.active !== 0).length === 0 ? (
-                <Text style={[styles.empty, { paddingVertical: 12 }]}>Нет активных товаров</Text>
-              ) : (
-                <View style={styles.menuCard}>
-                  {products.filter(p => p.active !== 0).map((p, i, arr) => (
-                    <View key={p.id} style={[styles.menuRow, i < arr.length - 1 && styles.menuRowDiv]}>
-                      <Pressable style={{ flex: 1 }} onPress={() => openMenuDescModal(p)}>
-                        <Text style={styles.menuItemName}>{p.name}</Text>
-                        <Text style={styles.menuItemSub}>
-                          {p.booking_description ? p.booking_description : 'Нажмите чтобы добавить описание'}
-                        </Text>
-                      </Pressable>
-                      <Toggle
-                        value={p.booking_visible !== 0}
-                        onValueChange={(v) => toggleMenuItemBookingVisible(p, v)}
-                        size="sm"
-                      />
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              <View style={[styles.menuTopBarSticky, { marginTop: 20 }]}>
-                <Text style={styles.menuTopTitle}>Свои позиции ({customItems.length})</Text>
-                <View style={styles.menuFloatBtns} pointerEvents="box-none">
-                  <View style={styles.menuFloatRow}>
-                    <Pressable onPress={openNewCustomItem} hitSlop={14} style={[styles.menuBadge, styles.menuBadgeAdd]}>
-                      <Text style={[styles.menuBadgeText, { color: colors.orange }]}>+</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              </View>
-              <Text style={[styles.menuItemSub, { marginBottom: 10 }]}>
-                Позиции, которых нет в каталоге Кассы — например, отдельная услуга или консультация
-              </Text>
-
-              {customItemsLoading ? (
-                <Text style={[styles.empty, { paddingVertical: 16 }]}>Загрузка...</Text>
-              ) : customItems.length === 0 ? (
-                <Text style={[styles.empty, { paddingVertical: 16 }]}>Пока ничего не добавлено</Text>
-              ) : (
-                <View style={styles.menuCard}>
-                  {customItems.map((item, i) => (
-                    <Pressable
-                      key={item.id}
-                      style={[styles.menuRow, i < customItems.length - 1 && styles.menuRowDiv]}
-                      onPress={() => openEditCustomItem(item)}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.menuItemName}>{item.name}</Text>
-                        <Text style={styles.menuItemSub}>
-                          {item.description ? item.description : 'Нажмите чтобы изменить'}
-                        </Text>
-                      </View>
-                      <Text style={styles.menuItemPrice}>{item.price > 0 ? `${item.price} ₽` : 'По запросу'}</Text>
-                      <Text style={styles.menuItemArrow}>›</Text>
-                    </Pressable>
-                  ))}
-                </View>
-              )}
-            </ScrollView>
-          </FitView>
-        </View>
-      </Modal>
 
       {/* Модалка описания товара из меню — только для страницы записи */}
-      <Modal visible={!!menuDescModal} transparent animationType="fade" onRequestClose={() => setMenuDescModal(null)}>
-        <KeyboardSafe style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setMenuDescModal(null)} />
-          {menuDescModal && (
-            <FitView style={styles.modalInner}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>{menuDescModal.name}</Text>
-                <Pressable onPress={() => setMenuDescModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
-              </View>
-              <Text style={styles.fieldLabel}>Описание для клиентов (необязательно)</Text>
-              <TextInput
-                style={[styles.input, { minHeight: 70, textAlignVertical: 'top' }]}
-                value={menuDescModal.description}
-                onChangeText={(v) => setMenuDescModal(m => ({ ...m, description: v }))}
-                placeholder="Например: приходить за 5 минут до записи"
-                placeholderTextColor={colors.muted}
-                multiline
-              />
-              <Pressable style={[styles.discSaveBtn, { marginTop: 8 }]} onPress={saveMenuDescModal}>
-                <Text style={styles.discSaveBtnTxt}>Сохранить</Text>
-              </Pressable>
-            </FitView>
-          )}
-        </KeyboardSafe>
-      </Modal>
 
       {/* Модалка своей позиции для записи */}
-      <Modal visible={!!customItemModal} transparent animationType="fade" onRequestClose={() => setCustomItemModal(null)}>
-        <KeyboardSafe style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setCustomItemModal(null)} />
-          {customItemModal && (
-            <FitView style={styles.modalInner}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>{customItemModal.id ? 'Изменить позицию' : 'Новая позиция'}</Text>
-                <Pressable onPress={() => setCustomItemModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
-              </View>
-              <Text style={styles.fieldLabel}>Название</Text>
-              <TextInput
-                style={styles.input}
-                value={customItemModal.name}
-                onChangeText={(v) => setCustomItemModal(m => ({ ...m, name: v }))}
-                placeholderTextColor={colors.muted}
-              />
-              <Text style={styles.fieldLabel}>Краткое описание (необязательно)</Text>
-              <TextInput
-                style={[styles.input, { minHeight: 70, textAlignVertical: 'top' }]}
-                value={customItemModal.description}
-                onChangeText={(v) => setCustomItemModal(m => ({ ...m, description: v }))}
-                placeholderTextColor={colors.muted}
-                multiline
-              />
-              <Text style={styles.fieldLabel}>Цена (необязательно, 0 — «по запросу»)</Text>
-              <TextInput
-                style={styles.input}
-                keyboardType="numeric"
-                value={customItemModal.price}
-                onChangeText={(v) => setCustomItemModal(m => ({ ...m, price: v }))}
-                placeholderTextColor={colors.muted}
-              />
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
-                <Pressable style={({ pressed }) => [styles.discSaveBtn, { flex: 1 }, pressed && { opacity: 0.85 }]} onPress={saveCustomItemModal}>
-                  <Text style={styles.discSaveBtnTxt}>Сохранить</Text>
-                </Pressable>
-                {customItemModal.id && (
-                  <Pressable style={({ pressed }) => [styles.discDeleteBtn, { flex: 1 }, pressed && { opacity: 0.85 }]} onPress={deleteCustomItemModal}>
-                    <Text style={styles.discDeleteBtnTxt}>Удалить</Text>
-                  </Pressable>
-                )}
-              </View>
-            </FitView>
-          )}
-        </KeyboardSafe>
-      </Modal>
 
       <TourGuide
         visible={tourOpen}
