@@ -58,8 +58,8 @@ export default function EmployeesSection({ users, roleNames, isAdmin, askPin, on
       {!isAdmin && <Note warn>Управлять сотрудниками и PIN-кодами может только администратор.</Note>}
       <Group title="Команда">
         {users.map(u => <Row key={u.id} title={u.name} sub={`${u.role === 'admin' ? roleNames.admin : roleNames.barista}${u.salary_amount > 0 ? `  ·  ${u.salary_amount} ₽` : ''}`} onPress={isAdmin ? () => open(u) : undefined} />)}
-        {isAdmin && <Row title="Добавить сотрудника" onPress={() => open(null)} />}
       </Group>
+      {isAdmin && <GlassButton tone="accent" icon="plus" label="Добавить сотрудника" height={54} onPress={() => open(null)} style={{ marginTop: 18 }} />}
       {users.length === 0 && <Note>Сотрудников нет. Добавьте первого.</Note>}
 
       <ModalSheet visible={!!m} onClose={() => setM(null)} title={m?.id ? 'Сотрудник' : 'Новый сотрудник'} width="72%" maxWidth={680}

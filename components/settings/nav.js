@@ -21,7 +21,7 @@ export const PAGES = NAV_GROUPS.flatMap(g => g.items);
 export const PAGE_INFO = Object.fromEntries(PAGES.map(p => [p.page, p]));
 // Старые ключи разделов (их используют туры и переходы из других экранов) → страница по умолчанию
 export const OLD_TO_PAGE = { employees: 'emp', loyalty: 'loy', payment: 'pay', discounts: 'disc', stock: 'stk', locations: 'loc', business: 'prof', system: 'sys' };
-export const pageFromParam = key => (PAGE_INFO[key] ? key : OLD_TO_PAGE[key] || 'emp');
+export const pageFromParam = key => (PAGE_INFO[key] ? key : OLD_TO_PAGE[key] || 'prof');
 
 // Поиск по настройкам: [текст, страница]
 const INDEX = [

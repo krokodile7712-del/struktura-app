@@ -618,10 +618,7 @@ export function setSetting(key, value) {
 // 'mixed' — особый: показывает UI разделения суммы наличные+карта
 
 const DEFAULT_PAY_METHODS = [
-  { id: 'cash',  name: 'Наличные',  icon: '💵', type: 'cash',  active: true },
-  { id: 'card',  name: 'Карта',     icon: '💳', type: 'card',  active: true },
-  { id: 'qr',    name: 'QR / СБП',  icon: '📱', type: 'card',  active: true },
-  { id: 'mixed', name: 'Смешанная', icon: '💰', type: 'mixed', active: true },
+  { id: 'cash', name: 'Наличные', icon: '', type: 'cash', active: true },
 ];
 
 export function getPayMethods() {
@@ -957,6 +954,8 @@ export function createOrder({ total, method, methodType, methodId, shift_id, cli
 
   const stockWarnings = [];
   let deductionErrors = 0;   // сколько позиций не удалось списать со склада (раньше — молча)
+  let autoDebit = true;
+  try { autoDebit = getBusinessProfile()?.modules?.autoDebit !== false; } catch (_) {}
   for (const item of items) {
     // size/milk/syrup оставлены для обратной совместимости отображения в Продажах;
     // размер варианта дублируется в size как читаемая метка, модификаторы — в JSON
@@ -978,10 +977,13 @@ export function createOrder({ total, method, methodType, methodId, shift_id, cli
         JSON.stringify(item.modifiers || []), item.quantity || 1, item.note || '', varJson,
       ]
     );
-    try {
-      const warnings = deductStockForOrderItem(itemResult.lastInsertRowId, item, ctx.warehouseId);
-      stockWarnings.push(...warnings);
-    } catch (e) { deductionErrors++; console.error('[createOrder] Ошибка списания склада:', e); }
+    // «Автосписание при продаже» (Настройки → Склад): по умолчанию включено; выключено — остатки при продаже не трогаем
+    if (autoDebit) {
+      try {
+        const warnings = deductStockForOrderItem(itemResult.lastInsertRowId, item, ctx.warehouseId);
+        stockWarnings.push(...warnings);
+      } catch (e) { deductionErrors++; console.error('[createOrder] Ошибка списания склада:', e); }
+    }
   }
 
   try {

@@ -1,8 +1,7 @@
 import React from 'react';
 import { Group, Row, SwitchRow, ChipsRow, InputRow, Note } from './ui';
+import { TAX, VAT } from './bizData';
 
-const TAX = [['usn_income', 'УСН доходы'], ['usn_income_outcome', 'УСН доходы-расходы'], ['osn', 'ОСНО'], ['esn', 'ЕСХН'], ['patent', 'Патент']];
-const VAT = [['none', 'Без НДС'], ['vat0', '0%'], ['vat5', '5%'], ['vat7', '7%'], ['vat10', '10%'], ['vat20', '20%']];
 const set = (setDraft, patch) => setDraft(d => ({ ...d, ...patch }));
 
 /** «Чек и налоги»: налоговый режим, НДС, очередь чеков, название и подвал чека, предпросмотр, валюта и формат даты. */

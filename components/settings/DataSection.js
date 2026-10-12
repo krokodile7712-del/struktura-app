@@ -8,7 +8,7 @@ import { getAutoLockMinutes, setAutoLockMinutes, AUTO_LOCK_OPTIONS, getSetting, 
 import { wipeCloudBeforeReset } from '../../db/loyaltySync';
 import { clearSession } from '../../db/session';
 import { resetKassaCart } from '../../db/cartStore';
-import { BUILD_ID } from '../../constants/build';
+import { VERSION_LABEL } from '../../constants/version';
 
 /** «Данные и безопасность»: резервная копия, автоблокировка, уведомления, подсказки, аккаунт, опасная зона, о приложении. */
 export default function DataSection({ navigation, onChanged }) {
@@ -56,7 +56,7 @@ export default function DataSection({ navigation, onChanged }) {
         <Row title="Начать заново с чистого листа" sub="Сотрёт вообще всё, включая учётную запись, и запустит регистрацию нового бизнеса" danger onPress={startOver} />
       </Group>
       <Group title="О приложении" delay={300}>
-        <Row title="СТРУКТУРА" sub="POS/CRM для малого бизнеса" value={BUILD_ID} />
+        <Row title="СТРУКТУРА" sub="POS/CRM для малого бизнеса" value={VERSION_LABEL} />
       </Group>
       <Note>Поддержка: по вопросам пишите разработчику в Telegram.</Note>
       <ResetSheet visible={reset} onClose={() => setReset(false)} onBackup={() => d.startBackup('save')} askPin={a => d.askPin('Сбросить продажи и клиентов', 'Введите ваш PIN-код администратора, чтобы подтвердить сброс.', a)} onDone={() => onChanged && onChanged()} />

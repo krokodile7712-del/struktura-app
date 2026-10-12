@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Animated, LayoutAnimation, Alert, useWindowDimensions} from 'react-native';
+import {View, Text, StyleSheet, ScrollView, Pressable, TextInput, Animated, LayoutAnimation, Alert, useWindowDimensions} from 'react-native';
 
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
@@ -17,7 +17,7 @@ import Toggle from '../components/Toggle';
 import {can, getSession, goBackSmart} from '../db/session';
 
 import EmptyState from '../components/EmptyState';
-import {colors, fonts, spacing} from '../constants/theme';
+import {colors, fonts} from '../constants/theme';
 import {useToast} from '../components/Toast';
 import DataSection from '../components/settings/DataSection';
 import Icon from '../components/Icon';
@@ -32,6 +32,7 @@ import ProfileSection from '../components/settings/ProfileSection';
 import ModulesSection from '../components/settings/ModulesSection';
 import ReceiptSection from '../components/settings/ReceiptSection';
 import ViewSection from '../components/settings/ViewSection';
+import ReceiptPreview from '../components/settings/ReceiptPreview';
 import DiscountsSection from '../components/settings/DiscountsSection';
 import {NAV_GROUPS, PAGE_INFO, OLD_TO_PAGE, pageFromParam, searchSettings, plural} from '../components/settings/nav';
 import FitView from '../components/FitView';
@@ -72,7 +73,7 @@ export default function SettingsScreen({ navigation, route }) {
   const toast = useToast();
   const { width: SW } = useWindowDimensions();
   const isPhone = SW < 600;
-  const [page, setPage] = useState(() => pageFromParam(route?.params?.section || 'emp'));
+  const [page, setPage] = useState(() => pageFromParam(route?.params?.section || 'prof'));
   const selectedSection = page ? PAGE_INFO[page].section : null;   // раздел содержимого; части внутри него показывает Part
   const [q, setQ] = useState('');                                    // поиск по настройкам
   const [saved, setSaved] = useState(false); const savedT = useRef(null);
@@ -494,48 +495,7 @@ export default function SettingsScreen({ navigation, route }) {
 
       {/* QR Модалка */}
       {/* Модалка «Предпросмотр чека» */}
-      <Modal visible={receiptPreview} transparent animationType="fade" onRequestClose={() => setReceiptPreview(false)}>
-        <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setReceiptPreview(false)} />
-          {bizDraft && (
-          <FitView style={styles.receiptBox}>
-            <GlassSurface radius={26} tint="28,34,50" alpha={0.985} floating style={StyleSheet.absoluteFill} />
-            <ScrollView contentContainerStyle={{ padding: 16 }}>
-              <View style={styles.receiptPaper}>
-                <Text style={styles.receiptBizName}>{bizDraft.receiptName || bizDraft.businessName || 'Название бизнеса'}</Text>
-                {!!bizDraft.address && <Text style={styles.receiptBizSub}>{bizDraft.address}</Text>}
-
-                <View style={styles.receiptDivider} />
-                <Text style={styles.receiptMeta}>Чек №0001 · {new Date().toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</Text>
-
-                <View style={styles.receiptDivider} />
-                <View style={styles.receiptRow}>
-                  <Text style={styles.receiptItem}>Позиция 1</Text>
-                  <Text style={styles.receiptItem}>250 ₽</Text>
-                </View>
-                <View style={styles.receiptRow}>
-                  <Text style={styles.receiptItem}>Позиция 2</Text>
-                  <Text style={styles.receiptItem}>180 ₽</Text>
-                </View>
-
-                <View style={styles.receiptDivider} />
-                <View style={styles.receiptRow}>
-                  <Text style={styles.receiptTotal}>Итого</Text>
-                  <Text style={styles.receiptTotal}>430 ₽</Text>
-                </View>
-
-                {!!bizDraft.receiptFooter && (
-                  <Text style={styles.receiptFooter}>{bizDraft.receiptFooter}</Text>
-                )}
-              </View>
-            </ScrollView>
-            <Pressable style={{ padding: 16, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border }} onPress={() => setReceiptPreview(false)}>
-              <Text style={{ fontFamily: fonts.familySemibold, fontSize: 16, color: colors.orange }}>Закрыть</Text>
-            </Pressable>
-          </FitView>
-          )}
-        </View>
-      </Modal>
+      <ReceiptPreview visible={receiptPreview} onClose={() => setReceiptPreview(false)} draft={bizDraft} />
 
       {/* Модалка «Позиции для записи» */}
 
@@ -574,16 +534,6 @@ const styles = StyleSheet.create({
   phoneback: { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
   phoneBackText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
   // Модалка товара — position:absolute для надёжного scroll
-  receiptBox: { width: 320, maxHeight: '88%', borderRadius: 20, overflow: 'hidden' },
-  receiptPaper: { backgroundColor: '#ffffff', borderRadius: 12, padding: 20 },
-  receiptBizName: { fontFamily: fonts.family, fontSize: 16, color: '#111', textAlign: 'center', marginBottom: 4 },
-  receiptBizSub:  { fontFamily: fonts.familyRegular, fontSize: 12, color: '#555', textAlign: 'center', lineHeight: 18 },
-  receiptDivider: { height: 1, backgroundColor: '#ddd', marginVertical: 12, borderStyle: 'dashed' },
-  receiptRow:     { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  receiptMeta:    { fontFamily: fonts.familyRegular, fontSize: 12, color: '#888' },
-  receiptItem:    { fontFamily: fonts.familyRegular, fontSize: 14, color: '#222' },
-  receiptTotal:   { fontFamily: fonts.family, fontSize: 14, color: '#111' },
-  receiptFooter:  { fontFamily: fonts.familyRegular, fontSize: 12, color: '#888', textAlign: 'center', marginTop: 4 },
 
   // Модалка товара
 
@@ -593,8 +543,6 @@ const styles = StyleSheet.create({
   // Категории меню
   // Карточка товаров
   menuItemSub: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 2 },
-
-  modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center' },
 
   // Оси вариативности
   savedRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: -8, marginBottom: 8 }, savedTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.green },
