@@ -9,7 +9,7 @@ import LocationsSettings from '../components/LocationsSettings';
 import TourGuide from '../components/TourGuide';
 import {useTourHighlight, useTourActiveKey} from '../components/TourRegistry';
 import {useResponsive} from '../hooks/useResponsive';
-import {getAllProductsAdmin, getDiscountEligibleProducts, getDiscountIneligibleProducts, setProductDiscountEligible, getClientsWithDiscountCount, getClientsWithPersonalDiscount, getClientsWithoutDiscount, setClientDiscountPct, getAllModifierGroups, getUsers, addUser, updateUser, deleteUser, getUserPermissions, saveUserPermissions, DEFAULT_PERMISSIONS, getDiscounts, setSetting, getLoyaltyConfig, updateLoyaltyConfig, getPayMethods, savePayMethods, getZones, addZone, updateZone, deleteZone, addZoneTable, deleteZoneTable, bulkAddZoneTables, getAllStock, getUnlinkedCostCards, getBusinessProfile, updateBusinessProfile, applyBusinessPreset, getTerms, getRoleNames, markTourSeen} from '../db/queries';
+import {getAllProductsAdmin, getAllModifierGroups, getUsers, addUser, updateUser, deleteUser, getUserPermissions, saveUserPermissions, DEFAULT_PERMISSIONS, getLoyaltyConfig, getPayMethods, savePayMethods, getZones, addZone, updateZone, deleteZone, addZoneTable, deleteZoneTable, bulkAddZoneTables, getAllStock, getUnlinkedCostCards, getBusinessProfile, updateBusinessProfile, applyBusinessPreset, getTerms, getRoleNames, markTourSeen} from '../db/queries';
 
 import {getDb} from '../db/database';
 import Hint from '../components/Hint';
@@ -21,7 +21,10 @@ import EmptyState from '../components/EmptyState';
 import {colors, fonts, spacing} from '../constants/theme';
 import {useToast} from '../components/Toast';
 import DataSection from '../components/settings/DataSection';
+import Icon from '../components/Icon';
 import HoursRow from '../components/settings/HoursRow';
+import LoyaltySection from '../components/settings/LoyaltySection';
+import DiscountsSection from '../components/settings/DiscountsSection';
 import {NAV_GROUPS, PAGE_INFO, OLD_TO_PAGE, pageFromParam, searchSettings, plural} from '../components/settings/nav';
 import FitView from '../components/FitView';
 import PinConfirmModal from '../components/PinConfirmModal';
@@ -36,35 +39,30 @@ import KeyboardSafe from '../components/KeyboardSafe';
 const PRESET_LIST = [
   {
     key: 'coffee',
-    icon: '🏪',
     label: 'Кофейня / Кафе',
     desc: 'Напитки, еда и десерты. Модификаторы (молоко, сироп), варианты размера, учёт смен, программа лояльности. Техкарты считают себестоимость каждой чашки.',
     modules: ['Склад', 'Техкарты', 'Лояльность', 'Смены', 'Зоны/столы'],
   },
   {
     key: 'retail',
-    icon: '🛍',
     label: 'Магазин / Розница',
     desc: 'Продажа товаров со складским учётом. Штрихкоды, инвентаризация, закупки. Скидки и карты постоянного покупателя.',
     modules: ['Склад', 'Инвентаризация', 'Скидки', 'Смены'],
   },
   {
     key: 'services',
-    icon: '✂️',
     label: 'Услуги / Салон',
     desc: 'Стрижки, маникюр, массаж, консультации. Запись клиентов, история услуг, абонементы. Учёт по мастерам.',
     modules: ['Клиенты', 'Лояльность', 'Журнал работ', 'Смены'],
   },
   {
     key: 'production',
-    icon: '🏭',
     label: 'Производство',
     desc: 'Пивоварение, дерево- и металлообработка, пошив и другой выпуск изделий. Складской учёт сырья, себестоимость партии, заказчики.',
     modules: ['Склад', 'Техкарты', 'Инвентаризация', 'Смены'],
   },
   {
     key: 'custom',
-    icon: '⚙️',
     label: 'Другое',
     desc: 'Любой другой вид бизнеса. Настройте модули и терминологию вручную ниже.',
     modules: ['Всё настраивается вручную'],
@@ -76,28 +74,24 @@ const PRESET_LIST = [
 const TERM_CONFIGS = [
   {
     key: 'order',
-    icon: '🛒',
     title: 'Как называть заказ?',
     desc: 'Слово видно при создании нового чека в кассе, в истории продаж и отчётах',
     presets: ['Заказ', 'Запись', 'Чек', 'Счёт', 'Бронь', 'Позиция', 'Партия'],
   },
   {
     key: 'client',
-    icon: '👤',
     title: 'Как называть клиента?',
     desc: 'Используется в карточках лояльности, поиске и карточке клиента',
     presets: ['Клиент', 'Гость', 'Покупатель', 'Пациент', 'Участник', 'Студент', 'Заказчик'],
   },
   {
     key: 'item',
-    icon: '📦',
     title: 'Как называть товар / услугу?',
     desc: 'Позиция в каталоге, на складе и в техкартах',
     presets: ['Товар', 'Услуга', 'Блюдо', 'Позиция', 'Продукт', 'Процедура', 'Изделие'],
   },
   {
     key: 'category',
-    icon: '🗂',
     title: 'Как называть категорию?',
     desc: 'Группировка товаров/услуг в каталоге кассы',
     presets: ['Категория', 'Раздел', 'Группа', 'Тип', 'Вид', 'Секция'],
@@ -136,17 +130,7 @@ export default function SettingsScreen({ navigation, route }) {
   // ── Данные ──
   const [products, setProducts]             = useState([]);
   const [users, setUsers]                   = useState([]);
-  const [discounts, setDiscounts]           = useState([]);
-  const [discTab, setDiscTab]               = useState('product'); // product | order
-  const [discEligibleProducts, setDiscEligibleProducts] = useState([]);
-  const [discAddProductOpen, setDiscAddProductOpen]     = useState(false);
-  const [discIneligibleProducts, setDiscIneligibleProducts] = useState([]);
-  const [discClientsCount, setDiscClientsCount] = useState(0);
   const [discountsStackable, setDiscountsStackable] = useState(true);
-  const [discClientsList, setDiscClientsList] = useState([]);
-  const [discAddClientOpen, setDiscAddClientOpen] = useState(false);
-  const [discClientsWithout, setDiscClientsWithout] = useState([]);
-  const [discClientPctModal, setDiscClientPctModal] = useState(null); // { client, pct }
   const [payMethodsList, setPayMethodsList] = useState([]);
   const [payMethodModal, setPayMethodModal] = useState(null);
   const [zones, setZones]           = useState([]);
@@ -157,13 +141,11 @@ export default function SettingsScreen({ navigation, route }) {
   const [profile, setProfile]               = useState(null);
 
   // ── Модалки ──
-  const [discountModal, setDiscountModal]       = useState(null);
 
   // ── PIN ──
 
   // ── Общие настройки ──
   const [loyaltyModel,  setLoyaltyModel]  = useState('points');
-  const [loyaltyConfig, setLoyaltyConfig] = useState({ earn_pct: 10, allow_spend: false, point_value: 1, pct: 5, deduct_per_visit: 1 });
 
   const toast = useToast();
   const { width: SW } = useWindowDimensions();
@@ -196,20 +178,16 @@ export default function SettingsScreen({ navigation, route }) {
   useEffect(() => { loadAll(); }, []);
 
   // ── Лояльность ──
-  const saveLoyalty = () => {
-    try { updateLoyaltyConfig(loyaltyModel, loyaltyConfig); loadAll(); toast.show('Лояльность сохранена ✓', 'info'); } catch (e) { console.error(e); toast.show('Ошибка', 'warn'); }
-  };
-
   // ── Способы оплаты ──
   const openNewPayMethod = () => {
     const id = 'pm_' + Date.now();
-    setPayMethodModal({ index: -1, id, name: '', icon: '💳', type: 'card', active: true });
+    setPayMethodModal({ index: -1, id, name: '', icon: '', type: 'card', active: true });
   };
   const openEditPayMethod = (m, idx) => setPayMethodModal({ ...m, index: idx });
   const savePayMethod = () => {
     if (!payMethodModal || !payMethodModal.name.trim()) return;
     const list = [...payMethodsList];
-    const m = { id: payMethodModal.id, name: payMethodModal.name.trim(), icon: payMethodModal.icon || '💳', type: payMethodModal.type, active: payMethodModal.active };
+    const m = { id: payMethodModal.id, name: payMethodModal.name.trim(), icon: payMethodModal.icon || '', type: payMethodModal.type, active: payMethodModal.active };
     if (payMethodModal.index === -1) list.push(m);
     else list[payMethodModal.index] = m;
     savePayMethods(list);
@@ -283,78 +261,6 @@ export default function SettingsScreen({ navigation, route }) {
     setZoneModal(null);
   };
 
-  // ── Скидки ──
-  const [productDiscountPct, setProductDiscountPct] = useState('');
-  useEffect(() => {
-    if (profile?.product_discount_pct != null) setProductDiscountPct(String(profile.product_discount_pct || ''));
-  }, [profile?.product_discount_pct]);
-  const saveProductDiscountPct = () => {
-    try {
-      const db = getDb();
-      const row = db.getFirstSync('SELECT id FROM business_profile ORDER BY id LIMIT 1');
-      if (row) db.runSync('UPDATE business_profile SET product_discount_pct = ? WHERE id = ?', [parseFloat(productDiscountPct) || 0, row.id]);
-    } catch (e) { console.error('[Скидка на товары]', e); }
-  };
-  const toggleDiscountsStackable = (v) => {
-    try {
-      const db = getDb();
-      const row = db.getFirstSync('SELECT id FROM business_profile ORDER BY id LIMIT 1');
-      if (row) db.runSync('UPDATE business_profile SET discounts_stackable = ? WHERE id = ?', [v ? 1 : 0, row.id]);
-      setDiscountsStackable(v);
-    } catch (e) { console.error('[Суммарность скидок]', e); }
-  };
-  const saveClientDiscountPct = () => {
-    if (!discClientPctModal || !discClientPctModal.pct) return;
-    try {
-      setClientDiscountPct(discClientPctModal.client.id, parseFloat(discClientPctModal.pct) || 0);
-      setDiscClientsList(getClientsWithPersonalDiscount());
-      setDiscClientsWithout(getClientsWithoutDiscount());
-      setDiscClientsCount(getClientsWithDiscountCount());
-      setDiscClientPctModal(null);
-    } catch (e) { console.error(e); }
-  };
-  const removeClientDiscount = (client) => {
-    try {
-      setClientDiscountPct(client.id, 0);
-      setDiscClientsList(getClientsWithPersonalDiscount());
-      setDiscClientsWithout(getClientsWithoutDiscount());
-      setDiscClientsCount(getClientsWithDiscountCount());
-    } catch (e) { console.error(e); }
-  };
-  const saveDiscounts = (list) => {
-    try { setSetting('discounts', JSON.stringify(list)); setDiscounts(list); toast.show('Скидки сохранены ✓', 'info'); } catch (e) { console.error(e); toast.show('Ошибка', 'warn'); }
-  };
-  const openNewDiscount = () => setDiscountModal({ index: -1, name: '', pct: '', desc: '' });
-  const openEditDiscount = (i) => setDiscountModal({ index: i, name: discounts[i].name, pct: String(discounts[i].pct), desc: discounts[i].desc || '' });
-  const saveDiscountModal = () => {
-    if (!discountModal || !discountModal.name.trim() || !discountModal.pct) return;
-    const entry = { name: discountModal.name.trim(), pct: parseFloat(discountModal.pct) || 0, desc: (discountModal.desc || '').trim() };
-    const list = [...discounts];
-    if (discountModal.index === -1) list.push(entry); else list[discountModal.index] = entry;
-    saveDiscounts(list);
-    setDiscountModal(null);
-  };
-  const deleteDiscountModal = () => {
-    if (!discountModal || discountModal.index === -1) return;
-    saveDiscounts(discounts.filter((_, i) => i !== discountModal.index));
-    setDiscountModal(null);
-  };
-  const moveDiscount = (i, dir) => {
-    const j = i + dir;
-    if (j < 0 || j >= discounts.length) return;
-    const list = [...discounts];
-    [list[i], list[j]] = [list[j], list[i]];
-    saveDiscounts(list);
-  };
-
-  const toggleProductDiscount = (product, eligible) => {
-    try {
-      setProductDiscountEligible(product.id, eligible);
-      setDiscEligibleProducts(getDiscountEligibleProducts());
-      setDiscIneligibleProducts(getDiscountIneligibleProducts());
-    } catch (e) { console.error(e); }
-  };
-
   // Тип бизнеса — применяется сразу (не через общее «Сохранить»), т.к. одним
   // тапом переписывает термины и модули целиком. Если это не первый выбор —
   // предупреждаем, что текущая ручная настройка терминов/модулей будет заменена
@@ -365,7 +271,7 @@ export default function SettingsScreen({ navigation, route }) {
         const updated = getBusinessProfile();
         setProfile(updated);
         setBizDraft(d => ({ ...d, preset: key, terms: updated.terms || d.terms, modules: updated.modules || d.modules }));
-        toast.show('Тип бизнеса применён ✓', 'info');
+        toast.show('Тип бизнеса применён', 'info');
       } catch (e) { console.error(e); toast.show('Ошибка применения', 'warn'); }
     };
     if (bizDraft?.preset) {
@@ -476,12 +382,6 @@ export default function SettingsScreen({ navigation, route }) {
       setUsers(u);
       setRoleNames(getRoleNames());
     } catch(e) { console.error('users',e); }
-    try { setDiscounts(getDiscounts()); } catch(e) {}
-    try { setDiscEligibleProducts(getDiscountEligibleProducts()); } catch(e) {}
-    try { setDiscIneligibleProducts(getDiscountIneligibleProducts()); } catch(e) {}
-    try { setDiscClientsCount(getClientsWithDiscountCount()); } catch(e) {}
-    try { setDiscClientsList(getClientsWithPersonalDiscount()); } catch(e) {}
-    try { setDiscClientsWithout(getClientsWithoutDiscount()); } catch(e) {}
     try { setDiscountsStackable(getBusinessProfile()?.discounts_stackable !== 0); } catch(e) {}
     try { setPayMethodsList(getPayMethods()); } catch(e) {}
     try { setZones(getZones()); } catch(e) {}
@@ -490,7 +390,6 @@ export default function SettingsScreen({ navigation, route }) {
     try {
       const lc = getLoyaltyConfig();
       setLoyaltyModel(lc.model || 'points');
-      setLoyaltyConfig(c => ({ ...c, ...lc.config }));
     } catch(e) {}
     try { setUnlinkedCards(getUnlinkedCostCards()); } catch(e) {}
     try { setProfile(getBusinessProfile()); } catch(e) {}
@@ -605,7 +504,7 @@ export default function SettingsScreen({ navigation, route }) {
       <Text style={styles.sectionTitle}>
         {PAGE_INFO[page]?.label || ''}
       </Text>
-      <Text style={[styles.savedTxt, !saved && { opacity: 0 }]}>✓ Сохранено</Text>
+      <View style={[styles.savedRow, !saved && { opacity: 0 }]}><Icon name="check" size={14} color={colors.green} /><Text style={styles.savedTxt}>Сохранено</Text></View>
 
         <SectionAccordion sectionKey="employees" selectedSection={selectedSection}>
 
@@ -662,233 +561,7 @@ export default function SettingsScreen({ navigation, route }) {
         </SectionAccordion>
 
         <SectionAccordion sectionKey="loyalty" selectedSection={selectedSection}>
-        {modules.loyalty !== false ? (<>
-
-          {/* Выбор модели */}
-          <View style={styles.menuCard}>
-            {[
-              {
-                key: 'points',
-                icon: '⭐',
-                label: 'Баллы',
-                desc: 'Клиент копит баллы с каждой покупки и тратит их как скидку',
-                tip: 'Подходит для любого бизнеса — стимулирует повторные покупки.',
-              },
-              {
-                key: 'discount',
-                icon: '🏷',
-                label: 'Фиксированная скидка',
-                desc: 'Постоянная скидка для каждого клиента из базы',
-                tip: 'Подходит для салонов и услуг — у каждого клиента своя скидка.',
-              },
-              {
-                key: 'subscription',
-                icon: '🎟',
-                label: 'Абонемент',
-                desc: 'Клиент покупает N визитов, каждый заказ списывает один',
-                tip: 'Идеально для занятий, стрижек, массажа — продаёте пакет заранее.',
-              },
-            ].map((m, idx) => (
-              <Pressable
-                key={m.key}
-                style={[styles.menuRow, idx < 2 && styles.menuRowDiv, loyaltyModel === m.key && { backgroundColor: 'rgba(127,168,217,0.06)' }]}
-                onPress={() => setLoyaltyModel(m.key)}
-              >
-                <Text style={{ fontSize: 24, marginRight: 12 }}>{m.icon}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.menuItemName, loyaltyModel === m.key && { color: colors.orange }]}>{m.label}</Text>
-                  <Text style={styles.menuItemSub}>{m.desc}</Text>
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <InfoTip title={m.label} text={m.tip} />
-                  <View style={[styles.productCheckbox, loyaltyModel === m.key && styles.productCheckboxOn]}>
-                    {loyaltyModel === m.key && <Text style={{ color: colors.onAccent, fontSize: 12 }}>✓</Text>}
-                  </View>
-                </View>
-              </Pressable>
-            ))}
-          </View>
-
-          {/* ── Настройки модели Баллы ── */}
-          {loyaltyModel === 'points' && (() => {
-            const earnPct   = loyaltyConfig.earn_pct   ?? 10;
-            const ptValue   = loyaltyConfig.point_value ?? 1;
-            const example   = 500;
-            const earned    = Math.round(example * earnPct / 100);
-            const earnedRub = Math.round(earned * ptValue);
-            return (
-              <View style={{ marginTop: 16 }}>
-                <View style={styles.menuCard}>
-                  <View style={[styles.menuRow, styles.menuRowDiv]}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.menuItemName}>За каждые 100 ₽</Text>
-                      <Text style={styles.menuItemSub}>Сколько баллов начисляется</Text>
-                    </View>
-                    <TextInput
-                      color={colors.text}
-                      style={styles.loyaltyInput}
-                      keyboardType="numeric"
-                      value={String(earnPct)}
-                      onChangeText={v => setLoyaltyConfig(c => ({ ...c, earn_pct: parseFloat(v) || 0 }))}
-                      placeholderTextColor={colors.muted}
-                    />
-                    <Text style={styles.loyaltyUnit}>балл.</Text>
-                  </View>
-                  <View style={styles.menuRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.menuItemName}>1 балл равен</Text>
-                      <Text style={styles.menuItemSub}>Ценность при списании</Text>
-                    </View>
-                    <TextInput
-                      color={colors.text}
-                      style={styles.loyaltyInput}
-                      keyboardType="numeric"
-                      value={String(ptValue)}
-                      onChangeText={v => setLoyaltyConfig(c => ({ ...c, point_value: parseFloat(v) || 1 }))}
-                      placeholderTextColor={colors.muted}
-                    />
-                    <Text style={styles.loyaltyUnit}>₽</Text>
-                  </View>
-                </View>
-
-                {/* Живой пример */}
-                <View style={styles.loyaltyExample}>
-                  <Text style={styles.loyaltyExampleTitle}>Пример: заказ на {example} ₽</Text>
-                  <Text style={styles.loyaltyExampleLine}>Клиент получит <Text style={styles.loyaltyExampleAccent}>{earned} баллов</Text> = <Text style={styles.loyaltyExampleAccent}>{earnedRub} ₽</Text> скидки при следующем заказе</Text>
-                </View>
-
-                {/* Списание баллов */}
-                <View style={[styles.menuCard, { marginTop: 12 }]}>
-                  <Pressable
-                    style={[styles.menuRow, loyaltyConfig.allow_spend && styles.menuRowDiv]}
-                    onPress={() => setLoyaltyConfig(c => ({ ...c, allow_spend: !c.allow_spend }))}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.menuItemName}>Разрешить тратить баллы</Text>
-                      <Text style={styles.menuItemSub}>Клиент может оплатить часть заказа баллами</Text>
-                    </View>
-                    <Toggle value={!!loyaltyConfig.allow_spend} onValueChange={v => setLoyaltyConfig(c => ({ ...c, allow_spend: v }))} size="sm" />
-                  </Pressable>
-                  {loyaltyConfig.allow_spend && (
-                    <View style={styles.menuRow}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.menuItemName}>Максимум баллами</Text>
-                        <Text style={styles.menuItemSub}>% от суммы заказа</Text>
-                      </View>
-                      <TextInput
-                        color={colors.text}
-                        style={styles.loyaltyInput}
-                        keyboardType="numeric"
-                        value={String(loyaltyConfig.max_spend_pct ?? 50)}
-                        onChangeText={v => setLoyaltyConfig(c => ({ ...c, max_spend_pct: parseFloat(v) || 0 }))}
-                        placeholderTextColor={colors.muted}
-                      />
-                      <Text style={styles.loyaltyUnit}>%</Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-            );
-          })()}
-
-          {/* ── Настройки модели Скидка ── */}
-          {loyaltyModel === 'discount' && (() => {
-            const pct = loyaltyConfig.pct ?? 5;
-            const example = 500;
-            const disc = Math.round(example * pct / 100);
-            return (
-              <View style={{ marginTop: 16 }}>
-                <View style={styles.menuCard}>
-                  <View style={styles.menuRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.menuItemName}>Скидка клиентам из базы</Text>
-                      <Text style={styles.menuItemSub}>Применяется автоматически при выборе клиента</Text>
-                    </View>
-                    <TextInput
-                      color={colors.text}
-                      style={styles.loyaltyInput}
-                      keyboardType="numeric"
-                      value={String(pct)}
-                      onChangeText={v => setLoyaltyConfig(c => ({ ...c, pct: parseFloat(v) || 0 }))}
-                      placeholderTextColor={colors.muted}
-                    />
-                    <Text style={styles.loyaltyUnit}>%</Text>
-                  </View>
-                </View>
-                <View style={styles.loyaltyExample}>
-                  <Text style={styles.loyaltyExampleTitle}>Пример: заказ на {example} ₽</Text>
-                  <Text style={styles.loyaltyExampleLine}>Клиент заплатит <Text style={styles.loyaltyExampleAccent}>{example - disc} ₽</Text> вместо {example} ₽ <Text style={{ color: colors.red }}>(−{disc} ₽)</Text></Text>
-                </View>
-                <View style={[styles.menuCard, { marginTop: 12 }]}>
-                  <View style={styles.menuRow}>
-                    <Text style={[styles.menuItemSub, { flex: 1 }]}>💡 Скидку для конкретного клиента можно изменить в карточке клиента</Text>
-                  </View>
-                </View>
-              </View>
-            );
-          })()}
-
-          {/* ── Настройки модели Абонемент ── */}
-          {loyaltyModel === 'subscription' && (
-            <View style={{ marginTop: 16 }}>
-              <View style={styles.menuCard}>
-                <View style={styles.menuRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.menuItemName}>Списывать за 1 заказ</Text>
-                    <Text style={styles.menuItemSub}>Сколько визитов расходуется</Text>
-                  </View>
-                  <TextInput
-                    color={colors.text}
-                    style={styles.loyaltyInput}
-                    keyboardType="numeric"
-                    value={String(loyaltyConfig.deduct_per_visit ?? 1)}
-                    onChangeText={v => setLoyaltyConfig(c => ({ ...c, deduct_per_visit: parseFloat(v) || 1 }))}
-                    placeholderTextColor={colors.muted}
-                  />
-                  <Text style={styles.loyaltyUnit}>виз.</Text>
-                </View>
-              </View>
-              <View style={styles.loyaltyExample}>
-                <Text style={styles.loyaltyExampleTitle}>Как это работает</Text>
-                <Text style={styles.loyaltyExampleLine}>Пополните баланс клиента в его карточке → при каждом заказе автоматически спишется <Text style={styles.loyaltyExampleAccent}>{loyaltyConfig.deduct_per_visit ?? 1} виз.</Text></Text>
-              </View>
-            </View>
-          )}
-
-          {/* Общий лимит */}
-          <View style={[styles.menuCard, { marginTop: 16 }]}>
-            <View style={styles.menuRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.menuItemName}>Максимальная скидка на заказ</Text>
-                <Text style={styles.menuItemSub}>Сумма всех скидок не превысит этот %</Text>
-              </View>
-              <TextInput
-                color={colors.text}
-                style={styles.loyaltyInput}
-                keyboardType="numeric"
-                value={String(loyaltyConfig.max_discount_pct ?? 100)}
-                onChangeText={v => setLoyaltyConfig(c => ({ ...c, max_discount_pct: parseFloat(v) || 100 }))}
-                placeholderTextColor={colors.muted}
-              />
-              <Text style={styles.loyaltyUnit}>%</Text>
-            </View>
-          </View>
-
-          {/* Сохранить */}
-          <Pressable
-            style={({ pressed }) => [styles.confirmBtn, { marginTop: 16 }, pressed && { opacity: 0.88 }]}
-            onPress={saveLoyalty}
-          >
-            <Text style={styles.confirmBtnText}>Сохранить</Text>
-          </Pressable>
-
-        </>) : (
-          <View style={[styles.menuCard, { marginTop: 12 }]}>
-            <View style={styles.menuRow}>
-              <Text style={styles.menuItemSub}>Модуль лояльности отключён в настройках профиля бизнеса.</Text>
-            </View>
-          </View>
-        )}
+          <LoyaltySection onSaved={() => { flashSaved(); loadAll(); }} />
         </SectionAccordion>
 
         <SectionAccordion sectionKey="payment" selectedSection={selectedSection}>
@@ -925,7 +598,7 @@ export default function SettingsScreen({ navigation, route }) {
                   ]}
                   onPress={() => openEditPayMethod(m, i)}
                 >
-                  <Text style={{ fontSize: 20, marginRight: 12 }}>{m.icon || '💳'}</Text>
+                  <View style={{ marginRight: 12 }}><Icon name={m.type === 'cash' ? 'cash' : 'card'} size={22} color={colors.textDim} /></View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.menuItemName}>{m.name}</Text>
                     <Text style={styles.menuItemSub}>{typeLabel}</Text>
@@ -960,7 +633,7 @@ export default function SettingsScreen({ navigation, route }) {
                   style={({ pressed }) => [styles.menuRow, i < zones.length - 1 && styles.menuRowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
                   onPress={() => setZoneModal({ id: z.id, name: z.name, tables: z.tables || [], newTableInput: '', bulkPrefix: 'Место', bulkFrom: '', bulkTo: '' })}
                 >
-                  <Text style={{ fontSize: 18, marginRight: 12 }}>📍</Text>
+                  <View style={{ marginRight: 12 }}><Icon name="pin" size={20} color={colors.textDim} /></View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.menuItemName}>{z.name}</Text>
                     {z.tables?.length > 0 && <Text style={styles.menuItemSub}>{z.tables.length} {z.tables.length < 5 ? 'стола' : 'столов'}: {z.tables.slice(0,3).map(t=>t.name).join(', ')}{z.tables.length > 3 ? '...' : ''}</Text>}
@@ -976,169 +649,7 @@ export default function SettingsScreen({ navigation, route }) {
         </SectionAccordion>
 
         <SectionAccordion sectionKey="discounts" selectedSection={selectedSection}>
-
-          {/* Переключатель вкладок На товар / На заказ */}
-          <View style={styles.discTabBar}>
-            <Pressable style={[styles.discTabBtn, discTab === 'product' && styles.discTabBtnActive]} onPress={() => setDiscTab('product')}>
-              <Text style={[styles.discTabTxt, discTab === 'product' && styles.discTabTxtActive]}>На товар</Text>
-            </Pressable>
-            <Pressable style={[styles.discTabBtn, discTab === 'order' && styles.discTabBtnActive]} onPress={() => setDiscTab('order')}>
-              <Text style={[styles.discTabTxt, discTab === 'order' && styles.discTabTxtActive]}>На заказ</Text>
-            </Pressable>
-          </View>
-
-          {discTab === 'product' && (
-            <>
-              <Text style={[styles.menuItemSub, { marginTop: 16, marginBottom: 10 }]}>
-                Общий процент применяется автоматически ко всем товарам из списка ниже
-              </Text>
-              <View style={styles.menuCard}>
-                <View style={[styles.menuRow, { paddingVertical: 4 }]}>
-                  <Text style={styles.menuItemName}>Процент скидки</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <TextInput
-                      color={colors.text}
-                      style={[styles.input, { width: 70, textAlign: 'right', paddingVertical: 8, paddingHorizontal: 10 }]}
-                      value={productDiscountPct}
-                      onChangeText={setProductDiscountPct}
-                      onEndEditing={saveProductDiscountPct}
-                      keyboardType="numeric"
-                      placeholder="0"
-                      placeholderTextColor={colors.muted}
-                    />
-                    <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text }}>%</Text>
-                  </View>
-                </View>
-                <View style={[styles.menuRow, styles.menuRowDiv, { paddingVertical: 10 }]}>
-                  <View style={{ flex: 1, marginRight: 10 }}>
-                    <Text style={styles.menuItemName}>Суммировать со скидкой клиента</Text>
-                    <Text style={styles.menuItemSub}>Если выключено — на товары из этого списка скидка клиента не действует, применяется только скидка на товар</Text>
-                  </View>
-                  <Toggle value={discountsStackable} onValueChange={toggleDiscountsStackable} />
-                </View>
-              </View>
-
-              <View style={[styles.menuTopBarSticky, { marginTop: 20 }]}>
-                <Text style={styles.menuTopTitle}>Товары со скидкой ({discEligibleProducts.length})</Text>
-                <View style={styles.menuFloatBtns} pointerEvents="box-none">
-                  <View style={styles.menuFloatRow}>
-                    <Pressable onPress={() => setDiscAddProductOpen(true)} hitSlop={14} style={[styles.menuBadge, styles.menuBadgeAdd]}>
-                      <Text style={[styles.menuBadgeText, { color: colors.orange }]}>+</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              </View>
-
-              {discEligibleProducts.length === 0 ? (
-                <Text style={[styles.empty, { paddingVertical: 16 }]}>Пока ни один товар не участвует</Text>
-              ) : (
-                <View style={styles.menuCard}>
-                  {discEligibleProducts.map((p, i) => (
-                    <View key={p.id} style={[styles.menuRow, i < discEligibleProducts.length - 1 && styles.menuRowDiv]}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.menuItemName}>{p.name}</Text>
-                        {p.category ? <Text style={styles.menuItemSub}>{p.category}</Text> : null}
-                      </View>
-                      <Pressable onPress={() => toggleProductDiscount(p, false)} hitSlop={10} style={styles.discRemoveBtn}>
-                        <Text style={styles.discRemoveBtnTxt}>Убрать</Text>
-                      </Pressable>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </>
-          )}
-
-          {discTab === 'order' && (
-            <>
-              <View style={[styles.menuTopBarSticky, { marginTop: 16 }]}>
-                <Text style={styles.menuTopTitle}>Ручная скидка кассира</Text>
-                <View style={styles.menuFloatBtns} pointerEvents="box-none">
-                  <View style={styles.menuFloatRow}>
-                    <Pressable onPress={openNewDiscount} hitSlop={14} style={[styles.menuBadge, styles.menuBadgeAdd]}>
-                      <Text style={[styles.menuBadgeText, { color: colors.orange }]}>+</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              </View>
-              <Text style={[styles.menuItemSub, { marginBottom: 10 }]}>
-                Применяется вручную в кассе, только если у клиента нет личной скидки и он не участвует в программе лояльности со скидкой
-              </Text>
-
-              {discounts.length === 0 ? (
-                <Text style={[styles.empty, { paddingVertical: 16 }]}>Скидки не настроены</Text>
-              ) : (
-                <View style={styles.menuCard}>
-                  {discounts.map((d, i) => (
-                    <View
-                      key={i}
-                      style={[styles.menuRow, i < discounts.length - 1 && styles.menuRowDiv]}
-                    >
-                      <View style={{ flexDirection: 'column', marginRight: 8 }}>
-                        <Pressable onPress={() => moveDiscount(i, -1)} disabled={i === 0} hitSlop={6}>
-                          <Text style={[styles.discOrderArrow, i === 0 && styles.discOrderArrowOff]}>▲</Text>
-                        </Pressable>
-                        <Pressable onPress={() => moveDiscount(i, 1)} disabled={i === discounts.length - 1} hitSlop={6}>
-                          <Text style={[styles.discOrderArrow, i === discounts.length - 1 && styles.discOrderArrowOff]}>▼</Text>
-                        </Pressable>
-                      </View>
-                      <Pressable style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }} onPress={() => openEditDiscount(i)}>
-                        <Text style={{ fontSize: 18, marginRight: 12 }}>🏷</Text>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.menuItemName}>{d.name}</Text>
-                          {d.desc ? (
-                            <Text style={styles.menuItemSub}>{d.desc}</Text>
-                          ) : (
-                            <Text style={styles.menuItemSub}>Нажмите чтобы добавить описание</Text>
-                          )}
-                        </View>
-                        <Text style={[styles.menuItemPrice, { color: colors.red, marginRight: 8 }]}>−{d.pct}%</Text>
-                        <Text style={styles.menuItemArrow}>›</Text>
-                      </Pressable>
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              <View style={[styles.menuTopBarSticky, { marginTop: 20 }]}>
-                <Text style={styles.menuTopTitle}>Скидка клиента</Text>
-                <View style={styles.menuFloatBtns} pointerEvents="box-none">
-                  <View style={styles.menuFloatRow}>
-                    <Pressable onPress={() => setDiscAddClientOpen(true)} hitSlop={14} style={[styles.menuBadge, styles.menuBadgeAdd]}>
-                      <Text style={[styles.menuBadgeText, { color: colors.orange }]}>+</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              </View>
-              <Text style={[styles.menuItemSub, { marginBottom: 10 }]}>
-                Применяется первой, раньше ручной скидки выше{loyaltyModel === 'discount' ? '. Дополнительно у всех клиентов есть скидка по программе лояльности' : ''}
-              </Text>
-
-              {discClientsList.length === 0 ? (
-                <Text style={[styles.empty, { paddingVertical: 16 }]}>Пока ни у одного клиента нет личной скидки</Text>
-              ) : (
-                <View style={styles.menuCard}>
-                  {discClientsList.map((c, i) => (
-                    <Pressable
-                      key={c.id}
-                      style={[styles.menuRow, i < discClientsList.length - 1 && styles.menuRowDiv]}
-                      onPress={() => setDiscClientPctModal({ client: c, pct: String(c.discount_pct) })}
-                    >
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.menuItemName}>{c.fio}</Text>
-                        {c.phone ? <Text style={styles.menuItemSub}>{c.phone}</Text> : null}
-                      </View>
-                      <Text style={[styles.menuItemPrice, { color: colors.orange, marginRight: 10 }]}>−{c.discount_pct}%</Text>
-                      <Pressable onPress={() => removeClientDiscount(c)} hitSlop={10} style={styles.discRemoveBtn}>
-                        <Text style={styles.discRemoveBtnTxt}>Убрать</Text>
-                      </Pressable>
-                    </Pressable>
-                  ))}
-                </View>
-              )}
-            </>
-          )}
-
+          <DiscountsSection onSaved={() => { flashSaved(); loadAll(); }} />
         </SectionAccordion>
 
         <SectionAccordion sectionKey="stock" selectedSection={selectedSection}>
@@ -1381,7 +892,7 @@ export default function SettingsScreen({ navigation, route }) {
             <Text style={styles.fiscalStatusHint}>Чеки копятся в очереди в разделе Продажи и отправятся в ФНС автоматически, как только будет подключено оборудование или облачная касса.</Text>
           </View>
           <Pressable style={({ pressed }) => [styles.bizPreviewBtn, pressed && { opacity: 0.8 }]} onPress={() => setReceiptPreview(true)}>
-            <Text style={styles.bizPreviewBtnText}>👁 Предпросмотр чека</Text>
+            <Text style={styles.bizPreviewBtnText}>Предпросмотр чека</Text>
           </Pressable>
 
           </Part>
@@ -1398,7 +909,6 @@ export default function SettingsScreen({ navigation, route }) {
               onPress={() => choosePreset(p.key)}
             >
               <View style={styles.presetHeader}>
-                <Text style={styles.presetIcon}>{p.icon}</Text>
                 <Text style={[styles.presetLabel, bizDraft.preset === p.key && styles.presetLabelActive]}>{p.label}</Text>
                 <Text style={styles.presetCheck}>{bizDraft.preset === p.key ? '◉' : '○'}</Text>
               </View>
@@ -1444,7 +954,6 @@ export default function SettingsScreen({ navigation, route }) {
           {termsOpen && TERM_CONFIGS.map(tc => (
             <View key={tc.key} style={styles.termBlock}>
               <View style={styles.termHeader}>
-                <Text style={styles.termIcon}>{tc.icon}</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.termTitle}>{tc.title}</Text>
                   <Text style={styles.termDesc}>{tc.desc}</Text>
@@ -1596,9 +1105,9 @@ export default function SettingsScreen({ navigation, route }) {
           <Text style={styles.bizGroupLabel}>Контакты для клиентов</Text>
           <View style={styles.menuCard}>
             {[
-              { key: 'email',    label: '✉️ Email',     placeholder: 'hello@business.ru', kb: 'email-address' },
-              { key: 'whatsapp', label: '💬 WhatsApp',  placeholder: '+7 999 123-45-67',  kb: 'phone-pad'     },
-              { key: 'telegram', label: '✈️ Telegram',  placeholder: '@username',          kb: 'default'       },
+              { key: 'email',    label: 'Email',     placeholder: 'hello@business.ru', kb: 'email-address' },
+              { key: 'whatsapp', label: 'WhatsApp',  placeholder: '+7 999 123-45-67',  kb: 'phone-pad'     },
+              { key: 'telegram', label: 'Telegram',  placeholder: '@username',          kb: 'default'       },
             ].map((f, idx) => (
               <View key={f.key} style={[styles.bizFieldRow, idx < 2 && styles.menuRowDiv]}>
                 <Text style={styles.bizFieldLabel}>{f.label}</Text>
@@ -1613,9 +1122,9 @@ export default function SettingsScreen({ navigation, route }) {
           <Text style={styles.bizGroupLabel}>Социальные сети</Text>
           <View style={styles.menuCard}>
             {[
-              { key: 'instagram', label: '📸 Instagram', placeholder: '@mybusiness'    },
-              { key: 'vk',        label: '🔵 ВКонтакте', placeholder: 'vk.com/mybusiness'  },
-              { key: 'website',   label: '🌐 Сайт',      placeholder: 'mysite.ru'       },
+              { key: 'instagram', label: 'Instagram', placeholder: '@mybusiness'    },
+              { key: 'vk',        label: 'ВКонтакте', placeholder: 'vk.com/mybusiness'  },
+              { key: 'website',   label: 'Сайт',      placeholder: 'mysite.ru'       },
             ].map((f, idx) => (
               <View key={f.key} style={[styles.bizFieldRow, idx < 2 && styles.menuRowDiv]}>
                 <Text style={styles.bizFieldLabel}>{f.label}</Text>
@@ -1630,8 +1139,8 @@ export default function SettingsScreen({ navigation, route }) {
           <Text style={styles.bizGroupLabel}>Тема оформления</Text>
           <View style={styles.menuCard}>
             {[
-              { key: 'dark',  label: '🌙 Тёмная',   sub: 'Чёрный фон, оливковый акцент' },
-              { key: 'light', label: '☀️ Светлая',  sub: 'Белый фон, тёмный текст' },
+              { key: 'dark',  label: 'Тёмная',   sub: 'Чёрный фон, оливковый акцент' },
+              { key: 'light', label: 'Светлая',  sub: 'Белый фон, тёмный текст' },
             ].map((t, idx) => (
               <Pressable key={t.key} style={[styles.menuRow, idx === 0 && styles.menuRowDiv]} onPress={() => setBizDraft(d => ({ ...d, theme: t.key }))}>
                 <View style={{ flex: 1 }}>
@@ -1639,7 +1148,7 @@ export default function SettingsScreen({ navigation, route }) {
                   <Text style={styles.menuItemSub}>{t.sub}</Text>
                 </View>
                 <View style={[styles.productCheckbox, bizDraft.theme === t.key && styles.productCheckboxOn]}>
-                  {bizDraft.theme === t.key && <Text style={{ color: colors.onAccent, fontSize: 12 }}>✓</Text>}
+                  {bizDraft.theme === t.key && <Icon name="check" size={12} color={colors.onAccent} />}
                 </View>
               </Pressable>
             ))}
@@ -1664,7 +1173,6 @@ export default function SettingsScreen({ navigation, route }) {
     <View style={{ flex: 1 }}>
       <TopBar title="Настройки" onBack={() => goBackSmart(navigation)} navigation={navigation} activeScreen="Settings" />
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
-        <Text style={{ fontSize: 28, marginBottom: 16 }}>🔒</Text>
         <Text style={{ fontFamily: fonts.display, fontSize: 18, color: colors.text, textAlign: 'center' }}>Нет доступа</Text>
         <Text style={{ fontFamily: 'Manrope_400Regular', fontSize: 14, color: colors.muted, textAlign: 'center', marginTop: 8 }}>Обратитесь к администратору, чтобы получить доступ к этому разделу.</Text>
       </View>
@@ -1691,7 +1199,7 @@ export default function SettingsScreen({ navigation, route }) {
           <View style={[styles.leftPanelBase, isPhone && { width: undefined, maxWidth: undefined, flex: 1 }, !isPhone && styles.leftPanelCard, { position: 'relative' }, navHighlight.style]}>
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={styles.navSearch}>
-                <Text style={styles.navSearchIc}>⌕</Text>
+                <View style={styles.navSearchIc}><Icon name="search" size={16} color={colors.muted} /></View>
                 <TextInput style={styles.navSearchIn} color={colors.text} value={q} onChangeText={setQ} placeholder="Найти настройку" placeholderTextColor="rgba(255,255,255,0.3)" />
               </View>
               {q.trim() ? (
@@ -1710,7 +1218,7 @@ export default function SettingsScreen({ navigation, route }) {
                       const active = page === it.page, hl = sectionHighlights[Object.keys(OLD_TO_PAGE).find(k => OLD_TO_PAGE[k] === it.page)];
                       return (
                         <Pressable key={it.page} style={({ pressed }) => [styles.navItem, active && styles.navItemActive, { position: 'relative' }, hl?.style, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]} onPress={() => setPage(it.page)}>
-                          <View style={[styles.navIc, active && styles.navIcOn]}><Text style={[styles.navIcT, active && { color: '#0A121C' }]}>{it.icon}</Text></View>
+                          <View style={[styles.navIc, active && styles.navIcOn]}><Icon name={it.icon} size={18} color={active ? '#0A121C' : colors.textDim} /></View>
                           <View style={{ flex: 1, minWidth: 0 }}>
                             <Text style={[styles.navLabel, active && styles.navLabelActive]} numberOfLines={1}>{it.label}</Text>
                             <Text style={styles.navSub} numberOfLines={1}>{navSub(it.page)}</Text>
@@ -1754,7 +1262,7 @@ export default function SettingsScreen({ navigation, route }) {
             <FitView style={[styles.modalInner, { width: '55%', maxWidth: 500, maxHeight: '88%' }]}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>{zoneModal.id ? `Зона: ${zoneModal.name}` : 'Новая зона'}</Text>
-                <Pressable onPress={() => setZoneModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
+                <Pressable onPress={() => setZoneModal(null)} hitSlop={12}><Icon name="x" size={20} color={colors.textDim} /></Pressable>
               </View>
 
               <ScrollView showsVerticalScrollIndicator={false}>
@@ -1785,7 +1293,7 @@ export default function SettingsScreen({ navigation, route }) {
                       <View key={t.id} style={styles.tableChipEdit}>
                         <Text style={styles.tableChipEditText}>{t.name}</Text>
                         <Pressable onPress={() => removeTableFromZone(t.id)} hitSlop={6}>
-                          <Text style={{ fontSize: 14, color: colors.red, marginLeft: 4 }}>✕</Text>
+                          <Icon name="x" size={14} color={colors.red} />
                         </Pressable>
                       </View>
                     ))}
@@ -1850,134 +1358,12 @@ export default function SettingsScreen({ navigation, route }) {
       </Modal>
 
       {/* Модалка скидки */}
-      <Modal visible={!!discountModal} transparent animationType="fade" onRequestClose={() => setDiscountModal(null)}>
-        <KeyboardSafe style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setDiscountModal(null)} />
-          {discountModal && (
-            <FitView style={styles.modalInner}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>{discountModal.index === -1 ? 'Новая скидка' : 'Изменить скидку'}</Text>
-                <Pressable onPress={() => setDiscountModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
-              </View>
-              <Text style={styles.fieldLabel}>Название</Text>
-              <TextInput style={styles.input} value={discountModal.name} onChangeText={(v) => setDiscountModal(m => ({ ...m, name: v }))} placeholderTextColor={colors.muted} />
-              <Text style={styles.fieldLabel}>Процент</Text>
-              <TextInput style={styles.input} keyboardType="numeric" value={discountModal.pct} onChangeText={(v) => setDiscountModal(m => ({ ...m, pct: v }))} placeholderTextColor={colors.muted} />
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
-                <Pressable style={({ pressed }) => [styles.discSaveBtn, { flex: 1 }, pressed && { opacity: 0.85 }]} onPress={saveDiscountModal}>
-                  <Text style={styles.discSaveBtnTxt}>Сохранить</Text>
-                </Pressable>
-                {discountModal.index !== -1 && (
-                  <Pressable style={({ pressed }) => [styles.discDeleteBtn, { flex: 1 }, pressed && { opacity: 0.85 }]} onPress={deleteDiscountModal}>
-                    <Text style={styles.discDeleteBtnTxt}>Удалить</Text>
-                  </Pressable>
-                )}
-              </View>
-            </FitView>
-          )}
-        </KeyboardSafe>
-      </Modal>
 
       {/* Пикер добавления товара в скидку на товар */}
-      <Modal visible={discAddProductOpen} transparent animationType="fade" onRequestClose={() => setDiscAddProductOpen(false)}>
-        <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setDiscAddProductOpen(false)} />
-          <FitView style={[styles.modalInner, { maxHeight: '70%' }]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Добавить товар</Text>
-              <Pressable onPress={() => setDiscAddProductOpen(false)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
-            </View>
-            <ScrollView>
-              {discIneligibleProducts.length === 0 ? (
-                <Text style={[styles.empty, { paddingVertical: 16 }]}>Все товары уже участвуют</Text>
-              ) : (
-                discIneligibleProducts.map((p, i) => (
-                  <Pressable
-                    key={p.id}
-                    style={({ pressed }) => [
-                      styles.menuRow,
-                      i < discIneligibleProducts.length - 1 && styles.menuRowDiv,
-                      pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
-                    ]}
-                    onPress={() => { toggleProductDiscount(p, true); setDiscAddProductOpen(false); }}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.menuItemName}>{p.name}</Text>
-                      {p.category ? <Text style={styles.menuItemSub}>{p.category}</Text> : null}
-                    </View>
-                    <Text style={styles.menuItemArrow}>+</Text>
-                  </Pressable>
-                ))
-              )}
-            </ScrollView>
-          </FitView>
-        </View>
-      </Modal>
 
       {/* Пикер добавления клиента в личную скидку */}
-      <Modal visible={discAddClientOpen} transparent animationType="fade" onRequestClose={() => setDiscAddClientOpen(false)}>
-        <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setDiscAddClientOpen(false)} />
-          <FitView style={[styles.modalInner, { maxHeight: '70%' }]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Выбрать клиента</Text>
-              <Pressable onPress={() => setDiscAddClientOpen(false)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
-            </View>
-            <ScrollView>
-              {discClientsWithout.length === 0 ? (
-                <Text style={[styles.empty, { paddingVertical: 16 }]}>У всех клиентов уже есть личная скидка</Text>
-              ) : (
-                discClientsWithout.map((c, i) => (
-                  <Pressable
-                    key={c.id}
-                    style={({ pressed }) => [
-                      styles.menuRow,
-                      i < discClientsWithout.length - 1 && styles.menuRowDiv,
-                      pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
-                    ]}
-                    onPress={() => { setDiscAddClientOpen(false); setDiscClientPctModal({ client: c, pct: '' }); }}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.menuItemName}>{c.fio}</Text>
-                      {c.phone ? <Text style={styles.menuItemSub}>{c.phone}</Text> : null}
-                    </View>
-                    <Text style={styles.menuItemArrow}>›</Text>
-                  </Pressable>
-                ))
-              )}
-            </ScrollView>
-          </FitView>
-        </View>
-      </Modal>
 
       {/* Ввод процента личной скидки для выбранного клиента */}
-      <Modal visible={!!discClientPctModal} transparent animationType="fade" onRequestClose={() => setDiscClientPctModal(null)}>
-        <KeyboardSafe style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setDiscClientPctModal(null)} />
-          {discClientPctModal && (
-            <FitView style={styles.modalInner}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>{discClientPctModal.client.fio}</Text>
-                <Pressable onPress={() => setDiscClientPctModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
-              </View>
-              <Text style={styles.fieldLabel}>Личная скидка, %</Text>
-              <TextInput
-                color={colors.text}
-                style={styles.input}
-                keyboardType="numeric"
-                value={discClientPctModal.pct}
-                onChangeText={(v) => setDiscClientPctModal(m => ({ ...m, pct: v }))}
-                placeholder="0"
-                placeholderTextColor={colors.muted}
-                autoFocus
-              />
-              <Pressable style={({ pressed }) => [styles.discSaveBtn, { marginTop: 12 }, pressed && { opacity: 0.85 }]} onPress={saveClientDiscountPct}>
-                <Text style={styles.discSaveBtnTxt}>Сохранить</Text>
-              </Pressable>
-            </FitView>
-          )}
-        </KeyboardSafe>
-      </Modal>
 
       {/* Модалка способа оплаты */}
       <Modal visible={!!payMethodModal} transparent animationType="fade" onRequestClose={() => setPayMethodModal(null)}>
@@ -1987,7 +1373,7 @@ export default function SettingsScreen({ navigation, route }) {
             <FitView style={styles.modalInner}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>{payMethodModal.index === -1 ? 'Новый способ оплаты' : 'Изменить способ оплаты'}</Text>
-                <Pressable onPress={() => setPayMethodModal(null)} hitSlop={12}><Text style={styles.modalClose}>✕</Text></Pressable>
+                <Pressable onPress={() => setPayMethodModal(null)} hitSlop={12}><Icon name="x" size={20} color={colors.textDim} /></Pressable>
               </View>
 
               <Text style={styles.fieldLabel}>Название</Text>
@@ -1999,21 +1385,12 @@ export default function SettingsScreen({ navigation, route }) {
                 placeholderTextColor={colors.muted}
               />
 
-              <Text style={styles.fieldLabel}>Иконка (эмодзи)</Text>
-              <TextInput
-                style={[styles.input, { fontSize: 24 }]}
-                value={payMethodModal.icon}
-                onChangeText={v => setPayMethodModal(m => ({ ...m, icon: v }))}
-                placeholder="💳"
-                placeholderTextColor={colors.muted}
-              />
-
               <Text style={styles.fieldLabel}>Тип</Text>
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
                 {[
-                  { key: 'cash',  label: '💵 Наличные' },
-                  { key: 'card',  label: '💳 Безнал' },
-                  { key: 'mixed', label: '💰 Смешанная' },
+                  { key: 'cash',  label: 'Наличные' },
+                  { key: 'card',  label: 'Безнал' },
+                  { key: 'mixed', label: 'Смешанная' },
                 ].map(t => (
                   <Pressable
                     key={t.key}
@@ -2059,7 +1436,7 @@ export default function SettingsScreen({ navigation, route }) {
               <View style={styles.prodModalHeader}>
                 <Text style={styles.prodModalTitle}>{empModal.id ? 'Редактировать сотрудника' : 'Новый сотрудник'}</Text>
                 <Pressable onPress={() => setEmpModal(null)} hitSlop={14} style={styles.itemModalClose}>
-                  <Text style={styles.itemModalCloseText}>✕</Text>
+                  <Icon name="x" size={20} color={colors.textDim} />
                 </Pressable>
               </View>
 
@@ -2100,7 +1477,7 @@ export default function SettingsScreen({ navigation, route }) {
                         )}
                         <Text style={[styles.menuItemSub, { marginRight: 8 }]}>{s.unit}</Text>
                         <View style={[styles.productCheckbox, empModal.salaryType === s.key && styles.productCheckboxOn]}>
-                          {empModal.salaryType === s.key && <Text style={{ color: colors.onAccent, fontSize: 12 }}>✓</Text>}
+                          {empModal.salaryType === s.key && <Icon name="check" size={12} color={colors.onAccent} />}
                         </View>
                       </Pressable>
                     ))}
@@ -2138,7 +1515,7 @@ export default function SettingsScreen({ navigation, route }) {
                         )}
                         {empModal.kpiType === k.key && k.key ? <Text style={[styles.menuItemSub, { marginRight: 8 }]}>{k.unit}</Text> : null}
                         <View style={[styles.productCheckbox, empModal.kpiType === k.key && styles.productCheckboxOn]}>
-                          {empModal.kpiType === k.key && <Text style={{ color: colors.onAccent, fontSize: 12 }}>✓</Text>}
+                          {empModal.kpiType === k.key && <Icon name="check" size={12} color={colors.onAccent} />}
                         </View>
                       </Pressable>
                     ))}
@@ -2160,7 +1537,7 @@ export default function SettingsScreen({ navigation, route }) {
                           >
                             <Text style={styles.menuItemName}>{p.label}</Text>
                             <View style={[styles.productCheckbox, empModal.kpiPeriod === p.key && styles.productCheckboxOn]}>
-                              {empModal.kpiPeriod === p.key && <Text style={{ color: colors.onAccent, fontSize: 12 }}>✓</Text>}
+                              {empModal.kpiPeriod === p.key && <Icon name="check" size={12} color={colors.onAccent} />}
                             </View>
                           </Pressable>
                         ))}
@@ -2294,7 +1671,7 @@ export default function SettingsScreen({ navigation, route }) {
                     </View>
                     <Pressable onPress={() => setShowPin(v => !v)} style={{ marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <Text style={{ fontFamily: fonts.familySemibold, fontSize: 14, color: colors.muted }}>
-                        {showPin ? '🙈 Скрыть PIN' : '👁 Показать PIN'}
+                        {showPin ? 'Скрыть PIN' : 'Показать PIN'}
                       </Text>
                     </Pressable>
                     <Text style={{ fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginTop: 4, lineHeight: 19 }}>
@@ -2725,7 +2102,7 @@ const styles = StyleSheet.create({
   chipSmallActive: { borderColor: 'rgba(127,168,217,0.5)', backgroundColor: 'rgba(127,168,217,0.18)' },
   chipSmallLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
   chipSmallLabelActive: { color: colors.orange },
-  savedTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.green, marginTop: -8, marginBottom: 8 },
+  savedRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: -8, marginBottom: 8 }, savedTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.green },
   navSearch: { flexDirection: 'row', alignItems: 'center', height: 46, borderRadius: 14, paddingHorizontal: 14, marginBottom: 6, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' },
   navSearchIc: { fontSize: 15, color: colors.muted, marginRight: 10 }, navSearchIn: { flex: 1, padding: 0, fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
   navRes: { paddingVertical: 11, paddingHorizontal: 14, borderRadius: 14, marginBottom: 2 }, navResT: { fontFamily: fonts.familySemibold, fontSize: 14.5, color: colors.text }, navResS: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },

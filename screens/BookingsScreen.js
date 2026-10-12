@@ -161,11 +161,11 @@ export default function BookingsScreen({ navigation }) {
           <View style={styles.chips}>{STATUSES.map(([k, t]) => <Pressable key={k} style={[styles.chip, flt === k && styles.chipOn]} onPress={() => { setFlt(k); setFAt(null); }}><Text style={[styles.chipT, flt === k && { color: colors.orangeLight }]}>{t}</Text></Pressable>)}</View></GlassSurface></View></View></Modal>
       <Modal visible={!!menuAt} transparent animationType="fade" onRequestClose={() => setMenuAt(null)}><View style={{ flex: 1 }}><Pressable style={StyleSheet.absoluteFill} onPress={() => setMenuAt(null)} />
         <View style={[styles.pop, { top: menuAt?.top, right: menuAt?.right, width: 380 }]}><GlassSurface floating radius={22} tint="32,40,55" alpha={0.985} padding={12}><Text style={[styles.pl, { marginLeft: 8 }]}>Настройки записи</Text>
-          {[['services', '▤', 'Услуги для записи', `${getBookingServices().length} в записи`], ['masters', '☺', 'Мастера', `${getBookingStaff().length} принимают записи`], ['online', '◎', 'Подключение, ссылка и QR', online.connected ? 'подключена' : 'не подключена']].map(([k, ic, t, s]) => (
-            <Pressable key={k} style={styles.mi} onPress={() => { setMenuAt(null); setPanel(k); }}><View style={styles.miI}><Text style={styles.miIT}>{ic}</Text></View><View><Text style={styles.miT}>{t}</Text><Text style={styles.miS}>{s}</Text></View></Pressable>))}
+          {[['services', 'list', 'Услуги для записи', `${getBookingServices().length} в записи`], ['masters', 'users', 'Мастера', `${getBookingStaff().length} принимают записи`], ['online', 'qr', 'Подключение, ссылка и QR', online.connected ? 'подключена' : 'не подключена']].map(([k, ic, t, s]) => (
+            <Pressable key={k} style={styles.mi} onPress={() => { setMenuAt(null); setPanel(k); }}><View style={styles.miI}><Icon name={ic} size={18} color={colors.textDim} /></View><View><Text style={styles.miT}>{t}</Text><Text style={styles.miS}>{s}</Text></View></Pressable>))}
           <View style={styles.miSep} />
           <Pressable style={styles.miHi} onPress={() => { setMenuAt(null); setPanel('page'); }}>
-            <View style={styles.miHiI}><Text style={styles.miHiIT}>✦</Text></View>
+            <View style={styles.miHiI}><Icon name="sliders" size={20} color="#0A121C" /></View>
             <View style={{ flex: 1 }}><Text style={styles.miHiT}>Страница записи</Text><Text style={styles.miHiS}>оформление, тексты, схема проезда, публикация</Text></View>
             <Text style={styles.miHiA}>›</Text>
           </Pressable>

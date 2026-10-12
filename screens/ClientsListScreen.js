@@ -651,7 +651,7 @@ export default function ClientsListScreen({ navigation, route, initialClientId }
           <View style={[styles.morePop, { top: moreAt?.top, right: moreAt?.right }]}>
             <Text style={styles.morePopH}>Саморегистрация</Text>
             <Pressable style={styles.morePopRow} onPress={() => { setMoreAt(null); setRegEditor(true); }}>
-              <View style={styles.morePopIc}><Text style={styles.morePopIcT}>✦</Text></View>
+              <View style={styles.morePopIc}><Icon name="sliders" size={18} color={colors.orangeLight} /></View>
               <View style={{ flex: 1 }}><Text style={styles.morePopT}>Страница регистрации по QR</Text><Text style={styles.morePopS}>оформление, бонус, меню, схема проезда, публикация</Text></View>
             </Pressable>
           </View>

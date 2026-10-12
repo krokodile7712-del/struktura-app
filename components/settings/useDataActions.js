@@ -35,7 +35,7 @@ export default function useDataActions(navigation) {
         if (!p.granted) return;
         const uri = await FileSystem.StorageAccessFramework.createFileAsync(p.directoryUri, fileName(), 'application/json');
         await FileSystem.writeAsStringAsync(uri, json, { encoding: FileSystem.EncodingType.UTF8 });
-        toast.show('Резервная копия сохранена ✓', 'info');
+        toast.show('Резервная копия сохранена', 'info');
       } else { await share(json, 'Сохранить резервную копию'); }
     } catch (e) { console.error('[копия] сохранить', e); toast.show('Не удалось сохранить копию: ' + (e?.message || ''), 'warn'); }
   };
@@ -79,7 +79,7 @@ export default function useDataActions(navigation) {
   };
   const confirmRestore = (data, protectedFile) => Alert.alert('Восстановить из резервной копии?',
     `Это ПОЛНОСТЬЮ заменит все текущие данные приложения на данные из файла:\n\n${BACKUP_TABLES_INFO.map(t => '• ' + t.label).join('\n')}\n\nОтменить это действие нельзя.` +
-    (protectedFile ? '' : '\n\n⚠ Файл не защищён паролем — он создан старой версией приложения. После восстановления сохраните новую копию: она будет защищена паролем.') + '\n\nПродолжить?',
+    (protectedFile ? '' : '\n\nВнимание: файл не защищён паролем — он создан старой версией приложения. После восстановления сохраните новую копию: она будет защищена паролем.') + '\n\nПродолжить?',
     [{ text: 'Отмена', style: 'cancel' }, { text: 'Восстановить', style: 'destructive', onPress: () => askPin('Восстановить из копии', 'Введите ваш PIN-код администратора, чтобы заменить все данные файлом копии.', () => doImport(data)) }]);
 
   const startRestore = async () => {

@@ -1,21 +1,21 @@
 // Навигация экрана «Настройки»: страницы сгруппированы по смыслу. section — раздел старого содержимого (его внутренние блоки показываются по part).
 export const NAV_GROUPS = [
   { title: 'Заведение', items: [
-    { page: 'prof', section: 'business', icon: '⌂', label: 'Профиль бизнеса' },
-    { page: 'mods', section: 'business', icon: '▦', label: 'Модули и термины' }] },
+    { page: 'prof', section: 'business', icon: 'note', label: 'Профиль бизнеса' },
+    { page: 'mods', section: 'business', icon: 'grid', label: 'Модули и термины' }] },
   { title: 'Клиенты и сотрудники', items: [
-    { page: 'emp', section: 'employees', icon: '☺', label: 'Сотрудники' },
-    { page: 'loy', section: 'loyalty', icon: '★', label: 'Лояльность' },
-    { page: 'disc', section: 'discounts', icon: '%', label: 'Скидки' }] },
+    { page: 'emp', section: 'employees', icon: 'users', label: 'Сотрудники' },
+    { page: 'loy', section: 'loyalty', icon: 'zap', label: 'Лояльность' },
+    { page: 'disc', section: 'discounts', icon: 'tag', label: 'Скидки' }] },
   { title: 'Деньги, склад и зал', items: [
-    { page: 'pay', section: 'payment', icon: '₽', label: 'Оплата' },
-    { page: 'rcpt', section: 'business', icon: '▤', label: 'Чек и налоги' },
-    { page: 'stk', section: 'stock', icon: '▥', label: 'Склад' },
-    { page: 'loc', section: 'locations', icon: '◎', label: 'Локации и склады' },
-    { page: 'zone', section: 'payment', icon: '▣', label: 'Зоны и столы' }] },
+    { page: 'pay', section: 'payment', icon: 'cash', label: 'Оплата' },
+    { page: 'rcpt', section: 'business', icon: 'receipt', label: 'Чек и налоги' },
+    { page: 'stk', section: 'stock', icon: 'package', label: 'Склад' },
+    { page: 'loc', section: 'locations', icon: 'split', label: 'Локации и склады' },
+    { page: 'zone', section: 'payment', icon: 'rows', label: 'Зоны и столы' }] },
   { title: 'Система', items: [
-    { page: 'sys', section: 'system', icon: '⚙', label: 'Данные и безопасность' },
-    { page: 'view', section: 'business', icon: '✦', label: 'Вид и тема' }] },
+    { page: 'sys', section: 'system', icon: 'gear', label: 'Данные и безопасность' },
+    { page: 'view', section: 'business', icon: 'sliders', label: 'Вид и тема' }] },
 ];
 export const PAGES = NAV_GROUPS.flatMap(g => g.items);
 export const PAGE_INFO = Object.fromEntries(PAGES.map(p => [p.page, p]));

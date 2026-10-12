@@ -4,6 +4,7 @@ import { WebView } from 'react-native-webview';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as DocumentPicker from 'expo-document-picker';
 import GlassSurface from './GlassSurface';
+import Icon from './Icon';
 import GlassButton from './GlassButton';
 import Toggle from './Toggle';
 import KeyboardSafe from './KeyboardSafe';
@@ -18,7 +19,6 @@ import { getBusinessProfile } from '../db/queries';
 import { colors, fonts } from '../constants/theme';
 
 const SWATCH = { platinum: ['#ffffff', '#8fb3e0'], gold: ['#f7e9bd', '#a87a3a'], emerald: ['#e2fff3', '#2a9d7a'], rose: ['#fff0f4', '#b9547a'], graphite: ['#f4f4f4', '#808080'] };
-const ICON_GLYPH = { door: '▯', lift: '⇅', stairs: '⌐', walk: '♟', pin: '⌖', bus: '▤', park: 'P', cafe: '☕' };
 const STAGES = { reg: [['Главная', 1], ['Форма', 2], ['Карта', 3], ['Меню', 4], ['Путь', 5]], book: [['Старт', 0], ['Услуга', 1], ['Время', 2], ['Контакты', 3], ['Готово', 4], ['Путь', 5]] };
 const when = iso => { try { const d = new Date(iso); return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')} в ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; } catch (_) { return ''; } };
 
@@ -146,14 +146,14 @@ export default function ClientPageEditor({ visible, page, onClose }) {
         <Fld label="Ссылка на карту" value={sh.mapUrl} onChange={v => upd('shared', { mapUrl: v })} placeholder="2ГИС или Яндекс Карты" />
         {route.map((r, i) => (
           <View key={i} style={st.rt}>
-            <Pressable style={st.rtI} onPress={() => { const n = route.slice(); n[i] = { ...r, icon: ROUTE_ICONS[(ROUTE_ICONS.indexOf(r.icon) + 1) % ROUTE_ICONS.length] }; setRoute(n); }}><Text style={st.rtIT}>{ICON_GLYPH[r.icon] || '•'}</Text></Pressable>
+            <Pressable style={st.rtI} onPress={() => { const n = route.slice(); n[i] = { ...r, icon: ROUTE_ICONS[(ROUTE_ICONS.indexOf(r.icon) + 1) % ROUTE_ICONS.length] }; setRoute(n); }}><Icon name={r.icon} size={20} color={colors.orangeLight} /></Pressable>
             <View style={{ flex: 1 }}>
               <TextInput style={st.rtIn} color={colors.text} value={r.t} placeholder="Название шага" placeholderTextColor="rgba(255,255,255,0.25)" onChangeText={v => { const n = route.slice(); n[i] = { ...r, t: v }; setRoute(n); }} />
               <TextInput style={[st.rtIn, st.rtH]} color={colors.textDim} value={r.h} placeholder="Подсказка (необязательно)" placeholderTextColor="rgba(255,255,255,0.25)" onChangeText={v => { const n = route.slice(); n[i] = { ...r, h: v }; setRoute(n); }} /></View>
             <View style={{ gap: 4 }}>
-              <Pressable style={st.mini} onPress={() => { if (i > 0) { const n = route.slice(); [n[i - 1], n[i]] = [n[i], n[i - 1]]; setRoute(n); } }}><Text style={st.miniT}>▲</Text></Pressable>
-              <Pressable style={st.mini} onPress={() => { if (i < route.length - 1) { const n = route.slice(); [n[i + 1], n[i]] = [n[i], n[i + 1]]; setRoute(n); } }}><Text style={st.miniT}>▼</Text></Pressable>
-              <Pressable style={st.mini} onPress={() => setRoute(route.filter((_, j) => j !== i))}><Text style={[st.miniT, { color: colors.red }]}>✕</Text></Pressable></View>
+              <Pressable style={st.mini} onPress={() => { if (i > 0) { const n = route.slice(); [n[i - 1], n[i]] = [n[i], n[i - 1]]; setRoute(n); } }}><Icon name="chevron-up" size={14} color={colors.textDim} /></Pressable>
+              <Pressable style={st.mini} onPress={() => { if (i < route.length - 1) { const n = route.slice(); [n[i + 1], n[i]] = [n[i], n[i + 1]]; setRoute(n); } }}><Icon name="chevron-down" size={14} color={colors.textDim} /></Pressable>
+              <Pressable style={st.mini} onPress={() => setRoute(route.filter((_, j) => j !== i))}><Icon name="x" size={14} color={colors.red} /></Pressable></View>
           </View>))}
         {route.length === 0 && (<>
           <Text style={st.hint}>Шагов пока нет, поэтому схема на странице не показывается. Нажмите «+ Шаг» или заполните примером и поправьте под себя. Последний шаг — ваша точка.</Text>
@@ -201,7 +201,7 @@ export default function ClientPageEditor({ visible, page, onClose }) {
               <Text style={st.sub} numberOfLines={1}>{pub.dirty ? 'Есть неопубликованные изменения' : `Опубликовано ${when(pub.at)}`}</Text></View>
             <GlassButton label="QR и ссылка" height={44} onPress={() => setQr(true)} style={{ marginRight: 8 }} />
             <GlassButton tone="solid" label={busy ? 'Публикую…' : 'Опубликовать'} height={44} disabled={busy} onPress={doPublish} />
-            <Pressable onPress={onClose} hitSlop={10} style={st.x}><Text style={st.xT}>✕</Text></Pressable>
+            <Pressable onPress={onClose} hitSlop={10} style={st.x}><Icon name="x" size={18} color={colors.textDim} /></Pressable>
           </View>
           {!wide && <View style={st.tabs}>{[['set', 'Настройки'], ['prev', 'Предпросмотр']].map(([k, t]) => <Pressable key={k} style={[st.tab, tab === k && st.tabOn]} onPress={() => setTab(k)}><Text style={[st.tabT, tab === k && { color: colors.text }]}>{t}</Text></Pressable>)}</View>}
           <View style={{ flexDirection: 'row', flex: 1, paddingHorizontal: 16, paddingBottom: 14, gap: 14 }}>

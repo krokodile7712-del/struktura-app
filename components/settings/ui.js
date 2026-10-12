@@ -1,5 +1,7 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, Pressable, Animated, StyleSheet } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, Pressable, Animated, StyleSheet, TextInput } from 'react-native';
+import Icon from '../Icon';
+import { parseNum, fmtNum, rangeError } from '../../utils/num';
 import Toggle from '../Toggle';
 import { colors, fonts } from '../../constants/theme';
 
@@ -56,6 +58,50 @@ export function ChipsRow({ title, sub, items, value, onChange }) {
   );
 }
 
+/**
+ * Число: минус, поле, плюс, единица. Понимает запятую («5,5»), проверяет диапазон и показывает ошибку под полем;
+ * неверное значение наружу не отдаётся (остаётся последнее верное).
+ */
+export function NumField({ value, onChange, min = 0, max = Infinity, gt, step = 1, unit, int, width = 80 }) {
+  const [text, setText] = useState(fmtNum(value)); const [err, setErr] = useState('');
+  useEffect(() => { if (parseNum(text) !== value) { setText(fmtNum(value)); setErr(''); } }, [value]);
+  const apply = t => {
+    setText(t); const n = parseNum(t), e = rangeError(n, { min, max, gt }); setErr(e);
+    if (!e) onChange(int ? Math.round(n) : n);
+  };
+  const bump = d => { const n = parseNum(text) ?? value ?? 0; const next = Math.round((n + d * step) * 100) / 100; apply(fmtNum(Math.min(max, Math.max(gt != null ? gt + step : min, next)))); };
+  return (
+    <View>
+      <View style={st.nf}>
+        <Pressable style={st.nfB} onPress={() => bump(-1)} hitSlop={6}><Icon name="minus" size={16} color={colors.orangeLight} /></Pressable>
+        <TextInput style={[st.nfIn, { width }, !!err && st.nfBad]} value={text} onChangeText={apply} onBlur={() => !err && setText(fmtNum(parseNum(text) ?? value))} keyboardType="decimal-pad" selectTextOnFocus color={colors.text} />
+        <Pressable style={st.nfB} onPress={() => bump(1)} hitSlop={6}><Icon name="plus" size={16} color={colors.orangeLight} /></Pressable>
+        {!!unit && <Text style={st.nfU}>{unit}</Text>}
+      </View>
+      {!!err && <Text style={st.nfErr}>{err}</Text>}
+    </View>
+  );
+}
+
+// Предложение с полями внутри: <Sentence>{['За каждые 100 ₽ клиент получает', <NumField .../>, 'баллов']}</Sentence>
+export function Sentence({ children }) {
+  return <View style={st.sen}>{React.Children.toArray(children).map((c, i) => (typeof c === 'string' ? <Text key={i} style={st.senT}>{c}</Text> : <View key={i} style={st.senF}>{c}</View>))}</View>;
+}
+
+// Крупные карточки выбора одного варианта: items = [{ key, icon, title, desc, hint }]
+export function ChoiceCards({ items, value, onChange }) {
+  return (
+    <View style={st.cc}>
+      {items.map(it => (
+        <Pressable key={it.key} style={[st.card, value === it.key && st.cardOn]} onPress={() => onChange(it.key)}>
+          <View style={[st.cardIc, value === it.key && st.cardIcOn]}><Icon name={it.icon} size={20} color={value === it.key ? '#0A121C' : colors.textDim} /></View>
+          <Text style={st.cardT}>{it.title}</Text><Text style={st.cardD}>{it.desc}</Text>{!!it.hint && <Text style={st.cardH}>{it.hint}</Text>}
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
 export const Note = ({ children, warn }) => <Text style={[st.note, warn && { color: colors.warning }]}>{children}</Text>;
 
 export const st = StyleSheet.create({
@@ -68,5 +114,12 @@ export const st = StyleSheet.create({
   l: { flex: 1, minWidth: 0 }, t: { fontFamily: fonts.familySemibold, fontSize: 15.5, color: colors.text }, s: { fontFamily: fonts.familyRegular, fontSize: 12.5, color: colors.muted, marginTop: 2, lineHeight: 18 },
   v: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.textDim, marginLeft: 12 }, ch: { fontSize: 22, color: colors.muted, marginLeft: 10 }, pressed: { backgroundColor: 'rgba(255,255,255,0.04)' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }, chip: { height: 36, paddingHorizontal: 16, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' }, chipOn: { backgroundColor: 'rgba(127,168,217,0.2)', borderColor: 'rgba(157,191,230,0.5)' }, chipT: { fontFamily: fonts.familySemibold, fontSize: 13.5, color: colors.textDim },
+  nf: { flexDirection: 'row', alignItems: 'center', gap: 6 }, nfB: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(127,168,217,0.1)', borderWidth: 1, borderColor: 'rgba(157,191,230,0.3)' },
+  nfIn: { height: 34, borderRadius: 11, textAlign: 'center', padding: 0, fontFamily: fonts.familySemibold, fontSize: 15.5, color: colors.text, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.09)' }, nfBad: { borderColor: colors.red },
+  nfU: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginLeft: 4 }, nfErr: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.red, marginTop: 4 },
+  sen: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, paddingHorizontal: 18, paddingVertical: 14 }, senT: { fontFamily: fonts.familyRegular, fontSize: 16, color: colors.textDim }, senF: { marginVertical: 2 },
+  cc: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' }, card: { flex: 1, minWidth: 180, borderRadius: 20, padding: 16, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' }, cardOn: { backgroundColor: 'rgba(127,168,217,0.14)', borderColor: 'rgba(157,191,230,0.65)' },
+  cardIc: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.07)', marginBottom: 10 }, cardIcOn: { backgroundColor: colors.orangeLight },
+  cardT: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text }, cardD: { fontFamily: fonts.familyRegular, fontSize: 12.5, color: colors.muted, marginTop: 4, lineHeight: 18 }, cardH: { fontFamily: fonts.familySemibold, fontSize: 11.5, color: colors.orangeLight, marginTop: 8 },
   note: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, lineHeight: 19, marginHorizontal: 8, marginTop: 8 },
 });
