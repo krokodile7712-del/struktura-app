@@ -76,10 +76,13 @@ export function previewConfig(page) {
 
 // ── публикация ──
 const hash = str => { let h = 5381; for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0; return String(h); };
-const stamp = () => { const c = buildPublicConfig(), b = getClientPages().bonus; return hash(JSON.stringify(c) + JSON.stringify(b) + JSON.stringify(getBookingServices())); };
-export function getPublishState() {
-  const at = getSetting('clientPagesPublishedAt') || '', last = getSetting('clientPagesHash') || '';
-  return { published: !!at, at, dirty: last !== stamp() };
+const stampCfg = () => hash(JSON.stringify(buildPublicConfig()) + JSON.stringify(getClientPages().bonus));
+const stampSvc = () => hash(JSON.stringify(getBookingServices()));
+// page: 'reg' — только настройки; 'book' — ещё и услуги для записи (они отправляются отдельной облачной функцией)
+export function getPublishState(page) {
+  const at = getSetting('clientPagesPublishedAt') || '';
+  const cfgDirty = (getSetting('clientPagesHash') || '') !== stampCfg(), svcDirty = page === 'book' && (getSetting('servicesHash') || '') !== stampSvc();
+  return { published: !!at, at, dirty: cfgDirty || svcDirty };
 }
 export function getPageLinks() {
   const { connected, slug } = getOnlinePage();
@@ -87,16 +90,18 @@ export function getPageLinks() {
 }
 const NO_SQL = 'В облаке ещё не выполнен файл cloud/client_pages.sql: Supabase → SQL Editor → вставить весь файл → Run. После этого нажмите «Опубликовать» ещё раз.';
 const cloudFail = (e, text) => (e && /Could not find the function|schema cache|does not exist/i.test(e.message || '') ? NO_SQL : text + (e ? ': ' + e.message : ''));
-export async function publishClientPages() {
+// opts.services = false — для регистрации по QR услуги записи не нужны и не отправляются
+export async function publishClientPages(opts = {}) {
   const { connected, slug } = getOnlinePage();
   if (!connected) throw new Error('Сначала подключите онлайн-страницу (меню «⋯» в «Записях» → «Ссылка и QR»)');
   const id = await getBusinessIdBySlug(slug);
   if (!id) throw new Error('Нет связи с облаком');
   const secret = getOrCreateBookingSecret(), bonus = getClientPages().bonus;
-  await syncBookingServices();                                 // услуги для записи — вместе со всем остальным
+  const withSvc = opts.services !== false;
+  if (withSvc) await syncBookingServices();                    // услуги для записи — только при публикации страницы записи
   const a = await supabase.rpc('publish_client_pages_secure', { p_business_id: id, p_secret: secret, p_config: buildPublicConfig() });
   if (a.error || a.data !== true) throw new Error(cloudFail(a.error, 'Не удалось опубликовать страницы'));
   const b = await supabase.rpc('set_loyalty_config_secure', { p_business_id: id, p_secret: secret, p_enabled: !!bonus.enabled, p_bonus: Number(bonus.amount) || 0, p_valid_days: Math.round(Number(bonus.days)) || 60 });
   if (b.error || b.data !== true) throw new Error(cloudFail(b.error, 'Не удалось сохранить бонус и включение регистрации'));
-  setSetting('clientPagesHash', stamp()); setSetting('clientPagesPublishedAt', new Date().toISOString());
+  setSetting('clientPagesHash', stampCfg()); if (withSvc) setSetting('servicesHash', stampSvc()); setSetting('clientPagesPublishedAt', new Date().toISOString());
 }

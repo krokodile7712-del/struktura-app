@@ -69,7 +69,7 @@ export default function ClientPageEditor({ visible, page, onClose }) {
   const web = useRef(null), ready = useRef(false), timer = useRef(null);
   const isReg = page === 'reg', sh = pg.shared, own = isReg ? pg.reg : pg.book;
 
-  const refresh = useCallback(() => { try { setPg(getClientPages()); setPub(getPublishState()); } catch (e) { console.error(e); } }, []);
+  const refresh = useCallback(() => { try { setPg(getClientPages()); setPub(getPublishState(page)); } catch (e) { console.error(e); } }, [page]);
   useEffect(() => { if (visible) { refresh(); setStage(isReg ? 1 : 0); setTab('set'); try { setMenu(getMenuProducts()); } catch (_) {} } }, [visible, page]);
   const inject = useCallback(() => {
     if (!ready.current || !web.current) return;
@@ -92,7 +92,7 @@ export default function ClientPageEditor({ visible, page, onClose }) {
   };
   const doPublish = async () => {
     setBusy(true);
-    try { await publishClientPages(); toast.show('Страницы опубликованы', 'info'); } catch (e) { console.error(e); Alert.alert('Не опубликовано', e.message); }
+    try { await publishClientPages({ services: !isReg }); toast.show('Страницы опубликованы', 'info'); } catch (e) { console.error(e); Alert.alert('Не опубликовано', e.message); }
     refresh(); setBusy(false);
   };
   const toggleMenu = (p, on) => { try { setMenuVisible(p.id, on); setMenu(getMenuProducts()); refresh(); } catch (e) { console.error(e); } };

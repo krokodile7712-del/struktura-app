@@ -74,7 +74,7 @@ export async function syncServicesToSupabase(businessId, secret, products) {
     return true;
   } catch (e) {
     console.error('[Supabase] syncServices error:', e);
-    return false;
+    throw new Error(e && e.message ? e.message : 'ошибка облака');   // раньше возвращалось немое false — настоящая причина терялась
   }
 }
 

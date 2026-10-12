@@ -190,9 +190,11 @@ export async function syncBookingServices() {
   const secret = getOrCreateBookingSecret(), biz = await claimBusiness(slug, p.business_name, p.business_type, pageSettings(p), secret);
   if (!biz) throw new Error('Нет связи с облаком');
   const list = getBookingServices();
-  const ok = await syncServicesToSupabase(biz.id, secret, list.map(s => ({ name: s.name, price: s.price, category: 'Услуги', duration_min: s.duration, booking_description: s.description, active: 1, booking_visible: 1 })));
-  if (!ok) throw new Error('Не удалось обновить услуги на странице');
-  setSetting('bookingSyncedAt', new Date().toISOString());
+  if (!list.length && getSetting('servicesSyncedOnce') !== '1') return 0;      // услуг нет и раньше не отправляли — облако трогать незачем
+  try {
+    await syncServicesToSupabase(biz.id, secret, list.map(s => ({ name: s.name, price: s.price, category: 'Услуги', duration_min: s.duration, booking_description: s.description, active: 1, booking_visible: 1 })));
+  } catch (e) { throw new Error('Не удалось обновить услуги на странице: ' + e.message); }
+  setSetting('servicesSyncedOnce', '1'); setSetting('bookingSyncedAt', new Date().toISOString());
   return list.length;
 }
 
