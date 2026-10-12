@@ -1,55 +1,31 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, TouchableOpacity, Modal, TextInput, Share, Animated, LayoutAnimation, Platform, Alert, BackHandler, useWindowDimensions, Dimensions, Image } from 'react-native';
+import {View, Text, StyleSheet, ScrollView, Pressable, TouchableOpacity, Modal, TextInput, Animated, LayoutAnimation, Platform, Alert, useWindowDimensions} from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
+
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
 import TopBar from '../components/TopBar';
-import { wipeCloudBeforeReset } from '../db/loyaltySync';
+
 import LocationsSettings from '../components/LocationsSettings';
 import TourGuide from '../components/TourGuide';
-import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
-import { useResponsive } from '../hooks/useResponsive';
-import {
-  getAllProductsAdmin, insertProduct, setProductActive, localDateStr,
-  getDiscountEligibleProducts, getDiscountIneligibleProducts, setProductDiscountEligible,
-  getClientsWithDiscountCount, getClientsWithPersonalDiscount, getClientsWithoutDiscount, setClientDiscountPct,
-  getProductVariants, getProductAxesWithValues, saveProductAxesAndVariants,
-  getProductModifierGroups, setProductModifierGroups, getAllModifierGroups,
-  insertModifierGroup, updateModifierGroup, deleteModifierGroup,
-  insertModifierOption, updateModifierOption, deleteModifierOption,
-  getCostCardForVariant, saveCostCardForVariant,
-  getUsers, addUser, updateUser, deleteUser,
-  getUserPermissions, saveUserPermissions, DEFAULT_PERMISSIONS,
-  getDiscounts, setSetting, getSetting, getLoyaltyConfig, updateLoyaltyConfig,
-  getPayMethods, savePayMethods,
-  getZones, addZone, updateZone, deleteZone,
-  addZoneTable, updateZoneTable, deleteZoneTable, bulkAddZoneTables,
-  getPriceSchedules, addPriceSchedule, deletePriceSchedule, applyPendingPriceSchedules,
-  getAllStock, updateStockThreshold,
-  getUnlinkedCostCards,
-  getBusinessProfile, updateBusinessProfile, applyBusinessPreset, BUSINESS_PRESETS,
-  getTerms, getRoleNames, pluralizeRu, genitivePluralRu, genitiveSingularRu,
-  exportAllData, importAllData, BACKUP_TABLES_INFO, resetDatabase, resetAllTours, markTourSeen,
-} from '../db/queries';
-import { canConvert, conversionFactor } from '../constants/units';
-import { getDb } from '../db/database';
+import {useTourHighlight, useTourActiveKey} from '../components/TourRegistry';
+import {useResponsive} from '../hooks/useResponsive';
+import {getAllProductsAdmin, getDiscountEligibleProducts, getDiscountIneligibleProducts, setProductDiscountEligible, getClientsWithDiscountCount, getClientsWithPersonalDiscount, getClientsWithoutDiscount, setClientDiscountPct, getAllModifierGroups, getUsers, addUser, updateUser, deleteUser, getUserPermissions, saveUserPermissions, DEFAULT_PERMISSIONS, getDiscounts, setSetting, getLoyaltyConfig, updateLoyaltyConfig, getPayMethods, savePayMethods, getZones, addZone, updateZone, deleteZone, addZoneTable, deleteZoneTable, bulkAddZoneTables, getAllStock, getUnlinkedCostCards, getBusinessProfile, updateBusinessProfile, applyBusinessPreset, getTerms, getRoleNames, markTourSeen} from '../db/queries';
+
+import {getDb} from '../db/database';
 import Hint from '../components/Hint';
 import InfoTip from '../components/InfoTip';
 import Toggle from '../components/Toggle';
-import { can, getSession, setPermissions, setUserPermissions, clearSession, goBackSmart } from '../db/session';
-import { resetKassaCart } from '../db/cartStore';
+import {can, getSession, setUserPermissions, goBackSmart} from '../db/session';
+
 import EmptyState from '../components/EmptyState';
-import { colors, fonts, spacing } from '../constants/theme';
-import { useToast } from '../components/Toast';
-import { previewSalesReset, resetSalesAndClients } from '../db/dataReset';
+import {colors, fonts, spacing} from '../constants/theme';
+import {useToast} from '../components/Toast';
+import DataSection from '../components/settings/DataSection';
 import FitView from '../components/FitView';
 import PinConfirmModal from '../components/PinConfirmModal';
 import BackupPasswordModal from '../components/BackupPasswordModal';
-import { encryptBackup, decryptBackup, isEncryptedBackup } from '../db/backupCrypto';
-import { getAutoLockMinutes, setAutoLockMinutes, AUTO_LOCK_OPTIONS } from '../db/queries';
+
 import KeyboardSafe from '../components/KeyboardSafe';
 
 // SectionAccordion — в 2-колоночном layout просто передаёт children
@@ -150,7 +126,6 @@ function SectionAccordion({ sectionKey, selectedSection, children }) {
   return <View style={{ flex: 1 }}>{children}</View>;
 }
 
-
 // LayoutAnimation работает автоматически в New Architecture
 
 export default function SettingsScreen({ navigation, route }) {
@@ -207,8 +182,6 @@ export default function SettingsScreen({ navigation, route }) {
   const [receiptPreview, setReceiptPreview] = useState(false);
   const [empModal, setEmpModal]         = useState(null);
   const [pinAsk, setPinAsk]             = useState(null); // подтверждение PIN администратора перед опасным действием
-  const [backupAsk, setBackupAsk]       = useState(null); // пароль копии: {mode:'set', purpose:'save'|'share'} или {mode:'enter', file}
-  const [autoLockMin, setAutoLockMin]   = useState(() => getAutoLockMinutes());
   const isAdminUser = getSession()?.role === 'admin';    // управлять сотрудниками и опасными действиями — только администратор
   const [showPin, setShowPin]           = useState(false);
   const [roleNames, setRoleNames]       = useState({ admin: 'Администратор', barista: 'Сотрудник' });
@@ -399,7 +372,6 @@ export default function SettingsScreen({ navigation, route }) {
     }
   };
 
-
   // Открываем редактор профиля при переходе в секцию
   React.useEffect(() => {
     if (selectedSection === 'business' && profile) {
@@ -505,159 +477,10 @@ export default function SettingsScreen({ navigation, route }) {
     try { setProfile(getBusinessProfile()); } catch(e) {}
   };
 
-  // Копия всегда защищена паролем: см. startBackup. Сюда приходит уже готовый
-  // зашифрованный текст файла.
-  const handleExportSave = async (json) => {
-    try {
-      const fileName = `struktura-backup-${localDateStr()}.json`;
-
-      if (Platform.OS === 'android') {
-        const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-        if (!permissions.granted) return;
-        const fileUri = await FileSystem.StorageAccessFramework.createFileAsync(permissions.directoryUri, fileName, 'application/json');
-        await FileSystem.writeAsStringAsync(fileUri, json, { encoding: FileSystem.EncodingType.UTF8 });
-        toast.show('Резервная копия сохранена ✓', 'info');
-      } else {
-        // На iOS нет прямого доступа к файловой системе устройства — сохраняем
-        // во временный файл приложения и открываем системный диалог «Сохранить
-        // в Файлы», через который человек уже сам решает, куда именно положить
-        const fileUri = FileSystem.documentDirectory + fileName;
-        await FileSystem.writeAsStringAsync(fileUri, json, { encoding: FileSystem.EncodingType.UTF8 });
-        if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(fileUri, { mimeType: 'application/json', dialogTitle: 'Сохранить резервную копию' });
-        } else {
-          toast.show('Не удалось открыть диалог сохранения', 'warn');
-        }
-      }
-    } catch (e) {
-      console.error('[handleExportSave]', e);
-      toast.show('Не удалось сохранить копию: ' + (e?.message || ''), 'warn');
-    }
-  };
-
-  const handleExportShare = async (json) => {
-    try {
-      const fileName = `struktura-backup-${localDateStr()}.json`;
-      // Раньше здесь был Share.share({ message: json }) — это отправляло
-      // сырой текст JSON через системное меню «Поделиться», а не файл.
-      // При попытке поделиться через мессенджер или почту получалась
-      // нечитаемая простыня текста, а не файл, который можно восстановить.
-      // Теперь — настоящий файл на диске, которым делится expo-sharing.
-      const fileUri = FileSystem.documentDirectory + fileName;
-      await FileSystem.writeAsStringAsync(fileUri, json, { encoding: FileSystem.EncodingType.UTF8 });
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(fileUri, { mimeType: 'application/json', dialogTitle: 'Резервная копия СТРУКТУРА' });
-      } else {
-        toast.show('На этом устройстве не поддерживается', 'warn');
-      }
-    } catch (e) { console.error(e); toast.show('Не удалось создать копию', 'warn'); }
-  };
-
-  // Копия: только администратор, сначала его PIN, затем пароль, которым защищается файл.
-  // Без пароля копию не сохраняем и не отправляем — в ней все данные бизнеса.
-  const startBackup = (purpose) => {
-    askAdminPin(
-      'Резервная копия',
-      'Введите ваш PIN-код администратора. Затем вы зададите пароль, которым будет защищён файл.',
-      () => setBackupAsk({ mode: 'set', purpose })
-    );
-  };
-
-  const submitBackupPassword = async (password) => {
-    const res = encryptBackup(exportAllData(), password);
-    if (!res.ok) return res;
-    const json = JSON.stringify(res.file);
-    const purpose = backupAsk?.purpose;
-    setBackupAsk(null);
-    if (purpose === 'share') await handleExportShare(json);
-    else await handleExportSave(json);
-    return { ok: true };
-  };
-
-  const submitRestorePassword = async (password) => {
-    const res = decryptBackup(backupAsk?.file, password);
-    if (!res.ok) return res;
-    setBackupAsk(null);
-    confirmRestore(res.data, true);
-    return { ok: true };
-  };
-
   // Опасное действие: только администратор и только после ввода его PIN
   const askAdminPin = (title, message, action) => {
     if (getSession()?.role !== 'admin') { toast.show('Это действие доступно только администратору', 'warn'); return; }
     setPinAsk({ title, message, action });
-  };
-
-  const chooseAutoLock = (minutes) => {
-    const res = setAutoLockMinutes(minutes);
-    if (!res?.ok) { toast.show(res?.error || 'Не удалось сохранить', 'warn'); return; }
-    setAutoLockMin(minutes);
-  };
-
-  // ── Импорт / восстановление из бэкапа ──
-  const [importing, setImporting] = useState(false);
-
-  const doImport = (data) => {
-    setImporting(true);
-    try {
-      const res = importAllData(data);
-      setImporting(false);
-      if (!res.ok) {
-        Alert.alert('Ошибка', res.error || 'Не удалось восстановить данные');
-        return;
-      }
-      let msg = `Восстановлено разделов: ${res.restored.length} из ${BACKUP_TABLES_INFO.length}.`;
-      if (res.skipped.length > 0) {
-        msg += `\n\nПропущено (отсутствовали в файле):\n${res.skipped.map(l => '• ' + l).join('\n')}`;
-      }
-      Alert.alert('Восстановление завершено', msg, [
-        { text: 'Ок', onPress: () => { resetKassaCart(); clearSession(); navigation.navigate('Login'); } },
-      ]);
-    } catch (e) {
-      setImporting(false);
-      console.error('[doImport]', e);
-      toast.show('Ошибка восстановления: ' + (e?.message || ''), 'warn');
-    }
-  };
-
-  // Подтверждение восстановления; дальше — PIN администратора и сама замена данных
-  const confirmRestore = (data, protectedFile) => {
-    const list = BACKUP_TABLES_INFO.map(t => '• ' + t.label).join('\n');
-    Alert.alert(
-      'Восстановить из резервной копии?',
-      `Это ПОЛНОСТЬЮ заменит все текущие данные приложения на данные из файла:\n\n${list}\n\nОтменить это действие нельзя.` +
-        (protectedFile ? '' : '\n\n⚠ Файл не защищён паролем — он создан старой версией приложения. После восстановления сохраните новую копию: она будет защищена паролем.') +
-        '\n\nПродолжить?',
-      [
-        { text: 'Отмена', style: 'cancel' },
-        { text: 'Восстановить', style: 'destructive', onPress: () => askAdminPin('Восстановить из копии', 'Введите ваш PIN-код администратора, чтобы заменить все данные файлом.', () => doImport(data)) },
-      ]
-    );
-  };
-
-  const handleImport = async () => {
-    if (getSession()?.role !== 'admin') { toast.show('Это действие доступно только администратору', 'warn'); return; }
-    try {
-      const result = await DocumentPicker.getDocumentAsync({ type: 'application/json', copyToCacheDirectory: true });
-      if (result.canceled) return;
-      const file = result.assets?.[0];
-      if (!file) return;
-      setImporting(true);
-      const response = await fetch(file.uri);
-      const content = await response.text();
-      let data;
-      try { data = JSON.parse(content); }
-      catch (_) { throw new Error('Файл повреждён или это не резервная копия (не JSON)'); }
-      setImporting(false);
-
-      // Копия, защищённая паролем, — сначала пароль. Старая (открытым текстом) — с предупреждением.
-      if (isEncryptedBackup(data)) { setBackupAsk({ mode: 'enter', file: data }); return; }
-      confirmRestore(data, false);
-    } catch (e) {
-      setImporting(false);
-      console.error('[handleImport]', e);
-      toast.show('Не удалось прочитать файл: ' + (e?.message || 'ошибка'), 'warn');
-    }
   };
 
   const categories = [...new Set(products.map(p => p.category))];
@@ -1083,7 +906,6 @@ export default function SettingsScreen({ navigation, route }) {
             })}
           </View>
         )}
-
 
         {/* Зоны (если включены) */}
         {modules.zones === true && zones.length > 0 && (
@@ -1519,7 +1341,6 @@ export default function SettingsScreen({ navigation, route }) {
             </View>}
           </View>
 
-
           {/* КАССА И ЧЕК */}
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Text style={styles.bizGroupLabel}>Касса и чек</Text>
@@ -1851,237 +1672,7 @@ export default function SettingsScreen({ navigation, route }) {
         </SectionAccordion>
 
         <SectionAccordion sectionKey="system" selectedSection={selectedSection}>
-
-          {/* Настройка */}
-          <Text style={styles.bizGroupLabel}>Настройка</Text>
-          <View style={styles.menuCard}>
-            <Pressable
-              style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
-              onPress={() => {
-                const list = BACKUP_TABLES_INFO.map(t => '• ' + t.label).join('\n');
-                Alert.alert(
-                  'Начать заново с чистого листа?',
-                  `Это ПОЛНОСТЬЮ удалит абсолютно все данные приложения без возможности восстановить — включая вашу учётную запись:\n\n${list}\n\nЕсли данные ещё понадобятся — сначала сделайте резервную копию (Настройки → Резервная копия) и только потом продолжайте. Отменить это действие нельзя. Продолжить?`,
-                  [
-                    { text: 'Отмена', style: 'cancel' },
-                    {
-                      text: 'Стереть всё и начать заново', style: 'destructive',
-                      onPress: () => askAdminPin('Стереть всё и начать заново', 'Введите ваш PIN-код администратора, чтобы подтвердить удаление всех данных.', async () => {
-                        try {
-                          // Сначала облако — код и секрет бизнеса нужны, чтобы до него достучаться,
-                          // а после сброса локальной базы их уже не будет. Не критично, если не выйдет
-                          // (нет связи, облако не подключалось) — предупредим и всё равно сотрём локально.
-                          const cloudRes = await wipeCloudBeforeReset();
-                          const res = resetDatabase(true); // true — стереть и сотрудников тоже
-                          resetKassaCart();
-                          clearSession();
-                          if (res && res.ok === false) {
-                            console.error('[Начать заново] Не все таблицы удалились:', res.errors);
-                          }
-                          if (cloudRes && cloudRes.ok === false) {
-                            toast.show('Локальные данные стёрты. Не удалось очистить облако (записи, QR-регистрации) — проверьте связь и повторите позже вручную.', 'warn');
-                          }
-                          setTimeout(() => {
-                            try {
-                              navigation.reset({ index: 0, routes: [{ name: 'Onboarding' }] });
-                            } catch (navErr) {
-                              console.error('[Начать заново] Ошибка перехода на Onboarding:', navErr);
-                              toast.show('Данные стёрты, но не удалось открыть регистрацию — перезапустите приложение', 'warn');
-                            }
-                          }, 50);
-                        } catch (e) {
-                          console.error('[Регистрация бизнеса] ошибка запуска:', e);
-                          toast.show('Не удалось начать заново: ' + (e?.message || 'ошибка'), 'warn');
-                        }
-                      }),
-                    },
-                  ]
-                );
-              }}
-            >
-              <Text style={{ fontSize: 20, marginRight: 12 }}>🚀</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.menuItemName}>Начать заново</Text>
-                <Text style={styles.menuItemSub}>Полностью сотрёт текущие данные и запустит регистрацию нового бизнеса</Text>
-              </View>
-              <Text style={styles.menuItemArrow}>›</Text>
-            </Pressable>
-
-            <Pressable
-              style={({ pressed }) => [styles.menuRow, styles.menuRowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
-              onPress={() => {
-                Alert.alert('Сменить аккаунт?', 'Вы выйдете из текущего аккаунта и вернётесь на экран входа.', [
-                  { text: 'Отмена', style: 'cancel' },
-                  { text: 'Выйти', style: 'destructive', onPress: () => { resetKassaCart(); clearSession(); navigation.navigate('Login'); } },
-                ]);
-              }}
-            >
-              <Text style={{ fontSize: 20, marginRight: 12 }}>🔑</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.menuItemName}>Сменить аккаунт</Text>
-                <Text style={styles.menuItemSub}>Выйти и войти под другим PIN</Text>
-              </View>
-              <Text style={styles.menuItemArrow}>›</Text>
-            </Pressable>
-
-            <Pressable
-              style={({ pressed }) => [styles.menuRow, styles.menuRowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
-              onPress={() => {
-                Alert.alert('Показать подсказки заново?', 'На каждом разделе при следующем заходе снова автоматически откроется вводный тур, а на Обзоре вернётся карточка «Что дальше» — как будто заходите в первый раз. Ничего из данных при этом не сотрётся.', [
-                  { text: 'Отмена', style: 'cancel' },
-                  { text: 'Показать заново', onPress: () => {
-                    resetAllTours();
-                    setSetting('next_steps_dismissed', '0');
-                    setSetting('next_steps_collapsed', '0');
-                    toast.show('Готово — подсказки покажутся заново');
-                  } },
-                ]);
-              }}
-            >
-              <Text style={{ fontSize: 20, marginRight: 12 }}>💡</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.menuItemName}>Показать подсказки заново</Text>
-                <Text style={styles.menuItemSub}>Вводные туры и карточка «Что дальше» на Обзоре — как в первый раз</Text>
-              </View>
-              <Text style={styles.menuItemArrow}>›</Text>
-            </Pressable>
-          </View>
-
-
-
-          {/* Безопасность */}
-          <Text style={styles.bizGroupLabel}>Безопасность</Text>
-          <View style={styles.menuCard}>
-            <View style={styles.menuRow}>
-              <Text style={{ fontSize: 20, marginRight: 12 }}>🔒</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.menuItemName}>Автоблокировка</Text>
-                <Text style={styles.menuItemSub}>
-                  Возврат на экран входа, если никто не касался экрана, и при уходе из приложения больше чем на минуту
-                </Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
-                  {AUTO_LOCK_OPTIONS.map(m => (
-                    <Pressable
-                      key={m}
-                      style={[styles.typeChip, autoLockMin === m && styles.typeChipActive]}
-                      onPress={() => chooseAutoLock(m)}
-                    >
-                      <Text style={[styles.typeChipTxt, autoLockMin === m && styles.typeChipTxtActive]}>
-                        {m === 0 ? 'Выкл' : `${m} мин`}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-            </View>
-          </View>
-
-          {/* Данные */}
-          <Text style={styles.bizGroupLabel}>Данные</Text>
-          <View style={styles.menuCard}>
-            <Pressable
-              style={({ pressed }) => [styles.menuRow, styles.menuRowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
-              onPress={() => startBackup('save')}
-            >
-              <Text style={{ fontSize: 20, marginRight: 12 }}>💾</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.menuItemName}>Сохранить резервную копию</Text>
-                <Text style={styles.menuItemSub}>Файл защищается паролем. Выберите папку на устройстве — товары, клиенты, продажи, настройки</Text>
-              </View>
-              <Text style={styles.menuItemArrow}>›</Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [styles.menuRow, styles.menuRowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
-              onPress={() => startBackup('share')}
-            >
-              <Text style={{ fontSize: 20, marginRight: 12 }}>📤</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.menuItemName}>Поделиться копией</Text>
-                <Text style={styles.menuItemSub}>Отправить в мессенджер или облако вместо сохранения на устройство</Text>
-              </View>
-              <Text style={styles.menuItemArrow}>›</Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [styles.menuRow, styles.menuRowDiv, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]}
-              onPress={handleImport}
-              disabled={importing}
-            >
-              <Text style={{ fontSize: 20, marginRight: 12 }}>📥</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.menuItemName}>Восстановить из резервной копии</Text>
-                <Text style={styles.menuItemSub}>{importing ? 'Восстановление...' : 'Заменит все текущие данные файлом бэкапа'}</Text>
-              </View>
-              <Text style={styles.menuItemArrow}>›</Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: 'rgba(219,129,120,0.04)' }]}
-              onPress={() => {
-                const pv = previewSalesReset(getDb());
-                const list = pv.rows.map(r => `• ${r.label}: ${r.count}`).join('\n') || '• данных нет';
-                Alert.alert(
-                  'Сбросить продажи и клиентов?',
-                  `Будет удалено:\n\n${list}\n\nОстатки склада обнулятся. Товары, техкарты, сотрудники, склады и настройки останутся.\n\nЭто нельзя отменить — сначала сохраните резервную копию.`,
-                  [
-                    { text: 'Отмена', style: 'cancel' },
-                    { text: 'Сохранить копию', onPress: () => handleExportSave() },
-                    { text: 'Сбросить', style: 'destructive', onPress: () => askAdminPin('Сбросить продажи и клиентов', 'Введите ваш PIN-код администратора, чтобы подтвердить сброс.', () => {
-                      const res = resetSalesAndClients(getDb());
-                      if (!res.ok) { Alert.alert('Не выполнено', res.error); return; }
-                      loadAll();
-                      toast.show(`Сброшено: ${res.deleted} записей ✓`, 'info');
-                    }) },
-                  ]
-                );
-              }}
-            >
-              <Text style={{ fontSize: 20, marginRight: 12 }}>🗑</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.menuItemName, { color: colors.red }]}>Сбросить продажи и клиентов</Text>
-                <Text style={styles.menuItemSub}>Начать статистику заново — товары и настройки останутся как есть</Text>
-              </View>
-              <Text style={styles.menuItemArrow}>›</Text>
-            </Pressable>
-          </View>
-
-          {/* Уведомления */}
-          <Text style={styles.bizGroupLabel}>Уведомления</Text>
-          <View style={styles.menuCard}>
-            <Pressable
-              style={[styles.menuRow]}
-              onPress={() => setSetting('notify_low_stock', getSetting('notify_low_stock') === '1' ? '0' : '1')}
-            >
-                            <View style={{ flex: 1 }}>
-                <Text style={styles.menuItemName}>Низкий остаток на складе</Text>
-                <Text style={styles.menuItemSub}>Предупреждение ⚠️ когда товар заканчивается</Text>
-              </View>
-              <Toggle
-                value={getSetting('notify_low_stock') !== '0'}
-                onValueChange={v => setSetting('notify_low_stock', v ? '1' : '0')}
-                size="sm"
-              />
-            </Pressable>
-          </View>
-
-          {/* О приложении */}
-          <Text style={styles.bizGroupLabel}>О приложении</Text>
-          <View style={styles.menuCard}>
-            <View style={[styles.menuRow, styles.menuRowDiv]}>
-              <Text style={{ fontSize: 20, marginRight: 12 }}>📱</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.menuItemName}>СТРУКТУРА</Text>
-                <Text style={styles.menuItemSub}>Версия 1.0.0 · POS/CRM для малого бизнеса</Text>
-              </View>
-            </View>
-            <View style={styles.menuRow}>
-              <Text style={{ fontSize: 20, marginRight: 12 }}>🆘</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.menuItemName}>Поддержка</Text>
-                <Text style={styles.menuItemSub}>По вопросам: написать в Telegram</Text>
-              </View>
-              <Text style={styles.menuItemArrow}>›</Text>
-            </View>
-          </View>
-
+          <DataSection navigation={navigation} onChanged={loadAll} />
         </SectionAccordion>
       </ScrollView>
     </>
@@ -2097,9 +1688,6 @@ export default function SettingsScreen({ navigation, route }) {
       </View>
     </View>
   );
-
-
-
 
   return (
     <View style={{ flex: 1 }}>
@@ -2164,7 +1752,6 @@ export default function SettingsScreen({ navigation, route }) {
         )}
 
       </View>
-
 
       <Modal visible={!!zoneModal} transparent animationType="fade" onRequestClose={() => setZoneModal(null)}>
         <KeyboardSafe style={styles.modalRoot}>
@@ -2460,18 +2047,6 @@ export default function SettingsScreen({ navigation, route }) {
           )}
         </KeyboardSafe>
       </Modal>
-
-
-      <BackupPasswordModal
-        visible={!!backupAsk}
-        mode={backupAsk?.mode || 'set'}
-        title={backupAsk?.mode === 'enter' ? 'Пароль копии' : 'Защитите копию паролем'}
-        message={backupAsk?.mode === 'enter'
-          ? 'Эта копия защищена паролем. Введите пароль, который вы задавали при сохранении.'
-          : 'В копии все данные вашего бизнеса. Без пароля её не откроет никто, включая вас.'}
-        onSubmit={backupAsk?.mode === 'enter' ? submitRestorePassword : submitBackupPassword}
-        onCancel={() => setBackupAsk(null)}
-      />
 
       <PinConfirmModal
         visible={!!pinAsk}
@@ -2807,7 +2382,6 @@ export default function SettingsScreen({ navigation, route }) {
                   </ScrollView>
                 </View>
 
-
               </View>
             </FitView>
           )}
@@ -2857,7 +2431,6 @@ export default function SettingsScreen({ navigation, route }) {
           )}
         </View>
       </Modal>
-
 
       {/* Модалка «Позиции для записи» */}
 
