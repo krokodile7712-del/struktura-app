@@ -165,6 +165,40 @@ begin
   return v_n;
 end $$;
 
+-- ── 4a. Обновление списка услуг для записи (замена прежней функции) ───
+-- Прежняя функция удаляла услуги, которых нет в новом списке, и падала с «violates foreign key constraint bookings_service_id_fkey»,
+-- если на услугу уже была запись. Теперь: услуги из списка добавляются или обновляются по названию, а исчезнувшие из списка
+-- ТОЛЬКО скрываются (active = false), никогда не удаляются — записи и их история остаются целыми. Ручные позиции (source <> 'menu') не трогаются.
+alter table public.services add column if not exists source text not null default 'menu';
+drop function if exists public.sync_menu_services_secure(public.businesses.id%type, text, jsonb);
+create or replace function public.sync_menu_services_secure(p_business_id public.businesses.id%type, p_secret text, p_rows jsonb)
+returns int language plpgsql security definer set search_path = public as $$
+declare v_n int := 0;
+begin
+  if not public.loyalty_secret_ok(p_business_id, p_secret) then raise exception 'forbidden'; end if;
+  if p_rows is null or jsonb_typeof(p_rows) <> 'array' or jsonb_array_length(p_rows) > 500 then raise exception 'bad_rows'; end if;
+
+  create temporary table if not exists _svc_in (name text, price numeric, category text, duration_min int, description text, active boolean) on commit drop;
+  truncate _svc_in;
+  insert into _svc_in
+  select distinct on (lower(btrim(x.name))) btrim(x.name), coalesce(x.price, 0), coalesce(x.category, ''), greatest(5, least(coalesce(x.duration_min, 60), 600)), nullif(btrim(coalesce(x.description, '')), ''), coalesce(x.active, true)
+  from jsonb_to_recordset(p_rows) as x(name text, price numeric, category text, duration_min int, description text, active boolean)
+  where btrim(coalesce(x.name, '')) <> '' order by lower(btrim(x.name));
+
+  update public.services s set price = i.price, category = i.category, duration_min = i.duration_min, description = i.description, active = i.active
+  from _svc_in i where s.business_id = p_business_id and s.source = 'menu' and lower(s.name) = lower(i.name);
+
+  insert into public.services (business_id, name, price, category, duration_min, description, active, source)
+  select p_business_id, i.name, i.price, i.category, i.duration_min, i.description, i.active, 'menu' from _svc_in i
+  where not exists (select 1 from public.services s where s.business_id = p_business_id and s.source = 'menu' and lower(s.name) = lower(i.name));
+
+  update public.services s set active = false
+  where s.business_id = p_business_id and s.source = 'menu' and s.active is true and not exists (select 1 from _svc_in i where lower(i.name) = lower(s.name));
+
+  select count(*) into v_n from _svc_in;
+  return v_n;
+end $$;
+
 -- ── 5. Публичное: для страниц ──────────────────────────────────────────
 create or replace function public.get_client_page(p_slug text)
 returns jsonb language sql stable security definer set search_path = public as $$
@@ -256,6 +290,7 @@ end $$;
 -- ── 6. Права ───────────────────────────────────────────────────────────
 revoke all on function public.publish_client_pages_secure(public.businesses.id%type, text, jsonb) from public;
 revoke all on function public.set_loyalty_config_secure(public.businesses.id%type, text, boolean, numeric, int) from public;
+revoke all on function public.sync_menu_services_secure(public.businesses.id%type, text, jsonb) from public;
 revoke all on function public.sync_busy_slots_secure(public.businesses.id%type, text, date, date, jsonb) from public;
 revoke all on function public.get_client_page(text) from public;
 revoke all on function public.get_booking_page(text) from public;
@@ -264,6 +299,7 @@ revoke all on function public.create_booking_public(text, text, text, text, text
 revoke all on function public.bookings_overlap_guard() from public, anon, authenticated;
 grant execute on function public.publish_client_pages_secure(public.businesses.id%type, text, jsonb)        to anon, authenticated;
 grant execute on function public.set_loyalty_config_secure(public.businesses.id%type, text, boolean, numeric, int) to anon, authenticated;
+grant execute on function public.sync_menu_services_secure(public.businesses.id%type, text, jsonb) to anon, authenticated;
 grant execute on function public.sync_busy_slots_secure(public.businesses.id%type, text, date, date, jsonb) to anon, authenticated;
 grant execute on function public.get_client_page(text)                                                       to anon, authenticated;
 grant execute on function public.get_booking_page(text)                                                      to anon, authenticated;

@@ -99,3 +99,32 @@ select enabled,bonus,valid_days from loyalty_config where business_id=1;
 select public.register_loyalty_signup('salon','Анна','+7 (912) 345-67-89',true,false,'v1','') as при_выключенной;
 select public.set_loyalty_config_secure(1,'0123456789abcdef0123',true,500,30);
 select public.register_loyalty_signup('salon','Анна','+7 (912) 345-67-89',true,false,'v1','') as при_включённой;
+
+-- ── Обновление услуг: записи на услугу не мешают (раньше падало на внешнем ключе bookings_service_id_fkey) ──
+\pset tuples_only on
+-- как в вашем Supabase: запись ссылается на услугу внешним ключом
+alter table bookings drop constraint if exists bookings_service_id_fkey;
+alter table bookings add constraint bookings_service_id_fkey foreign key (service_id) references services(id);
+alter table services add column if not exists source text not null default 'menu';
+truncate bookings; delete from services;
+insert into services (business_id,name,price,category,duration_min,active,source) values (1,'Стрижка',1500,'Услуги',60,true,'menu'),(1,'Старая услуга',999,'Услуги',60,true,'menu'),(1,'Ручная позиция',100,'',30,true,'custom');
+insert into bookings (business_id,service_id,client_name,date,time_start) select 1,id,'Клиент',current_date+3,'12:00' from services where name='Старая услуга';
+\echo === 1. неверный секрет
+select public.sync_menu_services_secure(1,'bad-secret-bad-secret-1','[]'::jsonb);
+\echo === 2. список без «Старая услуга» (на неё есть запись): раньше падало на внешнем ключе
+select public.sync_menu_services_secure(1,'0123456789abcdef0123','[{"name":"Стрижка","price":1700,"category":"Услуги","duration_min":75,"description":"Мужская","active":true},{"name":"Маникюр","price":2000,"duration_min":60,"active":true}]'::jsonb) as принято;
+select name, price, duration_min, active, source from services where business_id=1 order by name;
+\echo === 3. запись осталась целой
+select count(*) as записей, (select name from services where id=b.service_id) as услуга from bookings b group by 2;
+\echo === 4. услуга вернулась в список — снова активна
+select public.sync_menu_services_secure(1,'0123456789abcdef0123','[{"name":"старая услуга","price":999,"duration_min":60,"active":true}]'::jsonb);
+select name, active from services where business_id=1 and source='menu' order by name;
+\echo === 5. повторная синхронизация не плодит дубли; пустой список скрывает всё
+select public.sync_menu_services_secure(1,'0123456789abcdef0123','[{"name":"Маникюр","price":2100,"active":true},{"name":"Маникюр","price":2200,"active":true}]'::jsonb);
+select count(*) as маникюров, max(price) as цена from services where lower(name)='маникюр';
+select public.sync_menu_services_secure(1,'0123456789abcdef0123','[]'::jsonb);
+select count(*) as активных_menu from services where source='menu' and active;
+select active as ручная_осталась_активной from services where source='custom';
+\echo === 6. страница записи видит только активные
+select public.sync_menu_services_secure(1,'0123456789abcdef0123','[{"name":"Стрижка","price":1500,"duration_min":60,"active":true}]'::jsonb);
+select jsonb_array_length(public.get_booking_page('salon')->'services') as видно_на_странице;
