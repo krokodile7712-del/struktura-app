@@ -13,8 +13,8 @@
     "@react-navigation/native-stack": "^7.17.7",
     "@supabase/supabase-js": "^2.110.8",
     "expo": "~56.0.11",
-    "expo-blur": "~56.0.3",
-    "expo-build-properties": "~56.0.22",
+    "expo-blur": "~56.0.4",
+    "expo-build-properties": "~56.0.27",
     "expo-clipboard": "~56.0.4",
     "expo-crypto": "~56.0.4",
     "expo-document-picker": "~56.0.4",
@@ -24,13 +24,13 @@
     "expo-linear-gradient": "~56.0.4",
     "expo-sensors": "~56.0.6",
     "expo-sharing": "~56.0.4",
-    "expo-sqlite": "~56.0.5",
+    "expo-sqlite": "~56.0.6",
     "expo-status-bar": "~56.0.4",
     "react": "19.2.3",
     "react-native": "0.85.3",
     "react-native-gesture-handler": "~2.31.1",
     "react-native-safe-area-context": "~5.7.0",
-    "react-native-screens": "4.25.2",
+    "react-native-screens": "~4.26.0",
     "react-native-svg": "15.15.4",
     "react-native-url-polyfill": "^4.0.0",
     "react-native-webview": "13.16.1"
@@ -42,7 +42,8 @@
     "web": "expo start --web",
     "release": "node tools/bump-version.js",
     "build:first": "eas build --platform android --profile production",
-    "build:android": "node tools/bump-version.js && eas build --platform android --profile production"
+    "build:android": "node tools/bump-version.js && eas build --platform android --profile production",
+    "build:apk": "eas build --platform android --profile preview"
   },
   "private": true
 }

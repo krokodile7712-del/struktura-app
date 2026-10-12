@@ -20,7 +20,7 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "versionCode": 1000000
+      "versionCode": 1000001
     },
     "plugins": [
       [
@@ -41,7 +41,7 @@
       "eas": {
         "projectId": "98b2278e-5696-4eed-b073-384f3a5ecb8a"
       },
-      "rebuild": 0
+      "rebuild": 1
     }
   }
 }
