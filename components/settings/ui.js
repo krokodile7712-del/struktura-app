@@ -44,6 +44,7 @@ export function Row({ title, sub, value, onPress, chevron, right, danger, disabl
 }
 
 export const SwitchRow = ({ title, sub, value, onChange }) => <Row title={title} sub={sub} right={<Toggle value={!!value} onValueChange={onChange} />} />;
+SwitchRow.Toggle = ({ value, onChange }) => <Toggle value={!!value} onValueChange={onChange} />;
 
 // Выбор из нескольких значений чипами (внутри строки)
 export function ChipsRow({ title, sub, items, value, onChange }) {
@@ -107,6 +108,14 @@ export function ChoiceCards({ items, value, onChange }) {
   );
 }
 
+// Строка выбора одного варианта: название, пояснение, отметка справа у выбранного
+export const PickRow = ({ title, sub, selected, onPress, right }) => <Row title={title} sub={sub} onPress={onPress} chevron={false} right={<>{right}{selected ? <View style={st.pk}><Icon name="check" size={14} color="#0A121C" /></View> : <View style={st.pkOff} />}</>} />;
+
+// Строка с полем ввода: название слева, текст справа
+export function InputRow({ title, value, onChange, placeholder, keyboardType }) {
+  return <View style={st.row}><Text style={st.irT}>{title}</Text><TextInput style={st.ir} color={colors.text} value={value == null ? '' : String(value)} onChangeText={onChange} placeholder={placeholder} placeholderTextColor="rgba(255,255,255,0.25)" keyboardType={keyboardType} autoCapitalize="none" /></View>;
+}
+
 export const Note = ({ children, warn }) => <Text style={[st.note, warn && { color: colors.warning }]}>{children}</Text>;
 
 export const st = StyleSheet.create({
@@ -125,5 +134,7 @@ export const st = StyleSheet.create({
   cc: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' }, card: { flex: 1, minWidth: 180, borderRadius: 20, padding: 16, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' }, cardOn: { backgroundColor: 'rgba(127,168,217,0.14)', borderColor: 'rgba(157,191,230,0.65)' },
   cardIc: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.07)', marginBottom: 10 }, cardIcOn: { backgroundColor: colors.orangeLight },
   cardT: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.text }, cardD: { fontFamily: fonts.familyRegular, fontSize: 12.5, color: colors.muted, marginTop: 4, lineHeight: 18 }, cardH: { fontFamily: fonts.familySemibold, fontSize: 11.5, color: colors.orangeLight, marginTop: 8 },
+  pk: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.orangeLight, marginLeft: 12 }, pkOff: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.25)', marginLeft: 12 },
+  irT: { width: 160, fontFamily: fonts.familySemibold, fontSize: 15.5, color: colors.text }, ir: { flex: 1, textAlign: 'right', padding: 0, fontFamily: fonts.familySemibold, fontSize: 15.5, color: colors.text },
   note: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, lineHeight: 19, marginHorizontal: 8, marginTop: 8 },
 });
