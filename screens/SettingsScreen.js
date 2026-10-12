@@ -33,6 +33,8 @@ import ModulesSection from '../components/settings/ModulesSection';
 import ReceiptSection from '../components/settings/ReceiptSection';
 import ViewSection from '../components/settings/ViewSection';
 import ReceiptPreview from '../components/settings/ReceiptPreview';
+import FiscalQueueSheet from '../components/FiscalQueueSheet';
+import { getFiscalSummary } from '../db/fiscal';
 import DiscountsSection from '../components/settings/DiscountsSection';
 import {NAV_GROUPS, PAGE_INFO, OLD_TO_PAGE, pageFromParam, searchSettings, plural} from '../components/settings/nav';
 import FitView from '../components/FitView';
@@ -75,6 +77,7 @@ export default function SettingsScreen({ navigation, route }) {
   const isPhone = SW < 600;
   const [page, setPage] = useState(() => pageFromParam(route?.params?.section || 'prof'));
   const selectedSection = page ? PAGE_INFO[page].section : null;   // раздел содержимого; части внутри него показывает Part
+  const [fiscalOpen, setFiscalOpen] = useState(false);             // окно очереди чеков
   const [q, setQ] = useState('');                                    // поиск по настройкам
   const [saved, setSaved] = useState(false); const savedT = useRef(null);
   const flashSaved = () => { setSaved(true); clearTimeout(savedT.current); savedT.current = setTimeout(() => setSaved(false), 1800); };
@@ -373,7 +376,7 @@ export default function SettingsScreen({ navigation, route }) {
             <>
               <Part page={page} id="prof"><ProfileSection draft={bizDraft} setDraft={setBizDraft} navigation={navigation} /></Part>
               <Part page={page} id="mods"><ModulesSection draft={bizDraft} setDraft={setBizDraft} onChoosePreset={choosePreset} /></Part>
-              <Part page={page} id="rcpt"><ReceiptSection draft={bizDraft} setDraft={setBizDraft} onPreview={() => setReceiptPreview(true)} /></Part>
+              <Part page={page} id="rcpt"><ReceiptSection draft={bizDraft} setDraft={setBizDraft} onPreview={() => setReceiptPreview(true)} onOpenQueue={() => setFiscalOpen(true)} queueCount={(() => { try { const x = getFiscalSummary(); return x.pending + x.error; } catch (_) { return 0; } })()} /></Part>
               <Part page={page} id="view"><ViewSection draft={bizDraft} setDraft={setBizDraft} /></Part>
             </>
           ) : (
@@ -495,6 +498,7 @@ export default function SettingsScreen({ navigation, route }) {
 
       {/* QR Модалка */}
       {/* Модалка «Предпросмотр чека» */}
+      <FiscalQueueSheet visible={fiscalOpen} onClose={() => setFiscalOpen(false)} />
       <ReceiptPreview visible={receiptPreview} onClose={() => setReceiptPreview(false)} draft={bizDraft} />
 
       {/* Модалка «Позиции для записи» */}

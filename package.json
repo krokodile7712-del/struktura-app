@@ -40,7 +40,9 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "bump": "node tools/bump-version.js"
+    "release": "node tools/bump-version.js",
+    "build:first": "eas build --platform android --profile production",
+    "build:android": "node tools/bump-version.js && eas build --platform android --profile production"
   },
   "private": true
 }

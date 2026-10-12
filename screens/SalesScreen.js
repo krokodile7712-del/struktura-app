@@ -13,12 +13,14 @@ import ScreenGlow from '../components/ScreenGlow';
 import SoftGlow from '../components/SoftGlow';
 import Icon from '../components/Icon';
 import PinConfirmModal from '../components/PinConfirmModal';
+import FiscalQueueSheet from '../components/FiscalQueueSheet';
+import { getFiscalSummary, STATUS_LABEL } from '../db/fiscal';
 import DatePicker from '../components/DatePicker';
 import { useResponsive } from '../hooks/useResponsive';
 import { useToast } from '../components/Toast';
 import {
   getSalesOrders, getOrderItemsBatch, getSalesSummary, deleteOrder, updateOrder,
-  returnOrder, addToFiscalQueue, getTerms, pluralizeRu, getPayMethods, getBusinessProfile, markTourSeen,
+  returnOrder, addToFiscalQueue, getFiscalStatus, getTerms, pluralizeRu, getPayMethods, getBusinessProfile, markTourSeen,
 } from '../db/queries';
 import { getSession, goBackSmart, can } from '../db/session';
 import { colors, fonts, glass } from '../constants/theme';
@@ -193,6 +195,9 @@ export default function SalesScreen({ navigation }) {
   const [anchor, setAnchor] = useState({ top: 76, right: 12 });
 
   const [tourOpen, setTourOpen]       = useState(false);
+  const [fiscalOpen, setFiscalOpen]   = useState(false);   // окно очереди чеков
+  const [fiscalTick, setFiscalTick]   = useState(0);       // обновить счётчик после изменений
+  const fiscalCount = (() => { try { const x = getFiscalSummary(); return x.pending + x.error; } catch (_) { return 0; } })();
   const searchHighlight  = useTourHighlight('sales.search');
   const ordersHighlight  = useTourHighlight('sales.orders');
   const summaryHighlight = useTourHighlight('sales.summary');
@@ -416,10 +421,14 @@ export default function SalesScreen({ navigation }) {
           {!isReturn && (
             <>
               <Pressable style={styles.act} onPress={() => {
-                try { addToFiscalQueue(order.id); Alert.alert('Чек', 'Добавлен в очередь. Отправится после подключения кассы.'); }
-                catch (e) { console.error(e); toast.show('Не удалось добавить чек в очередь', 'warn'); }
+                try {
+                  const st = getFiscalStatus(order.id)?.status;
+                  if (st) { setFiscalOpen(true); return; }
+                  addToFiscalQueue(order.id); setFiscalTick(x => x + 1);
+                  Alert.alert('Чек', 'Добавлен в очередь. Отправится после подключения онлайн-кассы; очередь — кнопка «Чеки» вверху.');
+                } catch (e) { console.error(e); toast.show('Не удалось добавить чек в очередь', 'warn'); }
               }}>
-                <Icon name="receipt" size={18} color={colors.textDim} /><Text style={styles.actTxt}>Чек</Text>
+                <Icon name="receipt" size={18} color={colors.textDim} /><Text style={styles.actTxt}>{(() => { try { const st = getFiscalStatus(order.id)?.status; return st ? `Чек: ${(STATUS_LABEL[st] || st).toLowerCase()}` : 'Чек'; } catch (_) { return 'Чек'; } })()}</Text>
               </Pressable>
               {can('cancel_orders') && (
                 <Pressable style={styles.act} onPress={() => setReturnTarget(order)}>
@@ -452,9 +461,15 @@ export default function SalesScreen({ navigation }) {
         navigation={navigation}
         activeScreen="Sales"
         rightElement={
-          <Pressable onPress={() => setTourOpen(true)} hitSlop={10} style={styles.tourBtn}>
-            <Text style={styles.tourBtnTxt}>?</Text>
-          </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Pressable onPress={() => setFiscalOpen(true)} hitSlop={8} style={styles.fiscalChip}>
+              <Icon name="receipt" size={16} color={colors.textDim} />
+              <Text style={styles.fiscalChipTxt}>Чеки{fiscalCount > 0 ? ` · ${fiscalCount}` : ''}</Text>
+            </Pressable>
+            <Pressable onPress={() => setTourOpen(true)} hitSlop={10} style={styles.tourBtn}>
+              <Text style={styles.tourBtnTxt}>?</Text>
+            </Pressable>
+          </View>
         }
       />
 
@@ -758,6 +773,8 @@ export default function SalesScreen({ navigation }) {
         onConfirm={() => { const a = pinAsk?.action; setPinAsk(null); a?.(); }}
       />
 
+      <FiscalQueueSheet visible={fiscalOpen} onClose={() => setFiscalOpen(false)} onChanged={() => setFiscalTick(x => x + 1)} />
+
       <TourGuide
         visible={tourOpen}
         onClose={() => { setTourOpen(false); markTourSeen('Sales'); }}
@@ -771,6 +788,8 @@ export default function SalesScreen({ navigation }) {
 const HAIR = 'rgba(255,255,255,0.07)';
 const styles = StyleSheet.create({
   root:   { flex: 1, backgroundColor: colors.bg, position: 'relative', overflow: 'hidden' },
+  fiscalChip: { flexDirection: 'row', alignItems: 'center', gap: 8, height: 44, paddingHorizontal: 16, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  fiscalChipTxt: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
   tourBtn:  { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(127,168,217,0.1)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)', alignItems: 'center', justifyContent: 'center' },
   tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, color: colors.orange },
 
