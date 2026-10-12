@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {View, Text, StyleSheet, ScrollView, Pressable, TouchableOpacity, Modal, TextInput, Animated, LayoutAnimation, Platform, Alert, useWindowDimensions} from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import {View, Text, StyleSheet, ScrollView, Pressable, TouchableOpacity, Modal, TextInput, Animated, LayoutAnimation, Alert, useWindowDimensions} from 'react-native';
 
 import MetalCard from '../components/MetalCard';
 import MetalButton from '../components/MetalButton';
@@ -22,6 +21,8 @@ import EmptyState from '../components/EmptyState';
 import {colors, fonts, spacing} from '../constants/theme';
 import {useToast} from '../components/Toast';
 import DataSection from '../components/settings/DataSection';
+import HoursRow from '../components/settings/HoursRow';
+import {NAV_GROUPS, PAGE_INFO, OLD_TO_PAGE, pageFromParam, searchSettings, plural} from '../components/settings/nav';
 import FitView from '../components/FitView';
 import PinConfirmModal from '../components/PinConfirmModal';
 import BackupPasswordModal from '../components/BackupPasswordModal';
@@ -121,6 +122,9 @@ const ROLE_LIST = [
   { key: 'admin',   label: 'Администратор',     placeholder: 'напр. Управляющий, Директор' },
 ];
 
+// Показывает часть раздела только на своей странице
+function Part({ page, id, children }) { return page === id ? <>{children}</> : null; }
+
 function SectionAccordion({ sectionKey, selectedSection, children }) {
   if (selectedSection !== sectionKey) return null;
   return <View style={{ flex: 1 }}>{children}</View>;
@@ -164,7 +168,12 @@ export default function SettingsScreen({ navigation, route }) {
   const toast = useToast();
   const { width: SW } = useWindowDimensions();
   const isPhone = SW < 600;
-  const [selectedSection, setSelectedSection] = useState(route?.params?.section || 'employees');
+  const [page, setPage] = useState(() => pageFromParam(route?.params?.section || 'emp'));
+  const selectedSection = page ? PAGE_INFO[page].section : null;   // раздел содержимого; части внутри него показывает Part
+  const [q, setQ] = useState('');                                    // поиск по настройкам
+  const [saved, setSaved] = useState(false); const savedT = useRef(null);
+  const flashSaved = () => { setSaved(true); clearTimeout(savedT.current); savedT.current = setTimeout(() => setSaved(false), 1800); };
+  const draftSaved = useRef('');                                     // последний сохранённый вид черновика профиля (автосохранение)
   const sectionFadeAnim = useRef(new Animated.Value(1)).current;
 
   // Плавный переход при смене раздела настроек — затухание + лёгкое
@@ -174,8 +183,6 @@ export default function SettingsScreen({ navigation, route }) {
     Animated.timing(sectionFadeAnim, { toValue: 1, duration: 220, useNativeDriver: true }).start();
   }, [selectedSection]);
   const [bizDraft, setBizDraft]         = useState(null);
-  const [showHoursFrom, setShowHoursFrom] = useState(false);
-  const [showHoursTo, setShowHoursTo]     = useState(false);
   const [termsOpen, setTermsOpen]       = useState(false);
   const [modulesOpen, setModulesOpen]   = useState(false);
   const [rolesOpen, setRolesOpen]       = useState(false);
@@ -375,7 +382,7 @@ export default function SettingsScreen({ navigation, route }) {
   // Открываем редактор профиля при переходе в секцию
   React.useEffect(() => {
     if (selectedSection === 'business' && profile) {
-      setBizDraft({
+      const d0 = {
         taxSystem:     profile.tax_system      || 'usn_income',
         vatRate:       profile.vat_rate        || 'none',
         autoFiscal:    profile.auto_fiscal     === '1',
@@ -405,7 +412,9 @@ export default function SettingsScreen({ navigation, route }) {
         preset:        profile.preset         || '',
         roles:         getRoleNames(),
         theme:         profile.theme          || 'dark',
-      });
+      };
+      draftSaved.current = JSON.stringify(d0);
+      setBizDraft(d0);
     }
   }, [selectedSection, profile]);
 
@@ -446,9 +455,19 @@ export default function SettingsScreen({ navigation, route }) {
         preset:        bizDraft.preset  || 'custom',
       });
       loadAll();
-      toast.show('Профиль сохранён ✓', 'info');
+      flashSaved();
     } catch(e) { console.error(e); toast.show('Ошибка сохранения', 'warn'); }
   };
+
+  // Профиль сохраняется сам: через 0,7 с после правки, без кнопки «Сохранить» (как и остальные настройки)
+  useEffect(() => {
+    if (!bizDraft) return;
+    const cur = JSON.stringify(bizDraft);
+    if (!draftSaved.current) { draftSaved.current = cur; return; }
+    if (cur === draftSaved.current) return;
+    const t = setTimeout(() => { draftSaved.current = cur; saveBizDraft(); }, 700);
+    return () => clearTimeout(t);
+  }, [bizDraft]);
 
   const loadAll = () => {
     try { setProducts(getAllProductsAdmin()); } catch(e) { console.error('products',e); }
@@ -498,6 +517,16 @@ export default function SettingsScreen({ navigation, route }) {
     { key: 'system',    label: 'Система' },
   ];
 
+  const navVisible = it => !((it.page === 'stk' && modules.stock === false) || (it.page === 'loy' && modules.loyalty === false) || (it.page === 'zone' && modules.zones !== true));
+  const TAX = { usn_income: 'УСН доходы', usn_income_expense: 'УСН доходы−расходы', osno: 'ОСНО', patent: 'Патент', npd: 'НПД' };
+  const navSub = pg => ({
+    prof: [profile?.business_name || 'Без названия', profile?.city].filter(Boolean).join(' · '),
+    mods: `${Object.values(modules).filter(Boolean).length} включено`, emp: `${users.length} ${plural(users.length, 'сотрудник', 'сотрудника', 'сотрудников')}`,
+    loy: ({ points: 'Баллы', fixed: 'Фиксированная скидка', subscription: 'Абонемент' })[loyaltyModel] || 'Лояльность', disc: discountsStackable ? 'Скидки суммируются' : 'Действует наибольшая',
+    pay: payMethodsList.filter(m => m.active !== 0).map(m => m.name).join(', ') || 'Не настроено', rcpt: `${TAX[profile?.tax_system] || 'Налоги'} · фискализация ${profile?.auto_fiscal === '1' ? 'вкл' : 'выкл'}`,
+    stk: `${stock.length} ${plural(stock.length, 'позиция', 'позиции', 'позиций')}`, loc: modules.locations ? 'Несколько локаций' : 'Одна точка', zone: `${zones.length} ${plural(zones.length, 'зона', 'зоны', 'зон')}`,
+    sys: 'Копия, PIN, сброс', view: profile?.theme === 'light' ? 'Светлая тема' : 'Тёмная тема',
+  })[pg] || '';
   const visibleSections = SECTIONS.filter(s => {
     if (s.key === 'stock' && modules.stock === false) return false;
     if (s.key === 'loyalty' && modules.loyalty === false) return false;
@@ -561,7 +590,7 @@ export default function SettingsScreen({ navigation, route }) {
   // по пункту навигации вручную
   useEffect(() => {
     if (typeof activeTourKey === 'string' && activeTourKey.startsWith('settings.nav.')) {
-      setSelectedSection(activeTourKey.replace('settings.nav.', ''));
+      setPage(pageFromParam(activeTourKey.replace('settings.nav.', '')));
     }
   }, [activeTourKey]);
 
@@ -574,8 +603,9 @@ export default function SettingsScreen({ navigation, route }) {
     >
       {/* Заголовок секции */}
       <Text style={styles.sectionTitle}>
-        {SECTIONS.find(s => s.key === selectedSection)?.label || ''}
+        {PAGE_INFO[page]?.label || ''}
       </Text>
+      <Text style={[styles.savedTxt, !saved && { opacity: 0 }]}>✓ Сохранено</Text>
 
         <SectionAccordion sectionKey="employees" selectedSection={selectedSection}>
 
@@ -863,6 +893,7 @@ export default function SettingsScreen({ navigation, route }) {
 
         <SectionAccordion sectionKey="payment" selectedSection={selectedSection}>
 
+        <Part page={page} id="pay">
         {/* ── Способы оплаты ── */}
         <View style={styles.menuTopBarSticky}>
           <Text style={styles.menuTopTitle}>Способы оплаты</Text>
@@ -907,8 +938,10 @@ export default function SettingsScreen({ navigation, route }) {
           </View>
         )}
 
+        </Part>
+        <Part page={page} id="zone">
         {/* Зоны (если включены) */}
-        {modules.zones === true && zones.length > 0 && (
+        {modules.zones === true && (
           <>
             <View style={[styles.menuTopBarSticky, { marginTop: 24 }]}>
               <Text style={styles.menuTopTitle}>Зоны и столы</Text>
@@ -939,6 +972,7 @@ export default function SettingsScreen({ navigation, route }) {
           </>
         )}
 
+        </Part>
         </SectionAccordion>
 
         <SectionAccordion sectionKey="discounts" selectedSection={selectedSection}>
@@ -1178,6 +1212,7 @@ export default function SettingsScreen({ navigation, route }) {
         <SectionAccordion sectionKey="business" selectedSection={selectedSection}>
         {bizDraft ? (<>
 
+          <Part page={page} id="prof">
           {/* ОСНОВНОЕ */}
           <Text style={styles.bizGroupLabel}>Основное</Text>
           <View style={styles.menuCard}>
@@ -1219,78 +1254,11 @@ export default function SettingsScreen({ navigation, route }) {
                 />
               </View>
             ))}
-            <View style={styles.bizFieldRow}>
-              <Text style={styles.bizFieldLabel}>Часы работы</Text>
-              <View style={styles.hoursGroup}>
-                <Pressable style={[styles.bizInput, styles.hoursInput]} onPress={() => setShowHoursFrom(true)}>
-                  <Text style={{ color: bizDraft.hoursFrom ? colors.text : colors.muted, fontFamily: fonts.familyRegular, fontSize: 14 }}>
-                    {bizDraft.hoursFrom || '09:00'}
-                  </Text>
-                </Pressable>
-                <Text style={styles.hoursDash}>—</Text>
-                <Pressable style={[styles.bizInput, styles.hoursInput]} onPress={() => setShowHoursTo(true)}>
-                  <Text style={{ color: bizDraft.hoursTo ? colors.text : colors.muted, fontFamily: fonts.familyRegular, fontSize: 14 }}>
-                    {bizDraft.hoursTo || '21:00'}
-                  </Text>
-                </Pressable>
-              </View>
-
-              {showHoursFrom && (
-                <DateTimePicker
-                  value={(() => {
-                    const d = new Date();
-                    const [h, mi] = (bizDraft.hoursFrom || '09:00').split(':').map(Number);
-                    d.setHours(h || 0, mi || 0, 0, 0);
-                    return d;
-                  })()}
-                  mode="time"
-                  display="spinner"
-                  is24Hour
-                  onChange={(event, selectedDate) => {
-                    setShowHoursFrom(Platform.OS === 'ios');
-                    if (event.type !== 'dismissed' && selectedDate) {
-                      const h = String(selectedDate.getHours()).padStart(2, '0');
-                      const mi = String(selectedDate.getMinutes()).padStart(2, '0');
-                      setBizDraft(d => ({ ...d, hoursFrom: `${h}:${mi}` }));
-                    }
-                  }}
-                />
-              )}
-              {Platform.OS === 'ios' && showHoursFrom && (
-                <Pressable style={styles.pickerDoneBtn} onPress={() => setShowHoursFrom(false)}>
-                  <Text style={styles.pickerDoneBtnTxt}>Готово</Text>
-                </Pressable>
-              )}
-
-              {showHoursTo && (
-                <DateTimePicker
-                  value={(() => {
-                    const d = new Date();
-                    const [h, mi] = (bizDraft.hoursTo || '21:00').split(':').map(Number);
-                    d.setHours(h || 0, mi || 0, 0, 0);
-                    return d;
-                  })()}
-                  mode="time"
-                  display="spinner"
-                  is24Hour
-                  onChange={(event, selectedDate) => {
-                    setShowHoursTo(Platform.OS === 'ios');
-                    if (event.type !== 'dismissed' && selectedDate) {
-                      const h = String(selectedDate.getHours()).padStart(2, '0');
-                      const mi = String(selectedDate.getMinutes()).padStart(2, '0');
-                      setBizDraft(d => ({ ...d, hoursTo: `${h}:${mi}` }));
-                    }
-                  }}
-                />
-              )}
-              {Platform.OS === 'ios' && showHoursTo && (
-                <Pressable style={styles.pickerDoneBtn} onPress={() => setShowHoursTo(false)}>
-                  <Text style={styles.pickerDoneBtnTxt}>Готово</Text>
-                </Pressable>
-              )}
-            </View>
+            <HoursRow from={bizDraft.hoursFrom} to={bizDraft.hoursTo} onChange={h => setBizDraft(d => ({ ...d, hoursFrom: h.from, hoursTo: h.to }))} />
           </View>
 
+          </Part>
+          <Part page={page} id="prof">
           {/* ОНЛАЙН ЗАПИСЬ */}
           <Text style={styles.bizGroupLabel}>Онлайн запись</Text>
           <View style={styles.menuCard}>
@@ -1341,6 +1309,8 @@ export default function SettingsScreen({ navigation, route }) {
             </View>}
           </View>
 
+          </Part>
+          <Part page={page} id="rcpt">
           {/* КАССА И ЧЕК */}
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Text style={styles.bizGroupLabel}>Касса и чек</Text>
@@ -1414,6 +1384,8 @@ export default function SettingsScreen({ navigation, route }) {
             <Text style={styles.bizPreviewBtnText}>👁 Предпросмотр чека</Text>
           </Pressable>
 
+          </Part>
+          <Part page={page} id="mods">
           {/* ТИП БИЗНЕСА */}
           <Text style={styles.bizGroupLabel}>Тип бизнеса</Text>
           <Text style={[styles.menuItemSub, { marginBottom: 10 }]}>
@@ -1441,6 +1413,8 @@ export default function SettingsScreen({ navigation, route }) {
             </Pressable>
           ))}
 
+          </Part>
+          <Part page={page} id="mods">
           {/* ТЕРМИНОЛОГИЯ */}
           <Text style={styles.bizGroupLabel}>Термины</Text>
           <Pressable
@@ -1498,6 +1472,8 @@ export default function SettingsScreen({ navigation, route }) {
             </View>
           ))}
 
+          </Part>
+          <Part page={page} id="mods">
           {/* МОДУЛИ */}
           <Text style={styles.bizGroupLabel}>Модули</Text>
           <Pressable
@@ -1541,6 +1517,8 @@ export default function SettingsScreen({ navigation, route }) {
             </View>
           )}
 
+          </Part>
+          <Part page={page} id="mods">
           {/* РОЛИ */}
           <Text style={styles.bizGroupLabel}>Роли</Text>
           <Pressable
@@ -1585,6 +1563,8 @@ export default function SettingsScreen({ navigation, route }) {
             </View>
           )}
 
+          </Part>
+          <Part page={page} id="rcpt">
           {/* ВАЛЮТА */}
           <Text style={styles.bizGroupLabel}>Валюта и формат</Text>
           <View style={styles.menuCard}>
@@ -1610,6 +1590,8 @@ export default function SettingsScreen({ navigation, route }) {
             </View>
           </View>
 
+          </Part>
+          <Part page={page} id="prof">
           {/* КОНТАКТЫ */}
           <Text style={styles.bizGroupLabel}>Контакты для клиентов</Text>
           <View style={styles.menuCard}>
@@ -1625,6 +1607,8 @@ export default function SettingsScreen({ navigation, route }) {
             ))}
           </View>
 
+          </Part>
+          <Part page={page} id="prof">
           {/* СОЦСЕТИ */}
           <Text style={styles.bizGroupLabel}>Социальные сети</Text>
           <View style={styles.menuCard}>
@@ -1640,6 +1624,8 @@ export default function SettingsScreen({ navigation, route }) {
             ))}
           </View>
 
+          </Part>
+          <Part page={page} id="view">
           {/* ТЕМА */}
           <Text style={styles.bizGroupLabel}>Тема оформления</Text>
           <View style={styles.menuCard}>
@@ -1659,11 +1645,7 @@ export default function SettingsScreen({ navigation, route }) {
             ))}
           </View>
 
-          {/* Сохранить */}
-          <Pressable style={({ pressed }) => [styles.confirmBtn, { marginTop: 20 }, pressed && { opacity: 0.88 }]} onPress={saveBizDraft}>
-            <Text style={styles.confirmBtnText}>Сохранить</Text>
-          </Pressable>
-
+          </Part>
         </>) : (
           <View style={[styles.menuCard, { padding: 16, marginTop: 8 }]}>
             <Text style={styles.menuItemSub}>Загрузка...</Text>
@@ -1708,27 +1690,39 @@ export default function SettingsScreen({ navigation, route }) {
         {(!isPhone || !selectedSection) && (
           <View style={[styles.leftPanelBase, isPhone && { width: undefined, maxWidth: undefined, flex: 1 }, !isPhone && styles.leftPanelCard, { position: 'relative' }, navHighlight.style]}>
             <ScrollView showsVerticalScrollIndicator={false}>
-              {visibleSections.map(s => (
-                <Pressable
-                  key={s.key}
-                  style={({ pressed }) => [
-                    styles.navItem,
-                    selectedSection === s.key && styles.navItemActive,
-                    { position: 'relative' },
-                    sectionHighlights[s.key]?.style,
-                    pressed && { backgroundColor: 'rgba(255,255,255,0.03)' },
-                  ]}
-                  onPress={() => setSelectedSection(s.key)}
-                >
-                  <Text style={styles.navIcon}>{s.icon}</Text>
-                  <Text style={[styles.navLabel, selectedSection === s.key && styles.navLabelActive]}>
-                    {s.label}
-                  </Text>
-                  {selectedSection === s.key && !isPhone && <View style={styles.navActiveBar} />}
-                  {isPhone && <Text style={styles.navArrow}>›</Text>}
-                  {sectionHighlights[s.key]?.overlay}
-                </Pressable>
-              ))}
+              <View style={styles.navSearch}>
+                <Text style={styles.navSearchIc}>⌕</Text>
+                <TextInput style={styles.navSearchIn} color={colors.text} value={q} onChangeText={setQ} placeholder="Найти настройку" placeholderTextColor="rgba(255,255,255,0.3)" />
+              </View>
+              {q.trim() ? (
+                searchSettings(q).map(r => (
+                  <Pressable key={r.text} style={styles.navRes} onPress={() => { setPage(r.page); setQ(''); }}>
+                    <Text style={styles.navResT}>{r.text}</Text><Text style={styles.navResS}>{r.label}</Text>
+                  </Pressable>
+                ))
+              ) : NAV_GROUPS.map(g => {
+                const items = g.items.filter(navVisible);
+                if (!items.length) return null;
+                return (
+                  <View key={g.title}>
+                    <Text style={styles.navGroup}>{g.title}</Text>
+                    {items.map(it => {
+                      const active = page === it.page, hl = sectionHighlights[Object.keys(OLD_TO_PAGE).find(k => OLD_TO_PAGE[k] === it.page)];
+                      return (
+                        <Pressable key={it.page} style={({ pressed }) => [styles.navItem, active && styles.navItemActive, { position: 'relative' }, hl?.style, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]} onPress={() => setPage(it.page)}>
+                          <View style={[styles.navIc, active && styles.navIcOn]}><Text style={[styles.navIcT, active && { color: '#0A121C' }]}>{it.icon}</Text></View>
+                          <View style={{ flex: 1, minWidth: 0 }}>
+                            <Text style={[styles.navLabel, active && styles.navLabelActive]} numberOfLines={1}>{it.label}</Text>
+                            <Text style={styles.navSub} numberOfLines={1}>{navSub(it.page)}</Text>
+                          </View>
+                          {isPhone && <Text style={styles.navArrow}>›</Text>}
+                          {hl?.overlay}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                );
+              })}
             </ScrollView>
             {navHighlight.overlay}
           </View>
@@ -1738,9 +1732,9 @@ export default function SettingsScreen({ navigation, route }) {
         {(!isPhone || selectedSection) && (
           <View style={[styles.rightPanelBase, !isPhone && styles.rightPanelCard, { position: 'relative' }, rightPanelHighlight.style]}>
             {isPhone && (
-              <Pressable style={styles.phoneback} onPress={() => setSelectedSection(null)}>
+              <Pressable style={styles.phoneback} onPress={() => setPage(null)}>
                 <Text style={styles.phoneBackText}>
-                  ← {SECTIONS.find(s => s.key === selectedSection)?.label}
+                  ← {PAGE_INFO[page]?.label}
                 </Text>
               </Pressable>
             )}
@@ -2731,4 +2725,11 @@ const styles = StyleSheet.create({
   chipSmallActive: { borderColor: 'rgba(127,168,217,0.5)', backgroundColor: 'rgba(127,168,217,0.18)' },
   chipSmallLabel: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted },
   chipSmallLabelActive: { color: colors.orange },
+  savedTxt: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.green, marginTop: -8, marginBottom: 8 },
+  navSearch: { flexDirection: 'row', alignItems: 'center', height: 46, borderRadius: 14, paddingHorizontal: 14, marginBottom: 6, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' },
+  navSearchIc: { fontSize: 15, color: colors.muted, marginRight: 10 }, navSearchIn: { flex: 1, padding: 0, fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
+  navRes: { paddingVertical: 11, paddingHorizontal: 14, borderRadius: 14, marginBottom: 2 }, navResT: { fontFamily: fonts.familySemibold, fontSize: 14.5, color: colors.text }, navResS: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 },
+  navGroup: { fontFamily: fonts.familySemibold, fontSize: 11, letterSpacing: 1.3, textTransform: 'uppercase', color: colors.muted, marginLeft: 8, marginTop: 14, marginBottom: 6 },
+  navIc: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginRight: 12, backgroundColor: 'rgba(255,255,255,0.06)' }, navIcOn: { backgroundColor: colors.orangeLight }, navIcT: { fontSize: 16, color: colors.textDim },
+  navSub: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 1 },
 });
