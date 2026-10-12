@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, Animated, StyleSheet, TextInput } from 'react-native';
 import Icon from '../Icon';
+import GlassSurface from '../GlassSurface';
 import { parseNum, fmtNum, rangeError } from '../../utils/num';
 import Toggle from '../Toggle';
-import { colors, fonts } from '../../constants/theme';
+import { colors, fonts, glass } from '../../constants/theme';
 
 // Общий набор элементов экрана «Настройки»: группа-карточка, строка, переключатель, выбор из значений, примечание.
 // Все разделы собираются из них — без своих стилей и без встроенных стилей в JSX.
@@ -21,8 +22,10 @@ export function Group({ title, delay = 0, danger, children }) {
   return (
     <View style={st.gap}>
       {!!title && <Text style={[st.gt, danger && { color: colors.red }]}>{title}</Text>}
-      <Animated.View style={[st.grp, danger && st.grpDanger, e]}>
-        {kids.map((c, i) => <View key={i} style={i > 0 && [st.div, danger && st.divDanger]}>{c}</View>)}
+      <Animated.View style={e}>
+        <GlassSurface radius={glass.radius.tile} tint={danger ? '219,129,120' : undefined} alpha={danger ? 0.12 : glass.alpha} style={st.grp}>
+          {kids.map((c, i) => <View key={i} style={i > 0 && [st.div, danger && st.divDanger]}>{c}</View>)}
+        </GlassSurface>
       </Animated.View>
     </View>
   );
@@ -49,7 +52,8 @@ export function ChipsRow({ title, sub, items, value, onChange }) {
       <View style={{ flex: 1 }}>
         <Text style={st.t}>{title}</Text>{!!sub && <Text style={st.s}>{sub}</Text>}
         <View style={st.chips}>{items.map(([k, label]) => (
-          <Pressable key={String(k)} style={[st.chip, value === k && st.chipOn]} onPress={() => onChange(k)}>
+          <Pressable key={String(k)} style={st.chip} onPress={() => onChange(k)}>
+            {value === k && <GlassSurface radius={18} tint="127,168,217" alpha={0.28} style={StyleSheet.absoluteFill} />}
             <Text style={[st.chipT, value === k && { color: colors.orangeLight }]}>{label}</Text>
           </Pressable>))}
         </View>
@@ -73,9 +77,9 @@ export function NumField({ value, onChange, min = 0, max = Infinity, gt, step = 
   return (
     <View>
       <View style={st.nf}>
-        <Pressable style={st.nfB} onPress={() => bump(-1)} hitSlop={6}><Icon name="minus" size={16} color={colors.orangeLight} /></Pressable>
-        <TextInput style={[st.nfIn, { width }, !!err && st.nfBad]} value={text} onChangeText={apply} onBlur={() => !err && setText(fmtNum(parseNum(text) ?? value))} keyboardType="decimal-pad" selectTextOnFocus color={colors.text} />
-        <Pressable style={st.nfB} onPress={() => bump(1)} hitSlop={6}><Icon name="plus" size={16} color={colors.orangeLight} /></Pressable>
+        <Pressable style={st.nfB} onPress={() => bump(-1)} hitSlop={6}><GlassSurface radius={11} tint="127,168,217" alpha={0.16} style={StyleSheet.absoluteFill} /><Icon name="minus" size={16} color={colors.orangeLight} /></Pressable>
+        <View style={[{ width, height: 34 }, !!err && st.nfBad]}><GlassSurface radius={11} style={StyleSheet.absoluteFill} /><TextInput style={st.nfIn} value={text} onChangeText={apply} onBlur={() => !err && setText(fmtNum(parseNum(text) ?? value))} keyboardType="decimal-pad" selectTextOnFocus color={colors.text} /></View>
+        <Pressable style={st.nfB} onPress={() => bump(1)} hitSlop={6}><GlassSurface radius={11} tint="127,168,217" alpha={0.16} style={StyleSheet.absoluteFill} /><Icon name="plus" size={16} color={colors.orangeLight} /></Pressable>
         {!!unit && <Text style={st.nfU}>{unit}</Text>}
       </View>
       {!!err && <Text style={st.nfErr}>{err}</Text>}
@@ -93,7 +97,8 @@ export function ChoiceCards({ items, value, onChange }) {
   return (
     <View style={st.cc}>
       {items.map(it => (
-        <Pressable key={it.key} style={[st.card, value === it.key && st.cardOn]} onPress={() => onChange(it.key)}>
+        <Pressable key={it.key} style={st.card} onPress={() => onChange(it.key)}>
+          <GlassSurface radius={20} tint={value === it.key ? '127,168,217' : undefined} alpha={value === it.key ? 0.24 : glass.alpha} floating={value === it.key} style={StyleSheet.absoluteFill} />
           <View style={[st.cardIc, value === it.key && st.cardIcOn]}><Icon name={it.icon} size={20} color={value === it.key ? '#0A121C' : colors.textDim} /></View>
           <Text style={st.cardT}>{it.title}</Text><Text style={st.cardD}>{it.desc}</Text>{!!it.hint && <Text style={st.cardH}>{it.hint}</Text>}
         </Pressable>
@@ -107,15 +112,14 @@ export const Note = ({ children, warn }) => <Text style={[st.note, warn && { col
 export const st = StyleSheet.create({
   gap: { marginTop: 18 },
   gt: { fontFamily: fonts.familySemibold, fontSize: 12, letterSpacing: 1.3, textTransform: 'uppercase', color: colors.muted, marginLeft: 8, marginBottom: 8 },
-  grp: { borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', overflow: 'hidden' },
-  grpDanger: { backgroundColor: 'rgba(219,129,120,0.06)', borderColor: 'rgba(219,129,120,0.25)' },
+  grp: { borderRadius: 20, overflow: 'hidden' },
   div: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)' }, divDanger: { borderTopColor: 'rgba(219,129,120,0.18)' },
   row: { flexDirection: 'row', alignItems: 'center', minHeight: 58, paddingHorizontal: 18, paddingVertical: 10 },
   l: { flex: 1, minWidth: 0 }, t: { fontFamily: fonts.familySemibold, fontSize: 15.5, color: colors.text }, s: { fontFamily: fonts.familyRegular, fontSize: 12.5, color: colors.muted, marginTop: 2, lineHeight: 18 },
   v: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.textDim, marginLeft: 12 }, ch: { fontSize: 22, color: colors.muted, marginLeft: 10 }, pressed: { backgroundColor: 'rgba(255,255,255,0.04)' },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }, chip: { height: 36, paddingHorizontal: 16, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' }, chipOn: { backgroundColor: 'rgba(127,168,217,0.2)', borderColor: 'rgba(157,191,230,0.5)' }, chipT: { fontFamily: fonts.familySemibold, fontSize: 13.5, color: colors.textDim },
-  nf: { flexDirection: 'row', alignItems: 'center', gap: 6 }, nfB: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(127,168,217,0.1)', borderWidth: 1, borderColor: 'rgba(157,191,230,0.3)' },
-  nfIn: { height: 34, borderRadius: 11, textAlign: 'center', padding: 0, fontFamily: fonts.familySemibold, fontSize: 15.5, color: colors.text, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.09)' }, nfBad: { borderColor: colors.red },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }, chip: { height: 36, paddingHorizontal: 16, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, chipT: { fontFamily: fonts.familySemibold, fontSize: 13.5, color: colors.textDim },
+  nf: { flexDirection: 'row', alignItems: 'center', gap: 6 }, nfB: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  nfIn: { flex: 1, textAlign: 'center', padding: 0, fontFamily: fonts.familySemibold, fontSize: 15.5, color: colors.text }, nfBad: { borderRadius: 11, borderWidth: 1, borderColor: colors.red },
   nfU: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, marginLeft: 4 }, nfErr: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.red, marginTop: 4 },
   sen: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, paddingHorizontal: 18, paddingVertical: 14 }, senT: { fontFamily: fonts.familyRegular, fontSize: 16, color: colors.textDim }, senF: { marginVertical: 2 },
   cc: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' }, card: { flex: 1, minWidth: 180, borderRadius: 20, padding: 16, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' }, cardOn: { backgroundColor: 'rgba(127,168,217,0.14)', borderColor: 'rgba(157,191,230,0.65)' },

@@ -5,6 +5,7 @@ import ModalSheet from '../ModalSheet';
 import GlassButton from '../GlassButton';
 import Toggle from '../Toggle';
 import Icon from '../Icon';
+import GlassSurface from '../GlassSurface';
 import { getDiscounts, getDiscountEligibleProducts, getDiscountIneligibleProducts, setProductDiscountEligible, getClientsWithPersonalDiscount, getClientsWithoutDiscount, setClientDiscountPct, setSetting, getLoyaltyConfig, updateLoyaltyConfig } from '../../db/queries';
 import { getDiscountSettings, setProductDiscountPct, setDiscountsStackable } from '../../db/settings';
 import { parseNum, rangeError } from '../../utils/num';
@@ -70,8 +71,8 @@ export default function DiscountsSection({ onSaved }) {
       <Group title="Ограничение" delay={240}>
         <Sentence>{['Сумма всех скидок на заказ не больше', <NumField key="m" value={d.maxPct} onChange={saveMax} gt={0} max={100} step={5} unit="%" />]}</Sentence>
       </Group>
-      <View style={s.ex}><Text style={s.exT}>{`Пример: товар А 1 000 ₽ со скидкой ${String(d.productPct).replace('.', ',')}%, товар Б 1 000 ₽, скидка клиента ${clientPct}%`}</Text>
-        <Text style={s.exB}>{d.stackable ? `Суммируются: скидка на заказ ${rub(disc)} от ${rub(base)}, к оплате ${rub(A + B - disc)}` : `Не суммируются: скидка на заказ ${rub(disc)} только от товара Б, к оплате ${rub(A + B - disc)}`}</Text></View>
+      <GlassSurface radius={18} tint="127,168,217" alpha={0.12} padding={16} style={s.ex}><Text style={s.exT}>{`Пример: товар А 1 000 ₽ со скидкой ${String(d.productPct).replace('.', ',')}%, товар Б 1 000 ₽, скидка клиента ${clientPct}%`}</Text>
+        <Text style={s.exB}>{d.stackable ? `Суммируются: скидка на заказ ${rub(disc)} от ${rub(base)}, к оплате ${rub(A + B - disc)}` : `Не суммируются: скидка на заказ ${rub(disc)} только от товара Б, к оплате ${rub(A + B - disc)}`}</Text></GlassSurface>
       <Note>Раньше скидки были разбросаны по двум вкладкам; теперь всё в одном порядке, как их применяет Касса.</Note>
 
       {/* Ручная скидка: добавить, изменить, удалить, сдвинуть */}
@@ -114,5 +115,5 @@ const s = StyleSheet.create({
   fb: { flexDirection: 'row' }, mv: { flexDirection: 'row', gap: 8, marginTop: 4 }, mvb: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 44, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' }, mvt: { fontFamily: fonts.familySemibold, fontSize: 13.5, color: colors.textDim },
   pr: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' }, prn: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text }, prc: { fontFamily: fonts.familyRegular, fontSize: 12.5, color: colors.muted, marginTop: 2 }, pv: { fontFamily: fonts.familySemibold, fontSize: 15, color: colors.textDim, marginHorizontal: 10 }, px: { padding: 6 },
   empty: { fontFamily: fonts.familyRegular, fontSize: 14, color: colors.muted, paddingVertical: 16 },
-  ex: { marginTop: 14, padding: 16, borderRadius: 18, backgroundColor: 'rgba(127,168,217,0.08)', borderWidth: 1, borderColor: 'rgba(157,191,230,0.22)' }, exT: { fontFamily: fonts.familySemibold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: colors.muted, marginBottom: 6 }, exB: { fontFamily: fonts.familyRegular, fontSize: 14.5, color: colors.textDim, lineHeight: 21 },
+  ex: { marginTop: 14 }, exT: { fontFamily: fonts.familySemibold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: colors.muted, marginBottom: 6 }, exB: { fontFamily: fonts.familyRegular, fontSize: 14.5, color: colors.textDim, lineHeight: 21 },
 });

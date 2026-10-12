@@ -2,6 +2,8 @@ import React from 'react';
 import {
   Modal, View, Text, StyleSheet, Pressable, ScrollView,
 } from 'react-native';
+import GlassSurface from './GlassSurface';
+import Icon from './Icon';
 import { colors, fonts, radius } from '../constants/theme';
 
 /**
@@ -42,12 +44,12 @@ export default function ModalSheet({
     >
       <View style={styles.backdrop}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View style={[styles.sheet, { width, maxWidth, maxHeight: '92%' }, style]}>
+        <GlassSurface radius={26} tint="28,34,50" alpha={0.985} floating padding={24} style={[{ width, maxWidth, maxHeight: '92%' }, style]} contentStyle={{ flexShrink: 1 }}>
           {/* Заголовок */}
           <View style={styles.header}>
             <Text style={styles.title} numberOfLines={1}>{title}</Text>
             <Pressable onPress={onClose} hitSlop={16} style={styles.closeBtn}>
-              <Text style={styles.closeIcon}>✕</Text>
+              <Icon name="x" size={18} color={colors.muted} />
             </Pressable>
           </View>
 
@@ -62,7 +64,7 @@ export default function ModalSheet({
 
           {/* Footer */}
           {footer && <View style={styles.footer}>{footer}</View>}
-        </View>
+        </GlassSurface>
       </View>
     </Modal>
   );

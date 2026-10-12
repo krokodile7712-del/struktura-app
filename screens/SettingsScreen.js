@@ -18,10 +18,11 @@ import Toggle from '../components/Toggle';
 import {can, getSession, setUserPermissions, goBackSmart} from '../db/session';
 
 import EmptyState from '../components/EmptyState';
-import {colors, fonts, spacing} from '../constants/theme';
+import {colors, fonts, spacing, glass} from '../constants/theme';
 import {useToast} from '../components/Toast';
 import DataSection from '../components/settings/DataSection';
 import Icon from '../components/Icon';
+import GlassSurface from '../components/GlassSurface';
 import HoursRow from '../components/settings/HoursRow';
 import LoyaltySection from '../components/settings/LoyaltySection';
 import DiscountsSection from '../components/settings/DiscountsSection';
@@ -534,7 +535,7 @@ export default function SettingsScreen({ navigation, route }) {
         {users.length === 0 ? (
           <Text style={[styles.empty, { paddingVertical: 20 }]}>Нет сотрудников. Нажмите + чтобы добавить.</Text>
         ) : (
-          <View style={styles.menuCard}>
+          <GlassSurface radius={glass.radius.tile} style={styles.menuCard}>
             {users.map((u, idx) => (
               <Pressable
                 key={u.id}
@@ -555,7 +556,7 @@ export default function SettingsScreen({ navigation, route }) {
                 <Text style={styles.menuItemArrow}>›</Text>
               </Pressable>
             ))}
-          </View>
+          </GlassSurface>
         )}
 
         </SectionAccordion>
@@ -582,7 +583,7 @@ export default function SettingsScreen({ navigation, route }) {
         {payMethodsList.length === 0 ? (
           <Text style={[styles.empty, { paddingVertical: 16 }]}>Нет способов оплаты</Text>
         ) : (
-          <View style={styles.menuCard}>
+          <GlassSurface radius={glass.radius.tile} style={styles.menuCard}>
             {payMethodsList.map((m, i) => {
               const typeLabel = m.type === 'cash' ? 'Наличный расчёт · фиксируется как нал в отчётах'
                 : m.type === 'mixed' ? 'Разделить чек на наличные и карту'
@@ -608,7 +609,7 @@ export default function SettingsScreen({ navigation, route }) {
                 </Pressable>
               );
             })}
-          </View>
+          </GlassSurface>
         )}
 
         </Part>
@@ -626,7 +627,7 @@ export default function SettingsScreen({ navigation, route }) {
                 </View>
               </View>
             </View>
-            <View style={styles.menuCard}>
+            <GlassSurface radius={glass.radius.tile} style={styles.menuCard}>
               {zones.map((z, i) => (
                 <Pressable
                   key={z.id}
@@ -641,7 +642,7 @@ export default function SettingsScreen({ navigation, route }) {
                   <Text style={styles.menuItemArrow}>›</Text>
                 </Pressable>
               ))}
-            </View>
+            </GlassSurface>
           </>
         )}
 
@@ -656,7 +657,7 @@ export default function SettingsScreen({ navigation, route }) {
 
           {/* Автосписание */}
           <Text style={styles.bizGroupLabel}>Поведение склада</Text>
-          <View style={styles.menuCard}>
+          <GlassSurface radius={glass.radius.tile} style={styles.menuCard}>
             <View style={[styles.menuRow, styles.menuRowDiv]}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.menuItemName}>Автосписание при продаже</Text>
@@ -697,11 +698,11 @@ export default function SettingsScreen({ navigation, route }) {
                 size="sm"
               />
             </View>
-          </View>
+          </GlassSurface>
 
           {/* Переход */}
           <Text style={styles.bizGroupLabel}>Управление</Text>
-          <View style={styles.menuCard}>
+          <GlassSurface radius={glass.radius.tile} style={styles.menuCard}>
             <Pressable
               style={({ pressed }) => [styles.menuRow, pressed && { opacity: 0.75 }]}
               onPress={() => navigation.navigate('Products', { initialTab: 'stock' })}
@@ -712,7 +713,7 @@ export default function SettingsScreen({ navigation, route }) {
               </View>
               <Text style={styles.menuItemArrow}>›</Text>
             </Pressable>
-          </View>
+          </GlassSurface>
 
         </SectionAccordion>
 
@@ -726,7 +727,7 @@ export default function SettingsScreen({ navigation, route }) {
           <Part page={page} id="prof">
           {/* ОСНОВНОЕ */}
           <Text style={styles.bizGroupLabel}>Основное</Text>
-          <View style={styles.menuCard}>
+          <GlassSurface radius={glass.radius.tile} style={styles.menuCard}>
             {[
               { key: 'businessName', label: 'Название бизнеса', placeholder: 'Название вашего бизнеса' },
               { key: 'logoUrl',      label: 'Логотип (URL)',     placeholder: 'https://...' },
@@ -744,9 +745,9 @@ export default function SettingsScreen({ navigation, route }) {
                 />
               </View>
             ))}
-          </View>
+          </GlassSurface>
 
-          <View style={[styles.menuCard, { marginTop: 10 }]}>
+          <GlassSurface radius={glass.radius.tile} style={[styles.menuCard, { marginTop: 10 }]}>
             {[
               { key: 'phone',   label: 'Телефон',  placeholder: '+7 999 123-45-67', kb: 'phone-pad' },
               { key: 'address', label: 'Адрес',    placeholder: 'ул. Ленина, 1',    kb: 'default'   },
@@ -766,13 +767,13 @@ export default function SettingsScreen({ navigation, route }) {
               </View>
             ))}
             <HoursRow from={bizDraft.hoursFrom} to={bizDraft.hoursTo} onChange={h => setBizDraft(d => ({ ...d, hoursFrom: h.from, hoursTo: h.to }))} />
-          </View>
+          </GlassSurface>
 
           </Part>
           <Part page={page} id="prof">
           {/* ОНЛАЙН ЗАПИСЬ */}
           <Text style={styles.bizGroupLabel}>Онлайн запись</Text>
-          <View style={styles.menuCard}>
+          <GlassSurface radius={glass.radius.tile} style={styles.menuCard}>
             <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
               <Text style={styles.bizFieldLabel}>Тип бизнеса</Text>
               <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
@@ -818,7 +819,7 @@ export default function SettingsScreen({ navigation, route }) {
                 ))}
               </View>
             </View>}
-          </View>
+          </GlassSurface>
 
           </Part>
           <Part page={page} id="rcpt">
@@ -830,7 +831,7 @@ export default function SettingsScreen({ navigation, route }) {
               text="Эти настройки определяют, что будет указано на чеке (ИНН, система налогообложения, ставка НДС), когда вы подключите кассовое оборудование или облачную кассу. Пока оборудования нет — чеки копятся в очереди без отправки в ФНС."
             />
           </View>
-          <View style={styles.menuCard}>
+          <GlassSurface radius={glass.radius.tile} style={styles.menuCard}>
             <View style={[styles.menuRow, styles.menuRowDiv, { flexDirection: 'column', alignItems: 'flex-start', paddingVertical: 14 }]}>
               <Text style={[styles.bizFieldLabel, { marginBottom: 10 }]}>Система налогообложения (СНО)</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -886,7 +887,7 @@ export default function SettingsScreen({ navigation, route }) {
               <Text style={styles.bizFieldLabel}>Текст подвала</Text>
               <TextInput color={colors.text} style={styles.bizInput} value={bizDraft.receiptFooter} onChangeText={v => setBizDraft(d => ({ ...d, receiptFooter: v }))} placeholder="Спасибо за покупку!" placeholderTextColor={colors.muted} />
             </View>
-          </View>
+          </GlassSurface>
           <View style={styles.fiscalStatusCard}>
             <Text style={styles.fiscalStatusTxt}>Касса не подключена</Text>
             <Text style={styles.fiscalStatusHint}>Чеки копятся в очереди в разделе Продажи и отправятся в ФНС автоматически, как только будет подключено оборудование или облачная касса.</Text>
@@ -908,6 +909,7 @@ export default function SettingsScreen({ navigation, route }) {
               style={[styles.presetCard, bizDraft.preset === p.key && styles.presetCardActive]}
               onPress={() => choosePreset(p.key)}
             >
+              <GlassSurface radius={glass.radius.tile} tint={bizDraft.preset === p.key ? "127,168,217" : undefined} alpha={bizDraft.preset === p.key ? 0.22 : glass.alpha} style={StyleSheet.absoluteFill} />
               <View style={styles.presetHeader}>
                 <Text style={[styles.presetLabel, bizDraft.preset === p.key && styles.presetLabelActive]}>{p.label}</Text>
                 <Text style={styles.presetCheck}>{bizDraft.preset === p.key ? '◉' : '○'}</Text>
@@ -1010,7 +1012,7 @@ export default function SettingsScreen({ navigation, route }) {
             <Text style={styles.menuItemArrow}>{modulesOpen ? '⌄' : '›'}</Text>
           </Pressable>
           {modulesOpen && (
-            <View style={styles.menuCard}>
+            <GlassSurface radius={glass.radius.tile} style={styles.menuCard}>
               {MODULE_LIST.map((m, idx) => (
                 <View key={m.key} style={[styles.menuRow, idx < MODULE_LIST.length - 1 && styles.menuRowDiv]}>
                   <View style={{ flex: 1, marginRight: 8 }}>
@@ -1023,7 +1025,7 @@ export default function SettingsScreen({ navigation, route }) {
                   />
                 </View>
               ))}
-            </View>
+            </GlassSurface>
           )}
 
           </Part>
@@ -1055,7 +1057,7 @@ export default function SettingsScreen({ navigation, route }) {
             <Text style={styles.menuItemArrow}>{rolesOpen ? '⌄' : '›'}</Text>
           </Pressable>
           {rolesOpen && (
-            <View style={styles.menuCard}>
+            <GlassSurface radius={glass.radius.tile} style={styles.menuCard}>
               {ROLE_LIST.map((r, idx) => (
                 <View key={r.key} style={[styles.bizFieldRow, idx < ROLE_LIST.length - 1 && styles.menuRowDiv]}>
                   <Text style={styles.bizFieldLabel}>{r.label}</Text>
@@ -1069,14 +1071,14 @@ export default function SettingsScreen({ navigation, route }) {
                   />
                 </View>
               ))}
-            </View>
+            </GlassSurface>
           )}
 
           </Part>
           <Part page={page} id="rcpt">
           {/* ВАЛЮТА */}
           <Text style={styles.bizGroupLabel}>Валюта и формат</Text>
-          <View style={styles.menuCard}>
+          <GlassSurface radius={glass.radius.tile} style={styles.menuCard}>
             <View style={[styles.bizFieldRow, styles.menuRowDiv]}>
               <Text style={styles.bizFieldLabel}>Символ валюты</Text>
               <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -1097,13 +1099,13 @@ export default function SettingsScreen({ navigation, route }) {
                 ))}
               </View>
             </View>
-          </View>
+          </GlassSurface>
 
           </Part>
           <Part page={page} id="prof">
           {/* КОНТАКТЫ */}
           <Text style={styles.bizGroupLabel}>Контакты для клиентов</Text>
-          <View style={styles.menuCard}>
+          <GlassSurface radius={glass.radius.tile} style={styles.menuCard}>
             {[
               { key: 'email',    label: 'Email',     placeholder: 'hello@business.ru', kb: 'email-address' },
               { key: 'whatsapp', label: 'WhatsApp',  placeholder: '+7 999 123-45-67',  kb: 'phone-pad'     },
@@ -1114,13 +1116,13 @@ export default function SettingsScreen({ navigation, route }) {
                 <TextInput color={colors.text} style={styles.bizInput} value={bizDraft[f.key]} onChangeText={v => setBizDraft(d => ({ ...d, [f.key]: v }))} placeholder={f.placeholder} placeholderTextColor={colors.muted} keyboardType={f.kb} autoCapitalize="none" />
               </View>
             ))}
-          </View>
+          </GlassSurface>
 
           </Part>
           <Part page={page} id="prof">
           {/* СОЦСЕТИ */}
           <Text style={styles.bizGroupLabel}>Социальные сети</Text>
-          <View style={styles.menuCard}>
+          <GlassSurface radius={glass.radius.tile} style={styles.menuCard}>
             {[
               { key: 'instagram', label: 'Instagram', placeholder: '@mybusiness'    },
               { key: 'vk',        label: 'ВКонтакте', placeholder: 'vk.com/mybusiness'  },
@@ -1131,13 +1133,13 @@ export default function SettingsScreen({ navigation, route }) {
                 <TextInput color={colors.text} style={styles.bizInput} value={bizDraft[f.key]} onChangeText={v => setBizDraft(d => ({ ...d, [f.key]: v }))} placeholder={f.placeholder} placeholderTextColor={colors.muted} autoCapitalize="none" />
               </View>
             ))}
-          </View>
+          </GlassSurface>
 
           </Part>
           <Part page={page} id="view">
           {/* ТЕМА */}
           <Text style={styles.bizGroupLabel}>Тема оформления</Text>
-          <View style={styles.menuCard}>
+          <GlassSurface radius={glass.radius.tile} style={styles.menuCard}>
             {[
               { key: 'dark',  label: 'Тёмная',   sub: 'Чёрный фон, оливковый акцент' },
               { key: 'light', label: 'Светлая',  sub: 'Белый фон, тёмный текст' },
@@ -1152,13 +1154,13 @@ export default function SettingsScreen({ navigation, route }) {
                 </View>
               </Pressable>
             ))}
-          </View>
+          </GlassSurface>
 
           </Part>
         </>) : (
-          <View style={[styles.menuCard, { padding: 16, marginTop: 8 }]}>
+          <GlassSurface radius={glass.radius.tile} style={[styles.menuCard, { padding: 16, marginTop: 8 }]}>
             <Text style={styles.menuItemSub}>Загрузка...</Text>
-          </View>
+          </GlassSurface>
         )}
         </SectionAccordion>
 
@@ -1196,12 +1198,12 @@ export default function SettingsScreen({ navigation, route }) {
 
         {/* Левая панель навигации */}
         {(!isPhone || !selectedSection) && (
-          <View style={[styles.leftPanelBase, isPhone && { width: undefined, maxWidth: undefined, flex: 1 }, !isPhone && styles.leftPanelCard, { position: 'relative' }, navHighlight.style]}>
+          <GlassSurface radius={glass.radius.panel} style={[styles.leftPanelBase, isPhone && { width: undefined, maxWidth: undefined, flex: 1 }, !isPhone && styles.leftPanelMargin, { position: 'relative' }, navHighlight.style]} contentStyle={{ flex: 1, overflow: 'hidden' }}>
             <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={styles.navSearch}>
+              <GlassSurface radius={14} style={styles.navSearch}>
                 <View style={styles.navSearchIc}><Icon name="search" size={16} color={colors.muted} /></View>
                 <TextInput style={styles.navSearchIn} color={colors.text} value={q} onChangeText={setQ} placeholder="Найти настройку" placeholderTextColor="rgba(255,255,255,0.3)" />
-              </View>
+              </GlassSurface>
               {q.trim() ? (
                 searchSettings(q).map(r => (
                   <Pressable key={r.text} style={styles.navRes} onPress={() => { setPage(r.page); setQ(''); }}>
@@ -1218,6 +1220,7 @@ export default function SettingsScreen({ navigation, route }) {
                       const active = page === it.page, hl = sectionHighlights[Object.keys(OLD_TO_PAGE).find(k => OLD_TO_PAGE[k] === it.page)];
                       return (
                         <Pressable key={it.page} style={({ pressed }) => [styles.navItem, active && styles.navItemActive, { position: 'relative' }, hl?.style, pressed && { backgroundColor: 'rgba(255,255,255,0.03)' }]} onPress={() => setPage(it.page)}>
+                          {active && <GlassSurface radius={14} tint="127,168,217" alpha={0.2} style={StyleSheet.absoluteFill} />}
                           <View style={[styles.navIc, active && styles.navIcOn]}><Icon name={it.icon} size={18} color={active ? '#0A121C' : colors.textDim} /></View>
                           <View style={{ flex: 1, minWidth: 0 }}>
                             <Text style={[styles.navLabel, active && styles.navLabelActive]} numberOfLines={1}>{it.label}</Text>
@@ -1233,12 +1236,12 @@ export default function SettingsScreen({ navigation, route }) {
               })}
             </ScrollView>
             {navHighlight.overlay}
-          </View>
+          </GlassSurface>
         )}
 
         {/* Правая панель */}
         {(!isPhone || selectedSection) && (
-          <View style={[styles.rightPanelBase, !isPhone && styles.rightPanelCard, { position: 'relative' }, rightPanelHighlight.style]}>
+          <GlassSurface radius={glass.radius.panel} style={[styles.rightPanelBase, !isPhone && styles.rightPanelMargin, { position: 'relative' }, rightPanelHighlight.style]} contentStyle={{ flex: 1, overflow: 'hidden' }}>
             {isPhone && (
               <Pressable style={styles.phoneback} onPress={() => setPage(null)}>
                 <Text style={styles.phoneBackText}>
@@ -1250,7 +1253,7 @@ export default function SettingsScreen({ navigation, route }) {
               {rightPanel}
             </Animated.View>
             {rightPanelHighlight.overlay}
-          </View>
+          </GlassSurface>
         )}
 
       </View>
@@ -1260,6 +1263,7 @@ export default function SettingsScreen({ navigation, route }) {
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setZoneModal(null)} />
           {zoneModal && (
             <FitView style={[styles.modalInner, { width: '55%', maxWidth: 500, maxHeight: '88%' }]}>
+            <GlassSurface radius={26} tint="28,34,50" alpha={0.985} floating style={StyleSheet.absoluteFill} />
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>{zoneModal.id ? `Зона: ${zoneModal.name}` : 'Новая зона'}</Text>
                 <Pressable onPress={() => setZoneModal(null)} hitSlop={12}><Icon name="x" size={20} color={colors.textDim} /></Pressable>
@@ -1371,6 +1375,7 @@ export default function SettingsScreen({ navigation, route }) {
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setPayMethodModal(null)} />
           {payMethodModal && (
             <FitView style={styles.modalInner}>
+            <GlassSurface radius={26} tint="28,34,50" alpha={0.985} floating style={StyleSheet.absoluteFill} />
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>{payMethodModal.index === -1 ? 'Новый способ оплаты' : 'Изменить способ оплаты'}</Text>
                 <Pressable onPress={() => setPayMethodModal(null)} hitSlop={12}><Icon name="x" size={20} color={colors.textDim} /></Pressable>
@@ -1432,6 +1437,7 @@ export default function SettingsScreen({ navigation, route }) {
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setEmpModal(null)} />
           {empModal && (
             <FitView style={styles.empModalBox}>
+            <GlassSurface radius={26} tint="28,34,50" alpha={0.985} floating style={StyleSheet.absoluteFill} />
               {/* Шапка */}
               <View style={styles.prodModalHeader}>
                 <Text style={styles.prodModalTitle}>{empModal.id ? 'Редактировать сотрудника' : 'Новый сотрудник'}</Text>
@@ -1448,7 +1454,7 @@ export default function SettingsScreen({ navigation, route }) {
                 <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 32 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
                   <Text style={styles.productFieldLabel}>Тип ставки</Text>
-                  <View style={styles.menuCard}>
+                  <GlassSurface radius={glass.radius.tile} style={styles.menuCard}>
                     {[
                       { key: 'shift',       label: 'За смену',     unit: '₽/смена', hint: 'Фиксированная сумма за каждую смену' },
                       { key: 'hourly',      label: 'Почасовая',    unit: '₽/час',   hint: 'Ставка умножается на часы смены' },
@@ -1481,10 +1487,10 @@ export default function SettingsScreen({ navigation, route }) {
                         </View>
                       </Pressable>
                     ))}
-                  </View>
+                  </GlassSurface>
 
                   <Text style={styles.productFieldLabel}>План (KPI)</Text>
-                  <View style={styles.menuCard}>
+                  <GlassSurface radius={glass.radius.tile} style={styles.menuCard}>
                     {[
                       { key: '',                  label: 'Без плана',        unit: '',        hint: 'KPI не отслеживается' },
                       { key: 'revenue',            label: 'Выручка',          unit: '₽',       hint: 'План по сумме продаж за период' },
@@ -1519,12 +1525,12 @@ export default function SettingsScreen({ navigation, route }) {
                         </View>
                       </Pressable>
                     ))}
-                  </View>
+                  </GlassSurface>
 
                   {!!empModal.kpiType && (
                     <>
                       <Text style={styles.productFieldLabel}>Период плана</Text>
-                      <View style={styles.menuCard}>
+                      <GlassSurface radius={glass.radius.tile} style={styles.menuCard}>
                         {[
                           { key: 'shift', label: 'За смену' },
                           { key: 'week',  label: 'За неделю' },
@@ -1541,7 +1547,7 @@ export default function SettingsScreen({ navigation, route }) {
                             </View>
                           </Pressable>
                         ))}
-                      </View>
+                      </GlassSurface>
                     </>
                   )}
 
@@ -1590,7 +1596,7 @@ export default function SettingsScreen({ navigation, route }) {
                       ].map(group => (
                         <View key={group.group} style={{ marginBottom: 12 }}>
                           <Text style={styles.catHeader}>{group.group}</Text>
-                          <View style={styles.menuCard}>
+                          <GlassSurface radius={glass.radius.tile} style={styles.menuCard}>
                             {group.items.map((item, idx) => (
                               <Pressable
                                 key={item.key}
@@ -1611,7 +1617,7 @@ export default function SettingsScreen({ navigation, route }) {
                                 />
                               </Pressable>
                             ))}
-                          </View>
+                          </GlassSurface>
                         </View>
                       ))}
                     </>
@@ -1766,6 +1772,7 @@ export default function SettingsScreen({ navigation, route }) {
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setReceiptPreview(false)} />
           {bizDraft && (
           <FitView style={styles.receiptBox}>
+            <GlassSurface radius={26} tint="28,34,50" alpha={0.985} floating style={StyleSheet.absoluteFill} />
             <ScrollView contentContainerStyle={{ padding: 16 }}>
               <View style={styles.receiptPaper}>
                 <Text style={styles.receiptBizName}>{bizDraft.receiptName || bizDraft.businessName || 'Название бизнеса'}</Text>
@@ -1821,7 +1828,7 @@ export default function SettingsScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   tourBtn:    { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(127,168,217,0.1)', borderWidth: 1, borderColor: 'rgba(127,168,217,0.4)', alignItems: 'center', justifyContent: 'center' },
   tourBtnTxt: { fontFamily: fonts.family, fontSize: 18, color: colors.orange },
-  presetCard: { borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 16, marginBottom: 10, gap: 8 },
+  presetCard: { borderRadius: 16, padding: 16, marginBottom: 10, gap: 8 },
   presetCardActive: { borderColor: 'rgba(127,168,217,0.5)', backgroundColor: 'rgba(127,168,217,0.06)' },
   presetHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   presetIcon: { fontSize: 28 },
@@ -1839,31 +1846,31 @@ const styles = StyleSheet.create({
 
   // Двухколоночный layout
   leftPanelBase: { width: '30%', maxWidth: 340, paddingVertical: 12 },
-  leftPanelCard: { margin: 12, marginRight: 0, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, overflow: 'hidden' },
+  leftPanelMargin: { margin: 12, marginRight: 0 },
   rightPanelBase: { flex: 1 },
-  rightPanelCard: { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, margin: 12, marginLeft: 12, overflow: 'hidden' },
+  rightPanelMargin: { margin: 12, marginLeft: 12 },
   navItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 17, paddingHorizontal: 18, position: 'relative' },
-  navItemActive: { backgroundColor: 'rgba(127,168,217,0.06)' },
+  navItemActive: {},
   navIcon: { fontSize: 18, width: 24, textAlign: 'center' },
   navLabel: { fontFamily: fonts.familySemibold, fontSize: 16, color: colors.muted, flex: 1 },
   navLabelActive: { color: colors.orange, fontFamily: fonts.family },
   navActiveBar: { position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: 2, backgroundColor: colors.orange },
   navArrow: { fontSize: 16, color: colors.muted },
-  rightPanel: { flex: 1, backgroundColor: colors.bg },
+  rightPanel: { flex: 1 },
   rightInner: { padding: 24, paddingBottom: 48 },
   sectionTitle: { fontFamily: fonts.family, fontSize: 24, color: colors.text, marginBottom: 20, letterSpacing: -0.3 },
   phoneback: { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
   phoneBackText: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
   // Модалка товара — position:absolute для надёжного scroll
   prodModalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center' },
-  prodModalBox: { width: '50%', maxHeight: '85%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
-  empModalBox:  { width: '75%', height: '82%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', flexDirection: 'column' },
+  prodModalBox: { width: '50%', maxHeight: '85%', borderRadius: 20, overflow: 'hidden' },
+  empModalBox: { width: '75%', height: '82%', borderRadius: 20, overflow: 'hidden', flexDirection: 'column' },
   prodModalHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     padding: 20, borderBottomWidth: 1, borderBottomColor: colors.border,
   },
   prodModalTitle: { fontFamily: fonts.family, fontSize: 18, color: colors.text },
-  receiptBox: { width: 320, maxHeight: '88%', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  receiptBox: { width: 320, maxHeight: '88%', borderRadius: 20, overflow: 'hidden' },
   receiptPaper: { backgroundColor: '#ffffff', borderRadius: 12, padding: 20 },
   receiptBizName: { fontFamily: fonts.family, fontSize: 16, color: '#111', textAlign: 'center', marginBottom: 4 },
   receiptBizSub:  { fontFamily: fonts.familyRegular, fontSize: 12, color: '#555', textAlign: 'center', lineHeight: 18 },
@@ -2030,7 +2037,7 @@ const styles = StyleSheet.create({
   menuCatLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.1)' },
   menuCatName: { fontFamily: fonts.familySemibold, fontSize: 12, color: colors.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
   // Карточка товаров
-  menuCard: { backgroundColor: colors.surface2, borderRadius: 16, borderWidth: 1, borderColor: colors.borderHi, overflow: 'hidden' },
+  menuCard: { overflow: 'hidden' },
   menuRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, gap: 12 },
   menuRowDiv: { borderBottomWidth: 1, borderBottomColor: colors.border },
   menuItemName: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, flex: 1, marginRight: 8 },
@@ -2062,7 +2069,7 @@ const styles = StyleSheet.create({
   subLabel: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.text, textTransform: 'uppercase', letterSpacing: 1, marginTop: 16, marginBottom: 8 },
   input: { padding: 13, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, fontSize: 14, fontFamily: fonts.familyRegular },
   modalRoot: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center' },
-  modalInner: { width: '55%', maxWidth: 540, backgroundColor: colors.surface, borderRadius: 20, padding: 24, borderWidth: 1, borderColor: colors.borderHi },
+  modalInner: { width: '55%', maxWidth: 540, borderRadius: 20, padding: 24,},
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   modalTitle: { fontFamily: fonts.family, fontSize: 18, color: colors.text, flex: 1 },
   modalClose: { fontSize: 18, color: colors.muted, padding: 4 },

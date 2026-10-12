@@ -24,7 +24,7 @@ const when = iso => { try { const d = new Date(iso); return `${String(d.getDate(
 
 // Всё ниже — на уровне модуля: описанные внутри компонента, они пересоздавались бы при каждой букве и сбрасывали курсор
 const Card = ({ title, right, onRight, children }) => (
-  <View style={st.card}><View style={st.cardH}><Text style={st.cardT}>{title}</Text>{!!right && <Pressable onPress={onRight} hitSlop={8}><Text style={st.cardR}>{right}</Text></Pressable>}</View>{children}</View>
+  <GlassSurface radius={18} padding={14} style={st.card}><View style={st.cardH}><Text style={st.cardT}>{title}</Text>{!!right && <Pressable onPress={onRight} hitSlop={8}><Text style={st.cardR}>{right}</Text></Pressable>}</View>{children}</GlassSurface>
 );
 const Fld = ({ label, value, onChange, placeholder, multiline, keyboardType }) => (
   <View style={[st.fld, multiline && { paddingVertical: 8 }]}><Text style={st.fl}>{label}</Text>
@@ -195,7 +195,7 @@ export default function ClientPageEditor({ visible, page, onClose }) {
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <KeyboardSafe style={st.ov}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View style={st.big}>
+        <GlassSurface radius={26} tint="26,32,46" alpha={0.99} floating style={st.big} contentStyle={{ flex: 1 }}>
           <View style={st.head}>
             <View style={{ flex: 1, minWidth: 0 }}><Text style={st.title} numberOfLines={1}>{isReg ? 'Страница регистрации по QR' : 'Страница онлайн-записи'}</Text>
               <Text style={st.sub} numberOfLines={1}>{pub.dirty ? 'Есть неопубликованные изменения' : `Опубликовано ${when(pub.at)}`}</Text></View>
@@ -208,7 +208,7 @@ export default function ClientPageEditor({ visible, page, onClose }) {
             <View style={{ flex: 1, display: wide || tab === 'set' ? 'flex' : 'none' }}>{settings}</View>
             <View style={{ width: wide ? 330 : undefined, flex: wide ? 0 : 1, display: wide || tab === 'prev' ? 'flex' : 'none' }}>{preview}</View>
           </View>
-        </View>
+        </GlassSurface>
         <LinkQr visible={qr} link={isReg ? links.reg : links.book} title={isReg ? 'Регистрация по QR' : 'Онлайн-запись'} onClose={() => setQr(false)} />
       </KeyboardSafe>
     </Modal>
@@ -216,11 +216,11 @@ export default function ClientPageEditor({ visible, page, onClose }) {
 }
 
 const st = StyleSheet.create({
-  ov: { flex: 1, backgroundColor: 'rgba(5,8,12,0.66)', alignItems: 'center', justifyContent: 'center' }, big: { width: '97%', height: '93%', maxWidth: 1240, borderRadius: 26, overflow: 'hidden', backgroundColor: 'rgba(22,28,40,0.99)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  ov: { flex: 1, backgroundColor: 'rgba(5,8,12,0.66)', alignItems: 'center', justifyContent: 'center' }, big: { width: '97%', height: '93%', maxWidth: 1240 },
   win: { width: '92%' }, head: { flexDirection: 'row', alignItems: 'center', padding: 16, paddingBottom: 10 }, title: { fontFamily: fonts.display, fontSize: 20, color: colors.text }, sub: { fontFamily: fonts.familyRegular, fontSize: 13, color: colors.muted, marginTop: 2 },
   x: { marginLeft: 10, width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' }, xT: { fontSize: 15, color: colors.textDim },
   tabs: { flexDirection: 'row', gap: 4, marginHorizontal: 16, marginBottom: 8, padding: 4, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.05)' }, tab: { flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center' }, tabOn: { backgroundColor: 'rgba(150,172,204,0.28)' }, tabT: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.textDim },
-  card: { borderRadius: 18, padding: 14, marginBottom: 10, backgroundColor: 'rgba(255,255,255,0.035)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' }, cardH: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 }, cardT: { flex: 1, fontFamily: fonts.familySemibold, fontSize: 12, letterSpacing: 1.3, textTransform: 'uppercase', color: colors.muted }, cardR: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orangeLight },
+  card: { marginBottom: 10 }, cardH: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 }, cardT: { flex: 1, fontFamily: fonts.familySemibold, fontSize: 12, letterSpacing: 1.3, textTransform: 'uppercase', color: colors.muted }, cardR: { fontFamily: fonts.familySemibold, fontSize: 13, color: colors.orangeLight },
   fld: { flexDirection: 'row', alignItems: 'center', minHeight: 48, borderRadius: 14, paddingHorizontal: 14, marginBottom: 8, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.09)' }, fl: { width: 118, fontFamily: fonts.familySemibold, fontSize: 12.5, color: colors.textDim }, in: { flex: 1, minWidth: 0, padding: 0, fontFamily: fonts.familySemibold, fontSize: 15, color: colors.text },
   sw: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }, swT: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim }, swS: { fontFamily: fonts.familyRegular, fontSize: 12, color: colors.muted, marginTop: 2 }, val: { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim },
   hint: { fontFamily: fonts.familyRegular, fontSize: 12.5, color: colors.muted, lineHeight: 18, marginTop: 6, marginBottom: 4 },

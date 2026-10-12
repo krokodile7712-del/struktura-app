@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Group, Row, SwitchRow, NumField, Sentence, ChoiceCards, Note } from './ui';
 import { getLoyaltyConfig, updateLoyaltyConfig } from '../../db/queries';
 import { getClientPages, saveClientPages } from '../../db/clientPages';
+import GlassSurface from '../GlassSurface';
 import { colors, fonts } from '../../constants/theme';
 
 const MODELS = [
@@ -13,7 +14,7 @@ const MODELS = [
 const DEFAULT_CFG = { earn_pct: 10, allow_spend: false, point_value: 1, pct: 5, deduct_per_visit: 1, max_spend_pct: 50 };
 const rub = n => `${Math.round(n).toLocaleString('ru-RU')} ₽`;
 
-function Example({ title, children }) { return <View style={s.ex}><Text style={s.exT}>{title}</Text><Text style={s.exB}>{children}</Text></View>; }
+function Example({ title, children }) { return <GlassSurface radius={18} tint="127,168,217" alpha={0.12} padding={16} style={s.ex}><Text style={s.exT}>{title}</Text><Text style={s.exB}>{children}</Text></GlassSurface>; }
 
 /** «Лояльность»: выбор модели карточками, настройка выбранной модели предложениями, живой пример «что получит клиент», бонус за регистрацию по QR. Всё сохраняется сразу. */
 export default function LoyaltySection({ onSaved }) {
@@ -69,6 +70,6 @@ export default function LoyaltySection({ onSaved }) {
 }
 const s = StyleSheet.create({
   h: { fontFamily: fonts.familySemibold, fontSize: 12, letterSpacing: 1.3, textTransform: 'uppercase', color: colors.muted, marginLeft: 8, marginBottom: 8 },
-  ex: { marginTop: 12, padding: 16, borderRadius: 18, backgroundColor: 'rgba(127,168,217,0.08)', borderWidth: 1, borderColor: 'rgba(157,191,230,0.22)' },
+  ex: { marginTop: 12 },
   exT: { fontFamily: fonts.familySemibold, fontSize: 11, letterSpacing: 1.2, textTransform: 'uppercase', color: colors.muted, marginBottom: 6 }, exB: { fontFamily: fonts.familyRegular, fontSize: 14.5, color: colors.textDim, lineHeight: 21 },
 });
