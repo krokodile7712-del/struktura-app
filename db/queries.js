@@ -1,6 +1,6 @@
 import { getDb } from './database';
 import * as Auth from './userAuth';
-import { BACKUP_TABLES_INFO, BACKUP_TABLES, exportAllData as backupExportAll, importAllData as backupImportAll } from './backupData';
+import { BACKUP_TABLES_INFO, BACKUP_TABLES, findUnregisteredTables, exportAllData as backupExportAll, importAllData as backupImportAll } from './backupData';
 import { getSession } from './session';
 import { toStoredPhone, normalizeLegacyPhone, phoneSearchVariants } from '../utils/phone';
 
@@ -2684,7 +2684,9 @@ export function resetDatabase(includeUsers = false) {
   // без неё отпечатки не сойдутся, и никто не сможет войти
   let keepSalt = null;
   if (!includeUsers) { try { keepSalt = getSetting('pin_salt'); } catch (_) {} }
-  for (const table of BACKUP_TABLES) {
+  // Полное стирание — по всем таблицам базы, а не только по реестру: так не остаётся «забытых» данных
+  const all = includeUsers ? [...new Set([...BACKUP_TABLES, ...findUnregisteredTables(db)])] : BACKUP_TABLES;
+  for (const table of all) {
     if (table === 'users' && !includeUsers) continue;
     try {
       db.execSync(`DELETE FROM ${table}`);

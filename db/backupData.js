@@ -3,50 +3,66 @@
 // приложения. Шифрование файла — db/backupCrypto.js.
 import * as Auth from './userAuth';
 
+// Единый реестр таблиц: по нему работают резервная копия, восстановление и сброс данных (в экранах списков таблиц больше нет).
+// kind: 'config' — настройки, люди, структура (сброс продаж не трогает); 'catalog' — справочники: товары, техкарты, категории (сброс продаж не трогает);
+//       'activity' — продажи, клиенты, смены, расходы, закупки, остатки и вся история (стираются сбросом «продажи и клиенты»).
+// Новая таблица, не внесённая сюда, НЕ теряется: резервная копия сохраняет её отдельно (data.__extra), сброс продаж её не трогает и сообщает о ней.
 export const BACKUP_TABLES_INFO = [
-  { table: 'business_profile',        label: 'Профиль бизнеса' },
-  { table: 'app_settings',            label: 'Настройки приложения' },
-  { table: 'users',                   label: 'Сотрудники (PIN-коды)' },
-  { table: 'products',                label: 'Товары' },
-  { table: 'product_variants',        label: 'Варианты и цены товаров' },
-  { table: 'product_axes',            label: 'Оси товаров (размер/вкус и т.п.)' },
-  { table: 'axis_values',             label: 'Значения осей товаров' },
-  { table: 'categories',              label: 'Категории товаров' },
-  { table: 'modifiers',               label: 'Модификаторы (старые)' },
-  { table: 'modifier_groups',         label: 'Группы модификаторов' },
-  { table: 'modifier_options',        label: 'Опции модификаторов' },
-  { table: 'product_modifier_groups', label: 'Привязка модификаторов к товарам' },
-  { table: 'cost_cards',              label: 'Техкарты' },
-  { table: 'cost_ingredients',        label: 'Ингредиенты техкарт' },
-  { table: 'price_schedules',         label: 'Расписания цен' },
-  { table: 'clients',                 label: 'Клиенты' },
-  { table: 'orders',                  label: 'Заказы' },
-  { table: 'order_items',             label: 'Позиции заказов' },
-  { table: 'order_templates',         label: 'Шаблоны заказов' },
-  { table: 'shifts',                  label: 'Смены' },
-  { table: 'expenses',                label: 'Расходы' },
-  { table: 'stock',                   label: 'Склад' },
-  { table: 'stock_by_location',       label: 'Остатки по складам' },
-  { table: 'warehouses',              label: 'Склады' },
-  { table: 'workstations',            label: 'Рабочие места' },
-  { table: 'stock_transfers',         label: 'Перемещения между складами' },
-  { table: 'stock_transfer_items',    label: 'Позиции перемещений' },
-  { table: 'shift_edit_log',          label: 'Журнал правок смен' },
-  { table: 'manual_bookings',         label: 'Записи по телефону' },
-  { table: 'booking_links',           label: 'Связь онлайн-записей с заказами' },
-  { table: 'stock_deductions',        label: 'Списания со склада' },
-  { table: 'purchases',               label: 'Закупки' },
-  { table: 'locations',               label: 'Локации' },
-  { table: 'zones',                   label: 'Зоны' },
-  { table: 'zone_tables',             label: 'Столы' },
-  { table: 'equipment',               label: 'Оборудование' },
-  { table: 'overhead_items',          label: 'Накладные расходы' },
-  { table: 'investments',             label: 'Инвестиции' },
-  { table: 'inventory_acts',          label: 'Акты инвентаризации' },
-  { table: 'inventory_act_items',     label: 'Позиции инвентаризации' },
-  { table: 'fiscal_queue',            label: 'Очередь чеков (фискализация)' },
+  { table: 'business_profile', kind: 'config',        label: 'Профиль бизнеса' },
+  { table: 'app_settings', kind: 'config',            label: 'Настройки приложения' },
+  { table: 'users', kind: 'config',                   label: 'Сотрудники (PIN-коды)' },
+  { table: 'products', kind: 'catalog',                label: 'Товары' },
+  { table: 'product_variants', kind: 'catalog',        label: 'Варианты и цены товаров' },
+  { table: 'product_axes', kind: 'catalog',            label: 'Оси товаров (размер/вкус и т.п.)' },
+  { table: 'axis_values', kind: 'catalog',             label: 'Значения осей товаров' },
+  { table: 'categories', kind: 'catalog',              label: 'Категории товаров' },
+  { table: 'modifiers', kind: 'catalog',               label: 'Модификаторы (старые)' },
+  { table: 'modifier_groups', kind: 'catalog',         label: 'Группы модификаторов' },
+  { table: 'modifier_options', kind: 'catalog',        label: 'Опции модификаторов' },
+  { table: 'product_modifier_groups', kind: 'catalog', label: 'Привязка модификаторов к товарам' },
+  { table: 'cost_cards', kind: 'catalog',              label: 'Техкарты' },
+  { table: 'cost_ingredients', kind: 'catalog',        label: 'Ингредиенты техкарт' },
+  { table: 'price_schedules', kind: 'catalog',         label: 'Расписания цен' },
+  { table: 'clients', kind: 'activity',                 label: 'Клиенты' },
+  { table: 'orders', kind: 'activity',                  label: 'Заказы' },
+  { table: 'order_items', kind: 'activity',             label: 'Позиции заказов' },
+  { table: 'order_templates', kind: 'catalog',         label: 'Шаблоны заказов' },
+  { table: 'shifts', kind: 'activity',                  label: 'Смены' },
+  { table: 'expenses', kind: 'activity',                label: 'Расходы' },
+  { table: 'stock', kind: 'catalog',                   label: 'Склад' },
+  { table: 'stock_by_location', kind: 'activity',       label: 'Остатки по складам' },
+  { table: 'warehouses', kind: 'config',              label: 'Склады' },
+  { table: 'workstations', kind: 'config',            label: 'Рабочие места' },
+  { table: 'stock_transfers', kind: 'activity',         label: 'Перемещения между складами' },
+  { table: 'stock_transfer_items', kind: 'activity',    label: 'Позиции перемещений' },
+  { table: 'shift_edit_log', kind: 'activity',          label: 'Журнал правок смен' },
+  { table: 'manual_bookings', kind: 'activity',         label: 'Записи по телефону' },
+  { table: 'booking_links', kind: 'activity',           label: 'Связь онлайн-записей с заказами' },
+  { table: 'stock_deductions', kind: 'activity',        label: 'Списания со склада' },
+  { table: 'purchases', kind: 'activity',               label: 'Закупки' },
+  { table: 'locations', kind: 'config',               label: 'Локации' },
+  { table: 'zones', kind: 'config',                   label: 'Зоны' },
+  { table: 'zone_tables', kind: 'config',             label: 'Столы' },
+  { table: 'equipment', kind: 'catalog',               label: 'Оборудование' },
+  { table: 'overhead_items', kind: 'catalog',          label: 'Накладные расходы' },
+  { table: 'investments', kind: 'catalog',             label: 'Инвестиции' },
+  { table: 'inventory_acts', kind: 'activity',          label: 'Акты инвентаризации' },
+  { table: 'inventory_act_items', kind: 'activity',     label: 'Позиции инвентаризации' },
+  { table: 'recurring_expenses', kind: 'catalog',  label: 'Повторяющиеся расходы' },
+  { table: 'fiscal_queue', kind: 'activity',            label: 'Очередь чеков (фискализация)' },
 ];
 export const BACKUP_TABLES = BACKUP_TABLES_INFO.map(t => t.table);
+export const ACTIVITY_TABLES = BACKUP_TABLES_INFO.filter(t => t.kind === 'activity');
+
+// Все таблицы данных в базе (служебные sqlite_* не считаем)
+export function listUserTables(db) {
+  return db.getAllSync(`SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name`).map(r => r.name);
+}
+// Таблицы, которые есть в базе, но не внесены в реестр выше
+export function findUnregisteredTables(db) {
+  const known = new Set(BACKUP_TABLES);
+  return listUserTables(db).filter(t => !known.has(t));
+}
 
 export function exportAllData(db) {
   const data = { exported_at: new Date().toISOString(), app: 'struktura' };
@@ -57,6 +73,10 @@ export function exportAllData(db) {
   // Счётчик неверных PIN и время блокировки — состояние конкретного устройства,
   // в копию не кладём (иначе после восстановления вход оказался бы заблокирован)
   data.app_settings = (data.app_settings || []).filter(r => r.key !== 'pin_fail_count' && r.key !== 'pin_lock_until');
+  // Таблица, которую забыли внести в реестр, не должна молча выпасть из копии
+  const extra = {};
+  for (const t of findUnregisteredTables(db)) { try { extra[t] = db.getAllSync(`SELECT * FROM ${t}`); } catch (_) {} }
+  if (Object.keys(extra).length) data.__extra = extra;
   return data;
 }
 
@@ -124,6 +144,19 @@ export function importAllData(db, data, ensureTables) {
         );
       }
       restored.push(label);
+    }
+    if (data.__extra && typeof data.__extra === 'object') {
+      for (const [table, rows] of Object.entries(data.__extra)) {
+        if (!/^[\p{L}\p{N}_]+$/u.test(table) || !Array.isArray(rows) || BACKUP_TABLES.includes(table)) continue;
+        const validCols = new Set(db.getAllSync(`PRAGMA table_info(${table})`).map(c => c.name));
+        if (validCols.size === 0) { skipped.push(table); continue; }
+        db.runSync(`DELETE FROM ${table}`);
+        for (const row of rows) {
+          const cols = Object.keys(row).filter(c => validCols.has(c));
+          if (cols.length) db.runSync(`INSERT INTO ${table} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`, cols.map(c => row[c]));
+        }
+        restored.push(table);
+      }
     }
     db.execSync('COMMIT');
     // Копия, сделанная старой версией, содержит PIN открытым текстом —

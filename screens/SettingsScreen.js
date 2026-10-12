@@ -13,7 +13,7 @@ import TourGuide from '../components/TourGuide';
 import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
 import { useResponsive } from '../hooks/useResponsive';
 import {
-  getAllProductsAdmin, insertProduct, setProductActive,
+  getAllProductsAdmin, insertProduct, setProductActive, localDateStr,
   getDiscountEligibleProducts, getDiscountIneligibleProducts, setProductDiscountEligible,
   getClientsWithDiscountCount, getClientsWithPersonalDiscount, getClientsWithoutDiscount, setClientDiscountPct,
   getProductVariants, getProductAxesWithValues, saveProductAxesAndVariants,
@@ -44,6 +44,7 @@ import { resetKassaCart } from '../db/cartStore';
 import EmptyState from '../components/EmptyState';
 import { colors, fonts, spacing } from '../constants/theme';
 import { useToast } from '../components/Toast';
+import { previewSalesReset, resetSalesAndClients } from '../db/dataReset';
 import FitView from '../components/FitView';
 import PinConfirmModal from '../components/PinConfirmModal';
 import BackupPasswordModal from '../components/BackupPasswordModal';
@@ -508,7 +509,7 @@ export default function SettingsScreen({ navigation, route }) {
   // зашифрованный текст файла.
   const handleExportSave = async (json) => {
     try {
-      const fileName = `struktura-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      const fileName = `struktura-backup-${localDateStr()}.json`;
 
       if (Platform.OS === 'android') {
         const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
@@ -536,7 +537,7 @@ export default function SettingsScreen({ navigation, route }) {
 
   const handleExportShare = async (json) => {
     try {
-      const fileName = `struktura-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      const fileName = `struktura-backup-${localDateStr()}.json`;
       // Раньше здесь был Share.share({ message: json }) — это отправляло
       // сырой текст JSON через системное меню «Поделиться», а не файл.
       // При попытке поделиться через мессенджер или почту получалась
@@ -2015,30 +2016,20 @@ export default function SettingsScreen({ navigation, route }) {
             <Pressable
               style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: 'rgba(219,129,120,0.04)' }]}
               onPress={() => {
+                const pv = previewSalesReset(getDb());
+                const list = pv.rows.map(r => `• ${r.label}: ${r.count}`).join('\n') || '• данных нет';
                 Alert.alert(
                   'Сбросить продажи и клиентов?',
-                  'Удалятся все продажи, клиенты, смены и расходы. Остатки на складе обнулятся.\n\nТовары, техкарты, сотрудники и настройки останутся как есть.\n\nЭто действие нельзя отменить.',
+                  `Будет удалено:\n\n${list}\n\nОстатки склада обнулятся. Товары, техкарты, сотрудники, склады и настройки останутся.\n\nЭто нельзя отменить — сначала сохраните резервную копию.`,
                   [
                     { text: 'Отмена', style: 'cancel' },
-                    { text: 'Сбросить', style: 'destructive', onPress: () => {
-                      try {
-                        const db = getDb();
-                        // Очищаем все данные кроме настроек и профиля
-                        [
-                          'orders', 'order_items', 'stock_deductions',
-                          'clients',
-                          'shifts', 'expenses',
-                          'stock_movements',
-                          'stock_by_location',
-                        ].forEach(t => {
-                          try { db.runSync(`DELETE FROM ${t}`); } catch (_) {}
-                        });
-                        // Сбрасываем остатки склада в 0
-                        try { db.runSync(`UPDATE stock SET остаток = 0, max_ostatok = 0`); } catch (_) {}
-                        loadAll();
-                        toast.show('Продажи и клиенты сброшены ✓', 'info');
-                      } catch (e) { console.error(e); toast.show('Ошибка сброса', 'warn'); }
-                    }},
+                    { text: 'Сохранить копию', onPress: () => handleExportSave() },
+                    { text: 'Сбросить', style: 'destructive', onPress: () => askAdminPin('Сбросить продажи и клиентов', 'Введите ваш PIN-код администратора, чтобы подтвердить сброс.', () => {
+                      const res = resetSalesAndClients(getDb());
+                      if (!res.ok) { Alert.alert('Не выполнено', res.error); return; }
+                      loadAll();
+                      toast.show(`Сброшено: ${res.deleted} записей ✓`, 'info');
+                    }) },
                   ]
                 );
               }}
