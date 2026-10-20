@@ -513,6 +513,21 @@ export function initDatabase() {
     // Нужно, чтобы в «Продажах» было видно списание, а при ручном возврате — сколько вернуть.
     `ALTER TABLE orders ADD COLUMN points_spent REAL DEFAULT 0`,
     `ALTER TABLE orders ADD COLUMN points_discount REAL DEFAULT 0`,
+
+    // Расход: из каких денег оплачен. 'cash' — из кассы (наличные смены), 'card' — с карты
+    // предприятия. У прежних расходов значение пустое и считается как 'cash': раньше итог
+    // смены расходы не учитывал вообще, а «из кассы» — самый частый случай.
+    `ALTER TABLE expenses ADD COLUMN pay_source TEXT DEFAULT 'cash'`,
+
+    // Индексы: без них каждая выборка заказов/позиций/расходов шла полным перебором таблицы,
+    // и открытие Обзора, Продаж и Отчётов замедлялось по мере роста числа заказов.
+    // IF NOT EXISTS — безопасно повторять; сбой одного индекса не мешает остальным.
+    `CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_orders_shift_id ON orders(shift_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date)`,
+    `CREATE INDEX IF NOT EXISTS idx_expenses_shift_id ON expenses(shift_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_shifts_user_status ON shifts(user_id, status)`,
   ];
   for (const sql of migrations) {
     try { db.execSync(sql); } catch (_) {}

@@ -1641,11 +1641,17 @@ export function getAllExpenses() {
   return db.getAllSync(`SELECT * FROM expenses ORDER BY date DESC`);
 }
 
-export function insertExpense({ date, category, amount, comment, shift_id, photo_uri, location_id, source }) {
+// pay_source: 'cash' — из кассы (наличные смены), 'card' — с карты предприятия,
+// 'none' — источник не указан (закупки из «Склада»: из кассы они не вычитаются, пока владелец
+// не решит иначе). Любое другое значение приводим к 'cash'.
+const PAY_SOURCES = ['cash', 'card', 'none'];
+const normPaySource = v => (PAY_SOURCES.includes(v) ? v : 'cash');
+
+export function insertExpense({ date, category, amount, comment, shift_id, photo_uri, location_id, source, pay_source }) {
   const db = getDb();
   db.runSync(
-    `INSERT INTO expenses (date, category, amount, comment, shift_id, photo_uri, location_id, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [date, category, amount, comment || '', shift_id || null, photo_uri || '', location_id || null, source || '']
+    `INSERT INTO expenses (date, category, amount, comment, shift_id, photo_uri, location_id, source, pay_source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [date, category, amount, comment || '', shift_id || null, photo_uri || '', location_id || null, source || '', normPaySource(pay_source)]
   );
 }
 
@@ -1659,11 +1665,11 @@ export function deleteExpense(id) {
   db.runSync(`DELETE FROM expenses WHERE id = ?`, [id]);
 }
 
-export function updateExpense(id, { category, amount, comment, photo_uri, date }) {
+export function updateExpense(id, { category, amount, comment, photo_uri, date, pay_source }) {
   const db = getDb();
   db.runSync(
-    `UPDATE expenses SET category = ?, amount = ?, comment = ?, photo_uri = ?, date = COALESCE(?, date) WHERE id = ?`,
-    [category, amount, comment || '', photo_uri || '', date || null, id]
+    `UPDATE expenses SET category = ?, amount = ?, comment = ?, photo_uri = ?, date = COALESCE(?, date), pay_source = COALESCE(?, pay_source) WHERE id = ?`,
+    [category, amount, comment || '', photo_uri || '', date || null, pay_source ? normPaySource(pay_source) : null, id]
   );
 }
 
@@ -2041,13 +2047,18 @@ export function getShiftSummary(shift_id) {
   const qr   = 0; // QR теперь входит в card (тип 'card'), оставлено для совместимости
   const total = cash + card + qr;
 
-  // Расходы за дату смены
-  const shiftDate = shift.opened_at.slice(0, 10);
+  // Расходы этой смены: привязанные к ней (shift_id). Расходы без смены (внесены, когда она не была
+  // открыта, и прежние записи) — по местной дате открытия смены, как раньше. Раньше брались ВСЕ расходы
+  // календарного дня, в том числе чужих смен.
+  const shiftDate = new Date(shift.opened_at).toLocaleDateString('sv-SE');
   const expenses = db.getAllSync(
-    `SELECT * FROM expenses WHERE date LIKE ? ORDER BY date DESC`,
-    [`${shiftDate}%`]
+    `SELECT * FROM expenses WHERE shift_id = ? OR (shift_id IS NULL AND date LIKE ?) ORDER BY date DESC, id DESC`,
+    [shift_id, `${shiftDate}%`]
   );
   const expTotal = expenses.reduce((s, e) => s + e.amount, 0);
+  // Из кассы — вычитаются из наличных смены; с карты предприятия — отдельной строкой, наличных не касаются
+  const cashExpTotal = expenses.filter(e => !e.pay_source || e.pay_source === 'cash').reduce((s, e) => s + e.amount, 0);
+  const cardExpTotal = expenses.filter(e => e.pay_source === 'card').reduce((s, e) => s + e.amount, 0);
 
   // Расходы по категориям
   const expByCategory = {};
@@ -2056,13 +2067,13 @@ export function getShiftSummary(shift_id) {
   }
 
   const openingCash = shift.cash_open || 0;
-  const cashRemaining = openingCash + cash - 0; // инкассация пока 0
+  const cashRemaining = openingCash + cash - cashExpTotal; // инкассация пока 0
 
   return {
     shift,
     orders: orders.length,
     cash, card, qr, total,
-    expenses, expTotal, expByCategory,
+    expenses, expTotal, cashExpTotal, cardExpTotal, expByCategory,
     openingCash, cashRemaining,
     employeeName: shift.employee_name || '',
   };
@@ -2342,6 +2353,7 @@ export function initStockDeductionSchema() {
     )
   `);
   try { db.execSync(`ALTER TABLE stock_deductions ADD COLUMN warehouse_id INTEGER`); } catch (_) {}
+  try { db.execSync(`CREATE INDEX IF NOT EXISTS idx_stock_deductions_item ON stock_deductions(order_item_id)`); } catch (_) {}
   try { db.execSync(`ALTER TABLE modifiers ADD COLUMN deduct_amount REAL DEFAULT 0`); } catch (_) {}
   try { db.execSync(`ALTER TABLE modifiers ADD COLUMN deduct_unit TEXT DEFAULT ''`); } catch (_) {}
 }
@@ -2622,7 +2634,7 @@ function purchaseOne(db, stockName, qty, pricePerUnit, wid, now) {
     // Закупка — расход (отчёты и «Расходы»), привязан к локации склада прихода; единственное место, где он создаётся
     insertExpense({
       date: new Date().toLocaleDateString('sv-SE'), category: 'Закупка', amount: total,
-      comment: `${stockName}, ${qty} ${stockRow.unit || ''}`.trim(), shift_id: getOpenShift()?.id || null,
+      comment: `${stockName}, ${qty} ${stockRow.unit || ''}`.trim(), shift_id: getOpenShift()?.id || null, pay_source: 'none',
       location_id: db.getFirstSync(`SELECT location_id FROM warehouses WHERE id = ?`, [wid])?.location_id || null, source: 'stock',
     });
   }
@@ -2907,22 +2919,20 @@ function localDayStart(offsetDays = 0) {
 }
 
 // Дополнительные данные для Обзора администратора: сравнение со вчера, последние
-// продажи и популярное за сегодня. Сравнение «ко вчера» — на то же время суток
-// (сегодня с 00:00 до сейчас против вчера с 00:00 до этого же времени), иначе утром
-// любая выручка выглядела бы провалом по сравнению с целым вчерашним днём.
+// продажи и популярное за сегодня. Сравнение «ко вчера» — с ЦЕЛЫМ вчерашним днём (по решению владельца:
+// так понятно, что 900 ₽ сегодня — это на 10% меньше, чем 1000 ₽ вчера). Минус: утром цифра выглядит
+// «просадкой», пока день не набрал оборот — это ожидаемо, а не ошибка расчёта.
 export function getOverviewExtras() {
   const db = getDb();
   const startToday = localDayStart(0);
   const startYest  = localDayStart(-1);
-  const nowMs = Date.now();
-  const elapsed = nowMs - startToday.getTime();
   const notReturned = `(status IS NULL OR status != 'returned')`;
 
   const sum = (from, to) => db.getFirstSync(
     `SELECT COUNT(*) AS n, COALESCE(SUM(total), 0) AS s FROM orders WHERE created_at >= ? AND created_at < ? AND ${notReturned}`,
     [from, to]
   ) || { n: 0, s: 0 };
-  const y = sum(startYest.toISOString(), new Date(startYest.getTime() + elapsed + 1000).toISOString());
+  const y = sum(startYest.toISOString(), startToday.toISOString());
   const yesterday = { orders: y.n, total: y.s, avg: y.n > 0 ? y.s / y.n : 0 };
 
   const todayFrom = startToday.toISOString();

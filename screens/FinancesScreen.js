@@ -92,8 +92,8 @@ export default function FinancesScreen({ navigation, route }) {
       if (v.kind === 'recurring') {
         const data = { name: v.name, amount: v.amount, period: v.period };
         if (expModal?.mode === 'recurring' && expModal.item) updateOverheadItem(expModal.item.id, data); else addOverheadItem(data);
-      } else if (expModal?.item) updateExpense(expModal.item.id, { category: v.category, amount: v.amount, comment: v.comment, photo_uri: v.photo, date: v.date });
-      else insertExpense({ date: v.date, category: v.category, amount: v.amount, comment: v.comment, photo_uri: v.photo, location_id: getWorkContext().locationId, shift_id: getOpenShift()?.id || null });
+      } else if (expModal?.item) updateExpense(expModal.item.id, { category: v.category, amount: v.amount, comment: v.comment, photo_uri: v.photo, date: v.date, pay_source: v.paySource });
+      else insertExpense({ date: v.date, category: v.category, amount: v.amount, comment: v.comment, photo_uri: v.photo, pay_source: v.paySource, location_id: getWorkContext().locationId, shift_id: getOpenShift()?.id || null });
       load(); return { ok: true };
     } catch (e) { console.error(e); return { ok: false, message: 'Не удалось сохранить. Попробуйте ещё раз.' }; }
   };
