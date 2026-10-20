@@ -187,6 +187,25 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
   const nVars = vars.length;
   const segLabel = (v, i) => ((v?.label || '').trim() || `Размер ${i + 1}`);
 
+  // Переключатель размера. Показывается и в блоке «Размер», и прямо над техкартой: при заполнении
+  // техкарты блок «Размер» остаётся далеко выше экрана, и не было видно, какой размер заполняется.
+  // Рендер-функция, а не вложенный компонент (иначе поля ввода пересоздавались бы при наборе текста).
+  const renderSizeSwitch = (marginBottom = 14) => (nVars <= 4 ? (
+    <View style={{ marginBottom }}>
+      <GlassSegmented items={vars.map((v, vi) => ({ key: vi, label: segLabel(v, vi) }))} value={selIdx} onChange={setSelVar} height={50} />
+    </View>
+  ) : (
+    <View style={[styles.segx, { marginBottom }]}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        {vars.map((v, vi) => (
+          <Pressable key={vi} style={[styles.segItem, { width: 120 }, selIdx === vi && styles.segItemOn]} onPress={() => setSelVar(vi)}>
+            <Text style={[styles.segTxt, selIdx === vi && styles.segTxtOn]} numberOfLines={1}>{segLabel(v, vi)}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+    </View>
+  ));
+
   const totalCost = (v) => { const ings = Array.isArray(v?.ings) ? v.ings : []; return ings.reduce((s, ing) => s + (parseFloat(ing?.amount)||0) * (parseFloat(ing?.price_per_unit)||0), 0); };
   const margin    = (v) => { const c = totalCost(v); const p = parseFloat(v.price)||0; return p > 0 && c > 0 ? Math.round((1 - c/p)*100) : null; };
 
@@ -321,21 +340,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
                   </Pressable>
                 </View>
                 {/* Сегментированный переключатель (как в iOS): одна «капсула», выбранный размер — на скользящем бегунке */}
-                {nVars <= 4 ? (
-                  <View style={{ marginBottom: 14 }}>
-                    <GlassSegmented items={vars.map((v, vi) => ({ key: vi, label: segLabel(v, vi) }))} value={selIdx} onChange={setSelVar} height={50} />
-                  </View>
-                ) : (
-                  <View style={styles.segx}>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                      {vars.map((v, vi) => (
-                        <Pressable key={vi} style={[styles.segItem, { width: 120 }, selIdx === vi && styles.segItemOn]} onPress={() => setSelVar(vi)}>
-                          <Text style={[styles.segTxt, selIdx === vi && styles.segTxtOn]} numberOfLines={1}>{segLabel(v, vi)}</Text>
-                        </Pressable>
-                      ))}
-                    </ScrollView>
-                  </View>
-                )}
+                {renderSizeSwitch()}
                 {editSizes && (
                   <View style={{ marginBottom: 12 }}>
                     {vars.map((v, vi) => (
@@ -415,6 +420,7 @@ function ProductEditor({ product, onSave, onDelete, onToggleActive, categories, 
 
         {/* СЕКЦИЯ: Техкарта — расход материалов выбранного размера */}
         <Text style={styles.sectionTitle}>Техкарта{nVars > 1 ? ` · ${segLabel(vars[selIdx], selIdx)}` : ''}</Text>
+        {nVars > 1 && canEditCost && renderSizeSwitch(12)}
         {canEditCost ? (() => {
           const v = vars[selIdx] || vars[0];
           const vi = selIdx;
