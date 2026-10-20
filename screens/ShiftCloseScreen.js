@@ -209,7 +209,7 @@ export default function ShiftCloseScreen({ navigation }) {
           {/* Расходы */}
           {Object.keys(summary.expByCategory || {}).length > 0 && (
             <>
-              <Text style={styles.sectionLabel}>Расходы за день</Text>
+              <Text style={styles.sectionLabel}>Расходы смены</Text>
               <View style={styles.card}>
                 {Object.entries(summary.expByCategory).map(([cat, sum], i, arr) => (
                   <View key={cat} style={[styles.row, i < arr.length - 1 && styles.rowDiv]}>
@@ -222,6 +222,9 @@ export default function ShiftCloseScreen({ navigation }) {
                   <Text style={[styles.totalVal, { color: colors.red }]}>{fmt(summary.expTotal)} ₽</Text>
                 </View>
               </View>
+              <Text style={styles.sectionHint}>
+                Из кассы: {fmt(summary.cashExpTotal || 0)} ₽ · С карты предприятия: {fmt(summary.cardExpTotal || 0)} ₽
+              </Text>
             </>
           )}
 
@@ -233,6 +236,7 @@ export default function ShiftCloseScreen({ navigation }) {
                 {[
                   { label: 'Было в начале смены', value: `${fmt(summary.openingCash)} ₽` },
                   { label: '+ Принято наличными', value: `${fmt(summary.cash)} ₽` },
+                  { label: '− Расходы из кассы', value: `${fmt(summary.cashExpTotal || 0)} ₽` },
                 ].map((r, i) => (
                   <View key={r.label} style={[styles.row, styles.rowDiv]}>
                     <Text style={styles.rowLabel}>{r.label}</Text>

@@ -876,7 +876,12 @@ export default function ProductsScreen({ navigation, route }) {
         groupId = insertModifierGroup({ name: data.name, mode: data.mode });
       }
       (data.options || []).forEach(opt => {
-        const optData = { name: opt.name, priceDelta: parseFloat(opt.price)||0, groupId, ingrToReplace: opt.ingr_to_replace||'' };
+        const deductAmount = parseFloat(String(opt.deduct_amount || '').replace(',', '.')) || 0;
+        const optData = {
+          name: opt.name, priceDelta: parseFloat(opt.price)||0, groupId, ingrToReplace: opt.ingr_to_replace||'',
+          // Без количества списание не имеет смысла — позицию не сохраняем, чтобы не казалось, что оно настроено
+          ingrToDeduct: deductAmount > 0 ? (opt.ingr_to_deduct || '') : '', deductAmount: deductAmount > 0 ? deductAmount : 0, deductUnit: deductAmount > 0 ? (opt.deduct_unit || '') : '',
+        };
         if (opt.id) updateModifierOption(opt.id, optData);
         else insertModifierOption(optData);
       });
@@ -1099,7 +1104,8 @@ export default function ProductsScreen({ navigation, route }) {
           autoFocus
         />
         {stockCatsList.length > 1 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 10, alignItems: 'center' }}>
+          /* flexGrow: 0 — по умолчанию горизонтальный список растёт и делит свободную высоту со списком материалов ниже (пустота вокруг строки категорий) */
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 8, paddingVertical: 10, alignItems: 'center' }}>
             <Pressable style={[styles.chip, !ingCatFilter && styles.chipActive]} onPress={() => setIngCatFilter(null)}>
               <Text style={[styles.chipTxt, !ingCatFilter && styles.chipTxtActive]}>Все</Text>
             </Pressable>
@@ -1519,18 +1525,31 @@ function ModGroupModal({ group, onSave, onDelete, onClose, stock }) {
   const [name, setName]       = useState(group?.name || '');
   const [mode, setMode]       = useState(group?.apply_mode || 'add');
   const [options, setOptions] = useState(() => {
-    try { return group?.id ? (getAllModifierGroups().find(g=>g.id===group.id)?.options || []) : []; } catch { return []; }
+    // Поля базы (price_delta, deduct_amount) переводим в поля формы (price, deduct_amount строкой):
+    // раньше форма читала несуществующее поле price, и при правке группы доплата сбрасывалась в 0.
+    try {
+      return group?.id
+        ? (getAllModifierGroups().find(g => g.id === group.id)?.options || []).map(o => ({
+            ...o,
+            price: o.price_delta ? String(o.price_delta) : '',
+            deduct_amount: o.deduct_amount ? String(o.deduct_amount) : '',
+          }))
+        : [];
+    } catch { return []; }
   });
   const [ingPickerVar, setIngPickerVar] = useState(null); // индекс варианта
   const [ingPicker, setIngPicker] = useState(null); // индекс опции, для которой выбираем замену
+  const [ingPickerField, setIngPickerField] = useState('ingr_to_replace'); // что выбираем: замену или списание
   const [ingSearch, setIngSearch] = useState('');
 
-  const addOption = () => setOptions(o => [...o, { id: null, name: '', price: '', ingr_to_replace: '' }]);
+  const addOption = () => setOptions(o => [...o, { id: null, name: '', price: '', ingr_to_replace: '', ingr_to_deduct: '', deduct_amount: '', deduct_unit: '' }]);
   const removeOpt = (i) => setOptions(o => o.filter((_,j)=>j!==i));
   const setOptField = (i, f, val) => setOptions(o => o.map((r,j)=>j===i?{...r,[f]:val}:r));
 
   const handleSave = () => {
     if (!name.trim()) { Alert.alert('Введите название группы'); return; }
+    const noAmount = options.find(o => o.ingr_to_deduct && !(parseFloat(String(o.deduct_amount || '').replace(',', '.')) > 0));
+    if (noAmount) { Alert.alert('Укажите количество', `Для варианта «${noAmount.name || 'без названия'}» выбрана позиция склада, но не указано, сколько списывать.`); return; }
     onSave({ ...group, name: name.trim(), mode, options });
   };
 
@@ -1541,7 +1560,7 @@ function ModGroupModal({ group, onSave, onDelete, onClose, stock }) {
       visible
       onClose={onClose}
       onBack={ingPicker !== null ? () => { setIngPicker(null); setIngSearch(''); } : undefined}
-      title={ingPicker !== null ? 'Что заменяет' : (isNew ? 'Новая группа' : group.name)}
+      title={ingPicker !== null ? (ingPickerField === 'ingr_to_deduct' ? 'Что списывать со склада' : 'Что заменяет') : (isNew ? 'Новая группа' : group.name)}
     >
       {ingPicker !== null ? (
         <View style={{ flex: 1, padding: 20 }}>
@@ -1549,7 +1568,13 @@ function ModGroupModal({ group, onSave, onDelete, onClose, stock }) {
             value={ingSearch} onChangeText={setIngSearch} placeholder="Поиск..." placeholderTextColor={colors.muted} autoFocus />
           <ScrollView>
             {filteredStock.map(s => (
-              <Pressable key={s.id} style={styles.ingPickerRow} onPress={() => { setOptField(ingPicker, 'ingr_to_replace', s.name); setIngPicker(null); setIngSearch(''); }}>
+              <Pressable key={s.id} style={styles.ingPickerRow} onPress={() => {
+                if (ingPickerField === 'ingr_to_deduct') {
+                  // Единицу запоминаем вместе с позицией: количество вводится именно в ней
+                  setOptions(o => o.map((r, j) => j === ingPicker ? { ...r, ingr_to_deduct: s.name, deduct_unit: s.unit || '' } : r));
+                } else setOptField(ingPicker, 'ingr_to_replace', s.name);
+                setIngPicker(null); setIngSearch('');
+              }}>
                 <Text style={[styles.ingPickerName, { flex: 1 }]}>{s.name}</Text>
                 <Text style={styles.ingPickerUnit}>{s.unit}</Text>
               </Pressable>
@@ -1588,8 +1613,30 @@ function ModGroupModal({ group, onSave, onDelete, onClose, stock }) {
                     <Text style={{ color: colors.muted, fontSize: 18 }}>✕</Text>
                   </Pressable>
                 </View>
+                {mode === 'add' && (
+                  <View style={{ marginTop: 8 }}>
+                    <View style={styles.varRow}>
+                      <Pressable style={[styles.addIngBtn, { flex: 1 }]} onPress={() => { setIngPickerField('ingr_to_deduct'); setIngPicker(i); }}>
+                        <Text style={styles.addIngTxt}>{opt.ingr_to_deduct ? `Списывает: ${opt.ingr_to_deduct}` : '+ Что списывать со склада'}</Text>
+                      </Pressable>
+                      {!!opt.ingr_to_deduct && (
+                        <>
+                          <TextInput style={[styles.input, { width: 80, textAlign: 'center' }]} color={colors.text}
+                            keyboardType="numeric" value={opt.deduct_amount}
+                            onChangeText={val => setOptField(i, 'deduct_amount', val.replace(/[^0-9.,]/g, ''))}
+                            placeholder="0" placeholderTextColor={colors.muted} />
+                          <Text style={styles.currencyTxt}>{opt.deduct_unit || ''}</Text>
+                          <Pressable onPress={() => setOptions(o => o.map((r, j) => j === i ? { ...r, ingr_to_deduct: '', deduct_amount: '', deduct_unit: '' } : r))} hitSlop={10}>
+                            <Text style={{ color: colors.muted, fontSize: 18 }}>✕</Text>
+                          </Pressable>
+                        </>
+                      )}
+                    </View>
+                    {!!opt.ingr_to_deduct && <Text style={styles.ingHint}>Столько спишется со склада при каждой продаже этого варианта</Text>}
+                  </View>
+                )}
                 {mode === 'replace' && (
-                  <Pressable style={styles.addIngBtn} onPress={() => setIngPicker(i)}>
+                  <Pressable style={styles.addIngBtn} onPress={() => { setIngPickerField('ingr_to_replace'); setIngPicker(i); }}>
                     <Text style={styles.addIngTxt}>{opt.ingr_to_replace ? `Заменяет: ${opt.ingr_to_replace}` : '+ Что заменяет'}</Text>
                   </Pressable>
                 )}

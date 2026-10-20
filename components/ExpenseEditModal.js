@@ -17,6 +17,9 @@ const num = v => parseFloat(String(v).replace(',', '.').replace(/\s/g, ''));
 // Компоненты вынесены на уровень модуля: если описать их внутри окна, при каждой набранной букве они пересоздаются,
 // поле ввода «перезагружается» и курсор сбрасывается.
 const Fld = ({ label, children, bad }) => <View style={[s.fld, bad && s.bad]}><Text style={s.lbl}>{label}</Text>{children}</View>;
+// Из каких денег оплачен расход: от этого зависит, уменьшит ли он наличные в итоге смены
+const PAY_SOURCES = [{ key: 'cash', label: 'Из кассы (наличные)' }, { key: 'card', label: 'С карты предприятия' }];
+
 const Chips = ({ items, value, onPick }) => (
   <View style={s.chips}>{items.map(i => { const k = i.key || i, l = i.label || i; return (
     <Pressable key={k} style={[s.chip, value === k && s.chipOn]} onPress={() => onPick(k)}><Text style={[s.chipT, value === k && { color: colors.orangeLight }]}>{l}</Text></Pressable>); })}</View>
@@ -39,6 +42,7 @@ export default function ExpenseEditModal({ visible, mode = 'expense', item, onSa
   const [period, setPeriod] = useState('month');
   const [date, setDate] = useState(localDate());
   const [photo, setPhoto] = useState('');
+  const [paySource, setPaySource] = useState('cash');
   const [repeat, setRepeat] = useState(false);
   const [picker, setPicker] = useState(false);
   const [err, setErr] = useState('');
@@ -50,6 +54,7 @@ export default function ExpenseEditModal({ visible, mode = 'expense', item, onSa
     else {
       setCat(item?.category || 'Прочее'); setAmount(item ? String(item.amount) : ''); setComment(item?.comment || '');
       setDate((item?.date || localDate()).slice(0, 10)); setPhoto(item?.photo_uri || ''); setPeriod('month');
+      setPaySource(item?.pay_source === 'card' ? 'card' : 'cash');
     }
   }, [visible, item?.id]);
 
@@ -69,7 +74,7 @@ export default function ExpenseEditModal({ visible, mode = 'expense', item, onSa
   const submit = () => {
     if (!valid || readOnly) return;
     let res;
-    try { res = onSave({ kind: asRecurring ? 'recurring' : 'expense', category: cat, amount: a, comment: comment.trim(), date, photo, name: (rec ? name : comment || cat).trim(), period }); }
+    try { res = onSave({ kind: asRecurring ? 'recurring' : 'expense', category: cat, amount: a, comment: comment.trim(), date, photo, paySource, name: (rec ? name : comment || cat).trim(), period }); }
     catch (e) { console.error('[ExpenseEditModal]', e); res = { ok: false, message: 'Не удалось сохранить. Попробуйте ещё раз.' }; }
     if (res && res.ok) onClose && onClose(); else setErr((res && res.message) || 'Не удалось сохранить.');
   };
@@ -88,6 +93,7 @@ export default function ExpenseEditModal({ visible, mode = 'expense', item, onSa
               {readOnly && <View style={s.ro}><Text style={s.roT}>Эта запись создана автоматически при закупке в «Складе». Изменить или отменить её можно только там — так склад и расходы не разойдутся.</Text></View>}
 
               {!rec && <><Text style={s.grp}>Категория</Text><View pointerEvents={readOnly ? 'none' : 'auto'}><Chips items={cats} value={cat} onPick={setCat} /></View></>}
+              {!rec && !repeat && !readOnly && <><Text style={s.grp}>Оплачено</Text><Chips items={PAY_SOURCES} value={paySource} onPick={setPaySource} /></>}
               <Text style={s.grp}>Данные</Text>
               {rec && <Fld label="Название"><TextInput style={s.in} color={colors.text} value={name} onChangeText={setName} placeholder="Аренда, интернет…" placeholderTextColor="rgba(255,255,255,0.22)" /></Fld>}
               <Fld label="Сумма" bad={!!amount && !(a > 0)}><TextInput style={s.in} color={colors.text} value={amount} editable={!readOnly} onChangeText={v => { setErr(''); setAmount(v.replace(/[^0-9.,]/g, '')); }} keyboardType="decimal-pad" placeholder="0" placeholderTextColor="rgba(255,255,255,0.22)" /><Text style={s.suf}>₽</Text></Fld>
