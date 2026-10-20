@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Animated, PanResponder, Modal as RNModal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useResponsive } from '../hooks/useResponsive';
+import KeyboardSafe from './KeyboardSafe';
 import { colors, fonts } from '../constants/theme';
 
 // Этап 3 разворота на адаптивность: единый выезжающий слой поверх контента.
@@ -66,6 +67,35 @@ export default function Sheet({ visible, onClose, onBack, title, children, sideW
       onPanResponderTerminationRequest: () => false,
     })
   ).current;
+
+  // Широкий экран (планшет в альбомной ориентации): обычное окно по центру, а не панель, выезжающая сбоку
+  // (решение владельца: так же, как окно создания группы опций). Узкий экран — как раньше, снизу.
+  // Высота у окна фиксированная: внутри списки с flex: 1 (как раньше у боковой панели во всю высоту).
+  if (!isBottom) {
+    const boxW = Math.min(screenWidth * 0.92, fixedHeightPct != null ? 760 : 640);
+    const boxH = screenHeight * (fixedHeightPct != null ? fixedHeightPct : 0.88);
+    return (
+      <RNModal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
+        <KeyboardSafe style={styles.centerOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+          <View style={[styles.centerBox, { width: boxW, height: boxH }]}>
+            <View style={styles.header}>
+              {onBack && (
+                <Pressable onPress={onBack} hitSlop={12} style={styles.backBtn}>
+                  <Text style={styles.backTxt}>‹</Text>
+                </Pressable>
+              )}
+              {title ? <Text style={styles.title} numberOfLines={1}>{title}</Text> : <View style={{ flex: 1 }} />}
+              <Pressable onPress={onClose} hitSlop={12} style={styles.closeBtn}>
+                <Text style={styles.closeTxt}>✕</Text>
+              </Pressable>
+            </View>
+            <View style={{ flex: 1 }}>{children}</View>
+          </View>
+        </KeyboardSafe>
+      </RNModal>
+    );
+  }
 
   if (!shouldRender) return null;
 
@@ -146,6 +176,9 @@ export default function Sheet({ visible, onClose, onBack, title, children, sideW
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
+  // Окно по центру (широкий экран)
+  centerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  centerBox: { maxHeight: '100%', flexShrink: 1, backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
 
   sheetBottom: {
     backgroundColor: colors.surface,
