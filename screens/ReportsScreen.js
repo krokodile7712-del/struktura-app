@@ -212,6 +212,8 @@ export default function ReportsScreen({ navigation }) {
       <TopBar title="Отчётность" onBack={() => goBackSmart(navigation)} navigation={navigation} activeScreen="Reports"
         rightElement={<Pressable style={s.tourBtn} onPress={() => setTourOpen(true)} hitSlop={10} accessibilityLabel="Подсказка"><Text style={s.tourTxt}>?</Text></Pressable>} />
       <View style={[s.glow]} pointerEvents="none"><SoftGlow size={620} color="127,168,217" alpha={0.15} style={{ position: 'absolute', left: -170, top: -150 }} /></View>
+      {/* Колонка по центру: на широком экране содержимое не растягивается на всю ширину */}
+      <View style={{ flex: 1, width: '100%', maxWidth: 1100, alignSelf: 'center' }}>
       <View style={[s.tb, { position: 'relative' }, filtersHl.style]}>
         <View style={{ flex: 1, maxWidth: 640 }}><GlassSegmented items={TABS} value={tab} onChange={k => { setTab(k); setOpen(null); }} height={46} /></View>
         {compare && <Text style={s.cmp}>↑ сравнение включено</Text>}
@@ -223,6 +225,7 @@ export default function ReportsScreen({ navigation }) {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         <View style={{ position: 'relative' }}>{page}{hl[tab].overlay}</View>
       </ScrollView>
+      </View>
 
       <Modal visible={popOpen} transparent animationType="fade" onRequestClose={() => setPopOpen(false)}>
         <View style={{ flex: 1 }}>
