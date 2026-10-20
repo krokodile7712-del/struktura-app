@@ -4,6 +4,7 @@ LogBox.ignoreLogs(['Text strings must be rendered', 'Each child in a list', 'Vir
 import SwipeableRow from '../components/SwipeableRow';
 import { useToast } from '../components/Toast';
 import { useFocusEffect } from '@react-navigation/native';
+import { useFocusLoad } from '../hooks/useFocusLoad';
 import { getHomeRoute, goBackSmart, can, getSession } from '../db/session';
 import {
   View, Text, StyleSheet, ScrollView, Pressable,
@@ -287,7 +288,7 @@ export default function KassaScreen({ navigation, route }) {
 
   // Перезагружаем настройки при каждом возврате на экран
   // (зоны, шаблоны, модули, лояльность могли измениться в Настройках)
-  useFocusEffect(useCallback(() => {
+  useFocusLoad(() => {
     try {
       setHasShift(!!getOpenShift(getSession()?.id));
       const profile = getBusinessProfile();
@@ -305,7 +306,7 @@ export default function KassaScreen({ navigation, route }) {
       setDiscountsStackable(profile?.discounts_stackable !== 0);
       setAllProducts(getAllProducts());
     } catch (e) { console.error(e); }
-  }, []));
+  }, []);
 
   const loadData = () => {
     try {

@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, Animated, RefreshControl } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useFocusLoad } from '../hooks/useFocusLoad';
 import TopBar from '../components/TopBar';
 import NextStepsCard from '../components/NextStepsCard';
 import EmployeeStatsSheet from '../components/EmployeeStatsSheet';
@@ -93,7 +94,7 @@ export default function AdminScreen({ navigation }) {
     } catch (e) { console.error(e); }
   }, []);
 
-  useFocusEffect(useCallback(() => { loadStats(); }, [loadStats]));
+  useFocusLoad(() => { loadStats(); }, [loadStats]);
 
   // Автозапуск тура при первом заходе на Обзор
   useEffect(() => {

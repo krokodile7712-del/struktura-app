@@ -732,32 +732,28 @@ export function getAllProducts() {
 
 export function getAllProductsAdmin() {
   const db = getDb();
-  return db.getAllSync(`
+  const products = db.getAllSync(`
     SELECT p.*,
       (SELECT COUNT(*) FROM product_variants pv WHERE pv.product_id = p.id) as variant_count,
       (SELECT COUNT(*) FROM cost_cards cc WHERE cc.product_id = p.id) as cost_card_count,
       (SELECT MIN(pv.price) FROM product_variants pv WHERE pv.product_id = p.id AND pv.price > 0) as min_price
     FROM products p
     ORDER BY p.category, p.name
-  `).map(p => {
-    // Считаем себестоимость из техкарт
-    try {
-      const db = getDb();
-      // Считаем через variant_id — согласованно с UI модалки
-      const varIds = db.getAllSync(`SELECT id FROM product_variants WHERE product_id = ?`, [p.id]).map(r => r.id);
-      let cost = 0;
-      for (const vid of varIds) {
-        const card = db.getFirstSync(`SELECT id FROM cost_cards WHERE variant_id = ?`, [vid]);
-        if (!card) continue;
-        const rows = db.getAllSync(
-          `SELECT amount, price_per_unit FROM cost_ingredients WHERE cost_card_id = ? AND amount > 0 AND price_per_unit > 0`,
-          [card.id]
-        );
-        cost += rows.reduce((s, i) => s + i.amount * i.price_per_unit, 0);
-      }
-      return { ...p, avg_cost: Math.round(cost * 100) / 100 };
-    } catch(_) { return { ...p, avg_cost: 0 }; }
-  });
+  `);
+  // Себестоимость из техкарт — ОДНИМ запросом на все товары (раньше — по запросу на каждый товар, вариант
+  // и техкарту: сотни обращений при открытии «Товаров»). Считается через вариант, по первой (меньший id)
+  // техкарте варианта — ровно как прежний пошаговый расчёт, согласованно с окном товара.
+  let costs = {};
+  try {
+    for (const r of db.getAllSync(
+      `SELECT pv.product_id AS pid, SUM(ci.amount * ci.price_per_unit) AS cost
+       FROM product_variants pv
+       JOIN cost_cards cc ON cc.id = (SELECT MIN(id) FROM cost_cards WHERE variant_id = pv.id)
+       JOIN cost_ingredients ci ON ci.cost_card_id = cc.id AND ci.amount > 0 AND ci.price_per_unit > 0
+       GROUP BY pv.product_id`
+    )) costs[r.pid] = r.cost || 0;
+  } catch (_) { costs = {}; }
+  return products.map(p => ({ ...p, avg_cost: Math.round((costs[p.id] || 0) * 100) / 100 }));
 }
 
 // ─── Скидки — раздел Настроек ───────────────────────────────────────────────
@@ -2932,8 +2928,16 @@ export function getOverviewExtras() {
     [todayFrom]
   );
   const payMethods = getPayMethods();
+  // Позиции всех последних заказов — одним запросом, а не по запросу на каждый заказ
+  const itemsByOrder = {};
+  if (rows.length) {
+    const ids = rows.map(o => o.id);
+    for (const it of db.getAllSync(
+      `SELECT order_id, name, COALESCE(quantity, 1) AS q FROM order_items WHERE order_id IN (${ids.map(() => '?').join(',')}) ORDER BY id`, ids
+    )) (itemsByOrder[it.order_id] = itemsByOrder[it.order_id] || []).push(it);
+  }
   const recent = rows.map(o => {
-    const items = db.getAllSync(`SELECT name, COALESCE(quantity, 1) AS q FROM order_items WHERE order_id = ? ORDER BY id`, [o.id]);
+    const items = itemsByOrder[o.id] || [];
     const names = items.map(it => (it.q > 1 ? `${it.name} × ${it.q}` : it.name));
     const summary = names.length === 0 ? 'Без позиций'
       : names.length <= 2 ? names.join(', ')

@@ -4,6 +4,7 @@ import {
   TextInput, Modal, Animated, LayoutAnimation,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useFocusLoad } from '../../hooks/useFocusLoad';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   getAllStock, getStockForWarehouse, getStockByWarehouses, getWarehouses, getWorkContext, isLocationsOn, addPurchase, adjustStock, setStockSellPrice,
@@ -182,7 +183,7 @@ export default function StockPanel({ navigation, openCreateSignal, hideOwnCreate
   }, []);
 
   // При возврате на экран остатки перечитываются: за это время могли пройти продажи
-  useFocusEffect(useCallback(() => { reload(); }, [locEnabled, whId]));
+  useFocusLoad(() => { reload(); }, [locEnabled, whId]);
 
   useEffect(() => {
     if (openCreateSignal) setNewItemModal({ name: '', unit: 'шт', category: '', threshold: '', initialStock: '' });

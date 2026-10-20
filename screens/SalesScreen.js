@@ -4,6 +4,7 @@ import {
   Modal, TextInput, Alert, Animated, Dimensions,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useFocusLoad } from '../hooks/useFocusLoad';
 import TopBar from '../components/TopBar';
 import TourGuide from '../components/TourGuide';
 import { useTourHighlight, useTourActiveKey } from '../components/TourRegistry';
@@ -257,7 +258,7 @@ export default function SalesScreen({ navigation }) {
     ]).start();
   }, [period, dateFrom, dateTo]);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusLoad(() => { load(); }, [load]);
 
   const loadMore = () => {
     try {
