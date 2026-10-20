@@ -26,7 +26,7 @@ import AnimatedNumber from '../components/AnimatedNumber';
 import { useReduceMotion } from '../hooks/useReduceMotion';
 import WelcomeBonusBlock from '../components/WelcomeBonusBlock';
 import { syncLoyaltySignups } from '../db/loyaltySync';
-import { getAllProducts, getAllClients, getCategories, getCategoryOrder, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, getAllVariantsWithSku, getZones, getOrderTemplates, saveOrderTemplate, deleteOrderTemplate, applyPendingPriceSchedules, finalizeSale, getOpenShift, getClientById, getWelcomeBonusInfo, getBusinessProfile, getTerms, getLoyaltyConfig, checkSubscriptionBalance, getCostCardForVariant, getAllStock, markTourSeen, setClientDiscountPct, addClientBalance } from '../db/queries';
+import { getAllProducts, getAllClients, getCategories, getCategoryOrder, saveCategoryOrder, getProductVariants, getProductAxesWithValues, getProductModifierGroups, getDiscounts, getPayMethods, getAllVariantsWithSku, getZones, getOrderTemplates, saveOrderTemplate, deleteOrderTemplate, applyPendingPriceSchedules, finalizeSale, getOpenShift, getClientById, getWelcomeBonusInfo, getBusinessProfile, getTerms, getLoyaltyConfig, checkSubscriptionBalance, getCostCardForVariant, getAllStock, markTourSeen, setClientDiscountPct, addClientBalance } from '../db/queries';
 import { subscribe } from '../db/events';
 import Sheet from '../components/Sheet';
 import TourGuide from '../components/TourGuide';
@@ -80,6 +80,7 @@ export default function KassaScreen({ navigation, route }) {
   const [allProducts, setAllProducts] = useState([]);
   const [discounts, setDiscounts] = useState([]);
   const [activeCat, setActiveCat] = useState(null);
+  const [catEdit, setCatEdit] = useState(false); // режим «Изменить» — порядок категорий
   // appliedDiscount теперь в слоте
   const [modalItem, setModalItem] = useState(null);
   const [modalQty, setModalQty] = useState(1);
@@ -106,6 +107,16 @@ export default function KassaScreen({ navigation, route }) {
   // Анимация появления экрана + лёгкое затухание сетки при смене категории
   const fadeAnim = useState(new Animated.Value(0))[0];
   const gridFadeAnim = useState(new Animated.Value(1))[0];
+  // Порядок категорий — общий с «Товарами» (настройка categoryOrder): меняем здесь — меняется везде
+  const moveCat = (idx, dir) => {
+    const j = idx + dir;
+    if (j < 0 || j >= groups.length) return;
+    const next = [...groups];
+    [next[idx], next[j]] = [next[j], next[idx]];
+    setGroups(next);
+    try { saveCategoryOrder(next); } catch (e) { console.error('[Касса] порядок категорий не сохранён:', e); }
+  };
+
   const switchCategory = (cat) => {
     setActiveCat(cat);
     setSearchQuery('');
@@ -1131,8 +1142,28 @@ export default function KassaScreen({ navigation, route }) {
         {isLandscape ? (
           /* ── Вертикальная колонка категорий (альбомная) ── */
           <View style={[styles.catRail, { position: 'relative' }, catRailHighlight.style]}>
-            {groups.map(group => {
+            {groups.length > 1 && (
+              <Pressable onPress={() => setCatEdit(v => !v)} hitSlop={8} style={styles.catEditBtn}>
+                <Text style={styles.catEditTxt}>{catEdit ? 'Готово' : 'Изменить'}</Text>
+              </Pressable>
+            )}
+            {groups.map((group, gi) => {
               const isActive = activeCat === group && !searchQuery;
+              if (catEdit) {
+                return (
+                  <View key={group} style={[styles.catRailItem, styles.catRailEditRow]}>
+                    <Text style={[styles.catRailLabel, { flex: 1 }]} numberOfLines={3}>{group}</Text>
+                    <View>
+                      <Pressable onPress={() => moveCat(gi, -1)} disabled={gi === 0} hitSlop={6} style={[styles.catMoveBtn, gi === 0 && { opacity: 0.25 }]}>
+                        <Icon name="chevron-up" size={18} color={colors.text} />
+                      </Pressable>
+                      <Pressable onPress={() => moveCat(gi, 1)} disabled={gi === groups.length - 1} hitSlop={6} style={[styles.catMoveBtn, gi === groups.length - 1 && { opacity: 0.25 }]}>
+                        <Icon name="chevron-down" size={18} color={colors.text} />
+                      </Pressable>
+                    </View>
+                  </View>
+                );
+              }
               return (
                 <Pressable
                   key={group}
@@ -1157,8 +1188,21 @@ export default function KassaScreen({ navigation, route }) {
             style={{ flex: 1 }}
             contentContainerStyle={styles.catChipsRowInner}
           >
-            {groups.map(group => {
+            {groups.map((group, gi) => {
               const isActive = activeCat === group && !searchQuery;
+              if (catEdit) {
+                return (
+                  <View key={group} style={[styles.catChip, styles.catChipEdit]}>
+                    <Pressable onPress={() => moveCat(gi, -1)} disabled={gi === 0} hitSlop={8} style={[styles.catMoveBtn, gi === 0 && { opacity: 0.25 }]}>
+                      <Text style={styles.catChipArrow}>‹</Text>
+                    </Pressable>
+                    <Text style={styles.catChipTxt}>{group}</Text>
+                    <Pressable onPress={() => moveCat(gi, 1)} disabled={gi === groups.length - 1} hitSlop={8} style={[styles.catMoveBtn, gi === groups.length - 1 && { opacity: 0.25 }]}>
+                      <Text style={styles.catChipArrow}>›</Text>
+                    </Pressable>
+                  </View>
+                );
+              }
               return (
                 <Pressable
                   key={group}
@@ -1169,6 +1213,11 @@ export default function KassaScreen({ navigation, route }) {
                 </Pressable>
               );
             })}
+            {groups.length > 1 && (
+              <Pressable onPress={() => setCatEdit(v => !v)} hitSlop={6} style={styles.catEditChip}>
+                <Text style={styles.catEditTxt}>{catEdit ? 'Готово' : 'Изменить'}</Text>
+              </Pressable>
+            )}
           </ScrollView>
           {catRailHighlight.overlay}
           </View>
@@ -1840,6 +1889,13 @@ const styles = StyleSheet.create({
 
   /* ── Категории (вертикальный рейл) ── */
   catRail:          { width: 128, backgroundColor: 'transparent', paddingTop: 12, paddingLeft: 12, paddingRight: 8 },
+  catEditBtn:       { minHeight: 44, justifyContent: 'center', paddingHorizontal: 14, marginBottom: 4 },
+  catEditTxt:       { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
+  catEditChip:      { minHeight: 36, justifyContent: 'center', paddingHorizontal: 14 },
+  catRailEditRow:   { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.04)' },
+  catMoveBtn:       { width: 30, height: 26, alignItems: 'center', justifyContent: 'center' },
+  catChipEdit:      { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 6 },
+  catChipArrow:     { fontFamily: fonts.family, fontSize: 22, color: colors.text, lineHeight: 24 },
   catRailItem:      { justifyContent: 'center', minHeight: 46, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, marginBottom: 4, position: 'relative' },
   catRailItemActive:{ backgroundColor: 'rgba(127,168,217,0.16)' },
   catRailLabel:     { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.textDim, lineHeight: 18 },
