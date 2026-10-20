@@ -1557,17 +1557,30 @@ function ModGroupModal({ group, onSave, onDelete, onClose, stock }) {
   const filteredStock = (stock || []).filter(s => !ingSearch.trim() || s.name.toLowerCase().includes(ingSearch.toLowerCase()));
 
   return (
-    <Sheet
-      visible
-      onClose={onClose}
-      onBack={ingPicker !== null ? () => { setIngPicker(null); setIngSearch(''); } : undefined}
-      title={ingPicker !== null ? (ingPickerField === 'ingr_to_deduct' ? 'Что списывать со склада' : 'Что заменяет') : (isNew ? 'Новая группа' : group.name)}
-    >
+    // Обычное окно по центру (как остальные окна раздела), а не выезжающая панель.
+    // Выбор позиции склада — второй шаг в том же окне, без вложенных слоёв.
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <KeyboardSafe style={styles.modalOverlay}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <FitView style={[styles.groupModalBox, { width: '60%', maxWidth: 640 }]}>
+          <View style={styles.modalHeader}>
+            {ingPicker !== null && (
+              <Pressable onPress={() => { setIngPicker(null); setIngSearch(''); }} hitSlop={14} style={styles.modalClose}>
+                <Text style={{ fontSize: 24, color: colors.orange, fontFamily: fonts.family, marginTop: -2 }}>‹</Text>
+              </Pressable>
+            )}
+            <Text style={styles.modalTitle} numberOfLines={1}>
+              {ingPicker !== null ? (ingPickerField === 'ingr_to_deduct' ? 'Что списывать со склада' : 'Что заменяет') : (isNew ? 'Новая группа' : group.name)}
+            </Text>
+            <Pressable onPress={onClose} hitSlop={14} style={styles.modalClose}>
+              <Text style={styles.modalCloseTxt}>✕</Text>
+            </Pressable>
+          </View>
       {ingPicker !== null ? (
-        <View style={{ flex: 1, padding: 20 }}>
+        <View style={{ padding: 20, flexShrink: 1 }}>
           <TextInput style={styles.ingPickerSearch} color={colors.text}
             value={ingSearch} onChangeText={setIngSearch} placeholder="Поиск..." placeholderTextColor={colors.muted} autoFocus />
-          <ScrollView>
+          <ScrollView keyboardShouldPersistTaps="handled">
             {filteredStock.map(s => (
               <Pressable key={s.id} style={styles.ingPickerRow} onPress={() => {
                 if (ingPickerField === 'ingr_to_deduct') {
@@ -1659,7 +1672,9 @@ function ModGroupModal({ group, onSave, onDelete, onClose, stock }) {
             )}
           </ScrollView>
       )}
-    </Sheet>
+        </FitView>
+      </KeyboardSafe>
+    </Modal>
   );
 }
 
