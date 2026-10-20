@@ -345,7 +345,9 @@ export default function KassaScreen({ navigation, route }) {
         ? [...savedOrder.filter(o => cats.includes(o)), ...cats.filter(o => !savedOrder.includes(o))]
         : cats;
       setGroups(orderedCats);
-      setActiveCat(cats[0] || null);
+      // Открываемся на ПЕРВОЙ категории в сохранённом порядке (раньше брали первую в алфавитном порядке,
+      // и после перестановки Касса всё равно открывалась, например, на «Допах»)
+      setActiveCat(orderedCats[0] || null);
       setDiscounts(disc);
       setCurrentShift(shift);
     } catch (e) { console.error('[KassaScreen] loadData error:', e); }
@@ -1144,6 +1146,7 @@ export default function KassaScreen({ navigation, route }) {
           <View style={[styles.catRail, { position: 'relative' }, catRailHighlight.style]}>
             {groups.length > 1 && (
               <Pressable onPress={() => setCatEdit(v => !v)} hitSlop={8} style={styles.catEditBtn}>
+                <Icon name={catEdit ? 'check' : 'pencil'} size={13} color={colors.textDim} />
                 <Text style={styles.catEditTxt}>{catEdit ? 'Готово' : 'Изменить'}</Text>
               </Pressable>
             )}
@@ -1215,6 +1218,7 @@ export default function KassaScreen({ navigation, route }) {
             })}
             {groups.length > 1 && (
               <Pressable onPress={() => setCatEdit(v => !v)} hitSlop={6} style={styles.catEditChip}>
+                <Icon name={catEdit ? 'check' : 'pencil'} size={13} color={colors.textDim} />
                 <Text style={styles.catEditTxt}>{catEdit ? 'Готово' : 'Изменить'}</Text>
               </Pressable>
             )}
@@ -1889,9 +1893,10 @@ const styles = StyleSheet.create({
 
   /* ── Категории (вертикальный рейл) ── */
   catRail:          { width: 128, backgroundColor: 'transparent', paddingTop: 12, paddingLeft: 12, paddingRight: 8 },
-  catEditBtn:       { minHeight: 44, justifyContent: 'center', paddingHorizontal: 14, marginBottom: 4 },
-  catEditTxt:       { fontFamily: fonts.familySemibold, fontSize: 14, color: colors.orange },
-  catEditChip:      { minHeight: 36, justifyContent: 'center', paddingHorizontal: 14 },
+  // Кнопка «Изменить» — неброская: маленькая, в рамке, со значком карандаша, цвет приглушённый
+  catEditBtn:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 32, paddingHorizontal: 10, marginBottom: 8, borderRadius: 10, borderWidth: 1, borderColor: colors.border },
+  catEditTxt:       { fontFamily: fonts.familyMedium || fonts.family, fontSize: 12, color: colors.textDim },
+  catEditChip:      { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 32, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border },
   catRailEditRow:   { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.04)' },
   catMoveBtn:       { width: 30, height: 26, alignItems: 'center', justifyContent: 'center' },
   catChipEdit:      { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 6 },

@@ -33,7 +33,7 @@ const rub = n => Math.round(n || 0).toLocaleString('ru-RU');
 const pillColor = { pending: colors.warning, confirmed: colors.green, done: colors.muted, cancelled: colors.red };
 const STATUSES = [['all', 'Все'], ['pending', 'Новые'], ['confirmed', 'Подтверждены'], ['done', 'Выполнены'], ['cancelled', 'Отменены']];
 
-export default function BookingsScreen({ navigation }) {
+export default function BookingsScreen({ navigation, route }) {
   const { isLandscape } = useResponsive();
   const toast = useToast();
   const canEdit = can('edit_bookings');
@@ -42,6 +42,11 @@ export default function BookingsScreen({ navigation }) {
   const [manual, setManual] = useState([]); const [online, setOnline] = useState({ connected: false, ok: true, list: [] }); const [updated, setUpdated] = useState('');
   const [win, setWin] = useState(null);                 // окно записи: { booking } | null
   const [menuAt, setMenuAt] = useState(null); const [fAt, setFAt] = useState(null); const [panel, setPanel] = useState(null);   // services | online | masters
+  // Переход из «Настроек → Онлайн-запись»: сразу открыть нужное окно (услуги, мастера, оформление страницы)
+  useEffect(() => {
+    const pn = route?.params?.panel;
+    if (pn) { setPanel(pn); navigation.setParams({ panel: null }); }
+  }, [route?.params?.panel]);
   const [tourOpen, setTourOpen] = useState(false); const [stamp, setStamp] = useState(0);
   const range = useRef(null); const fRef = useRef(null); const mRef = useRef(null);
   const hl = { tabs: useTourHighlight('bookings.tabs'), cal: useTourHighlight('bookings.calendar'), menu: useTourHighlight('bookings.menu'), add: useTourHighlight('bookings.manualAdd', 14) };

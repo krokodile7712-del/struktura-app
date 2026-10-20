@@ -140,10 +140,10 @@ export default function ShiftCloseScreen({ navigation }) {
 
             <Animated.View style={[styles.modalCard, { transform: [{ translateY: card4Anim }] }]}>
               <Text style={styles.modalCardLabel}>Прибыль</Text>
-              <Text style={[styles.modalCardVal, { color: ((summary?.total||0)-(summary?.expTotal||0)) >= 0 ? colors.green : colors.red }]}>
-                {((summary?.total||0)-(summary?.expTotal||0)) >= 0 ? '+' : ''}{fmt((summary?.total||0)-(summary?.expTotal||0))} ₽
+              <Text style={[styles.modalCardVal, { color: ((summary?.total||0)-(summary?.profitExpTotal||0)) >= 0 ? colors.green : colors.red }]}>
+                {((summary?.total||0)-(summary?.profitExpTotal||0)) >= 0 ? '+' : ''}{fmt((summary?.total||0)-(summary?.profitExpTotal||0))} ₽
               </Text>
-              <Text style={styles.modalCardSub}>Выручка минус расходы</Text>
+              <Text style={styles.modalCardSub}>Выручка минус расходы без закупок склада</Text>
             </Animated.View>
 
           </View>

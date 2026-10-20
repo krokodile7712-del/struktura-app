@@ -2055,6 +2055,9 @@ export function getShiftSummary(shift_id) {
   // Из кассы — вычитаются из наличных смены; с карты предприятия — отдельной строкой, наличных не касаются
   const cashExpTotal = expenses.filter(e => !e.pay_source || e.pay_source === 'cash').reduce((s, e) => s + e.amount, 0);
   const cardExpTotal = expenses.filter(e => e.pay_source === 'card').reduce((s, e) => s + e.amount, 0);
+  // Для «Прибыли» смены закупки склада (source = 'stock') не вычитаются: материалы уже учтены в себестоимости —
+  // так же, как в отчётах. Иначе в начале смены после закупки прибыль выходила отрицательной без реальной потери.
+  const profitExpTotal = expenses.filter(e => e.source !== 'stock').reduce((s, e) => s + e.amount, 0);
 
   // Расходы по категориям
   const expByCategory = {};
@@ -2069,7 +2072,7 @@ export function getShiftSummary(shift_id) {
     shift,
     orders: orders.length,
     cash, card, qr, total,
-    expenses, expTotal, cashExpTotal, cardExpTotal, expByCategory,
+    expenses, expTotal, cashExpTotal, cardExpTotal, profitExpTotal, expByCategory,
     openingCash, cashRemaining,
     employeeName: shift.employee_name || '',
   };
