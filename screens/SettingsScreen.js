@@ -29,6 +29,9 @@ import PaymentSection from '../components/settings/PaymentSection';
 import ZonesSection from '../components/settings/ZonesSection';
 import StockSection from '../components/settings/StockSection';
 import ProfileSection from '../components/settings/ProfileSection';
+import BookingSection from '../components/settings/BookingSection';
+import OnlinePageModal from '../components/OnlinePageModal';
+import { getOnlinePage } from '../db/bookings';
 import ModulesSection from '../components/settings/ModulesSection';
 import ReceiptSection from '../components/settings/ReceiptSection';
 import ViewSection from '../components/settings/ViewSection';
@@ -78,6 +81,8 @@ export default function SettingsScreen({ navigation, route }) {
   const [page, setPage] = useState(() => pageFromParam(route?.params?.section || 'prof'));
   const selectedSection = page ? PAGE_INFO[page].section : null;   // раздел содержимого; части внутри него показывает Part
   const [fiscalOpen, setFiscalOpen] = useState(false);             // окно очереди чеков
+  const [onlineOpen, setOnlineOpen] = useState(false);             // окно подключения онлайн-записи
+  const [onlineTick, setOnlineTick] = useState(0);                   // перечитать статус подключения
   const [q, setQ] = useState('');                                    // поиск по настройкам
   const [saved, setSaved] = useState(false); const savedT = useRef(null);
   const flashSaved = () => { setSaved(true); clearTimeout(savedT.current); savedT.current = setTimeout(() => setSaved(false), 1800); };
@@ -375,6 +380,7 @@ export default function SettingsScreen({ navigation, route }) {
           {bizDraft ? (
             <>
               <Part page={page} id="prof"><ProfileSection draft={bizDraft} setDraft={setBizDraft} navigation={navigation} /></Part>
+              <Part page={page} id="book"><BookingSection draft={bizDraft} setDraft={setBizDraft} navigation={navigation} onOpenOnline={() => setOnlineOpen(true)} connected={(() => { try { return !!getOnlinePage().connected; } catch (_) { return false; } })()} /></Part>
               <Part page={page} id="mods"><ModulesSection draft={bizDraft} setDraft={setBizDraft} onChoosePreset={choosePreset} /></Part>
               <Part page={page} id="rcpt"><ReceiptSection draft={bizDraft} setDraft={setBizDraft} onPreview={() => setReceiptPreview(true)} onOpenQueue={() => setFiscalOpen(true)} queueCount={(() => { try { const x = getFiscalSummary(); return x.pending + x.error; } catch (_) { return 0; } })()} /></Part>
               <Part page={page} id="view"><ViewSection draft={bizDraft} setDraft={setBizDraft} /></Part>
@@ -499,6 +505,7 @@ export default function SettingsScreen({ navigation, route }) {
       {/* QR Модалка */}
       {/* Модалка «Предпросмотр чека» */}
       <FiscalQueueSheet visible={fiscalOpen} onClose={() => setFiscalOpen(false)} />
+      <OnlinePageModal visible={onlineOpen} onChanged={() => setOnlineTick(x => x + 1)} onClose={() => { setOnlineOpen(false); setOnlineTick(x => x + 1); }} />
       <ReceiptPreview visible={receiptPreview} onClose={() => setReceiptPreview(false)} draft={bizDraft} />
 
       {/* Модалка «Позиции для записи» */}

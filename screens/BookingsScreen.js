@@ -137,7 +137,7 @@ export default function BookingsScreen({ navigation }) {
           <Text style={styles.agh}>{sel === localDateStr() ? 'Сегодня · ' : ''}{dl(sel)} · {day.length}</Text>
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
             {tab === 'online' && !online.connected ? (
-              <View style={styles.empty}><Text style={styles.cT}>Онлайн-страница не подключена</Text><Text style={styles.cX}>Клиенты пока не могут записываться через интернет</Text>{canEdit && <GlassButton label="Подключить" height={46} style={{ marginTop: 12 }} onPress={() => setPanel('online')} />}</View>
+              <View style={styles.empty}><Text style={styles.cT}>Онлайн-страница не подключена</Text><Text style={styles.cX}>Клиенты пока не могут записываться через интернет</Text>{canEdit && <GlassButton label="Подключить в Настройках" height={46} style={{ marginTop: 12 }} onPress={() => navigation.navigate('Settings', { section: 'book' })} />}</View>
             ) : day.length === 0 ? (
               <View style={styles.empty}><Text style={styles.cT}>В этот день записей нет</Text><Text style={styles.cX}>{tab === 'manual' ? 'Нажмите «+ Запись», чтобы добавить' : 'Новые заявки появятся здесь после обновления'}</Text></View>
             ) : day.map(b => {
@@ -161,8 +161,8 @@ export default function BookingsScreen({ navigation }) {
           <View style={styles.chips}>{STATUSES.map(([k, t]) => <Pressable key={k} style={[styles.chip, flt === k && styles.chipOn]} onPress={() => { setFlt(k); setFAt(null); }}><Text style={[styles.chipT, flt === k && { color: colors.orangeLight }]}>{t}</Text></Pressable>)}</View></GlassSurface></View></View></Modal>
       <Modal visible={!!menuAt} transparent animationType="fade" onRequestClose={() => setMenuAt(null)}><View style={{ flex: 1 }}><Pressable style={StyleSheet.absoluteFill} onPress={() => setMenuAt(null)} />
         <View style={[styles.pop, { top: menuAt?.top, right: menuAt?.right, width: 380 }]}><GlassSurface floating radius={22} tint="32,40,55" alpha={0.985} padding={12}><Text style={[styles.pl, { marginLeft: 8 }]}>Настройки записи</Text>
-          {[['services', 'list', 'Услуги для записи', `${getBookingServices().length} в записи`], ['masters', 'users', 'Мастера', `${getBookingStaff().length} принимают записи`], ['online', 'qr', 'Подключение, ссылка и QR', online.connected ? 'подключена' : 'не подключена']].map(([k, ic, t, s]) => (
-            <Pressable key={k} style={styles.mi} onPress={() => { setMenuAt(null); setPanel(k); }}><View style={styles.miI}><Icon name={ic} size={18} color={colors.textDim} /></View><View><Text style={styles.miT}>{t}</Text><Text style={styles.miS}>{s}</Text></View></Pressable>))}
+          {[['services', 'list', 'Услуги для записи', `${getBookingServices().length} в записи`], ['masters', 'users', 'Мастера', `${getBookingStaff().length} принимают записи`], ['online', 'qr', 'Подключение, ссылка и QR', (online.connected ? 'подключена' : 'не подключена') + ' · в Настройках']].map(([k, ic, t, s]) => (
+            <Pressable key={k} style={styles.mi} onPress={() => { setMenuAt(null); if (k === 'online') navigation.navigate('Settings', { section: 'book' }); else setPanel(k); }}><View style={styles.miI}><Icon name={ic} size={18} color={colors.textDim} /></View><View><Text style={styles.miT}>{t}</Text><Text style={styles.miS}>{s}</Text></View></Pressable>))}
           <View style={styles.miSep} />
           <Pressable style={styles.miHi} onPress={() => { setMenuAt(null); setPanel('page'); }}>
             <View style={styles.miHiI}><Icon name="sliders" size={20} color="#0A121C" /></View>

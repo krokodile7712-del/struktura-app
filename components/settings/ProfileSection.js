@@ -1,12 +1,11 @@
 import React from 'react';
-import { Group, Row, SwitchRow, ChipsRow, InputRow } from './ui';
+import { Group, InputRow } from './ui';
 import HoursRow from './HoursRow';
 
 const set = (setDraft, patch) => setDraft(d => ({ ...d, ...patch }));
 
-/** «Профиль бизнеса»: заведение, рабочие часы, тип бизнеса и запись, контакты для клиентов, соцсети. Сохраняется само. */
+/** «Профиль бизнеса»: заведение, рабочие часы, контакты для клиентов, соцсети. Сохраняется само. Онлайн-запись — на своей странице. */
 export default function ProfileSection({ draft: d, setDraft, navigation }) {
-  const slots = d.businessType === 'cafe' ? ['15', '30', '45', '60'] : ['30', '60', '90', '120'];
   return (
     <>
       <Group title="Заведение">
@@ -18,12 +17,6 @@ export default function ProfileSection({ draft: d, setDraft, navigation }) {
         <InputRow title="ИНН / ИП" value={d.inn} onChange={v => set(setDraft, { inn: v })} placeholder="ИП Иванов И.И." />
       </Group>
       <Group title="Рабочие часы" delay={60}><HoursRow from={d.hoursFrom} to={d.hoursTo} onChange={h => set(setDraft, { hoursFrom: h.from, hoursTo: h.to })} /></Group>
-      <Group title="Онлайн-запись" delay={120}>
-        <ChipsRow title="Тип бизнеса" items={[['cafe', 'Кафе'], ['services', 'Услуги'], ['production', 'Производство']]} value={d.businessType} onChange={k => set(setDraft, { businessType: k })} />
-        <Row title="Подключение и услуги" sub="в разделе «Записи»" onPress={() => navigation.navigate('Bookings')} />
-        <SwitchRow title="Выбор времени" sub="Клиент выбирает время, а не только день" value={d.timeSlotsEnabled !== false} onChange={v => set(setDraft, { timeSlotsEnabled: v })} />
-        {d.timeSlotsEnabled !== false && <ChipsRow title={d.businessType === 'cafe' ? 'Интервал слотов, мин' : 'Длительность услуги, мин'} items={slots.map(x => [x, x])} value={d.slotDuration} onChange={k => set(setDraft, { slotDuration: k })} />}
-      </Group>
       <Group title="Контакты для клиентов" delay={180}>
         <InputRow title="Email" value={d.email} onChange={v => set(setDraft, { email: v })} placeholder="hello@business.ru" keyboardType="email-address" />
         <InputRow title="WhatsApp" value={d.whatsapp} onChange={v => set(setDraft, { whatsapp: v })} placeholder="+7 999 123-45-67" keyboardType="phone-pad" />
