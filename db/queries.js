@@ -930,11 +930,12 @@ export function deleteModifier(id) {
 
 // ─── Заказы ───────────────────────────────────────────────────────────────
 
-export function createOrder({ total, method, methodType, methodId, shift_id, client_id, cashier_id, items, cashAmount, cardAmount, discountPct, locationId, note, zone, pointsSpent, pointsDiscount }) {
+export function createOrder({ total, method, methodType, methodId, shift_id, client_id, cashier_id, items, cashAmount, cardAmount, discountPct, locationId, note, zone, pointsSpent, pointsDiscount, createdAt }) {
   const db = getDb();
   const ctx = getWorkContext();           // локация и склад списания — из рабочего места планшета
   locationId = locationId || ctx.locationId;
-  const now = new Date().toISOString();
+  // createdAt — только для продажи, добавленной в уже закрытую смену задним числом
+  const now = createdAt || new Date().toISOString();
 
   try { db.execSync(`ALTER TABLE orders ADD COLUMN cash_amount REAL DEFAULT 0`); } catch (_) {}
   try { db.execSync(`ALTER TABLE orders ADD COLUMN card_amount REAL DEFAULT 0`); } catch (_) {}
@@ -998,7 +999,16 @@ export function finalizeSale(args) {
   const db = getDb();
   db.execSync('BEGIN');
   try {
+    // Продажа задним числом (args.backdated): только в ЗАКРЫТУЮ смену и только администратором —
+    // проверяется здесь, в базе, а не только на экране
+    if (args.backdated) {
+      if (getSession()?.role !== 'admin') throw new Error('Добавлять продажи в закрытую смену может только администратор');
+      const sh = db.getFirstSync(`SELECT id, status FROM shifts WHERE id = ?`, [args.shift_id]);
+      if (!sh || sh.status !== 'closed') throw new Error('Смена не найдена или ещё не закрыта');
+    }
     const res = createOrder(args);
+    // Итоги закрытой смены (наличные/карта) пересчитываются по её заказам, иначе они останутся прежними
+    if (args.backdated) recalcShiftTotals(args.shift_id);
     let loyalty = null;
     if (args.client_id) {
       if (args.pointsSpent > 0) spendPoints(args.client_id, args.pointsSpent);

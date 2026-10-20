@@ -93,6 +93,7 @@ export default function KassaScreen({ navigation, route }) {
   const [selModifiers, setSelModifiers] = useState({}); // { [groupId]: optionId | optionId[] }
   const [openGroups, setOpenGroups] = useState({});
   const [currentShift, setCurrentShift] = useState(null);
+  const [backShift, setBackShift] = useState(null); // режим «продажа в закрытую смену» (только администратор)
   const [shiftsEnabled, setShiftsEnabled] = useState(true);
   const [terms, setTerms] = useState({ item: 'Товар', client: 'Клиент', order: 'Заказ', category: 'Категория' });
   const [loyaltyModel, setLoyaltyModel] = useState('points');
@@ -203,6 +204,20 @@ export default function KassaScreen({ navigation, route }) {
 
   // «Оформить в Кассе» из раздела «Записи»: клиент и услуга записи (из каталога или разовая позиция) попадают в активный чек;
   // после оплаты запись становится «Выполнена» со ссылкой на заказ (см. ниже, оплата)
+  // Продажа в закрытую смену: переход из «Журнала работы». Режим живёт, пока открыта Касса, и сбрасывается
+  // при уходе с экрана — иначе обычная продажа позже ушла бы в старую смену.
+  const forShift = route?.params?.forShift;
+  useEffect(() => {
+    if (!forShift) return;
+    if (getSession()?.role === 'admin') setBackShift(forShift);
+    navigation?.setParams?.({ forShift: null });
+  }, [forShift]);
+  useFocusEffect(useCallback(() => () => setBackShift(null), []));
+  // Время продажи в закрытой смене: за минуту до её закрытия, но не раньше открытия
+  const backTime = (sh) => {
+    const t0 = new Date(sh.opened_at).getTime(), t1 = new Date(sh.closed_at).getTime();
+    return new Date(Math.max(t0, t1 - 60000)).toISOString();
+  };
   const fromBooking = route?.params?.fromBooking;
   useEffect(() => {
     if (!fromBooking) return;
@@ -758,7 +773,7 @@ export default function KassaScreen({ navigation, route }) {
   // ─── Оплата ──────────────────────────────────────────────────────────────
 
   const openPrePay = () => {
-    if (!hasShift) {
+    if (!hasShift && !backShift) {
       Alert.alert(
         'Смена не открыта',
         can('open_shift') ? 'Чтобы провести продажу, сначала откройте смену.' : 'Чтобы провести продажу, нужна открытая смена — обратитесь к администратору.',
@@ -805,7 +820,9 @@ export default function KassaScreen({ navigation, route }) {
         : 0;
       const sale = finalizeSale({
         total, method: methodName, methodType: selectedMethod.type, methodId: selectedMethod.id,
-        shift_id: currentShift?.id || null,
+        shift_id: backShift ? backShift.id : (currentShift?.id || null),
+        backdated: !!backShift,
+        createdAt: backShift ? backTime(backShift) : undefined,
         client_id: forClient?.id || null,
         cashier_id: currentUser?.id || null,
         items: order,
@@ -861,6 +878,15 @@ export default function KassaScreen({ navigation, route }) {
   // по тапу на свёрнутую полоску снизу).
   const renderCartContent = () => (
     <>
+      {!!backShift && (
+        <View style={styles.bookingBar}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.bookingBarT}>Продажа в закрытую смену</Text>
+            <Text style={styles.bookingBarS} numberOfLines={1}>{backShift.user_name || 'Смена'} · {new Date(backShift.opened_at).toLocaleDateString('ru-RU')} · продажа запишется на конец смены</Text>
+          </View>
+          <Pressable onPress={() => { setBackShift(null); navigation.goBack(); }} hitSlop={10}><Text style={styles.bookingBarX}>Выйти</Text></Pressable>
+        </View>
+      )}
       {!!activeSlot?.fromBooking && (
         <View style={styles.bookingBar}>
           <View style={{ flex: 1 }}>
@@ -1139,7 +1165,7 @@ export default function KassaScreen({ navigation, route }) {
         }
       />
 
-      {!hasShift && <ShiftBanner onOpen={() => navigation.navigate('Shift', { returnTo: 'Kassa' })} />}
+      {!hasShift && !backShift && <ShiftBanner onOpen={() => navigation.navigate('Shift', { returnTo: 'Kassa' })} />}
       <Animated.View style={[styles.layout, !isLandscape && { flexDirection: 'column' }, { opacity: fadeAnim }]}>
         {isLandscape ? (
           /* ── Вертикальная колонка категорий (альбомная) ── */

@@ -137,6 +137,8 @@ export default function WorkJournalScreen({ navigation }) {
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
           {open && <GlassButton style={{ flex: 1 }} label="Закрыть смену" height={50} onPress={closeIt} />}
           {isAdmin && <GlassButton style={{ flex: 1 }} label="Изменить время" height={50} onPress={() => setTimeModal(sh)} />}
+          {isAdmin && !open && <GlassButton style={{ flex: 1 }} label="Добавить продажу" height={50}
+            onPress={() => navigation.navigate('Kassa', { forShift: { id: sh.id, opened_at: sh.opened_at, closed_at: sh.closed_at, user_name: sh.user_name } })} />}
         </View>
         {isAdmin && <Pressable onPress={askDelete} hitSlop={8} style={{ alignSelf: 'flex-start', marginTop: 12 }}><Text style={st.del}>Удалить смену</Text></Pressable>}
       </ScrollView>
