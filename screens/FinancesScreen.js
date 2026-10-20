@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Modal, Dimensions } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useFocusLoad } from '../hooks/useFocusLoad';
 import TopBar from '../components/TopBar';
 import TourGuide from '../components/TourGuide';
 import DatePicker from '../components/DatePicker';
@@ -57,7 +58,7 @@ export default function FinancesScreen({ navigation, route }) {
       if (isAdmin) { const l = getInvestments(); setInvs(l); setStats(getInvestmentStats()); setSelInv(p => (p && l.find(x => x.id === p.id)) || l[0] || null); }
     } catch (e) { console.error(e); }
   }, [preset, range]);
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusLoad(() => { load(); }, [load]);
   useEffect(() => { if (isAdmin && route?.params?.initialTab) setTab(route.params.initialTab); }, [route?.params?.initialTab]);
 
   const steps = [

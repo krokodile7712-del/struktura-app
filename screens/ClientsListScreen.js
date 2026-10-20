@@ -7,6 +7,7 @@ import { useResponsive } from '../hooks/useResponsive';
 import EmptyState from '../components/EmptyState';
 import Sheet from '../components/Sheet';
 import { useFocusEffect } from '@react-navigation/native';
+import { useFocusLoad } from '../hooks/useFocusLoad';
 import { getAllClients, searchClients, getClientOrders, getTerms, pluralizeRu, countRu,
          getLoyaltyConfig, updateClientNote, getClientById, getBusinessProfile, markTourSeen } from '../db/queries';
 import { updateClient, findClientByPhone, getSetting, setSetting, expireWelcomeBonuses, addClientBalance } from '../db/queries';
@@ -450,11 +451,11 @@ export default function ClientsListScreen({ navigation, route, initialClientId }
     } catch (_) {}
   }, []);
 
-  useFocusEffect(useCallback(() => {
+  useFocusLoad(() => {
     load();
     // Новые регистрации по QR — при заходе (не чаще раза в полминуты)
     syncLoyaltySignups().then(r => { if (r && r.imported > 0) load(); });
-  }, [load]));
+  }, [load]);
 
   const toast = useToast();
   const onClientDeleted = (res) => {

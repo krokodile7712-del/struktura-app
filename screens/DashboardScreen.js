@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, Animated } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useFocusLoad } from '../hooks/useFocusLoad';
 import TopBar from '../components/TopBar';
 import NewOrderButton from '../components/NewOrderButton';
 import { useDock } from '../hooks/useDock';
@@ -46,7 +47,7 @@ export default function DashboardScreen({ navigation }) {
     } catch(e) { console.error(e); }
   }, []);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusLoad(() => { load(); }, [load]);
 
   return (
     <View style={styles.root}>

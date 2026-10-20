@@ -15,6 +15,7 @@ import Toggle from '../components/Toggle';
 import InfoTip from '../components/InfoTip';
 import { useToast } from '../components/Toast';
 import { useFocusEffect } from '@react-navigation/native';
+import { useFocusLoad } from '../hooks/useFocusLoad';
 import {
   getAllProductsAdmin, insertProduct, setProductActive, deleteProduct,
   getProductVariants, upsertProductVariants,
@@ -617,10 +618,10 @@ export default function ProductsScreen({ navigation, route }) {
     } catch(e) { console.error(e); }
   }, []);
 
-  useFocusEffect(useCallback(() => {
+  useFocusLoad(() => {
     load();
     if (route?.params?.initialTab) setTab(route.params.initialTab);
-  }, [load, route?.params?.initialTab]));
+  }, [load, route?.params?.initialTab]);
 
   // Тур раздела «Товары» — начинается со Склада (открывается первым по
   // умолчанию), затем анонс вкладки «Товары» и продолжение уже там.
