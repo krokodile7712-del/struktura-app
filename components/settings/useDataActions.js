@@ -85,10 +85,16 @@ export default function useDataActions(navigation) {
   const startRestore = async () => {
     if (!isAdmin()) { toast.show('Это действие доступно только администратору', 'warn'); return; }
     try {
-      const r = await DocumentPicker.getDocumentAsync({ type: 'application/json', copyToCacheDirectory: true });
+      // type '*/*': копии, пришедшие через мессенджер или облако, часто имеют тип не application/json,
+      // и выбор по такому типу их не показывает. Что это именно копия, проверяет разбор JSON ниже.
+      const r = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true });
       const file = !r.canceled && r.assets?.[0]; if (!file) return;
       setImporting(true);
-      const content = await (await fetch(file.uri)).text();
+      // Файл читаем штатным чтением expo-file-system: fetch по адресу файла на части телефонов падает
+      // («You must pass a valid uri and observer»). fetch оставлен запасным вариантом.
+      let content;
+      try { content = await FileSystem.readAsStringAsync(file.uri, { encoding: FileSystem.EncodingType.UTF8 }); }
+      catch (_) { content = await (await fetch(file.uri)).text(); }
       let data; try { data = JSON.parse(content); } catch (_) { throw new Error('Файл повреждён или это не резервная копия (не JSON)'); }
       setImporting(false);
       if (isEncryptedBackup(data)) setBackupAsk({ mode: 'enter', file: data }); else confirmRestore(data, false);
